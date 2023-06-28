@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 
 from collections import namedtuple
-from utils import default_args
+from utils import default_args, shapes, colors, goals
         
 
 
@@ -45,7 +45,7 @@ class RecurrentReplayBuffer:
       
         self.capacity = self.args.capacity
         self.o_dim = (self.args.image_size, self.args.image_size, 4)
-        self.a_dim = 2
+        self.a_dim = 4 + args.symbols
       
         self.max_episode_len = args.max_steps + 1
       
@@ -58,6 +58,8 @@ class RecurrentReplayBuffer:
 
         self.o = np.zeros((self.args.capacity, self.max_episode_len + 1) + self.o_dim, dtype='float32')
         self.s = np.zeros((self.args.capacity, self.max_episode_len + 1, 1), dtype='float32')
+        self.c = np.zeros((self.args.capacity, self.max_episode_len + 1, args.symbols), dtype='float32')
+        self.gc = np.zeros((self.args.capacity, self.max_episode_len + 1, len(shapes) + len(colors) + len(goals)), dtype='float32')
         self.a = np.zeros((self.args.capacity, self.max_episode_len, self.a_dim), dtype='float32')
         self.r = np.zeros((self.args.capacity, self.max_episode_len, 1), dtype='float32')
         self.d = np.zeros((self.args.capacity, self.max_episode_len, 1), dtype='float32')
@@ -66,7 +68,7 @@ class RecurrentReplayBuffer:
         self.ep_len = np.zeros((self.args.capacity,), dtype='float32')
         self.ready_for_sampling = np.zeros((self.args.capacity,), dtype='int')
 
-    def push(self, o, s, a, r, no, ns, d, cutoff):
+    def push(self, o, s, c, gc, a, r, no, ns, nc, ngc, d, cutoff):
 
         # zero-out current slot at the beginning of an episode
 
@@ -74,6 +76,8 @@ class RecurrentReplayBuffer:
 
             self.o[self.episode_ptr] = 0
             self.s[self.episode_ptr] = 0
+            self.c[self.episode_ptr] = 0
+            self.gc[self.episode_ptr] = 0
             self.a[self.episode_ptr] = 0
             self.r[self.episode_ptr] = 0
             self.d[self.episode_ptr] = 0
@@ -87,6 +91,8 @@ class RecurrentReplayBuffer:
 
         self.o[self.episode_ptr, self.time_ptr] = o
         self.s[self.episode_ptr, self.time_ptr] = s
+        self.c[self.episode_ptr, self.time_ptr] = c
+        self.gc[self.episode_ptr, self.time_ptr] = gc
         self.a[self.episode_ptr, self.time_ptr] = a
         self.r[self.episode_ptr, self.time_ptr] = r
         self.d[self.episode_ptr, self.time_ptr] = d
@@ -99,6 +105,8 @@ class RecurrentReplayBuffer:
 
             self.o[self.episode_ptr, self.time_ptr+1] = no
             self.s[self.episode_ptr, self.time_ptr+1] = ns
+            self.c[self.episode_ptr, self.time_ptr+1] = nc
+            self.gc[self.episode_ptr, self.time_ptr+1] = ngc
             self.ready_for_sampling[self.episode_ptr] = 1
 
             # reset pointers
@@ -141,6 +149,8 @@ class RecurrentReplayBuffer:
 
             o = self.o[choices][:, :max_ep_len_in_batch+1, :]
             s = self.s[choices][:, :max_ep_len_in_batch+1, :]
+            c = self.c[choices][:, :max_ep_len_in_batch+1, :]
+            gc = self.gc[choices][:, :max_ep_len_in_batch+1, :]
             a = self.a[choices][:, :max_ep_len_in_batch, :]
             r = self.r[choices][:, :max_ep_len_in_batch, :]
             d = self.d[choices][:, :max_ep_len_in_batch, :]
@@ -150,12 +160,14 @@ class RecurrentReplayBuffer:
 
             o = as_tensor_on_device(o).view((batch_size, max_ep_len_in_batch+1) + self.o_dim)
             s = as_tensor_on_device(s).view(batch_size, max_ep_len_in_batch+1, 1)
+            c = as_tensor_on_device(c).view(batch_size, max_ep_len_in_batch+1, self.args.symbols)
+            gc = as_tensor_on_device(gc).view(batch_size, max_ep_len_in_batch+1, len(shapes) + len(colors) + len(goals))
             a = as_tensor_on_device(a).view(batch_size, max_ep_len_in_batch, self.a_dim)
             r = as_tensor_on_device(r).view(batch_size, max_ep_len_in_batch, 1)
             d = as_tensor_on_device(d).view(batch_size, max_ep_len_in_batch, 1)
             m = as_tensor_on_device(m).view(batch_size, max_ep_len_in_batch, 1)
 
-            return((o, s, a, r, d, m))
+            return((o, s, c, gc, a, r, d, m))
 
         else:
 
@@ -163,6 +175,8 @@ class RecurrentReplayBuffer:
 
             o = self.o[choices]
             s = self.s[choices]
+            c = self.c[choices]
+            gc = self.gc[choices]
             a = self.a[choices]
             r = self.r[choices]
             d = self.d[choices]
@@ -170,6 +184,8 @@ class RecurrentReplayBuffer:
 
             o_seg = np.zeros((batch_size, self.segment_len + 1) + self.o_dim)
             s_seg = np.zeros((batch_size, self.segment_len + 1, 1))
+            c_seg = np.zeros((batch_size, self.segment_len + 1, self.args.symbols))
+            gc_seg = np.zeros((batch_size, self.segment_len + 1, len(shapes) + len(colors) + len(goals)))
             a_seg = np.zeros((batch_size, self.segment_len, self.a_dim))
             r_seg = np.zeros((batch_size, self.segment_len, 1))
             d_seg = np.zeros((batch_size, self.segment_len, 1))
@@ -179,6 +195,8 @@ class RecurrentReplayBuffer:
                 start_idx = np.random.randint(num_segments_for_each_item[i]) * self.segment_len
                 o_seg[i] = o[i][start_idx:start_idx + self.segment_len + 1]
                 s_seg[i] = s[i][start_idx:start_idx + self.segment_len + 1]
+                c_seg[i] = c[i][start_idx:start_idx + self.segment_len + 1]
+                gc_seg[i] = gc[i][start_idx:start_idx + self.segment_len + 1]
                 a_seg[i] = a[i][start_idx:start_idx + self.segment_len]
                 r_seg[i] = r[i][start_idx:start_idx + self.segment_len]
                 d_seg[i] = d[i][start_idx:start_idx + self.segment_len]
@@ -186,9 +204,11 @@ class RecurrentReplayBuffer:
 
             o_seg = as_tensor_on_device(o_seg)
             s_seg = as_tensor_on_device(s_seg)
+            c_seg = as_tensor_on_device(c_seg)
+            gc_seg = as_tensor_on_device(gc_seg)
             a_seg = as_tensor_on_device(a_seg)
             r_seg = as_tensor_on_device(r_seg)
             d_seg = as_tensor_on_device(d_seg)
             m_seg = as_tensor_on_device(m_seg)
 
-            return((o_seg, s_seg, a_seg, r_seg, d_seg, m_seg))
+            return((o_seg, s_seg, c_seg, gc_seg, a_seg, r_seg, d_seg, m_seg))

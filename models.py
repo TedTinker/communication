@@ -3,11 +3,12 @@
 import torch
 from torch import nn 
 from torch.distributions import Normal
+import torch.nn.functional as F
 from torchinfo import summary as torch_summary
 from torchgan.layers import SelfAttention2d
 
-from utils import default_args, init_weights, ConstrainedConv2d, ConstrainedConvTranspose2d, Ted_Conv2d, print
-spe_size = 1 ; action_size = 2
+from utils import default_args, init_weights, ConstrainedConv2d, ConstrainedConvTranspose2d, Ted_Conv2d, shapes, colors, goals, print
+spe_size = 1 ; action_size = 4
 
 
 
@@ -92,12 +93,20 @@ class Forward(nn.Module):
             nn.Linear(1, args.hidden_size),
             nn.PReLU())
         
+        self.comm_in = nn.Sequential(
+            nn.Linear(args.symbols, args.hidden_size),
+            nn.PReLU())
+        
+        self.goal_comm_in = nn.Sequential(
+            nn.Linear(len(shapes) + len(colors) + len(goals), args.hidden_size),
+            nn.PReLU())
+        
         self.prev_action_in = nn.Sequential(
-            nn.Linear(action_size, args.hidden_size),
+            nn.Linear(action_size + args.symbols, args.hidden_size),
             nn.PReLU())
         
         self.action_in = nn.Sequential(
-            nn.Linear(action_size, args.hidden_size),
+            nn.Linear(action_size + args.symbols, args.hidden_size),
             nn.PReLU())
         
         self.h_in = nn.Sequential(
@@ -115,12 +124,12 @@ class Forward(nn.Module):
             nn.Softplus())
         
         self.zq_mu = nn.Sequential(
-            nn.Linear(4 * args.hidden_size, args.hidden_size), 
+            nn.Linear(6 * args.hidden_size, args.hidden_size), 
             nn.PReLU(),
             nn.Linear(args.hidden_size, args.state_size),
             nn.Tanh())
         self.zq_std = nn.Sequential(
-            nn.Linear(4 * args.hidden_size, args.hidden_size), 
+            nn.Linear(6 * args.hidden_size, args.hidden_size), 
             nn.PReLU(),
             nn.Linear(args.hidden_size, args.state_size),
             nn.Softplus())
@@ -171,20 +180,32 @@ class Forward(nn.Module):
             nn.PReLU(),
             nn.Linear(args.hidden_size, spe_size))
         
+        self.comm_out = nn.Sequential(
+            nn.Linear(2 * args.hidden_size, args.hidden_size), 
+            nn.PReLU(),
+            nn.Linear(args.hidden_size, args.hidden_size), 
+            nn.PReLU(),
+            nn.Linear(args.hidden_size, args.symbols))
+        
         self.apply(init_weights)
         self.to(args.device)
         
-    def forward(self, rgbd, spe, prev_a, h_q_m1):
-        if(len(rgbd.shape) == 4):    rgbd   = rgbd.unsqueeze(1)
-        if(len(spe.shape) == 2):     spe    = spe.unsqueeze(1)
-        if(len(prev_a.shape) == 2):  prev_a = prev_a.unsqueeze(1)
+    def forward(self, rgbd, spe, comm, goal_comm, prev_a, h_q_m1):
+        if(len(rgbd.shape) == 4):      rgbd      = rgbd.unsqueeze(1)
+        if(len(spe.shape) == 2):       spe       = spe.unsqueeze(1)
+        if(len(comm.shape) == 2):      comm      = comm.unsqueeze(1)
+        if(len(goal_comm.shape) == 2): goal_comm = goal_comm.unsqueeze(1)
+        if(len(prev_a.shape) == 2):    prev_a    = prev_a.unsqueeze(1)
         rgbd = self.rgbd_in(rgbd)
         spe = (spe - self.args.min_speed) / (self.args.max_speed - self.args.min_speed)
         spe = self.spe_in(spe)
+        comm = self.comm_in(comm)
+        goal_comm = self.goal_comm_in(goal_comm)
         prev_a = self.prev_action_in(prev_a)
         relu_h_q_m1 = self.h_in(h_q_m1)
-        zp_mu, zp_std = var(torch.cat((relu_h_q_m1, prev_a),            dim=-1), self.zp_mu, self.zp_std, self.args)
-        zq_mu, zq_std = var(torch.cat((relu_h_q_m1, prev_a, rgbd, spe), dim=-1), self.zq_mu, self.zq_std, self.args)        
+        zp_mu, zp_std = var(torch.cat((relu_h_q_m1, prev_a),                             dim=-1), self.zp_mu, self.zp_std, self.args)
+        #print(relu_h_q_m1.shape, prev_a.shape, rgbd.shape, comm.shape, goal_comm.shape, spe.shape)
+        zq_mu, zq_std = var(torch.cat((relu_h_q_m1, prev_a, rgbd, comm, goal_comm, spe), dim=-1), self.zq_mu, self.zq_std, self.args)        
         zq = sample(zq_mu, zq_std)
         h_q, _ = self.gru(zq, h_q_m1.permute(1, 0, 2))
         return((zp_mu, zp_std), (zq_mu, zq_std), h_q)
@@ -198,15 +219,17 @@ class Forward(nn.Module):
         rgbd = self.rgbd_out_lin(torch.cat((h, action), dim=-1)).view((z_mu.shape[0], z_mu.shape[1], self.gen_shape[0], self.gen_shape[1], self.gen_shape[2]))
         rgbd_mu_pred = rnn_cnn(self.rgbd_out, rgbd).permute(0, 1, 3, 4, 2)
         spe_mu_pred  = self.spe_out(torch.cat((h, action), dim=-1))
+        comm_mu_pred  = self.comm_out(torch.cat((h, action), dim=-1))
                 
-        pred_rgbd = [] ; pred_spe = []
+        pred_rgbd = [] ; pred_spe = [] ; pred_comm = []
         for _ in range(quantity):
             z = sample(z_mu, z_std)
             h, _ = self.gru(z, h_q_m1)
             rgbd = self.rgbd_out_lin(torch.cat((h, action), dim=-1)).view((z_mu.shape[0], z_mu.shape[1], self.gen_shape[0], self.gen_shape[1], self.gen_shape[2]))
             pred_rgbd.append((rnn_cnn(self.rgbd_out, rgbd).permute(0, 1, 3, 4, 2)))
             pred_spe.append(self.spe_out(torch.cat((h, action), dim=-1)))
-        return((rgbd_mu_pred, pred_rgbd), (spe_mu_pred, pred_spe))
+            pred_comm.append(self.comm_out(torch.cat((h, action), dim=-1)))
+        return((rgbd_mu_pred, pred_rgbd), (spe_mu_pred, pred_spe), (comm_mu_pred, pred_comm))
 
 
 
@@ -223,15 +246,23 @@ class Actor(nn.Module):
             nn.Linear(1, args.hidden_size),
             nn.PReLU())
         
+        self.comm_in = nn.Sequential(
+            nn.Linear(args.symbols, args.hidden_size),
+            nn.PReLU())
+        
+        self.goal_comm_in = nn.Sequential(
+            nn.Linear(len(shapes) + len(colors) + len(goals), args.hidden_size),
+            nn.PReLU())
+        
         self.action_in = nn.Sequential(
-            nn.Linear(action_size, args.hidden_size),
+            nn.Linear(action_size + args.symbols, args.hidden_size),
             nn.PReLU())
         
         self.h_in = nn.Sequential(
             nn.PReLU())
         
         self.gru = nn.GRU(
-            input_size =  3 * args.hidden_size,
+            input_size =  5 * args.hidden_size,
             hidden_size = args.hidden_size,
             batch_first = True)
         
@@ -240,24 +271,44 @@ class Actor(nn.Module):
         self.std = nn.Sequential(
             nn.Linear(args.hidden_size, action_size),
             nn.Softplus())
+        
+        self.symbol = nn.Sequential(
+            nn.Linear(args.hidden_size, args.symbols),
+            nn.Softmax(dim=-1))
 
         self.apply(init_weights)
         self.to(args.device)
 
-    def forward(self, rgbd, spe, prev_action, h = None):
-        if(len(rgbd.shape) == 4): rgbd = rgbd.unsqueeze(1)
-        if(len(spe.shape) == 2):  spe =  spe.unsqueeze(1)
-        spe = (spe - self.args.min_speed) / (self.args.max_speed - self.args.min_speed)
+    def forward(self, rgbd, spe, comm, goal_comm, prev_action, h = None):
+        if(len(rgbd.shape) == 4):      rgbd      = rgbd.unsqueeze(1)
+        if(len(spe.shape) == 2):       spe       = spe.unsqueeze(1)
+        if(len(comm.shape) == 2):      comm      = comm.unsqueeze(1)
+        if(len(goal_comm.shape) == 2): goal_comm = goal_comm.unsqueeze(1)
         rgbd = self.rgbd_in(rgbd)
+        spe = (spe - self.args.min_speed) / (self.args.max_speed - self.args.min_speed)
         spe = self.spe_in(spe)
+        comm = self.comm_in(comm)
+        goal_comm = self.goal_comm_in(goal_comm)
         prev_action = self.action_in(prev_action)
-        h, _ = self.gru(torch.cat((rgbd, spe, prev_action), dim=-1), h)
+        h, _ = self.gru(torch.cat((rgbd, spe, comm, goal_comm, prev_action), dim=-1), h)
         relu_h = self.h_in(h)
+        
         mu, std = var(relu_h, self.mu, self.std, self.args)
         x = sample(mu, std)
         action = torch.tanh(x)
         log_prob = Normal(mu, std).log_prob(x) - torch.log(1 - action.pow(2) + 1e-6)
+        
+        logits = self.symbol(relu_h)
+        softmax_logits = F.softmax(logits, dim=-1)
+        log_probs = F.log_softmax(logits, dim=-1)
+        gumbel_noise = torch.randn_like(softmax_logits).to(logits.device)
+        symbol = F.gumbel_softmax(logits + gumbel_noise, tau=1, hard=True)
+        log_prob_symbol = torch.sum(symbol * log_probs, dim=-1)
+        
+        action = torch.cat((action, symbol), dim=-1)
+        log_prob = torch.cat((log_prob, log_prob_symbol.unsqueeze(-1)), dim=-1)
         log_prob = torch.mean(log_prob, -1).unsqueeze(-1)
+        
         return(action, log_prob, h)
     
     
@@ -275,15 +326,23 @@ class Critic(nn.Module):
             nn.Linear(1, args.hidden_size),
             nn.PReLU())
         
+        self.comm_in = nn.Sequential(
+            nn.Linear(args.symbols, args.hidden_size),
+            nn.PReLU())
+        
+        self.goal_comm_in = nn.Sequential(
+            nn.Linear(len(shapes) + len(colors) + len(goals), args.hidden_size),
+            nn.PReLU())
+        
         self.action_in = nn.Sequential(
-            nn.Linear(action_size, args.hidden_size),
+            nn.Linear(action_size + args.symbols, args.hidden_size),
             nn.PReLU())
         
         self.h_in = nn.Sequential(
             nn.PReLU())
         
         self.gru = nn.GRU(
-            input_size =  3 * args.hidden_size,
+            input_size =  5 * args.hidden_size,
             hidden_size = args.hidden_size,
             batch_first = True)
         
@@ -295,14 +354,18 @@ class Critic(nn.Module):
         self.apply(init_weights)
         self.to(args.device)
 
-    def forward(self, rgbd, spe, action, h = None):
+    def forward(self, rgbd, spe, comm, goal_comm, action, h = None):
         if(len(rgbd.shape) == 4): rgbd = rgbd.unsqueeze(1)
-        if(len(spe.shape) == 2):  spe =  spe.unsqueeze(1)
-        spe = (spe - self.args.min_speed) / (self.args.max_speed - self.args.min_speed)
+        if(len(spe.shape) == 2):  spe  =  spe.unsqueeze(1)
+        if(len(comm.shape) == 2): comm = comm.unsqueeze(1)
+        if(len(goal_comm.shape) == 2): goal_comm = goal_comm.unsqueeze(1)
         rgbd = self.rgbd_in(rgbd)
+        spe = (spe - self.args.min_speed) / (self.args.max_speed - self.args.min_speed)
         spe = self.spe_in(spe)
+        comm = self.comm_in(comm)
+        goal_comm = self.goal_comm_in(goal_comm)
         action = self.action_in(action)
-        h, _ = self.gru(torch.cat((rgbd, spe, action), dim=-1), h)
+        h, _ = self.gru(torch.cat((rgbd, spe, comm, goal_comm, action), dim=-1), h)
         Q = self.lin(self.h_in(h))
         return(Q, h)
     
@@ -330,6 +393,9 @@ class Actor_HQ(nn.Module):
         self.std = nn.Sequential(
             nn.Linear(args.hidden_size, action_size),
             nn.Softplus())
+        self.symbol = nn.Sequential(
+            nn.Linear(args.hidden_size, args.symbols),
+            nn.Softmax(dim=-1))
 
         self.apply(init_weights)
         self.to(args.device)
@@ -337,10 +403,21 @@ class Actor_HQ(nn.Module):
     def forward(self, h):
         x = self.lin(h)
         mu, std = var(x, self.mu, self.std, self.args)
-        x = sample(mu, std)
-        action = torch.tanh(x)
-        log_prob = Normal(mu, std).log_prob(x) - torch.log(1 - action.pow(2) + 1e-6)
+        x_2 = sample(mu, std)
+        action = torch.tanh(x_2)
+        log_prob = Normal(mu, std).log_prob(x_2) - torch.log(1 - action.pow(2) + 1e-6)
+        
+        logits = self.symbol(x)
+        softmax_logits = F.softmax(logits, dim=-1)
+        log_probs = F.log_softmax(logits, dim=-1)
+        gumbel_noise = torch.randn_like(softmax_logits).to(logits.device)
+        symbol = F.gumbel_softmax(logits + gumbel_noise, tau=1, hard=True)
+        log_prob_symbol = torch.sum(symbol * log_probs, dim=-1)
+        
+        action = torch.cat((action, symbol), dim=-1)
+        log_prob = torch.cat((log_prob, log_prob_symbol.unsqueeze(-1)), dim=-1)
         log_prob = torch.mean(log_prob, -1).unsqueeze(-1)
+        
         return(action, log_prob, None)
     
     
@@ -385,7 +462,13 @@ if __name__ == "__main__":
     print("\n\n")
     print(forward)
     print()
-    print(torch_summary(forward, ((3, 1, args.image_size, args.image_size, 4), (3, 1, spe_size), (3, 1, action_size), (3, 1, args.hidden_size))))
+    print(torch_summary(forward, (
+        (3, 1, args.image_size, args.image_size, 4), 
+        (3, 1, spe_size), 
+        (3, 1, args.symbols), 
+        (3, 1, len(shapes) + len(colors) + len(goals)), 
+        (3, 1, action_size + args.symbols), 
+        (3, 1, args.hidden_size))))
     
 
 
@@ -394,7 +477,12 @@ if __name__ == "__main__":
     print("\n\n")
     print(actor)
     print()
-    print(torch_summary(actor, ((3, 1, args.image_size, args.image_size, 4), (3, 1, spe_size), (3, 1, action_size))))
+    print(torch_summary(actor, (
+        (3, 1, args.image_size, args.image_size, 4), 
+        (3, 1, spe_size), 
+        (3, 1, args.symbols), 
+        (3, 1, len(shapes) + len(colors) + len(goals)), 
+        (3, 1, action_size + args.symbols))))
     
     
     
@@ -403,7 +491,12 @@ if __name__ == "__main__":
     print("\n\n")
     print(critic)
     print()
-    print(torch_summary(critic, ((3, 1, args.image_size, args.image_size, 4), (3, 1, spe_size), (3, 1, action_size))))
+    print(torch_summary(critic, (
+        (3, 1, args.image_size, args.image_size, 4), 
+        (3, 1, spe_size), 
+        (3, 1, args.symbols), 
+        (3, 1, len(shapes) + len(colors) + len(goals)), 
+        (3, 1, action_size + args.symbols))))
     
     
     

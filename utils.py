@@ -30,7 +30,7 @@ from math import exp, pi
 import numpy as np
 from time import sleep
 
-if(os.getcwd().split("/")[-1] != "communicate"): os.chdir("communicate")
+if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
 
 import torch
 from torch import nn 
@@ -43,27 +43,29 @@ def literal(arg_string): return(ast.literal_eval(arg_string))
 # Meta 
 parser.add_argument("--arg_title",          type=str,        default = "default") 
 parser.add_argument("--arg_name",           type=str,        default = "default") 
-parser.add_argument("--agents",             type=int,        default = 36)
+parser.add_argument("--agents",             type=int,        default = 1)
 parser.add_argument("--previous_agents",    type=int,        default = 0)
 parser.add_argument("--init_seed",          type=float,      default = 777)
-parser.add_argument('--device',             type=str,        default = device)
+parser.add_argument('--device',             type=str,        default = "cpu")
 parser.add_argument('--comp',               type=str,        default = "deigo")
 
-# Arena 
+# Scenario 
+parser.add_argument('--scenario_list',      type=literal,    default = [(3,False,False,True),(3,False,True,True),(3,True,True,False)]) # Objects, agents, all goals, goals told
 parser.add_argument('--max_steps',          type=int,        default = 10)
+parser.add_argument('--reward',             type=float,      default = 1)
 parser.add_argument('--step_lim_punishment',type=float,      default = -1)
 parser.add_argument('--step_cost',          type=float,      default = .99)
 parser.add_argument('--body_size',          type=float,      default = 2)    
-parser.add_argument('--image_size',         type=int,        default = 8)
+parser.add_argument('--image_size',         type=int,        default = 16)
 parser.add_argument('--max_yaw_change',     type=float,      default = pi/2)
 parser.add_argument('--min_speed',          type=float,      default = 0)
 parser.add_argument('--max_speed',          type=float,      default = 150)
 parser.add_argument('--steps_per_step',     type=int,        default = 5)
+parser.add_argument('--symbols',            type=int,        default = 20)
 
 # Module 
 parser.add_argument('--hidden_size',        type=int,        default = 32)   
 parser.add_argument('--state_size',         type=int,        default = 32)
-parser.add_argument('--symbols',            type=int,        default = 32)
 parser.add_argument('--actor_hq',           type=literal,    default = True)
 parser.add_argument('--critic_hq',          type=literal,    default = False)
 parser.add_argument('--forward_lr',         type=float,      default = .01)
@@ -92,7 +94,7 @@ parser.add_argument("--dkl_max",            type=float,      default = 1)
 parser.add_argument('--capacity',           type=int,        default = 250)
 
 # Training
-parser.add_argument('--epochs',             type=literal,    default = [1000])
+parser.add_argument('--epochs',             type=literal,    default = [10,10,10])
 parser.add_argument('--steps_per_epoch',    type=int,        default = 10)
 parser.add_argument('--batch_size',         type=int,        default = 128)
 parser.add_argument('--elbo_num',           type=int,        default = 1)
@@ -294,4 +296,9 @@ def load_dicts(args):
     while(len(complete_hard_order) > 0 and complete_hard_order[0] in ["break", "empty_space"]): complete_hard_order.pop(0)              
             
     return(plot_dicts, min_max_dict, (easy, complete_easy_order, easy_plot_dicts), (hard, complete_hard_order, hard_plot_dicts))
+
+shapes = [f.name for f in os.scandir("pybullet_data") if f.name.endswith("urdf") and not f.name in ["plane.urdf","robot.urdf","robot_backup.urdf"]] ; shapes.sort()
+shapes.sort()
+colors = [(1,0,0,1),(0,1,0,1),(0,0,1,1),(0,1,1,1),(1,0,1,1),(1,1,0,1)]
+goals = ["watch", "touch", "push", "pull", "topple"]
 # %%
