@@ -30,7 +30,7 @@ from math import exp, pi
 import numpy as np
 from time import sleep
 
-if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
+#if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
 
 import torch
 from torch import nn 

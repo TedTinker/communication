@@ -244,8 +244,8 @@ class Agent:
         complexity          = self.args.beta * complexity_for_free.mean() 
                                 
         self.forward_opt.zero_grad()
-        #(accuracy + complexity).backward()
-        #self.forward_opt.step()
+        (accuracy + complexity).backward()
+        self.forward_opt.step()
         
         if(self.args.beta == 0): complexity = None
                                 
@@ -273,14 +273,14 @@ class Agent:
         Q_1, _ = self.critic1(hqs.detach(), actions[:,1:]) if self.args.critic_hq else self.critic1(rgbd[:,:-1], spe[:,:-1], comm[:,:-1], goal_comm[:,:-1], actions[:,1:])
         critic1_loss = 0.5*F.mse_loss(Q_1*masks, Q_targets*masks)
         self.critic1_opt.zero_grad()
-        #critic1_loss.backward()
-        #self.critic1_opt.step()
+        critic1_loss.backward()
+        self.critic1_opt.step()
         
         Q_2, _ = self.critic2(hqs.detach(), actions[:,1:]) if self.args.critic_hq else self.critic2(rgbd[:,:-1], spe[:,:-1], comm[:,:-1], goal_comm[:,:-1], actions[:,1:])
         critic2_loss = 0.5*F.mse_loss(Q_2*masks, Q_targets*masks)
         self.critic2_opt.zero_grad()
-        #critic2_loss.backward()
-        #self.critic2_opt.step()
+        critic2_loss.backward()
+        self.critic2_opt.step()
                                 
         
         
@@ -290,8 +290,8 @@ class Agent:
             alpha_loss = -(self.log_alpha * (log_pis + self.target_entropy))*masks
             alpha_loss = alpha_loss.mean() / masks.mean()
             self.alpha_opt.zero_grad()
-            #alpha_loss.backward()
-            #self.alpha_opt.step()
+            alpha_loss.backward()
+            self.alpha_opt.step()
             self.alpha = torch.exp(self.log_alpha) 
         else:
             alpha_loss = None
@@ -319,8 +319,8 @@ class Agent:
             actor_loss = actor_loss.mean() / masks.mean()
 
             self.actor_opt.zero_grad()
-            #actor_loss.backward()
-            #self.actor_opt.step()
+            actor_loss.backward()
+            self.actor_opt.step()
 
             self.soft_update(self.critic1, self.critic1_target, self.args.tau)
             self.soft_update(self.critic2, self.critic2_target, self.args.tau)
