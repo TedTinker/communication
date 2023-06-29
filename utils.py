@@ -30,7 +30,7 @@ from math import exp, pi
 import numpy as np
 from time import sleep
 
-#if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
+if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
 
 import torch
 from torch import nn 
@@ -50,7 +50,8 @@ parser.add_argument('--device',             type=str,        default = "cpu")
 parser.add_argument('--comp',               type=str,        default = "deigo")
 
 # Scenario 
-parser.add_argument('--scenario_list',      type=literal,    default = [(3,False,False,True),(3,False,True,True),(3,True,True,False)]) # Objects, agents, all goals, goals told
+parser.add_argument('--scenario_list',      type=literal,    default = [(False,False)])#,(False,True),(True,True)]) # Are there two agents? Do we use all goals?
+parser.add_argument('--objects',            type=int,        default = 3)
 parser.add_argument('--max_steps',          type=int,        default = 10)
 parser.add_argument('--reward',             type=float,      default = 1)
 parser.add_argument('--step_lim_punishment',type=float,      default = -1)
@@ -94,7 +95,7 @@ parser.add_argument("--dkl_max",            type=float,      default = 1)
 parser.add_argument('--capacity',           type=int,        default = 250)
 
 # Training
-parser.add_argument('--epochs',             type=literal,    default = [10,10,10])
+parser.add_argument('--epochs',             type=literal,    default = [1000])#,10,10])
 parser.add_argument('--steps_per_epoch',    type=int,        default = 10)
 parser.add_argument('--batch_size',         type=int,        default = 128)
 parser.add_argument('--elbo_num',           type=int,        default = 1)
@@ -277,28 +278,28 @@ def load_dicts(args):
                     elif(maximum < mm_dict[key][1]): maximum = mm_dict[key][1]
             min_max_dict[key] = (minimum, maximum)
             
-    complete_easy_order = [] ; easy_plot_dicts = []
-    complete_hard_order = [] ; hard_plot_dicts = []
+    complete_order = [] ; easy_dicts = []
 
     easy = False 
     hard = False 
     for arg_name in complete_order: 
         if(arg_name in ["break", "empty_space"]): 
-            complete_easy_order.append(arg_name)
-            complete_hard_order.append(arg_name)
+            complete_order.append(arg_name)
         else:
             for plot_dict in plot_dicts:
                 if(plot_dict["args"].arg_name == arg_name):    
-                    if(plot_dict["args"].hard_maze): complete_hard_order.append(arg_name) ; hard_plot_dicts.append(plot_dict) ; hard = True
-                    else:                            complete_easy_order.append(arg_name) ; easy_plot_dicts.append(plot_dict) ; easy = True
+                    complete_order.append(arg_name) ; plot_dicts.append(plot_dict) 
                     
-    while(len(complete_easy_order) > 0 and complete_easy_order[0] in ["break", "empty_space"]): complete_easy_order.pop(0)
-    while(len(complete_hard_order) > 0 and complete_hard_order[0] in ["break", "empty_space"]): complete_hard_order.pop(0)              
+    while(len(complete_order) > 0 and complete_order[0] in ["break", "empty_space"]): complete_order.pop(0)
             
-    return(plot_dicts, min_max_dict, (easy, complete_easy_order, easy_plot_dicts), (hard, complete_hard_order, hard_plot_dicts))
+    return(plot_dicts, min_max_dict, (easy, complete_order, plot_dicts))
 
 shapes = [f.name for f in os.scandir("pybullet_data") if f.name.endswith("urdf") and not f.name in ["plane.urdf","robot.urdf","robot_backup.urdf"]] ; shapes.sort()
 shapes.sort()
 colors = [(1,0,0,1),(0,1,0,1),(0,0,1,1),(0,1,1,1),(1,0,1,1),(1,1,0,1)]
 goals = ["watch", "touch", "push", "pull", "topple"]
+
+test_objects = {shape: [color_1, color_2] for shape, color_1, color_2 in zip(shapes, colors, colors[1:] + [colors[0]])}
+
+print(test_objects)
 # %%

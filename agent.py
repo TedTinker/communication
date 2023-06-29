@@ -29,7 +29,7 @@ class Agent:
         self.args = args
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         self.scenario_desc = self.args.scenario_list[0]
-        self.scenario = Scenario(self.scenario_desc[0], 2 if self.scenario_desc[1] else 1, self.scenario_desc[2], args = args)
+        self.scenario = Scenario(args.objects, 2 if self.scenario_desc[0] else 1, self.scenario_desc[1], not self.scenario_desc[0], args = args)
         
         self.target_entropy = args.target_entropy # -dim(A)
         self.alpha = 1
@@ -84,7 +84,7 @@ class Agent:
             if(prev_scenario_desc != self.scenario_desc): 
                 for arena in self.scenario.arenas:
                     arena.stop()
-                self.scenario = Scenario(self.scenario_desc[0], 2 if self.scenario_desc[1] else 1, goals if self.scenario_desc[2] == -1 else goals[:self.scenario_desc[2]], args = self.args)
+                self.scenario = Scenario(self.args.objects, 2 if self.scenario_desc[0] else 1, self.scenario_desc[1], not self.scenario_desc[0], args = self.args)
             self.training_episode()
             percent_done = str(self.epochs / sum(self.args.epochs))
             q.put((self.agent_num, percent_done))
@@ -161,7 +161,7 @@ class Agent:
                     prev_as[i], hs[i], r, dones[i], _, to_push = self.step_in_episode_hq(i, prev_as, hs, push, verbose) if self.args.actor_hq else self.step_in_episode(i, prev_as, hs, push, verbose)
                     cumulative_rs[i] += r
                     to_be_pushed[i].append(to_push)
-                self.scenario.replace_comms()
+            self.scenario.replace_comms()
                 
             if(self.steps % self.args.steps_per_epoch == 0):
                 #print("episodes: {}. epochs: {}. steps: {}.".format(self.episodes, self.epochs, self.steps))
@@ -181,7 +181,7 @@ class Agent:
                         self.plot_dict["intrinsic_entropy"].append(ie)
                         self.plot_dict["naive"].append(naive)
                         self.plot_dict["free"].append(free)    
-        self.plot_dict["rewards"].append(r)
+        self.plot_dict["rewards"].append(sum(cumulative_rs)/self.scenario.num_agents)
         self.episodes += 1
         if(push):
             for i in range(len(self.scenario.arenas)):

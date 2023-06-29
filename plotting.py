@@ -75,10 +75,10 @@ def plots(plot_dicts, min_max_dict):
     
         # Cumulative rewards
         rew_dict = get_quantiles(plot_dict, "rewards", adjust_xs = False)
-        max_reward = max([r for (w,r) in plot_dict["args"].better_reward])
-        max_rewards = [max_reward*x for x in range(rew_dict["xs"][-1])]
-        min_reward = min([r for (w,r) in plot_dict["args"].default_reward] + [plot_dict["args"].step_lim_punishment]) + plot_dict["args"].wall_punishment
-        min_rewards = [min_reward*x for x in range(rew_dict["xs"][-1])]
+        #max_reward = max([r for (w,r) in plot_dict["args"].better_reward])
+        #max_rewards = [max_reward*x for x in range(rew_dict["xs"][-1])]
+        #min_reward = min([r for (w,r) in plot_dict["args"].default_reward] + [plot_dict["args"].step_lim_punishment]) + plot_dict["args"].wall_punishment
+        #min_rewards = [min_reward*x for x in range(rew_dict["xs"][-1])]
         
         ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
         awesome_plot(ax, rew_dict, "turquoise", "Reward")
@@ -92,8 +92,8 @@ def plots(plot_dicts, min_max_dict):
         def plot_cumulative_rewards_shared_min_max(here):
             awesome_plot(here, rew_dict, "turquoise", "Reward", min_max_dict["rewards"])
             here.axhline(y = 0, color = "black", linestyle = '--', alpha = .2)
-            here.plot(max_rewards, color = "black", label = "Max Reward")
-            here.plot(min_rewards, color = "black", label = "Min Reward")
+            #here.plot(max_rewards, color = "black", label = "Max Reward")
+            #here.plot(min_rewards, color = "black", label = "Min Reward")
             here.set_ylabel("Cumulative Reward")
             here.set_xlabel("Epochs")
             here.set_title(plot_dict["arg_title"] + "\nCumulative Rewards, shared min/max")
@@ -103,41 +103,6 @@ def plots(plot_dicts, min_max_dict):
         plot_cumulative_rewards_shared_min_max(ax2)  
         ax2.set_title("Cumulative Rewards")
         fig2.savefig("thesis_pics/rewards_{}.png".format(plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
-        plt.close(fig2)
-            
-    
-    
-        # Ending spot
-        ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-        spot_names = np.array([spot_names for spot_names in plot_dict["spot_names"]])
-        agents = spot_names.shape[0]
-        xs = [x for x in range(spot_names.shape[1])]
-        if(plot_dict["args"].hard_maze): 
-            kinds = ["NONE"]
-            if("t" in plot_dict["args"].maze_list or "1" in plot_dict["args"].maze_list): kinds += ["L", "R"]
-            if("2" in plot_dict["args"].maze_list): kinds += ["LL", "LR", "RL", "RR"]
-            if("3" in plot_dict["args"].maze_list): kinds += ["LLL", "LLR", "LRL", "LRR", "RLL", "RLR", "RRL", "RRR"]
-        else: kinds = ["NONE", "BAD", "GOOD"]
-        
-        def plot_exits(here):
-            for j, kind in enumerate(kinds):
-                counts = np.count_nonzero(spot_names == kind, 0)
-                counts = [count + (j*agents*1.1) for count in counts]
-                here.fill_between(xs, [j*agents*1.1 for _ in xs], counts, color = "black", linewidth = 0)
-                if(j != len(kinds)-1):
-                    here.plot(xs, [agents*1.05 + j*agents*1.1 for _ in xs], color = "black", linestyle = "--")
-            here.set_yticks([(2*j+1)*agents*1.1/2 for j in range(len(kinds))], kinds, rotation='vertical')
-            here.tick_params(left = False)
-            here.set_ylim([-1, len(kinds)*agents*1.1])
-            here.set_ylabel("Chosen Exit")
-            here.set_xlabel("Epochs")
-            here.set_title(plot_dict["arg_title"] + "\nChosen Exits")
-            divide_arenas(xs, here)
-        plot_exits(ax)
-        fig2, ax2 = plt.subplots(figsize = (10, 10))  
-        plot_exits(ax2)  
-        ax2.set_title("Chosen Exits")
-        fig2.savefig("thesis_pics/exits_{}.png".format(plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
         plt.close(fig2)
         
         
@@ -374,6 +339,6 @@ def plots(plot_dicts, min_max_dict):
     
     
 
-plot_dicts, min_max_dict, _, _ = load_dicts(args)
+plot_dicts, min_max_dict, _ = load_dicts(args)
 plots(plot_dicts, min_max_dict)
 print("\nDuration: {}. Done!".format(duration()))

@@ -12,7 +12,7 @@ if(type(args.arg_list) != list): args.arg_list = json.loads(args.arg_list)
 combined = "___{}___".format("+".join(args.arg_list))    
 
 import os 
-try:    os.chdir("scenario/bash")
+try:    os.chdir("communication/bash")
 except: pass
 
 
@@ -127,7 +127,7 @@ if(__name__ == "__main__" and args.arg_list != []):
 {}
 #SBATCH --ntasks={}
 module load singularity
-singularity exec scenario.sif python scenario/main.py --comp {} --arg_name {} {} --agents $agents_per_job --previous_agents $previous_agents
+singularity exec maze.sif python communication/main.py --comp {} --arg_name {} {} --agents $agents_per_job --previous_agents $previous_agents
 """.format(partition, max_cpus, args.comp, name, get_args(name))[2:])
             
 
@@ -137,7 +137,7 @@ singularity exec scenario.sif python scenario/main.py --comp {} --arg_name {} {}
 """
 {}
 module load singularity
-singularity exec scenario.sif python scenario/finish_dicts.py --comp {} --arg_title {} --arg_name finishing_dictionaries
+singularity exec maze.sif python communication/finish_dicts.py --comp {} --arg_title {} --arg_name finishing_dictionaries
 """.format(partition, args.comp, combined)[2:])
         
     with open("plotting.slurm", "w") as f:
@@ -145,7 +145,7 @@ singularity exec scenario.sif python scenario/finish_dicts.py --comp {} --arg_ti
 """
 {}
 module load singularity
-singularity exec scenario.sif python scenario/plotting.py --comp {} --arg_title {} --arg_name plotting
+singularity exec maze.sif python communication/plotting.py --comp {} --arg_title {} --arg_name plotting
 """.format(partition, args.comp, combined)[2:])
 # %%
 

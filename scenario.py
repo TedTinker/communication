@@ -6,7 +6,7 @@ from math import pi, degrees, sin, cos
 from time import sleep
 from random import shuffle, choices
 
-from utils import default_args, print, shapes, colors, goals
+from utils import default_args, print, shapes, colors, goals, test_objects
 from arena import Arena
 
 
@@ -16,18 +16,22 @@ from torchvision.transforms.functional import resize
 
 class Scenario:
     
-    def __init__(self, num_objects = 1, num_agents = 1, many_goals = True, revealed_goals = False, GUI = True, args = default_args):
+    def __init__(self, num_objects = 1, num_agents = 1, many_goals = True, revealed_goals = False, GUI = False, args = default_args):
         self.num_objects = num_objects
         self.num_agents = num_agents
         self.many_goals = many_goals
         self.revealed_goals = revealed_goals
         self.GUI = GUI
         self.args = args
-        self.begin()
+        self.arenas = []
+        for i in range(self.num_agents):
+            self.arenas.append(Arena(self.GUI, self.args))
         
-    def begin(self):
-        self.steps = 0 
+    def begin(self, test = False):
+        self.steps = [0 for _ in range(self.num_agents)]
         all_pairs = [(shape, color) for shape in shapes for color in colors]
+        if(test): all_pairs = [pair for pair in all_pairs if pair[1] in test_objects[pair[0]]]
+        else:     all_pairs = [pair for pair in all_pairs if not pair[1] in test_objects[pair[0]]]
         shuffle(all_pairs)
         if(self.many_goals):
             gs = [choices(goals)[0] for _ in all_pairs]
@@ -36,15 +40,16 @@ class Scenario:
         all_pairs = [(shape, color, goal) for (shape, color), goal in zip(all_pairs, gs)]
         self.objects = all_pairs[:self.num_objects]
         
-        self.arenas = []
+        # If test is False, remove some objects. 
+        # If test is True, restrict to some objects.
+        
         self.agent_poses = []
         self.agent_yaws = []
         self.agent_spes = []
         self.agent_comms = []
         self.new_agent_comms = []
         for i in range(self.num_agents):
-            self.arenas.append(Arena(self.objects, self.GUI, self.args))
-            self.arenas[-1].begin()
+            self.arenas[i].begin(self.objects)
             pos, yaw, spe = self.arenas[-1].get_pos_yaw_spe()
             self.agent_poses.append(pos)
             self.agent_yaws.append(yaw)
@@ -81,15 +86,16 @@ class Scenario:
         
         goal_communication = torch.zeros((1,len(shapes) + len(colors) + len(goals)))
         if(self.revealed_goals): 
-            if(self.steps >= len(self.objects)): pass
+            if(self.steps[i] >= len(self.objects)): pass
             else:
-                shape, color, goal =  self.objects[self.steps]
+                shape, color, goal =  self.objects[self.steps[i]]
                 shape_num = shapes.index(shape)
                 color_num = colors.index(color)
-                goal_num = goals.index(goal)
+                goal_num = None if goal == "none" else goals.index(goal)
                 goal_communication[0,shape_num] = 1
                 goal_communication[0,len(shapes) + color_num] = 1
-                goal_communication[0,len(shapes) + len(colors) + goal_num] = 1
+                if(goal_num != None):
+                    goal_communication[0,len(shapes) + len(colors) + goal_num] = 1
         
         #if(self.arena.in_random() and self.args.randomness > 0):
         #    rgbd = torch.randint(2, size = rgbd.size(), dtype = rgbd.dtype)
@@ -128,11 +134,11 @@ class Scenario:
         
     def action(self, i, action, verbose = True):
         arena = self.arenas[i]
-        self.steps += 1
+        self.steps[i] += 1
         
         yaw, spe, arms, hands, comm = action[0], action[1], action[2], action[3], action[4:]
         
-        if(verbose): print("\n\nStep {}: yaw {}, spe {}.".format(self.steps, yaw, spe))
+        if(verbose): print("\n\nStep {}: yaw {}, spe {}.".format(self.steps[i], yaw, spe))
         yaw = -yaw * self.args.max_yaw_change
         yaw = [-self.args.max_yaw_change, self.args.max_yaw_change, yaw] ; yaw.sort() ; yaw = yaw[1]
         spe = self.args.min_speed + ((spe + 1)/2) * \
@@ -152,15 +158,16 @@ class Scenario:
         if(verbose): print("agent: pos {}, yaw {}, spe {}.".format(pos, yaw, spe))
         
         reward, end = arena.rewards()
-        if(reward > 0): reward *= self.args.step_cost ** self.steps
+        if(reward > 0): reward *= self.args.step_cost ** self.steps[i]
         if(verbose): print("end {}, reward {}".format(end, reward))
         
-        if(not end): end = self.steps >= self.args.max_steps
-        if(self.steps >= self.args.max_steps): 
+        if(not end): end = self.steps[i] >= self.args.max_steps
+        if(end): 
             failures = 0
             for (shape, color, goal), object in arena.objects.items():
                 if(goal != "none"): failures += 1
             reward += self.args.step_lim_punishment * failures
+            arena.end()
         if(verbose): print("end {}, reward {}\n\n".format(end, reward))
 
         return(reward, end, action_name)
@@ -185,7 +192,7 @@ if __name__ == "__main__":
             print("Stopped!")
             break
         #reward, done, action_name = scenario.action(0, random(), random(), random(), random(), verbose = True)
-        reward, done, action_name = scenario.action(0, (yaws[i], speeds[i], arms[i], hands[i], "hi"), verbose = True)
+        reward, done, action_name = scenario.action(0, (yaws[i], speeds[i], arms[i], hands[i], np.zeros((1, default_args.symbols))), verbose = True)
         rgbd, spe, comms, goal_comm = scenario.obs(0)
         rgbd = rgbd.squeeze(0)[:,:,0:3]
         plt.imshow(rgbd)

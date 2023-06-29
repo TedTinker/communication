@@ -6,6 +6,7 @@ import pybullet as p
 import cv2, os
 from itertools import product
 from math import pi, sin, cos
+from time import sleep
 
 from utils import default_args, args, print, shapes, colors, goals
 
@@ -56,7 +57,7 @@ def generate_angles(n):
 
 
 class Arena():
-    def __init__(self, objects, GUI = False, args = default_args):
+    def __init__(self, GUI = False, args = default_args):
         #enable_opengl()
         self.args = args
         self.physicsClient = get_physics(GUI)
@@ -73,20 +74,6 @@ class Arena():
             plane_id = p.loadURDF("plane.urdf", position, globalScaling=.5, useFixedBase=True, physicsClientId=self.physicsClient)
             p.changeVisualShape(plane_id, -1, rgbaColor=(0,0,0,1), physicsClientId = self.physicsClient)
             plane_ids.append(plane_id)
-        
-        random_positions = generate_angles(len(objects))
-        orn = p.getQuaternionFromEuler([0,0,0])
-        shuffle(objects)
-        for i, (shape, color, goal) in enumerate(objects):
-            pos = random_positions[i]
-            object = p.loadURDF("{}".format(shape), (5*sin(pos), 5*cos(pos), 0), orn, globalScaling = self.args.body_size,
-                                physicsClientId=self.physicsClient)
-            p.changeVisualShape(object, -1, rgbaColor = (0,0,0,0), physicsClientId = self.physicsClient)
-            for i in range(p.getNumJoints(object)):
-                p.changeVisualShape(object, i, rgbaColor=color, physicsClientId = self.physicsClient)
-            p.changeDynamics(object, 0, maxJointVelocity=10000)
-            self.objects[(shape, color, goal)] = object
-            self.watching[object] = 0
 
         inherent_roll = 0
         inherent_pitch = 0
@@ -105,13 +92,34 @@ class Arena():
         for i in range(p.getNumJoints(self.body_num)):
             p.changeVisualShape(self.body_num, i, rgbaColor=(1, 0, 0.5, 1), physicsClientId = self.physicsClient)
             
-    def begin(self):
+    def begin(self, objects):
         yaw = 0
         spe = self.args.min_speed
         pos = (0, 0, 1)
         x, y = cos(yaw)*spe, sin(yaw)*spe
         self.resetBaseVelocity(x, y)
         self.resetBasePositionAndOrientation(pos, yaw)
+        self.resetArmsAndHands(0, 0)
+        
+        self.objects = {} ; self.watching = {}
+        random_positions = generate_angles(len(objects))
+        orn = p.getQuaternionFromEuler([0,0,0])
+        shuffle(objects)
+        for i, (shape, color, goal) in enumerate(objects):
+            pos = random_positions[i]
+            object = p.loadURDF("{}".format(shape), (5*sin(pos), 5*cos(pos), 0), orn, globalScaling = self.args.body_size,
+                                physicsClientId=self.physicsClient)
+            p.changeVisualShape(object, -1, rgbaColor = (0,0,0,0), physicsClientId = self.physicsClient)
+            for i in range(p.getNumJoints(object)):
+                p.changeVisualShape(object, i, rgbaColor=color, physicsClientId = self.physicsClient)
+            p.changeDynamics(object, 0, maxJointVelocity=10000)
+            self.objects[(shape, color, goal)] = object
+            self.watching[object] = 0
+            
+    def end(self):
+        for (shape, color, goal), object in self.objects.items():
+            p.removeBody(object, physicsClientId = self.physicsClient)
+        self.objects = {} ; self.watching = {}
         
     def get_pos_yaw_spe(self):
         pos, ors = p.getBasePositionAndOrientation(self.body_num, physicsClientId = self.physicsClient)
@@ -133,7 +141,7 @@ class Arena():
         left_hand = get_joint_index(self.body_num, 'left_arm_left_hand_joint')
         p.setJointMotorControl2(self.body_num, right_arm, p.POSITION_CONTROL, targetPosition=arms)
         p.setJointMotorControl2(self.body_num, right_hand, p.POSITION_CONTROL, targetPosition=hands)
-        p.setJointMotorControl2(self.body_num, left_arm, p.POSITION_CONTROL, targetPosition=-arms)
+        p.setJointMotorControl2(self.body_num, left_arm, p.POSITION_CONTROL, targetPosition=arms)
         p.setJointMotorControl2(self.body_num, left_hand, p.POSITION_CONTROL, targetPosition=-hands)
         
     def resetBaseVelocity(self, x, y):    
@@ -144,10 +152,10 @@ class Arena():
         end = False
         to_delete = []
         for (shape, color, goal), object in self.objects.items():
-
+                        
             if(goal == "watch"):
                 object_pos, _ = p.getBasePositionAndOrientation(object, physicsClientId = self.physicsClient)
-                body_num_pos, body_num_ori = p.getBasePositionAndOrientation(self.body_num, physicsClientId = self.physicsClient)
+                body_num_pos, body_num_ori = p.getBasePositionAndOrientation(self.body_num)
                 vector_to_object = np.subtract(object_pos, body_num_pos)
                 matrix = p.getMatrixFromQuaternion(body_num_ori)
                 forward_vector = [matrix[0], matrix[3], matrix[6]]
@@ -223,10 +231,13 @@ class Arena():
                 
 
         for (shape, color, goal, object) in to_delete:
-            p.removeBody(object)
+            p.removeBody(object, physicsClientId = self.physicsClient)
             del self.objects[(shape, color, goal)]
             del self.watching[object]
-        if(len(self.objects) == 0):
+        goals_left = 0
+        for (shape, color, goal), object in self.objects.items():
+            if(goal != "none"): goals_left += 1
+        if(goals_left == 0):
             end = True
         return(reward, end)
             
@@ -243,4 +254,5 @@ if __name__ == "__main__":
     arena.begin()
     while(True):
         p.stepSimulation(physicsClientId = arena.physicsClient)
+        sleep(.1)
 # %%
