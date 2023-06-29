@@ -79,10 +79,9 @@ class Arena():
         inherent_pitch = 0
         yaw = 0
         spe = self.args.min_speed
-        file = "robot.urdf"
         pos = (0, 0, 1)
         orn = p.getQuaternionFromEuler([inherent_roll, inherent_pitch, yaw])
-        self.body_num = p.loadURDF(file, pos, orn,
+        self.body_num = p.loadURDF("robot.urdf", pos, orn,
                            globalScaling = self.args.body_size, 
                            physicsClientId = self.physicsClient)
         p.changeDynamics(self.body_num, 0, maxJointVelocity=10000)
@@ -149,7 +148,6 @@ class Arena():
         
     def rewards(self):
         reward = 0
-        end = False
         to_delete = []
         for (shape, color, goal), object in self.objects.items():
                         
@@ -166,7 +164,7 @@ class Arena():
                 watching = dot_product >= .9 and distance > 2
                 if watching: self.watching[object] += 1
                 else:        self.watching[object] = 0 
-                if(self.watching[object] >= 3):
+                if(self.watching[object] >= 2):
                     reward += 1
                     to_delete.append((shape, color, goal, object))
             
@@ -234,12 +232,8 @@ class Arena():
             p.removeBody(object, physicsClientId = self.physicsClient)
             del self.objects[(shape, color, goal)]
             del self.watching[object]
-        goals_left = 0
-        for (shape, color, goal), object in self.objects.items():
-            if(goal != "none"): goals_left += 1
-        if(goals_left == 0):
-            end = True
-        return(reward, end)
+
+        return(reward)
             
     def stop(self):
         p.disconnect(self.physicsClient)
@@ -250,8 +244,8 @@ if __name__ == "__main__":
     objects = [(shape, color) for shape, color in zip(shapes, colors)]
     gs = [choices(goals)[0] for _ in objects]
     objects = [(shape, color, goal) for (shape, color), goal in zip(objects, gs)]
-    arena = Arena(objects = objects, GUI = True)
-    arena.begin()
+    arena = Arena(GUI = True)
+    arena.begin(objects = objects)
     while(True):
         p.stepSimulation(physicsClientId = arena.physicsClient)
         sleep(.1)

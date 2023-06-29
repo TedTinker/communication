@@ -148,7 +148,8 @@ class Agent:
     def training_episode(self, push = True, verbose = False):
         dones = [False for _ in self.scenario.arenas]
         prev_as = [torch.zeros((1, 1, 4 + self.args.symbols)) for _ in self.scenario.arenas]
-        cumulative_rs = [0 for _ in self.scenario.arenas]
+        cumulative_r = 0
+        cumulative_rs = [0 for _ in range(self.args.max_steps)]
         hs = [torch.zeros((1, 1, self.args.hidden_size)) for _ in self.scenario.arenas]
         to_be_pushed = [[] for _ in self.scenario.arenas]
         self.scenario.begin()
@@ -159,7 +160,8 @@ class Agent:
             for i in range(len(self.scenario.arenas)):
                 if(not dones[i]):
                     prev_as[i], hs[i], r, dones[i], _, to_push = self.step_in_episode_hq(i, prev_as, hs, push, verbose) if self.args.actor_hq else self.step_in_episode(i, prev_as, hs, push, verbose)
-                    cumulative_rs[i] += r
+                    cumulative_r += r
+                    cumulative_rs[step] += r
                     to_be_pushed[i].append(to_push)
             self.scenario.replace_comms()
                 
@@ -181,7 +183,7 @@ class Agent:
                         self.plot_dict["intrinsic_entropy"].append(ie)
                         self.plot_dict["naive"].append(naive)
                         self.plot_dict["free"].append(free)    
-        self.plot_dict["rewards"].append(sum(cumulative_rs)/self.scenario.num_agents)
+        self.plot_dict["rewards"].append(cumulative_r/self.scenario.num_agents)
         self.episodes += 1
         if(push):
             for i in range(len(self.scenario.arenas)):
@@ -189,8 +191,8 @@ class Agent:
                 to_be_pushed[i][-1][8] = c
                 to_be_pushed[i][-1][9] = gc
             for to_push in to_be_pushed:
-                for o, s, c, gc, a, r, no, ns, nc, ngc, done in to_push:
-                    self.memory.push(o, s, c, gc, a, r, no, ns, nc, ngc, done, done)
+                for step, (o, s, c, gc, a, r, no, ns, nc, ngc, done) in enumerate(to_push):
+                    self.memory.push(o, s, c, gc, a, cumulative_rs[step], no, ns, nc, ngc, done, done)
     
     
     
@@ -216,27 +218,31 @@ class Agent:
         h_qs = [torch.zeros((episodes, 1, self.args.hidden_size)).to(rgbd.device)]
         zp_mus = []       ; zp_stds = []
         zq_mus = []       ; zq_stds = []
-        zq_pred_rgbd = [] ; zq_pred_spe = [] ; zq_pred_comm = []
+        zq_pred_rgbd = [] ; zq_pred_spe = [] ; zq_pred_comm = [] ; zq_pred_goal_comm = []
         for step in range(steps):
             (zp_mu, zp_std), (zq_mu, zq_std), h_q_p1 = self.forward(rgbd[:, step], spe[:, step], comm[:, step], goal_comm[:, step], actions[:, step], h_qs[-1])
-            (_, zq_preds_rgbd), (_, zq_preds_spe), (_, zq_preds_comm) = self.forward.get_preds(actions[:, step+1], zq_mu, zq_std, h_qs[-1], quantity = self.args.elbo_num)
+            (_, zq_preds_rgbd), (_, zq_preds_spe), (_, zq_preds_comm), (_, zq_preds_goal_comm) = self.forward.get_preds(actions[:, step+1], zq_mu, zq_std, h_qs[-1], quantity = self.args.elbo_num)
             zp_mus.append(zp_mu) ; zp_stds.append(zp_std)
             zq_mus.append(zq_mu) ; zq_stds.append(zq_std)
-            zq_pred_rgbd.append(torch.cat(zq_preds_rgbd, -1)) ; zq_pred_spe.append(torch.cat(zq_preds_spe, -1)) ; zq_pred_comm.append(torch.cat(zq_preds_comm, -1))
+            zq_pred_rgbd.append(torch.cat(zq_preds_rgbd, -1)) ; zq_pred_spe.append(torch.cat(zq_preds_spe, -1))
+            zq_pred_comm.append(torch.cat(zq_preds_comm, -1)) ; zq_pred_goal_comm.append(torch.cat(zq_preds_goal_comm, -1))
             h_qs.append(h_q_p1)
         h_qs.append(h_qs.pop(0)) ; h_qs = torch.cat(h_qs, dim = 1) ; next_hqs = h_qs[:, 1:] ; hqs = h_qs[:, :-1]
         zp_mus = torch.cat(zp_mus, dim = 1) ; zp_stds = torch.cat(zp_stds, dim = 1)
         zq_mus = torch.cat(zq_mus, dim = 1) ; zq_stds = torch.cat(zq_stds, dim = 1)
-        zq_pred_rgbd = torch.cat(zq_pred_rgbd, dim = 1) ; zq_pred_spe = torch.cat(zq_pred_spe, dim = 1) ; zq_pred_comm = torch.cat(zq_pred_comm, dim = 1)
+        zq_pred_rgbd = torch.cat(zq_pred_rgbd, dim = 1) ; zq_pred_spe = torch.cat(zq_pred_spe, dim = 1)
+        zq_pred_comm = torch.cat(zq_pred_comm, dim = 1) ; zq_pred_goal_comm = torch.cat(zq_pred_goal_comm, dim = 1)
         
         next_rgbd_tiled = torch.tile(rgbd[:,1:], (1, 1, 1, 1, self.args.elbo_num))
         next_spe_tiled  = torch.tile(spe[:,1:], (1, 1, self.args.elbo_num))
         next_comm_tiled = torch.tile(comm[:,1:], (1, 1, self.args.elbo_num))
+        next_goal_comm_tiled = torch.tile(goal_comm[:,1:], (1, 1, self.args.elbo_num))
         
         image_loss = F.binary_cross_entropy_with_logits(zq_pred_rgbd, next_rgbd_tiled, reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * masks / self.args.elbo_num
         speed_loss = self.args.speed_scalar * F.mse_loss(zq_pred_spe, next_spe_tiled,  reduction = "none").mean(-1).unsqueeze(-1) * masks / self.args.elbo_num
         comm_loss  = self.args.comm_scalar * F.mse_loss(zq_pred_comm, next_comm_tiled,  reduction = "none").mean(-1).unsqueeze(-1) * masks / self.args.elbo_num
-        accuracy_for_naive = image_loss + speed_loss + comm_loss
+        goal_comm_loss  = self.args.goal_comm_scalar * F.mse_loss(zq_pred_goal_comm, next_goal_comm_tiled,  reduction = "none").mean(-1).unsqueeze(-1) * masks / self.args.elbo_num
+        accuracy_for_naive = image_loss + speed_loss + comm_loss + goal_comm_loss
         accuracy            = accuracy_for_naive.mean()
         complexity_for_free = dkl(zq_mus, zq_stds, zp_mus, zp_stds).mean(-1).unsqueeze(-1) * masks
         if(self.args.dkl_max != None):

@@ -98,7 +98,7 @@ class Forward(nn.Module):
             nn.PReLU())
         
         self.goal_comm_in = nn.Sequential(
-            nn.Linear(len(shapes) + len(colors) + len(goals), args.hidden_size),
+            nn.Linear(args.objects * (len(shapes) + len(colors) + len(goals)), args.hidden_size),
             nn.PReLU())
         
         self.prev_action_in = nn.Sequential(
@@ -185,7 +185,16 @@ class Forward(nn.Module):
             nn.PReLU(),
             nn.Linear(args.hidden_size, args.hidden_size), 
             nn.PReLU(),
-            nn.Linear(args.hidden_size, args.symbols))
+            nn.Linear(args.hidden_size, args.symbols),
+            nn.Sigmoid())
+        
+        self.goal_comm_out = nn.Sequential(
+            nn.Linear(2 * args.hidden_size, args.hidden_size), 
+            nn.PReLU(),
+            nn.Linear(args.hidden_size, args.hidden_size), 
+            nn.PReLU(),
+            nn.Linear(args.hidden_size, args.objects * (len(shapes) + len(colors) + len(goals))),
+            nn.Sigmoid())
         
         self.apply(init_weights)
         self.to(args.device)
@@ -220,8 +229,9 @@ class Forward(nn.Module):
         rgbd_mu_pred = rnn_cnn(self.rgbd_out, rgbd).permute(0, 1, 3, 4, 2)
         spe_mu_pred  = self.spe_out(torch.cat((h, action), dim=-1))
         comm_mu_pred  = self.comm_out(torch.cat((h, action), dim=-1))
+        goal_comm_mu_pred  = self.goal_comm_out(torch.cat((h, action), dim=-1))
                 
-        pred_rgbd = [] ; pred_spe = [] ; pred_comm = []
+        pred_rgbd = [] ; pred_spe = [] ; pred_comm = [] ; pred_goal_comm = []
         for _ in range(quantity):
             z = sample(z_mu, z_std)
             h, _ = self.gru(z, h_q_m1)
@@ -229,7 +239,8 @@ class Forward(nn.Module):
             pred_rgbd.append((rnn_cnn(self.rgbd_out, rgbd).permute(0, 1, 3, 4, 2)))
             pred_spe.append(self.spe_out(torch.cat((h, action), dim=-1)))
             pred_comm.append(self.comm_out(torch.cat((h, action), dim=-1)))
-        return((rgbd_mu_pred, pred_rgbd), (spe_mu_pred, pred_spe), (comm_mu_pred, pred_comm))
+            pred_goal_comm.append(self.goal_comm_out(torch.cat((h, action), dim=-1)))
+        return((rgbd_mu_pred, pred_rgbd), (spe_mu_pred, pred_spe), (comm_mu_pred, pred_comm), (goal_comm_mu_pred, pred_goal_comm))
 
 
 
@@ -251,7 +262,7 @@ class Actor(nn.Module):
             nn.PReLU())
         
         self.goal_comm_in = nn.Sequential(
-            nn.Linear(len(shapes) + len(colors) + len(goals), args.hidden_size),
+            nn.Linear(args.objects * (len(shapes) + len(colors) + len(goals)), args.hidden_size),
             nn.PReLU())
         
         self.action_in = nn.Sequential(
@@ -331,7 +342,7 @@ class Critic(nn.Module):
             nn.PReLU())
         
         self.goal_comm_in = nn.Sequential(
-            nn.Linear(len(shapes) + len(colors) + len(goals), args.hidden_size),
+            nn.Linear(args.objects * (len(shapes) + len(colors) + len(goals)), args.hidden_size),
             nn.PReLU())
         
         self.action_in = nn.Sequential(
@@ -466,7 +477,7 @@ if __name__ == "__main__":
         (3, 1, args.image_size, args.image_size, 4), 
         (3, 1, spe_size), 
         (3, 1, args.symbols), 
-        (3, 1, len(shapes) + len(colors) + len(goals)), 
+        (3, 1, args.objects*(len(shapes) + len(colors) + len(goals))), 
         (3, 1, action_size + args.symbols), 
         (3, 1, args.hidden_size))))
     
@@ -481,7 +492,7 @@ if __name__ == "__main__":
         (3, 1, args.image_size, args.image_size, 4), 
         (3, 1, spe_size), 
         (3, 1, args.symbols), 
-        (3, 1, len(shapes) + len(colors) + len(goals)), 
+        (3, 1, args.objects*(len(shapes) + len(colors) + len(goals))), 
         (3, 1, action_size + args.symbols))))
     
     
@@ -495,7 +506,7 @@ if __name__ == "__main__":
         (3, 1, args.image_size, args.image_size, 4), 
         (3, 1, spe_size), 
         (3, 1, args.symbols), 
-        (3, 1, len(shapes) + len(colors) + len(goals)), 
+        (3, 1, args.objects*(len(shapes) + len(colors) + len(goals))), 
         (3, 1, action_size + args.symbols))))
     
     

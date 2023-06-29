@@ -51,8 +51,8 @@ parser.add_argument('--comp',               type=str,        default = "deigo")
 
 # Scenario 
 parser.add_argument('--scenario_list',      type=literal,    default = [(False,False)])#,(False,True),(True,True)]) # Are there two agents? Do we use all goals?
-parser.add_argument('--objects',            type=int,        default = 3)
-parser.add_argument('--max_steps',          type=int,        default = 10)
+parser.add_argument('--objects',            type=int,        default = 2)
+parser.add_argument('--max_steps',          type=int,        default = 20)
 parser.add_argument('--reward',             type=float,      default = 1)
 parser.add_argument('--step_lim_punishment',type=float,      default = -1)
 parser.add_argument('--step_cost',          type=float,      default = .99)
@@ -96,13 +96,14 @@ parser.add_argument('--capacity',           type=int,        default = 250)
 
 # Training
 parser.add_argument('--epochs',             type=literal,    default = [1000])#,10,10])
-parser.add_argument('--steps_per_epoch',    type=int,        default = 10)
+parser.add_argument('--steps_per_epoch',    type=int,        default = 20)
 parser.add_argument('--batch_size',         type=int,        default = 128)
 parser.add_argument('--elbo_num',           type=int,        default = 1)
 parser.add_argument('--GAMMA',              type=float,      default = .9)
 parser.add_argument("--d",                  type=int,        default = 2)        # Delay to train actors
 parser.add_argument('--speed_scalar',       type=float,      default = .0001)
 parser.add_argument('--comm_scalar',        type=float,      default = .0001)
+parser.add_argument('--goal_comm_scalar',   type=float,      default = .0001)
 
 # Saving data
 parser.add_argument('--keep_data',           type=int,        default = 25)
@@ -278,7 +279,7 @@ def load_dicts(args):
                     elif(maximum < mm_dict[key][1]): maximum = mm_dict[key][1]
             min_max_dict[key] = (minimum, maximum)
             
-    complete_order = [] ; easy_dicts = []
+    complete_order = []
 
     easy = False 
     hard = False 
@@ -294,12 +295,19 @@ def load_dicts(args):
             
     return(plot_dicts, min_max_dict, (easy, complete_order, plot_dicts))
 
-shapes = [f.name for f in os.scandir("pybullet_data") if f.name.endswith("urdf") and not f.name in ["plane.urdf","robot.urdf","robot_backup.urdf"]] ; shapes.sort()
+shapes = [f.name for f in os.scandir("pybullet_data") if f.name.endswith("urdf") and not f.name in ["plane.urdf","robot.urdf","robot_backup.urdf"]]
 shapes.sort()
+shapes = shapes[:2]
 colors = [(1,0,0,1),(0,1,0,1),(0,0,1,1),(0,1,1,1),(1,0,1,1),(1,1,0,1)]
-goals = ["watch", "touch", "push", "pull", "topple"]
+colors = colors[:4]
+goals = ["watch", "touch"]#, "push", "pull", "topple"]
 
 test_objects = {shape: [color_1, color_2] for shape, color_1, color_2 in zip(shapes, colors, colors[1:] + [colors[0]])}
 
-print(test_objects)
+if __name__ == "__main__":
+    print(shapes)
+    print(colors)
+    print(goals)
+    print(test_objects)
+
 # %%

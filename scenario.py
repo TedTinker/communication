@@ -84,18 +84,17 @@ class Scenario:
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
         spe = torch.tensor(spe).unsqueeze(0).unsqueeze(0)
         
-        goal_communication = torch.zeros((1,len(shapes) + len(colors) + len(goals)))
+        goal_len = len(shapes) + len(colors) + len(goals)
+        goal_communication = torch.zeros((1,self.args.objects * goal_len))
         if(self.revealed_goals): 
-            if(self.steps[i] >= len(self.objects)): pass
-            else:
-                shape, color, goal =  self.objects[self.steps[i]]
+            for i, (shape, color, goal) in enumerate(self.objects):
                 shape_num = shapes.index(shape)
                 color_num = colors.index(color)
                 goal_num = None if goal == "none" else goals.index(goal)
-                goal_communication[0,shape_num] = 1
-                goal_communication[0,len(shapes) + color_num] = 1
+                goal_communication[0,i*goal_len + shape_num] = 1
+                goal_communication[0,i*goal_len + len(shapes) + color_num] = 1
                 if(goal_num != None):
-                    goal_communication[0,len(shapes) + len(colors) + goal_num] = 1
+                    goal_communication[0,i*goal_len + len(shapes) + len(colors) + goal_num] = 1
         
         #if(self.arena.in_random() and self.args.randomness > 0):
         #    rgbd = torch.randint(2, size = rgbd.size(), dtype = rgbd.dtype)
@@ -157,11 +156,11 @@ class Scenario:
         pos, yaw, spe = self.agent_poses[i], self.agent_yaws[i], self.agent_spes[i]
         if(verbose): print("agent: pos {}, yaw {}, spe {}.".format(pos, yaw, spe))
         
-        reward, end = arena.rewards()
+        reward = arena.rewards()
         if(reward > 0): reward *= self.args.step_cost ** self.steps[i]
-        if(verbose): print("end {}, reward {}".format(end, reward))
+        if(verbose): print("reward {}".format(reward))
         
-        if(not end): end = self.steps[i] >= self.args.max_steps
+        end = self.steps[i] >= self.args.max_steps
         if(end): 
             failures = 0
             for (shape, color, goal), object in arena.objects.items():
@@ -180,7 +179,9 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     default_args.randomness = 1
-    scenario = Scenario(3, 1, goals, True, default_args)
+    print(default_args.scenario_list)
+    scenario = Scenario(default_args.objects, 2 if default_args.scenario_list[0][0] else 1, default_args.scenario_list[0][1], not default_args.scenario_list[0][0], True, default_args)
+    scenario.begin()
     done = False
     yaws = [0] * 20
     speeds = [-1] * 20

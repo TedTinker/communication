@@ -55,20 +55,20 @@
     <!-- Robot's left arm -->
     <link name="left_arm_link">
         <inertial>
-            <origin xyz=".5 0 0" rpy="0 0 0"/>
+            <origin xyz=".25 0 0" rpy="0 0 0"/>
             <mass value="1"/>
             <inertia ixx="0.1" ixy="0.0" ixz="0.0" iyy="0.1" iyz="0.0" izz="0.1"/>
         </inertial>
         <visual>
-            <origin xyz=".5 0 0" rpy="0 0 0"/>
+            <origin xyz=".25 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1 0.1 0.1"/>
+                <box size=".5 0.1 0.1"/>
             </geometry>
         </visual>
         <collision>
-            <origin xyz=".5 0 0" rpy="0 0 0"/>
+            <origin xyz=".25 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1 0.1 0.1"/>
+                <box size=".5 0.1 0.1"/>
             </geometry>
         </collision>
     </link>
@@ -84,20 +84,20 @@
 	<!-- Robot's left hand -->
 	<link name="left_hand_link">
 		<inertial>
-			<origin xyz=".5 0 0" rpy="0 0 0"/>
+			<origin xyz=".25 0 0" rpy="0 0 0"/>
 			<mass value="1"/>
 			<inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
 		</inertial>
 		<visual>
-			<origin xyz=".5 0 0" rpy="0 0 0"/>
+			<origin xyz=".25 0 0" rpy="0 0 0"/>
 			<geometry>
-				<box size="1 .1 .1"/>
+				<box size=".5 .1 .1"/>
 			</geometry>
 		</visual>
 		<collision>
-			<origin xyz=".5 0 0" rpy="0 0 0"/>
+			<origin xyz=".25 0 0" rpy="0 0 0"/>
 			<geometry>
-				<box size="1 .1 .1"/>
+				<box size=".5 .1 .1"/>
 			</geometry>
 		</collision>
 	</link>
@@ -106,27 +106,27 @@
 	<joint name="left_arm_left_hand_joint" type="continuous">
 		<parent link="left_arm_link"/>
 		<child link="left_hand_link"/>
-		<origin xyz="1 0 0" rpy="0 0 0"/>
+		<origin xyz=".5 0 0" rpy="0 0 0"/>
 		<axis xyz="0 0 1"/>
 	</joint>
 	
     <!-- Robot's right arm -->
     <link name="right_arm_link">
         <inertial>
-            <origin xyz=".5 0 0" rpy="0 0 0"/>
+            <origin xyz=".25 0 0" rpy="0 0 0"/>
             <mass value="1"/>
             <inertia ixx="0.1" ixy="0.0" ixz="0.0" iyy="0.1" iyz="0.0" izz="0.1"/>
         </inertial>
         <visual>
-            <origin xyz=".5 0 0" rpy="0 0 0"/>
+            <origin xyz=".25 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1 0.1 0.1"/>
+                <box size=".5 0.1 0.1"/>
             </geometry>
         </visual>
         <collision>
-            <origin xyz=".5 0 0" rpy="0 0 0"/>
+            <origin xyz=".25 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1 0.1 0.1"/>
+                <box size=".5 0.1 0.1"/>
             </geometry>
         </collision>
     </link>
@@ -142,20 +142,20 @@
 	<!-- Robot's right hand -->
 	<link name="right_hand_link">
 		<inertial>
-			<origin xyz=".5 0 0" rpy="0 0 0"/>
+			<origin xyz=".25 0 0" rpy="0 0 0"/>
 			<mass value="1"/>
 			<inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
 		</inertial>
 		<visual>
-			<origin xyz=".5 0 0" rpy="0 0 0"/>
+			<origin xyz=".25 0 0" rpy="0 0 0"/>
 			<geometry>
-				<box size="1 .1 .1"/>
+				<box size=".5 .1 .1"/>
 			</geometry>
 		</visual>
 		<collision>
-			<origin xyz=".5 0 0" rpy="0 0 0"/>
+			<origin xyz=".25 0 0" rpy="0 0 0"/>
 			<geometry>
-				<box size="1 .1 .1"/>
+				<box size=".5 .1 .1"/>
 			</geometry>
 		</collision>
 	</link>
@@ -164,7 +164,7 @@
 	<joint name="right_arm_right_hand_joint" type="continuous">
 		<parent link="right_arm_link"/>
 		<child link="right_hand_link"/>
-		<origin xyz="1 0 0" rpy="0 0 0"/>
+		<origin xyz=".5 0 0" rpy="0 0 0"/>
 		<axis xyz="0 0 1"/>
 	</joint>
 
