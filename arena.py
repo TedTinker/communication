@@ -57,8 +57,9 @@ def generate_angles(n):
 
 
 class Arena():
-    def __init__(self, GUI = False, args = default_args):
+    def __init__(self, arms = True, GUI = False, args = default_args):
         #enable_opengl()
+        self.arms = arms
         self.args = args
         self.physicsClient = get_physics(GUI)
         self.objects = {}
@@ -75,13 +76,14 @@ class Arena():
             p.changeVisualShape(plane_id, -1, rgbaColor=(0,0,0,1), physicsClientId = self.physicsClient)
             plane_ids.append(plane_id)
 
+        robot_file = "robot_arms" if arms else "robot"
         inherent_roll = 0
         inherent_pitch = 0
         yaw = 0
         spe = self.args.min_speed
         pos = (0, 0, 1)
         orn = p.getQuaternionFromEuler([inherent_roll, inherent_pitch, yaw])
-        self.body_num = p.loadURDF("robot.urdf", pos, orn,
+        self.body_num = p.loadURDF("robots/{}.urdf".format(robot_file), pos, orn,
                            globalScaling = self.args.body_size, 
                            physicsClientId = self.physicsClient)
         p.changeDynamics(self.body_num, 0, maxJointVelocity=10000)
@@ -98,7 +100,7 @@ class Arena():
         x, y = cos(yaw)*spe, sin(yaw)*spe
         self.resetBaseVelocity(x, y)
         self.resetBasePositionAndOrientation(pos, yaw)
-        self.resetArmsAndHands(0, 0)
+        if(self.arms): self.resetArmsAndHands(1, 1)
         
         self.objects = {} ; self.watching = {}
         random_positions = generate_angles(len(objects))
@@ -106,7 +108,7 @@ class Arena():
         shuffle(objects)
         for i, (shape, color, goal) in enumerate(objects):
             pos = random_positions[i]
-            object = p.loadURDF("{}".format(shape), (5*sin(pos), 5*cos(pos), 0), orn, globalScaling = self.args.body_size,
+            object = p.loadURDF("shapes/{}".format(shape), (5*sin(pos), 5*cos(pos), 0), orn, globalScaling = self.args.body_size,
                                 physicsClientId=self.physicsClient)
             p.changeVisualShape(object, -1, rgbaColor = (0,0,0,0), physicsClientId = self.physicsClient)
             for i in range(p.getNumJoints(object)):
@@ -138,10 +140,10 @@ class Arena():
         left_arm = get_joint_index(self.body_num, 'body_left_arm_joint')
         right_hand = get_joint_index(self.body_num, 'right_arm_right_hand_joint')
         left_hand = get_joint_index(self.body_num, 'left_arm_left_hand_joint')
-        p.setJointMotorControl2(self.body_num, right_arm, p.POSITION_CONTROL, targetPosition=arms)
-        p.setJointMotorControl2(self.body_num, right_hand, p.POSITION_CONTROL, targetPosition=hands)
-        p.setJointMotorControl2(self.body_num, left_arm, p.POSITION_CONTROL, targetPosition=arms)
-        p.setJointMotorControl2(self.body_num, left_hand, p.POSITION_CONTROL, targetPosition=-hands)
+        p.setJointMotorControl2(self.body_num, right_arm,  p.POSITION_CONTROL, targetPosition = arms,   physicsClientId = self.physicsClient)
+        p.setJointMotorControl2(self.body_num, right_hand, p.POSITION_CONTROL, targetPosition = hands,  physicsClientId = self.physicsClient)
+        p.setJointMotorControl2(self.body_num, left_arm,   p.POSITION_CONTROL, targetPosition = -arms,  physicsClientId = self.physicsClient)
+        p.setJointMotorControl2(self.body_num, left_hand,  p.POSITION_CONTROL, targetPosition = -hands, physicsClientId = self.physicsClient)
         
     def resetBaseVelocity(self, x, y):    
         p.resetBaseVelocity(self.body_num, (x,y,0), (0,0,0), physicsClientId = self.physicsClient)        
@@ -181,7 +183,7 @@ class Arena():
                             link_name = joint_info[12].decode("utf-8")
                             break
                     
-                    if(link_name in ["body_link", "nose_link"]):
+                    if(link_name.startswith("body") or link_name.startswith("nose")):
                         reward += 1
                         to_delete.append((shape, color, goal, object))
                         
@@ -244,7 +246,7 @@ if __name__ == "__main__":
     objects = [(shape, color) for shape, color in zip(shapes, colors)]
     gs = [choices(goals)[0] for _ in objects]
     objects = [(shape, color, goal) for (shape, color), goal in zip(objects, gs)]
-    arena = Arena(GUI = True)
+    arena = Arena(arms = False, GUI = True)
     arena.begin(objects = objects)
     while(True):
         p.stepSimulation(physicsClientId = arena.physicsClient)

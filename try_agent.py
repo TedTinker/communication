@@ -124,7 +124,7 @@ class GUI(tk.Frame):
         self.parent = parent
         
         self.plot_dict_dict = {}
-        for name in [f for f in os.listdir("saved") if os.path.isdir("saved/" + f)]:
+        for name in [f for f in os.listdir("saved") if os.path.isdir("saved/" + f) and f != "thesis_pics"]:
             file = "saved/{}/plot_dict.pickle".format(name)
             with open(file, "rb") as handle: plot_dict = pickle.load(handle)
             self.plot_dict_dict[name] = plot_dict 

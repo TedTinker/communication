@@ -16,7 +16,7 @@ from torchvision.transforms.functional import resize
 
 class Scenario:
     
-    def __init__(self, num_objects = 1, num_agents = 1, many_goals = True, revealed_goals = False, GUI = False, args = default_args):
+    def __init__(self, num_objects = 1, num_agents = 1, many_goals = True, revealed_goals = False, GUI = True, args = default_args):
         self.num_objects = num_objects
         self.num_agents = num_agents
         self.many_goals = many_goals
@@ -25,7 +25,7 @@ class Scenario:
         self.args = args
         self.arenas = []
         for i in range(self.num_agents):
-            self.arenas.append(Arena(self.GUI, self.args))
+            self.arenas.append(Arena(GUI = self.GUI, args = self.args))
         
     def begin(self, test = False):
         self.steps = [0 for _ in range(self.num_agents)]
@@ -36,12 +36,9 @@ class Scenario:
         if(self.many_goals):
             gs = [choices(goals)[0] for _ in all_pairs]
         else:
-            gs = ["watch"] + ["none"]*(len(all_pairs)-1)
+            gs = ["push"] + ["none"]*(len(all_pairs)-1)
         all_pairs = [(shape, color, goal) for (shape, color), goal in zip(all_pairs, gs)]
         self.objects = all_pairs[:self.num_objects]
-        
-        # If test is False, remove some objects. 
-        # If test is True, restrict to some objects.
         
         self.agent_poses = []
         self.agent_yaws = []
@@ -132,6 +129,7 @@ class Scenario:
             print("\n")
         
     def action(self, i, action, verbose = True):
+        print(action)
         arena = self.arenas[i]
         self.steps[i] += 1
         
@@ -168,7 +166,7 @@ class Scenario:
             reward += self.args.step_lim_punishment * failures
             arena.end()
         if(verbose): print("end {}, reward {}\n\n".format(end, reward))
-
+        
         return(reward, end, action_name)
     
     
@@ -179,7 +177,6 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     default_args.randomness = 1
-    print(default_args.scenario_list)
     scenario = Scenario(default_args.objects, 2 if default_args.scenario_list[0][0] else 1, default_args.scenario_list[0][1], not default_args.scenario_list[0][0], True, default_args)
     scenario.begin()
     done = False

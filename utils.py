@@ -1,5 +1,12 @@
 #%% 
 
+# To do:
+#   Adjust so only relevent channel (comm or goal comm) applied.
+#   Adjust so actor only makes comm if necessary.
+#   Maybe even arms aren't needed at first?
+#   Test for generalization
+#   Maybe separate actors / critics?
+
 import builtins
 
 def print(*args, **kwargs):
@@ -108,14 +115,7 @@ parser.add_argument('--goal_comm_scalar',   type=float,      default = .0001)
 # Saving data
 parser.add_argument('--keep_data',           type=int,        default = 25)
 
-parser.add_argument('--epochs_per_pred_list',type=int,        default = 100)
-parser.add_argument('--agents_per_pred_list',type=int,        default = 1)
-parser.add_argument('--episodes_in_pred_list',type=int,       default = 1)
-parser.add_argument('--samples_per_pred',    type=int,        default = 2)
-
-parser.add_argument('--epochs_per_pos_list', type=int,        default = 100)
-parser.add_argument('--agents_per_pos_list', type=int,        default = -1)
-parser.add_argument('--episodes_in_pos_list',type=int,        default = 1)
+parser.add_argument('--epochs_per_gen',      type=int,        default = 100)
 
 parser.add_argument('--epochs_per_agent_list',type=int,       default = 100)
 parser.add_argument('--agents_per_agent_list',type=int,       default = 1)
@@ -295,12 +295,12 @@ def load_dicts(args):
             
     return(plot_dicts, min_max_dict, (easy, complete_order, plot_dicts))
 
-shapes = [f.name for f in os.scandir("pybullet_data") if f.name.endswith("urdf") and not f.name in ["plane.urdf","robot.urdf","robot_backup.urdf"]]
+shapes = [f.name for f in os.scandir("pybullet_data/shapes")]
 shapes.sort()
 shapes = shapes[:2]
 colors = [(1,0,0,1),(0,1,0,1),(0,0,1,1),(0,1,1,1),(1,0,1,1),(1,1,0,1)]
 colors = colors[:4]
-goals = ["watch", "touch"]#, "push", "pull", "topple"]
+goals = ["watch", "push"]#, "pull", "touch", "topple"]
 
 test_objects = {shape: [color_1, color_2] for shape, color_1, color_2 in zip(shapes, colors, colors[1:] + [colors[0]])}
 

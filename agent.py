@@ -148,7 +148,6 @@ class Agent:
     def training_episode(self, push = True, verbose = False):
         dones = [False for _ in self.scenario.arenas]
         prev_as = [torch.zeros((1, 1, 4 + self.args.symbols)) for _ in self.scenario.arenas]
-        cumulative_r = 0
         cumulative_rs = [0 for _ in range(self.args.max_steps)]
         hs = [torch.zeros((1, 1, self.args.hidden_size)) for _ in self.scenario.arenas]
         to_be_pushed = [[] for _ in self.scenario.arenas]
@@ -160,7 +159,6 @@ class Agent:
             for i in range(len(self.scenario.arenas)):
                 if(not dones[i]):
                     prev_as[i], hs[i], r, dones[i], _, to_push = self.step_in_episode_hq(i, prev_as, hs, push, verbose) if self.args.actor_hq else self.step_in_episode(i, prev_as, hs, push, verbose)
-                    cumulative_r += r
                     cumulative_rs[step] += r
                     to_be_pushed[i].append(to_push)
             self.scenario.replace_comms()
@@ -183,7 +181,7 @@ class Agent:
                         self.plot_dict["intrinsic_entropy"].append(ie)
                         self.plot_dict["naive"].append(naive)
                         self.plot_dict["free"].append(free)    
-        self.plot_dict["rewards"].append(cumulative_r/self.scenario.num_agents)
+        self.plot_dict["rewards"].append(sum(cumulative_rs)/self.scenario.num_agents)
         self.episodes += 1
         if(push):
             for i in range(len(self.scenario.arenas)):
