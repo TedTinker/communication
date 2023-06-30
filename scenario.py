@@ -25,7 +25,7 @@ class Scenario:
         self.args = args
         self.arenas = []
         for i in range(self.num_agents):
-            self.arenas.append(Arena(GUI = self.GUI, args = self.args))
+            self.arenas.append(Arena(arms = self.many_goals, GUI = self.GUI, args = self.args))
         
     def begin(self, test = False):
         self.steps = [0 for _ in range(self.num_agents)]

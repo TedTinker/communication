@@ -1,9 +1,7 @@
 #%% 
 
 # To do:
-#   Adjust so only relevent channel (comm or goal comm) applied.
-#   Adjust so actor only makes comm if necessary.
-#   Maybe even arms aren't needed at first?
+#   Adjust so actor only moves arms if it has arms.
 #   Test for generalization
 #   Maybe separate actors / critics?
 

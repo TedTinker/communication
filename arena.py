@@ -112,7 +112,7 @@ class Arena():
         x, y = cos(yaw)*spe, sin(yaw)*spe
         self.resetBaseVelocity(x, y)
         self.resetBasePositionAndOrientation(pos, yaw)
-        if(self.arms): self.resetArmsAndHands(1, 1)
+        self.resetArmsAndHands(1, 1)
         
         self.objects = {} ; self.watching = {} ; already = {shape : 0 for shape in shapes}
         random_positions = generate_angles(len(objects))
@@ -149,6 +149,7 @@ class Arena():
         p.resetBasePositionAndOrientation(self.body_num, pos, orn, physicsClientId = self.physicsClient)
         
     def resetArmsAndHands(self, arms, hands):
+        if(not self.arms): return
         right_arm = get_joint_index(self.body_num, 'body_right_arm_joint')
         left_arm = get_joint_index(self.body_num, 'body_left_arm_joint')
         right_hand = get_joint_index(self.body_num, 'right_arm_right_hand_joint')
