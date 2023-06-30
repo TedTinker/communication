@@ -16,11 +16,11 @@ from torchvision.transforms.functional import resize
 
 class Scenario:
     
-    def __init__(self, num_objects = 1, num_agents = 1, many_goals = True, revealed_goals = False, GUI = True, args = default_args):
-        self.num_objects = num_objects
-        self.num_agents = num_agents
-        self.many_goals = many_goals
-        self.revealed_goals = revealed_goals
+    def __init__(self, scenario_desc, GUI = False, args = default_args):
+        self.num_objects = scenario_desc[0]
+        self.num_agents = 2 if scenario_desc[1] else 1
+        self.many_goals = scenario_desc[2]
+        self.revealed_goals = not scenario_desc[1]
         self.GUI = GUI
         self.args = args
         self.arenas = []
@@ -34,9 +34,9 @@ class Scenario:
         else:     all_pairs = [pair for pair in all_pairs if not pair[1] in test_objects[pair[0]]]
         shuffle(all_pairs)
         if(self.many_goals):
-            gs = [choices(goals)[0] for _ in all_pairs]
+            gs = [choices(goals)[0]] + [None]*(len(all_pairs)-1)
         else:
-            gs = ["push"] + ["none"]*(len(all_pairs)-1)
+            gs = ["push"] + [None]*(len(all_pairs)-1)
         all_pairs = [(shape, color, goal) for (shape, color), goal in zip(all_pairs, gs)]
         self.objects = all_pairs[:self.num_objects]
         
@@ -81,28 +81,27 @@ class Scenario:
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
         spe = torch.tensor(spe).unsqueeze(0).unsqueeze(0)
         
-        goal_len = len(shapes) + len(colors) + len(goals)
-        goal_communication = torch.zeros((1,self.args.objects * goal_len))
+        goal_comm = torch.zeros([len(shapes) + len(colors) + len(goals)]).unsqueeze(0)
         if(self.revealed_goals): 
             for i, (shape, color, goal) in enumerate(self.objects):
-                shape_num = shapes.index(shape)
-                color_num = colors.index(color)
-                goal_num = None if goal == "none" else goals.index(goal)
-                goal_communication[0,i*goal_len + shape_num] = 1
-                goal_communication[0,i*goal_len + len(shapes) + color_num] = 1
-                if(goal_num != None):
-                    goal_communication[0,i*goal_len + len(shapes) + len(colors) + goal_num] = 1
+                if(goal != None):
+                    shape_num = shapes.index(shape)
+                    color_num = colors.index(color)
+                    goal_num = goals.index(goal)
+                    goal_comm[0,shape_num] = 1
+                    goal_comm[0,len(shapes) + color_num] = 1
+                    goal_comm[0,len(shapes) + len(colors) + goal_num] = 1
         
         #if(self.arena.in_random() and self.args.randomness > 0):
         #    rgbd = torch.randint(2, size = rgbd.size(), dtype = rgbd.dtype)
         #    spe = torch.randint(2, size = spe.size(), dtype = spe.dtype)
         #    spe[spe == 0] = 0 ; spe[spe == 1] = self.args.max_speed
         if(self.num_agents == 1):
-            comms = torch.zeros((1, self.args.symbols))
+            comm = torch.zeros((1, self.args.symbols))
         else:
-            comms = self.agent_comms[:i] + self.agent_comms[i+1:]
-            comms = comms[0]
-        return(rgbd, spe, comms, goal_communication)
+            comm = self.agent_comms[:i] + self.agent_comms[i+1:]
+            comm = comms[0]
+        return(rgbd, spe, comm, goal_comm)
     
     def change_velocity(self, i, yaw_change, speed, arms, hands, verbose = False):
         arena = self.arenas[i]
@@ -161,7 +160,7 @@ class Scenario:
         if(end): 
             failures = 0
             for (_, _, goal, _), object in arena.objects.items():
-                if(goal != "none"): failures += 1
+                if(goal != None): failures += 1
             reward += self.args.step_lim_punishment * failures
             arena.end()
         if(verbose): print("end {}, reward {}\n\n".format(end, reward))
@@ -176,7 +175,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     default_args.randomness = 1
-    scenario = Scenario(default_args.objects, 2 if default_args.scenario_list[0][0] else 1, default_args.scenario_list[0][1], not default_args.scenario_list[0][0], True, default_args)
+    scenario = Scenario((3, False, False), True, default_args)
     scenario.begin()
     done = False
     yaws = [0] * 20

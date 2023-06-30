@@ -57,8 +57,7 @@ parser.add_argument('--device',             type=str,        default = "cpu")
 parser.add_argument('--comp',               type=str,        default = "deigo")
 
 # Scenario 
-parser.add_argument('--scenario_list',      type=literal,    default = [(False,False)])#,(False,True),(True,True)]) # Are there two agents? Do we use all goals?
-parser.add_argument('--objects',            type=int,        default = 2)
+parser.add_argument('--scenario_list',      type=literal,    default = [(1,False,False)])#(3,False,False),(3,False,True),(3,True,True)]) # Are there two agents? Do we use all goals?
 parser.add_argument('--max_steps',          type=int,        default = 20)
 parser.add_argument('--reward',             type=float,      default = 1)
 parser.add_argument('--step_lim_punishment',type=float,      default = -1)
@@ -102,7 +101,7 @@ parser.add_argument("--dkl_max",            type=float,      default = 1)
 parser.add_argument('--capacity',           type=int,        default = 250)
 
 # Training
-parser.add_argument('--epochs',             type=literal,    default = [1000])#,10,10])
+parser.add_argument('--epochs',             type=literal,    default = [1000])#,10,10,10])
 parser.add_argument('--steps_per_epoch',    type=int,        default = 20)
 parser.add_argument('--batch_size',         type=int,        default = 128)
 parser.add_argument('--elbo_num',           type=int,        default = 1)
@@ -110,7 +109,6 @@ parser.add_argument('--GAMMA',              type=float,      default = .9)
 parser.add_argument("--d",                  type=int,        default = 2)        # Delay to train actors
 parser.add_argument('--speed_scalar',       type=float,      default = .0001)
 parser.add_argument('--comm_scalar',        type=float,      default = .0001)
-parser.add_argument('--goal_comm_scalar',   type=float,      default = .0001)
 
 # Saving data
 parser.add_argument('--keep_data',           type=int,        default = 25)

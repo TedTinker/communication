@@ -98,13 +98,11 @@ class Arena():
         self.loaded = {shape : [] for shape in shapes}
         orn = p.getQuaternionFromEuler([0,0,0])
         for i, shape in enumerate(shapes):
-            for j in range(self.args.objects):
+            for j in range(3):
                 pos = (3*i, 3*j, -10)
                 object = p.loadURDF("shapes/{}".format(shape), pos, orn, globalScaling = self.args.body_size, physicsClientId=self.physicsClient)
                 self.loaded[shape].append((object, pos))
-                
-        print(self.loaded)
-                
+                                
 
             
     def begin(self, objects):
