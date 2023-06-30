@@ -66,14 +66,16 @@ class Arena():
         self.watching = {}
 
         plane_positions = [
-            [0, 0, 0], 
-            [10, 0, 0], [0, 10, 0], [10, 10, 0],
-            [-10, 0, 0], [-10, 10, 0], [-10, -10, 0], 
-            [0, -10, 0], [10, -10, 0], [-10, -10, 0]]
+            [0, 0], 
+            [10, 0], [0, 10], [10, 10],
+            [-10, 0], [-10, 10], [-10, -10], 
+            [0, -10], [10, -10], [-10, -10]]
         plane_ids = []
         for position in plane_positions:
-            plane_id = p.loadURDF("plane.urdf", position, globalScaling=.5, useFixedBase=True, physicsClientId=self.physicsClient)
+            plane_id = p.loadURDF("plane.urdf", position + [0], globalScaling=.5, useFixedBase=True, physicsClientId=self.physicsClient)
             p.changeVisualShape(plane_id, -1, rgbaColor=(0,0,0,1), physicsClientId = self.physicsClient)
+            plane_ids.append(plane_id)
+            plane_id = p.loadURDF("plane.urdf", position + [-10], globalScaling=.5, useFixedBase=True, physicsClientId=self.physicsClient)
             plane_ids.append(plane_id)
 
         robot_file = "robot_arms" if arms else "robot"
@@ -92,6 +94,18 @@ class Arena():
         p.changeVisualShape(self.body_num, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
         for i in range(p.getNumJoints(self.body_num)):
             p.changeVisualShape(self.body_num, i, rgbaColor=(1, 0, 0.5, 1), physicsClientId = self.physicsClient)
+        
+        self.loaded = {shape : [] for shape in shapes}
+        orn = p.getQuaternionFromEuler([0,0,0])
+        for i, shape in enumerate(shapes):
+            for j in range(self.args.objects):
+                pos = (3*i, 3*j, -10)
+                object = p.loadURDF("shapes/{}".format(shape), pos, orn, globalScaling = self.args.body_size, physicsClientId=self.physicsClient)
+                self.loaded[shape].append((object, pos))
+                
+        print(self.loaded)
+                
+
             
     def begin(self, objects):
         yaw = 0
@@ -102,25 +116,26 @@ class Arena():
         self.resetBasePositionAndOrientation(pos, yaw)
         if(self.arms): self.resetArmsAndHands(1, 1)
         
-        self.objects = {} ; self.watching = {}
+        self.objects = {} ; self.watching = {} ; already = {shape : 0 for shape in shapes}
         random_positions = generate_angles(len(objects))
         orn = p.getQuaternionFromEuler([0,0,0])
         shuffle(objects)
         for i, (shape, color, goal) in enumerate(objects):
             pos = random_positions[i]
-            object = p.loadURDF("shapes/{}".format(shape), (5*sin(pos), 5*cos(pos), 0), orn, globalScaling = self.args.body_size,
-                                physicsClientId=self.physicsClient)
+            object, old_pos = self.loaded[shape][already[shape]]
+            already[shape] += 1
+            p.resetBasePositionAndOrientation(object, (5*sin(pos), 5*cos(pos), 0), orn, physicsClientId = self.physicsClient)
             p.changeVisualShape(object, -1, rgbaColor = (0,0,0,0), physicsClientId = self.physicsClient)
             for i in range(p.getNumJoints(object)):
                 p.changeVisualShape(object, i, rgbaColor=color, physicsClientId = self.physicsClient)
             p.changeDynamics(object, 0, maxJointVelocity=10000)
-            self.objects[(shape, color, goal)] = object
+            self.objects[(shape, color, goal, old_pos)] = object
             self.watching[object] = 0
             
     def end(self):
-        for (shape, color, goal), object in self.objects.items():
-            p.removeBody(object, physicsClientId = self.physicsClient)
-        self.objects = {} ; self.watching = {}
+        orn = p.getQuaternionFromEuler([0,0,0])
+        for (shape, color, goal, old_pos), object in self.objects.items():
+            p.resetBasePositionAndOrientation(object, old_pos, orn, physicsClientId = self.physicsClient)
         
     def get_pos_yaw_spe(self):
         pos, ors = p.getBasePositionAndOrientation(self.body_num, physicsClientId = self.physicsClient)
@@ -151,7 +166,7 @@ class Arena():
     def rewards(self):
         reward = 0
         to_delete = []
-        for (shape, color, goal), object in self.objects.items():
+        for (shape, color, goal, old_pos), object in self.objects.items():
                         
             if(goal == "watch"):
                 object_pos, _ = p.getBasePositionAndOrientation(object, physicsClientId = self.physicsClient)
@@ -168,7 +183,7 @@ class Arena():
                 else:        self.watching[object] = 0 
                 if(self.watching[object] >= 2):
                     reward += 1
-                    to_delete.append((shape, color, goal, object))
+                    to_delete.append((shape, color, goal, object, old_pos))
             
             if(goal == "touch"):
                 col = p.getContactPoints(object, self.body_num, physicsClientId = self.physicsClient)
@@ -185,13 +200,13 @@ class Arena():
                     
                     if(link_name.startswith("body") or link_name.startswith("nose")):
                         reward += 1
-                        to_delete.append((shape, color, goal, object))
+                        to_delete.append((shape, color, goal, object, old_pos))
                         
             if(goal == "lift"):
                 pos, _ = p.getBasePositionAndOrientation(object, physicsClientId = self.physicsClient)
                 if(pos[-1] > 2):
                     reward += 1
-                    to_delete.append((shape, color, goal, object))
+                    to_delete.append((shape, color, goal, object, old_pos))
                     
             if(goal == "push"):
                 body_pos, _ = p.getBasePositionAndOrientation(self.body_num, physicsClientId = self.physicsClient)
@@ -205,7 +220,7 @@ class Arena():
                 speed_toward_body = np.dot(velocity, direction_vector)
                 if(speed_toward_body < -1):
                     reward += 1
-                    to_delete.append((shape, color, goal, object))
+                    to_delete.append((shape, color, goal, object, old_pos))
                     
             if(goal == "pull"):
                 body_pos, _ = p.getBasePositionAndOrientation(self.body_num, physicsClientId = self.physicsClient)
@@ -219,7 +234,7 @@ class Arena():
                 speed_toward_body = np.dot(velocity, direction_vector)
                 if(speed_toward_body > 1):
                     reward += 1
-                    to_delete.append((shape, color, goal, object))
+                    to_delete.append((shape, color, goal, object, old_pos))
                     
             if(goal == "topple"):
                 _, object_quaternion = p.getBasePositionAndOrientation(object, physicsClientId=self.physicsClient)
@@ -227,12 +242,12 @@ class Arena():
                 rotation_z = np.rad2deg(orn[2])
                 if(np.abs(rotation_z) > 45):
                     reward += 1
-                    to_delete.append((shape, color, goal, object))
-                
+                    to_delete.append((shape, color, goal, object, old_pos))
 
-        for (shape, color, goal, object) in to_delete:
-            p.removeBody(object, physicsClientId = self.physicsClient)
-            del self.objects[(shape, color, goal)]
+        for (shape, color, goal, object, old_pos) in to_delete:
+            orn = p.getQuaternionFromEuler([0,0,0])
+            p.resetBasePositionAndOrientation(object, old_pos, orn, physicsClientId = self.physicsClient)
+            del self.objects[(shape, color, goal, old_pos)]
             del self.watching[object]
 
         return(reward)

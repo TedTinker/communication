@@ -129,7 +129,6 @@ class Scenario:
             print("\n")
         
     def action(self, i, action, verbose = True):
-        print(action)
         arena = self.arenas[i]
         self.steps[i] += 1
         
@@ -161,7 +160,7 @@ class Scenario:
         end = self.steps[i] >= self.args.max_steps
         if(end): 
             failures = 0
-            for (shape, color, goal), object in arena.objects.items():
+            for (_, _, goal, _), object in arena.objects.items():
                 if(goal != "none"): failures += 1
             reward += self.args.step_lim_punishment * failures
             arena.end()
