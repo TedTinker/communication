@@ -187,19 +187,8 @@ class Arena():
             if(goal == "touch"):
                 col = p.getContactPoints(object, self.body_num, physicsClientId = self.physicsClient)
                 if(len(col)) > 0: 
-                    link_index = col[0][3]
-                    num_joints = p.getNumJoints(self.body_num)
-                    link_name = None
-
-                    for joint_index in range(num_joints):
-                        joint_info = p.getJointInfo(self.body_num, joint_index)
-                        if joint_info[0] == link_index:
-                            link_name = joint_info[12].decode("utf-8")
-                            break
-                    
-                    if(link_name.startswith("body") or link_name.startswith("nose")):
-                        reward += 1
-                        to_delete.append((shape, color, goal, object, old_pos))
+                    reward += 1
+                    to_delete.append((shape, color, goal, object, old_pos))
                         
             if(goal == "lift"):
                 pos, _ = p.getBasePositionAndOrientation(object, physicsClientId = self.physicsClient)

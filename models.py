@@ -330,7 +330,6 @@ class Actor(nn.Module):
             symbol = F.gumbel_softmax(logits + gumbel_noise, tau=1, hard=True)
             log_prob_symbol = torch.sum(symbol * log_probs, dim=-1)
             symbol = (symbol * 2) - 1
-
         
         action = torch.cat((action, symbol), dim=-1)
         log_prob = torch.cat((log_prob, log_prob_symbol.unsqueeze(-1)), dim=-1)

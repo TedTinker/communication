@@ -163,7 +163,7 @@ class Agent:
         for step in range(self.args.max_steps):
             self.steps += 1
             for i in range(len(self.scenario.arenas)):
-                if(not dones[i]):
+                if(not any(dones)):
                     prev_as[i], hs[i], r, dones[i], _, to_push = self.step_in_episode_hq(i, prev_as, hs, push, verbose) if self.args.actor_hq else self.step_in_episode(i, prev_as, hs, push, verbose)
                     cumulative_rs[step] += r
                     to_be_pushed[i].append(to_push)

@@ -59,12 +59,12 @@ parser.add_argument('--scenario_list',      type=literal,    default = [(1,False
 parser.add_argument('--max_steps',          type=int,        default = 20)
 parser.add_argument('--reward',             type=float,      default = 1)
 parser.add_argument('--step_lim_punishment',type=float,      default = -1)
-parser.add_argument('--step_cost',          type=float,      default = .99)
+parser.add_argument('--step_cost',          type=float,      default = .99999)
 parser.add_argument('--body_size',          type=float,      default = 2)    
 parser.add_argument('--image_size',         type=int,        default = 16)
 parser.add_argument('--max_yaw_change',     type=float,      default = pi/2)
 parser.add_argument('--min_speed',          type=float,      default = 0)
-parser.add_argument('--max_speed',          type=float,      default = 150)
+parser.add_argument('--max_speed',          type=float,      default = 300)
 parser.add_argument('--steps_per_step',     type=int,        default = 5)
 parser.add_argument('--symbols',            type=int,        default = 20)
 
@@ -87,7 +87,7 @@ parser.add_argument("--beta",               type=float,      default = 0)
 
 # Entropy
 parser.add_argument("--alpha",              type=str,        default = 0)        # Soft-Actor-Critic entropy aim
-parser.add_argument("--target_entropy",     type=float,      default = -2)       # Soft-Actor-Critic entropy aim
+parser.add_argument("--target_entropy",     type=float,      default = -4)       # Soft-Actor-Critic entropy aim
 
 # Curiosity
 parser.add_argument("--curiosity",          type=str,        default = "none")     # Which kind of curiosity
@@ -296,7 +296,7 @@ shapes.sort()
 shapes = shapes[:2]
 colors = [(1,0,0,1),(0,1,0,1),(0,0,1,1),(0,1,1,1),(1,0,1,1),(1,1,0,1)]
 colors = colors[:4]
-goals = ["watch", "push"]#, "pull", "touch", "topple"]
+goals = ["touch"]#, "watch", "push", "pull", "topple"]
 
 test_objects = {shape: [color_1, color_2] for shape, color_1, color_2 in zip(shapes, colors, colors[1:] + [colors[0]])}
 

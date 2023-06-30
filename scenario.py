@@ -16,7 +16,7 @@ from torchvision.transforms.functional import resize
 
 class Scenario:
     
-    def __init__(self, scenario_desc, GUI = False, args = default_args):
+    def __init__(self, scenario_desc, GUI = True, args = default_args):
         self.num_objects = scenario_desc[0]
         self.num_agents = 2 if scenario_desc[1] else 1
         self.many_goals = scenario_desc[2]
@@ -36,7 +36,7 @@ class Scenario:
         if(self.many_goals):
             gs = [choices(goals)[0]] + [None]*(len(all_pairs)-1)
         else:
-            gs = ["push"] + [None]*(len(all_pairs)-1)
+            gs = ["touch"] + [None]*(len(all_pairs)-1)
         all_pairs = [(shape, color, goal) for (shape, color), goal in zip(all_pairs, gs)]
         self.objects = all_pairs[:self.num_objects]
         
@@ -156,16 +156,20 @@ class Scenario:
         if(reward > 0): reward *= self.args.step_cost ** self.steps[i]
         if(verbose): print("reward {}".format(reward))
         
-        end = self.steps[i] >= self.args.max_steps
-        if(end): 
+        done = True 
+        for (_, _, goal, _), object in arena.objects.items():
+            if(goal != None): done = False
+        
+        if(not done): done = self.steps[i] >= self.args.max_steps
+        if(done): 
             failures = 0
             for (_, _, goal, _), object in arena.objects.items():
                 if(goal != None): failures += 1
             reward += self.args.step_lim_punishment * failures
             arena.end()
-        if(verbose): print("end {}, reward {}\n\n".format(end, reward))
-        
-        return(reward, end, action_name)
+        if(verbose): print("end {}, reward {}\n\n".format(done, reward))
+                
+        return(reward, done, action_name)
     
     
     
