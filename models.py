@@ -514,9 +514,11 @@ class Critic_HQ(nn.Module):
         
         self.args = args
         
+        self.action_in = Action_IN(args)
+        
         self.lin = nn.Sequential(
             nn.PReLU(),
-            nn.Linear(args.hidden_size + action_size + + args.symbols, args.hidden_size),
+            nn.Linear(2 * args.hidden_size, args.hidden_size),
             nn.PReLU(),
             nn.Linear(args.hidden_size, args.hidden_size),
             nn.PReLU(),
@@ -529,8 +531,9 @@ class Critic_HQ(nn.Module):
         self.apply(init_weights)
         self.to(args.device)
 
-    def forward(self, h, action):
-        Q = self.lin(torch.cat((h, action), dim=-1))
+    def forward(self, h, action, arms = False, comm = False):
+        a = self.action_in(action, arms, comm)
+        Q = self.lin(torch.cat((h, a), dim=-1))
         return(Q, None)
     
 
