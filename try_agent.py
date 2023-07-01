@@ -78,10 +78,10 @@ class Agent_and_Episode:
         goal_comm = self.scenario.revealed_goals
         comm = self.goal_comm[-1] if goal_comm else self.comm[-1]
         if(self.args.critic_hq): 
-            Q1 = self.critic1(self.h_q[-1], self.a[-1])
-            Q2 = self.critic2(self.h_q[-1], self.a[-1])
-            Qt1 = self.critic1_target(self.h_q[-1], self.a[-1])
-            Qt2 = self.critic2_target(self.h_q[-1], self.a[-1]) 
+            Q1, _ = self.critic1(self.h_q[-1], self.a[-1])
+            Q2, _ = self.critic2(self.h_q[-1], self.a[-1])
+            Qt1, _ = self.critic1_target(self.h_q[-1], self.a[-1])
+            Qt2, _ = self.critic2_target(self.h_q[-1], self.a[-1]) 
         else:
             Q1, h_critic1 = self.critic1(self.o[-1], self.s[-1], comm, self.a[-1], self.h_critic1[-1], goal_comm)
             Q2, h_critic2 = self.critic2(self.o[-1], self.s[-1], comm, self.a[-1], self.h_critic2[-1], goal_comm)
