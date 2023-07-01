@@ -45,7 +45,7 @@ class Agent_and_Episode:
         self.zq_mu = [] ; self.zq_std = []
         self.Qs = []
         
-        self.scenario = Scenario(args.objects, 1, False, True, args)
+        self.scenario = Scenario((1,False,False), True, args)
         self.scenario.begin()
         o, s, comm, goal_comm = self.scenario.obs(0)
         self.o = [o] ; self.s = [s] ; self.comm = [comm] ; self.goal_comm = [goal_comm]
@@ -54,12 +54,14 @@ class Agent_and_Episode:
         self.args = args
         
     def act(self):
-        _, (zq_mu, zq_std), h_q = self.forward(self.o[-1], self.s[-1], self.comm[-1], self.goal_comm[-1], self.a[-1], self.h_q[-1])
+        goal_comm = self.scenario.revealed_goals
+        comm = self.goal_comm[-1] if goal_comm else self.comm[-1]
+        _, (zq_mu, zq_std), h_q = self.forward(self.o[-1], self.s[-1], comm, self.a[-1], self.h_q[-1], goal_comm)
         self.zq_mu.append(zq_mu) ; self.zq_std.append(zq_std) ; self.h_q.append(h_q)
         if(self.args.actor_hq):
-            a, _, _ = self.actor(self.h_q[-1])
+            a, _, _ = self.actor(self.h_q[-1], goal_comm)
         else:
-            a, _, h_actor = self.actor(self.o[-1], self.s[-1], self.a[-1], self.h_actor[-1])
+            a, _, h_actor = self.actor(self.o[-1], self.s[-1], comm, self.a[-1], self.h_actor[-1], goal_comm)
             self.h_actor.append(h_actor)
         a = a.flatten()
         yaw, spe, arms, hands, comm = a[0].item(), a[1].item(), a[2].item(), a[3].item(), a[4:].tolist()
@@ -73,16 +75,18 @@ class Agent_and_Episode:
         self.o.append(o) ; self.s.append(s) ; self.comm.append(comm); self.goal_comm.append(goal_comm)
         self.positions.append(self.scenario.arenas[0].get_pos_yaw_spe())
         
+        goal_comm = self.scenario.revealed_goals
+        comm = self.goal_comm[-1] if goal_comm else self.comm[-1]
         if(self.args.critic_hq): 
             Q1 = self.critic1(self.h_q[-1], self.a[-1])
             Q2 = self.critic2(self.h_q[-1], self.a[-1])
             Qt1 = self.critic1_target(self.h_q[-1], self.a[-1])
             Qt2 = self.critic2_target(self.h_q[-1], self.a[-1]) 
         else:
-            Q1, h_critic1 = self.critic1(self.o[-1], self.s[-1], self.comm[-1], self.goal_comm[-1], self.a[-1], self.h_critic1[-1])
-            Q2, h_critic2 = self.critic2(self.o[-1], self.s[-1], self.comm[-1], self.goal_comm[-1], self.a[-1], self.h_critic2[-1])
-            Qt1, h_critict1 = self.critic1_target(self.o[-1], self.s[-1], self.comm[-1], self.goal_comm[-1], self.a[-1], self.h_critict1[-1])
-            Qt2, h_critict2 = self.critic2_target(self.o[-1], self.s[-1], self.comm[-1], self.goal_comm[-1], self.a[-1], self.h_critict2[-1])
+            Q1, h_critic1 = self.critic1(self.o[-1], self.s[-1], comm, self.a[-1], self.h_critic1[-1], goal_comm)
+            Q2, h_critic2 = self.critic2(self.o[-1], self.s[-1], comm, self.a[-1], self.h_critic2[-1], goal_comm)
+            Qt1, h_critict1 = self.critic1_target(self.o[-1], self.s[-1], comm, self.a[-1], self.h_critict1[-1], goal_comm)
+            Qt2, h_critict2 = self.critic2_target(self.o[-1], self.s[-1], comm, self.a[-1], self.h_critict2[-1], goal_comm)
             self.h_critic1.append(h_critic1)   ; self.h_critic2.append(h_critic2)
             self.h_critict1.append(h_critict1) ; self.h_critict2.append(h_critict2)
         self.Qs.append([Q1.item(), Q2.item(), Qt1.item(), Qt2.item()])

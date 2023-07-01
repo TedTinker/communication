@@ -76,3 +76,4 @@ jid_list=()
 jid=$(sbatch --dependency=afterok:$dict_jid communication/bash/plotting.slurm | awk '{print $4}')
 echo "$jid : plotting"
 jid_list+=($jid)
+echo
