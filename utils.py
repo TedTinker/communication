@@ -61,7 +61,7 @@ parser.add_argument('--reward',             type=float,      default = 1)
 parser.add_argument('--step_lim_punishment',type=float,      default = -1)
 parser.add_argument('--step_cost',          type=float,      default = .99999)
 parser.add_argument('--body_size',          type=float,      default = 2)    
-parser.add_argument('--image_size',         type=int,        default = 16)
+parser.add_argument('--image_size',         type=int,        default = 8)
 parser.add_argument('--max_yaw_change',     type=float,      default = pi/2)
 parser.add_argument('--min_speed',          type=float,      default = 0)
 parser.add_argument('--max_speed',          type=float,      default = 300)
@@ -100,7 +100,7 @@ parser.add_argument('--capacity',           type=int,        default = 250)
 
 # Training
 parser.add_argument('--epochs',             type=literal,    default = [1000])#,10,10,10])
-parser.add_argument('--steps_per_epoch',    type=int,        default = 20)
+parser.add_argument('--steps_per_epoch',    type=int,        default = 10)
 parser.add_argument('--batch_size',         type=int,        default = 128)
 parser.add_argument('--elbo_num',           type=int,        default = 1)
 parser.add_argument('--GAMMA',              type=float,      default = .9)
@@ -112,6 +112,11 @@ parser.add_argument('--comm_scalar',        type=float,      default = .0001)
 parser.add_argument('--keep_data',           type=int,        default = 25)
 
 parser.add_argument('--epochs_per_gen',      type=int,        default = 100)
+
+parser.add_argument('--epochs_per_pred_list',type=int,        default = 100)
+parser.add_argument('--agents_per_pred_list',type=int,        default = 1)
+parser.add_argument('--episodes_in_pred_list',type=int,       default = 1)
+parser.add_argument('--samples_per_pred',    type=int,        default = 2)
 
 parser.add_argument('--epochs_per_agent_list',type=int,       default = 100)
 parser.add_argument('--agents_per_agent_list',type=int,       default = 1)
@@ -293,12 +298,13 @@ def load_dicts(args):
 
 shapes = [f.name for f in os.scandir("pybullet_data/shapes")]
 shapes.sort()
-shapes = shapes[:2]
+shapes = shapes[:1]
 colors = [(1,0,0,1),(0,1,0,1),(0,0,1,1),(0,1,1,1),(1,0,1,1),(1,1,0,1)]
-colors = colors[:4]
+colors = colors[:1]
 goals = ["touch"]#, "watch", "push", "pull", "topple"]
 
-test_objects = {shape: [color_1, color_2] for shape, color_1, color_2 in zip(shapes, colors, colors[1:] + [colors[0]])}
+test_objects = {shape : [color_1, color_2] for shape, color_1, color_2 in zip(shapes, colors, colors[1:] + [colors[0]])}
+test_objects = {shape : [] for shape in shapes}
 
 if __name__ == "__main__":
     print(shapes)

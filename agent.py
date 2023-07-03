@@ -64,6 +64,7 @@ class Agent:
             "args" : args,
             "arg_title" : args.arg_title,
             "arg_name" : args.arg_name,
+            "pred_lists" : {},
             "agent_lists" : {"forward" : Forward, "actor" : Actor_HQ if args.actor_hq else Actor, "critic" : Critic_HQ if args.critic_hq else Critic},
             "rewards" : [], 
             "accuracy" : [], "complexity" : [],
@@ -76,6 +77,7 @@ class Agent:
         
         
     def training(self, q):
+        self.pred_episodes_hq() if self.args.actor_hq else self.pred_episodes()
         self.save_agent()
         while(True):
             cumulative_epochs = 0
@@ -84,17 +86,20 @@ class Agent:
                 cumulative_epochs += epochs
                 if(self.epochs < cumulative_epochs): self.scenario_desc = self.args.scenario_list[j] ; break
             if(prev_scenario_desc != self.scenario_desc): 
+                self.pred_episodes_hq() if self.args.actor_hq else self.pred_episodes()
                 for arena in self.scenario.arenas:
                     arena.stop()
                 self.goal_comm = not self.scenario_desc[1]
                 self.scenario = Scenario(self.scenario_desc, args = self.args)
                 self.memory = RecurrentReplayBuffer(self.args)
+                self.pred_episodes_hq() if self.args.actor_hq else self.pred_episodes()
             self.training_episode()
             percent_done = str(self.epochs / sum(self.args.epochs))
             q.put((self.agent_num, percent_done))
             if(self.epochs >= sum(self.args.epochs)): break
             if(self.epochs % self.args.epochs_per_agent_list == 0): self.save_agent()
         self.plot_dict["rewards"] = list(accumulate(self.plot_dict["rewards"]))
+        self.pred_episodes_hq() if self.args.actor_hq else self.pred_episodes()
         self.save_agent()
         
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
@@ -148,6 +153,75 @@ class Agent:
             if(push): 
                 to_push = [o, s, c, gc, a, r, no, ns, nc, ngc, done]
         return(a, h_q, r, done, action_name, to_push)
+    
+    
+    
+    def pred_episodes(self):
+        with torch.no_grad():
+            if(self.args.agents_per_pred_list != -1 and self.agent_num > self.args.agents_per_pred_list): return
+            pred_lists = []
+            for episode in range(self.args.episodes_in_pred_list):
+                done = False ; prev_a = torch.zeros((1, 1, 4 + self.args.symbols))
+                h_actor = torch.zeros((1, 1, self.args.hidden_size))
+                h_q     = torch.zeros((1, 1, self.args.hidden_size))
+                self.scenario.begin()
+                rgbd, spe, comm, goal_comm = self.scenario.obs(0)
+                comm = goal_comm if self.goal_comm else comm
+                pred_list = [(None, (rgbd.squeeze(0), spe.squeeze(0), comm.squeeze(0)), ((None, None, None), (None, None, None)), ((None, None, None), (None, None, None)))]
+                for step in range(self.args.max_steps):
+                    if(not done): 
+                        rgbd, spe, comm, goal_comm = self.scenario.obs(0)
+                        comm = goal_comm if self.goal_comm else comm
+                        a, h_actor, _, done, action_name, _ = self.step_in_episode(0, prev_a, h_actor, push = False, verbose = False)
+                        (zp_mu, zp_std), (zq_mu, zq_std), h_q_p1 = self.forward(rgbd, spe, comm, prev_a, h_q, goal_comm = self.goal_comm)
+                        (rgbd_mu_pred_p, pred_rgbd_p), (spe_mu_pred_p, pred_spe_p), (comm_mu_pred_p, pred_comm_p) = self.forward.get_preds(a, zp_mu, zp_std, h_q, quantity = self.args.samples_per_pred, goal_comm = self.goal_comm)
+                        (rgbd_mu_pred_q, pred_rgbd_q), (spe_mu_pred_q, pred_spe_q), (comm_mu_pred_q, pred_comm_q) = self.forward.get_preds(a, zq_mu, zq_std, h_q, quantity = self.args.samples_per_pred, goal_comm = self.goal_comm)
+                        pred_rgbd_p = [pred.squeeze(0).squeeze(0) for pred in pred_rgbd_p] ; pred_rgbd_q = [pred.squeeze(0).squeeze(0) for pred in pred_rgbd_q]
+                        pred_spe_p = [pred.squeeze(0).squeeze(0) for pred in pred_spe_p]   ; pred_spe_q = [pred.squeeze(0).squeeze(0) for pred in pred_spe_q]
+                        pred_comm_p = [pred.squeeze(0).squeeze(0) for pred in pred_comm_p] ; pred_comm_q = [pred.squeeze(0).squeeze(0) for pred in pred_comm_q]
+                        rgbd, spe, comm, goal_comm = self.scenario.obs(0)
+                        comm = goal_comm if self.goal_comm else comm
+                        pred_list.append((
+                            action_name, (rgbd.squeeze(0), spe.squeeze(0), comm.squeeze(0)), 
+                            ((rgbd_mu_pred_p.squeeze(0).squeeze(0), pred_rgbd_p), (spe_mu_pred_p.squeeze(0).squeeze(0), pred_spe_p), (comm_mu_pred_p.squeeze(0).squeeze(0), pred_comm_p)), 
+                            ((rgbd_mu_pred_q.squeeze(0).squeeze(0), pred_rgbd_q), (spe_mu_pred_q.squeeze(0).squeeze(0), pred_spe_q), (comm_mu_pred_q.squeeze(0).squeeze(0), pred_comm_q))))
+                        prev_a = a ; h_q = h_q_p1
+                pred_lists.append(pred_list)
+            self.plot_dict["pred_lists"]["{}_{}_{}".format(self.agent_num, self.epochs, self.scenario.desc)] = pred_lists
+            
+            
+            
+    def pred_episodes_hq(self):
+        with torch.no_grad():
+            if(self.args.agents_per_pred_list != -1 and self.agent_num > self.args.agents_per_pred_list): return
+            pred_lists = []
+            for episode in range(self.args.episodes_in_pred_list):
+                done = False ; prev_a = torch.zeros((1, 1, 4 + self.args.symbols))
+                h_q = torch.zeros((1, 1, self.args.hidden_size))
+                self.scenario.begin()
+                rgbd, spe, comm, goal_comm = self.scenario.obs(0)
+                comm = goal_comm if self.goal_comm else comm
+                pred_list = [(None, (rgbd.squeeze(0), spe.squeeze(0), comm.squeeze(0)), ((None, None, None), (None, None, None)), ((None, None, None), (None, None, None)))]
+                for step in range(self.args.max_steps):
+                    if(not done): 
+                        rgbd, spe, comm, goal_comm = self.scenario.obs(0)
+                        comm = goal_comm if self.goal_comm else comm
+                        a, h_q_p1, _, done, action_name, _ = self.step_in_episode_hq(0, prev_a, h_q.unsqueeze(0), push = False, verbose = False)
+                        (zp_mu, zp_std), (zq_mu, zq_std), _ = self.forward(rgbd, spe, comm, prev_a, h_q, goal_comm = self.goal_comm)
+                        (rgbd_mu_pred_p, pred_rgbd_p), (spe_mu_pred_p, pred_spe_p), (comm_mu_pred_p, pred_comm_p) = self.forward.get_preds(a, zp_mu, zp_std, h_q, quantity = self.args.samples_per_pred, goal_comm = self.goal_comm)
+                        (rgbd_mu_pred_q, pred_rgbd_q), (spe_mu_pred_q, pred_spe_q), (comm_mu_pred_q, pred_comm_q) = self.forward.get_preds(a, zq_mu, zq_std, h_q, quantity = self.args.samples_per_pred, goal_comm = self.goal_comm)
+                        pred_rgbd_p = [pred.squeeze(0).squeeze(0) for pred in pred_rgbd_p] ; pred_rgbd_q = [pred.squeeze(0).squeeze(0) for pred in pred_rgbd_q]
+                        pred_spe_p = [pred.squeeze(0).squeeze(0) for pred in pred_spe_p]   ; pred_spe_q = [pred.squeeze(0).squeeze(0) for pred in pred_spe_q]
+                        pred_comm_p = [pred.squeeze(0).squeeze(0) for pred in pred_comm_p] ; pred_comm_q = [pred.squeeze(0).squeeze(0) for pred in pred_comm_q]
+                        rgbd, spe, comm, goal_comm = self.scenario.obs(0)
+                        comm = goal_comm if self.goal_comm else comm
+                        pred_list.append((
+                            action_name, (rgbd.squeeze(0), spe.squeeze(0), comm.squeeze(0)), 
+                            ((rgbd_mu_pred_p.squeeze(0).squeeze(0), pred_rgbd_p), (spe_mu_pred_p.squeeze(0).squeeze(0), pred_spe_p), (comm_mu_pred_p.squeeze(0).squeeze(0), pred_comm_p)), 
+                            ((rgbd_mu_pred_q.squeeze(0).squeeze(0), pred_rgbd_q), (spe_mu_pred_q.squeeze(0).squeeze(0), pred_spe_q), (comm_mu_pred_q.squeeze(0).squeeze(0), pred_comm_q))))
+                        prev_a = a ; h_q = h_q_p1
+                pred_lists.append(pred_list)
+            self.plot_dict["pred_lists"]["{}_{}_{}".format(self.agent_num, self.epochs, self.scenario.desc)] = pred_lists
     
     
     

@@ -76,10 +76,29 @@ class RGBD_IN(nn.Module):
         self.to(args.device)
         
     def forward(self, rgbd):
+        if(len(rgbd.shape) == 4): rgbd = rgbd.unsqueeze(1)
         rgbd = (rgbd.permute(0, 1, 4, 2, 3) * 2) - 1
         rgbd = rnn_cnn(self.rgbd_in, rgbd).flatten(2)
         rgbd = self.rgbd_in_lin(rgbd)
         return(rgbd)
+    
+    
+    
+class Spe_IN(nn.Module):
+        
+    def __init__(self, args = default_args):
+        super(Spe_IN, self).__init__()  
+        
+        self.args = args 
+        
+        self.spe_in = nn.Sequential(
+            nn.Linear(1, args.hidden_size),
+            nn.PReLU())
+        
+    def forward(self, spe):
+        if(len(spe.shape) == 2): spe = spe.unsqueeze(1)
+        spe = (spe - self.args.min_speed) / (self.args.max_speed - self.args.min_speed)
+        return(self.spe_in(spe))
     
 
 
@@ -97,10 +116,9 @@ class Comm_IN(nn.Module):
             nn.PReLU())
         
     def forward(self, comm, goal_comm):
-        if(goal_comm):
-            return(self.goal_comm_in(comm))
-        else:
-            return(self.comm_in(comm))
+        if(len(comm.shape) == 2): comm = comm.unsqueeze(1)
+        if(goal_comm): return(self.goal_comm_in(comm))
+        else:          return(self.comm_in(comm))
         
         
         
@@ -124,6 +142,7 @@ class Action_IN(nn.Module):
             nn.PReLU())
         
     def forward(self, action, arms, comm):
+        if(len(action.shape) == 2): action = action.unsqueeze(1)
         episodes, steps = episodes_steps(action)
         v = self.velocity_in(action[:,:,:2])
         if(arms): a = self.arms_in(action[:,:,2:4])
@@ -144,9 +163,7 @@ class Forward(nn.Module):
         
         self.rgbd_in = RGBD_IN(args)
         
-        self.spe_in = nn.Sequential(
-            nn.Linear(1, args.hidden_size),
-            nn.PReLU())
+        self.spe_in = Spe_IN(args)
         
         self.comm_in = Comm_IN(args)
         
@@ -169,12 +186,12 @@ class Forward(nn.Module):
             nn.Softplus())
         
         self.zq_mu = nn.Sequential(
-            nn.Linear(5 * args.hidden_size, args.hidden_size), 
+            nn.Linear(3 * args.hidden_size, args.hidden_size), 
             nn.PReLU(),
             nn.Linear(args.hidden_size, args.state_size),
             nn.Tanh())
         self.zq_std = nn.Sequential(
-            nn.Linear(5 * args.hidden_size, args.hidden_size), 
+            nn.Linear(3 * args.hidden_size, args.hidden_size), 
             nn.PReLU(),
             nn.Linear(args.hidden_size, args.state_size),
             nn.Softplus())
@@ -245,18 +262,13 @@ class Forward(nn.Module):
         self.to(args.device)
         
     def forward(self, rgbd, spe, comm, prev_a, h_q_m1, arms = False, communicating = False, goal_comm = False):
-        if(len(rgbd.shape) == 4):      rgbd      = rgbd.unsqueeze(1)
-        if(len(spe.shape) == 2):       spe       = spe.unsqueeze(1)
-        if(len(comm.shape) == 2):      comm      = comm.unsqueeze(1)
-        if(len(prev_a.shape) == 2):    prev_a    = prev_a.unsqueeze(1)
         rgbd = self.rgbd_in(rgbd)
-        spe = (spe - self.args.min_speed) / (self.args.max_speed - self.args.min_speed)
         spe = self.spe_in(spe)
         comm = self.comm_in(comm, goal_comm)
         prev_a = self.prev_action_in(prev_a, arms, communicating)
         relu_h_q_m1 = self.h_in(h_q_m1)
-        zp_mu, zp_std = var(torch.cat((relu_h_q_m1, prev_a),                  dim=-1), self.zp_mu, self.zp_std, self.args)
-        zq_mu, zq_std = var(torch.cat((relu_h_q_m1, prev_a, rgbd, comm, spe), dim=-1), self.zq_mu, self.zq_std, self.args)        
+        zp_mu, zp_std = var(torch.cat((relu_h_q_m1, prev_a),                    dim=-1), self.zp_mu, self.zp_std, self.args)
+        zq_mu, zq_std = var(torch.cat((relu_h_q_m1, prev_a, rgbd + spe + comm), dim=-1), self.zq_mu, self.zq_std, self.args)        
         zq = sample(zq_mu, zq_std)
         h_q, _ = self.gru(zq, h_q_m1.permute(1, 0, 2))
         return((zp_mu, zp_std), (zq_mu, zq_std), h_q)
@@ -271,10 +283,8 @@ class Forward(nn.Module):
         rgbd = self.rgbd_out_lin(torch.cat((h, action), dim=-1)).view((episodes, steps, self.gen_shape[0], self.gen_shape[1], self.gen_shape[2]))
         rgbd_mu_pred = rnn_cnn(self.rgbd_out, rgbd).permute(0, 1, 3, 4, 2)
         spe_mu_pred  = self.spe_out(torch.cat((h, action), dim=-1))
-        if(goal_comm):
-            comm_mu_pred  = self.goal_comm_out(torch.cat((h, action), dim=-1))
-        else:
-            comm_mu_pred  = self.comm_out(torch.cat((h, action), dim=-1))
+        if(goal_comm): comm_mu_pred = self.goal_comm_out(torch.cat((h, action), dim=-1))
+        else:          comm_mu_pred = self.comm_out(     torch.cat((h, action), dim=-1))
                 
         pred_rgbd = [] ; pred_spe = [] ; pred_comm = [] 
         for _ in range(quantity):
@@ -283,10 +293,8 @@ class Forward(nn.Module):
             rgbd = self.rgbd_out_lin(torch.cat((h, action), dim=-1)).view((episodes, steps, self.gen_shape[0], self.gen_shape[1], self.gen_shape[2]))
             pred_rgbd.append((rnn_cnn(self.rgbd_out, rgbd).permute(0, 1, 3, 4, 2)))
             pred_spe.append(self.spe_out(torch.cat((h, action), dim=-1)))
-            if(goal_comm):
-                pred_comm.append(self.goal_comm_out(torch.cat((h, action), dim=-1)))
-            else:
-                pred_comm.append(self.comm_out(torch.cat((h, action), dim=-1)))
+            if(goal_comm): pred_comm.append(self.goal_comm_out(torch.cat((h, action), dim=-1)))
+            else:          pred_comm.append(self.comm_out(torch.cat((h, action), dim=-1)))
         return((rgbd_mu_pred, pred_rgbd), (spe_mu_pred, pred_spe), (comm_mu_pred, pred_comm))
 
 
@@ -300,9 +308,7 @@ class Actor(nn.Module):
         
         self.rgbd_in = RGBD_IN(args)
         
-        self.spe_in = nn.Sequential(
-            nn.Linear(1, args.hidden_size),
-            nn.PReLU())
+        self.spe_in = Spe_IN(args)
         
         self.comm_in = Comm_IN(args)
         
@@ -312,7 +318,7 @@ class Actor(nn.Module):
             nn.PReLU())
         
         self.gru = nn.GRU(
-            input_size =  4 * args.hidden_size,
+            input_size =  2 * args.hidden_size,
             hidden_size = args.hidden_size,
             batch_first = True)
         
@@ -338,16 +344,12 @@ class Actor(nn.Module):
         self.to(args.device)
 
     def forward(self, rgbd, spe, comm, prev_action, h = None, arms = False, communicating = False, goal_comm = False):
-        if(len(rgbd.shape) == 4):      rgbd      = rgbd.unsqueeze(1)
-        if(len(spe.shape) == 2):       spe       = spe.unsqueeze(1)
-        if(len(comm.shape) == 2):      comm      = comm.unsqueeze(1)
         episodes, steps = episodes_steps(rgbd)
         rgbd = self.rgbd_in(rgbd)
-        spe = (spe - self.args.min_speed) / (self.args.max_speed - self.args.min_speed)
         spe = self.spe_in(spe)
         comm = self.comm_in(comm, goal_comm)
         prev_action = self.action_in(prev_action, arms, communicating)
-        h, _ = self.gru(torch.cat((rgbd, spe, comm, prev_action), dim=-1), h)
+        h, _ = self.gru(torch.cat((rgbd + spe + comm, prev_action), dim=-1), h)
         relu_h = self.h_in(h)
         
         velocity_mu, velocity_std = var(relu_h, self.velocity_mu, self.velocity_std, self.args)
@@ -392,9 +394,7 @@ class Critic(nn.Module):
         
         self.rgbd_in = RGBD_IN(args)
         
-        self.spe_in = nn.Sequential(
-            nn.Linear(1, args.hidden_size),
-            nn.PReLU())
+        self.spe_in = Spe_IN(args)
         
         self.comm_in = Comm_IN(args)
         
@@ -404,7 +404,7 @@ class Critic(nn.Module):
             nn.PReLU())
         
         self.gru = nn.GRU(
-            input_size =  4 * args.hidden_size,
+            input_size =  2 * args.hidden_size,
             hidden_size = args.hidden_size,
             batch_first = True)
         
@@ -417,15 +417,11 @@ class Critic(nn.Module):
         self.to(args.device)
 
     def forward(self, rgbd, spe, comm, action, h = None, arms = False, communicating = False, goal_comm = False):
-        if(len(rgbd.shape) == 4): rgbd = rgbd.unsqueeze(1)
-        if(len(spe.shape) == 2):  spe  = spe.unsqueeze(1)
-        if(len(comm.shape) == 2): comm = comm.unsqueeze(1)
         rgbd = self.rgbd_in(rgbd)
-        spe = (spe - self.args.min_speed) / (self.args.max_speed - self.args.min_speed)
         spe = self.spe_in(spe)
         comm = self.comm_in(comm, goal_comm)
         action = self.action_in(action, arms, communicating)
-        h, _ = self.gru(torch.cat((rgbd, spe, comm, action), dim=-1), h)
+        h, _ = self.gru(torch.cat((rgbd + spe + comm, action), dim=-1), h)
         Q = self.lin(self.h_in(h))
         return(Q, h)
     

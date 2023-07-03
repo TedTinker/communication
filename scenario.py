@@ -17,6 +17,7 @@ from torchvision.transforms.functional import resize
 class Scenario:
     
     def __init__(self, scenario_desc, GUI = False, args = default_args):
+        self.desc = scenario_desc
         self.num_objects = scenario_desc[0]
         self.num_agents = 2 if scenario_desc[1] else 1
         self.many_goals = scenario_desc[2]
