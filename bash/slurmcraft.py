@@ -147,5 +147,13 @@ singularity exec maze.sif python communication/finish_dicts.py --comp {} --arg_t
 module load singularity
 singularity exec maze.sif python communication/plotting.py --comp {} --arg_title {} --arg_name plotting
 """.format(partition, args.comp, combined)[2:])
+        
+    with open("plotting_pred.slurm", "w") as f:
+        f.write(
+"""
+{}
+module load singularity
+singularity exec maze.sif python communication/plotting_pred.py --comp {} --arg_title {} --arg_name plotting_predictions
+""".format(partition, args.comp, combined)[2:])
 # %%
 

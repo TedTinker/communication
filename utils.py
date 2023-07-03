@@ -282,8 +282,6 @@ def load_dicts(args):
             
     complete_order = []
 
-    easy = False 
-    hard = False 
     for arg_name in complete_order: 
         if(arg_name in ["break", "empty_space"]): 
             complete_order.append(arg_name)
@@ -294,7 +292,7 @@ def load_dicts(args):
                     
     while(len(complete_order) > 0 and complete_order[0] in ["break", "empty_space"]): complete_order.pop(0)
             
-    return(plot_dicts, min_max_dict, (easy, complete_order, plot_dicts))
+    return(plot_dicts, min_max_dict, complete_order, plot_dicts)
 
 shapes = [f.name for f in os.scandir("pybullet_data/shapes")]
 shapes.sort()

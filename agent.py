@@ -104,7 +104,7 @@ class Agent:
         
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
-            if(not key in ["args", "arg_title", "arg_name", "agent_lists"]):
+            if(not key in ["args", "arg_title", "arg_name", "agent_lists", "pred_lists"]):
                 minimum = None ; maximum = None 
                 l = self.plot_dict[key]
                 l = deepcopy(l)
