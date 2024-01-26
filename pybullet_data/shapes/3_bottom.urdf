@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<robot name="3_flat_bottom">
+<robot name="3_bottom">
 
     <!-- The base --> 
     <link name="base_link">
@@ -61,13 +61,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <cylinder length="0.05" radius="0.2"/>
+                <cylinder length="0.05" radius="0.6"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <cylinder length="0.05" radius="0.2"/>
+                <cylinder length="0.05" radius="0.6"/>
             </geometry>
         </collision>
     </link>

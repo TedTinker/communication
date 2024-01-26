@@ -65,10 +65,9 @@ def make_urdf(file_name, widths = [.6]*10):
     file.write(text)
     file.close()
 
-make_urdf("1_cylinder",      [.6] * 20)
-make_urdf("2_pole",          [.2] * 20)
-make_urdf("3_flat_bottom",   [.6] * 1 + [.2] * 19)
-make_urdf("4_flat_top",      [.2] * 19 + [.6] * 1)
-make_urdf("5_cone",          [.6 - .03*i for i in range(20)])
-make_urdf("6_cone_inverted", [.03 + .03*i for i in range(20)])
+make_urdf("1_pole",          [.2] * 20)
+make_urdf("2_top",           [.2] * 18 + [.6] * 2)
+make_urdf("3_bottom",        [.6] * 2 + [.2] * 18)
+make_urdf("4_middle",        [.2] * 9 + [.6] * 2 + [.2] * 9)
+make_urdf("5_top_bottom",    [.6] * 2 + [.2] * 16 + [.6] * 2)
 # %%

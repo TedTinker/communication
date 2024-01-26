@@ -1,20 +1,98 @@
 #%% 
 
-# To do:
-#   Adjust so actor only moves arms if it has arms.
-#   Test for generalization
-#   Maybe separate actors / critics?
+# To do: 
+#   Reset arm positions every episode.
+#   Make it work!
+#   Fix saved episode plotting.
+#   Add positions to episode plotting.
 
+# Done in easy, but not here:
+#   Add critic-values to saved episode. 
+
+import os
+import pickle
+from math import pi
+from time import sleep
 import builtins
+import datetime 
+import matplotlib
+import argparse, ast
+from math import exp
+from random import choice, randint
+import torch
+from torch import nn 
+import platform
+from torch.distributions import Normal
+from torch.nn.functional import cosine_similarity
 
+if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
+
+torch.set_printoptions(precision=3, sci_mode=False)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("DEVICE:", device)
+device = "cpu"
+
+data_path = "pybullet_data"
+robot_file = data_path + "/robot"
+shape_files = [f.name for f in os.scandir(data_path + "/shapes") if f.name.endswith("urdf")] ; shape_files.sort()
+
+shape_map = {shape_file[2:-5] : shape_file for shape_file in shape_files} 
+max_len_shape_name = len(max(shape_map, key=len))
+
+color_map = {
+    "red" : (1,0,0,1), 
+    "blue" : (0,1,0,1), 
+    "green" : (0,0,1,1), 
+    "cyan" : (0,1,1,1), 
+    "magenta" : (1,0,1,1),
+    "yellow" : (1,1,0,1)}
+max_len_color_name = len(max(color_map, key=len))
+
+test_combos = []
+for index in range(len(shape_map)):
+    test_combos.append((index, index))
+    test_combos.append((index, index+1))
+
+def make_object(shapes = len(shape_map), colors = len(color_map), test = False):
+    if(test):
+        filtered_list = [(a, b) for (a, b) in test_combos if a <= shapes and b <= colors]
+        return(choice(filtered_list))
+    shape_color = test_combos[0]
+    while(shape_color in test_combos):
+        shape_color = ((randint(0, shapes - 1), randint(0, colors - 1)))
+    return(shape_color)
+
+action_map = {
+    0: "touch", 
+    1: "watch", 
+    2: "lift", 
+    3: "pull", 
+    4: "spin"}
+max_len_action_name = len(max(action_map.values(), key=len))
+
+comm_map = {
+    0: ' ', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G',
+    8: 'H', 9: 'I', 10: 'J', 11: 'K', 12: 'L', 13: 'M', 14: 'N',
+    15: 'O', 16: 'P', 17: 'Q', 18: 'R', 19: 'S', 20: 'T', 21: 'U',
+    22: 'V', 23: 'W', 24: 'X', 25: 'Y', 26: 'Z', 27: '.'}
+
+char_to_index = {v: k for k, v in comm_map.items()}
+
+# Adjusting printing for computer-cluster.
 def print(*args, **kwargs):
     kwargs["flush"] = True
     builtins.print(*args, **kwargs)
 
-import datetime 
+# Adjusting PLT.
+font = {'family' : 'sans-serif',
+        #'weight' : 'bold',
+        'size'   : 22}
+matplotlib.rc('font', **font)
 
+# Duration functions.
 start_time = datetime.datetime.now()
-    
+
 def duration(start_time = start_time):
     change_time = datetime.datetime.now() - start_time
     change_time = change_time - datetime.timedelta(microseconds=change_time.microseconds)
@@ -30,98 +108,152 @@ def estimate_total_duration(proportion_completed, start_time=start_time):
 
 
 
-import argparse, ast, os, pickle
-from math import exp, pi
-import numpy as np
-from time import sleep
-
-if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
-
-import torch
-from torch import nn 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+# Arguments to parse. 
+def literal(arg_string): return(ast.literal_eval(arg_string))
 parser = argparse.ArgumentParser()
 
-def literal(arg_string): return(ast.literal_eval(arg_string))
+    # Meta 
+parser.add_argument("--arg_title",          type=str,        default = "default",
+                    help='Title of argument-set containign all non-default arguments.') 
+parser.add_argument("--arg_name",           type=str,        default = "default",
+                    help='Title of argument-set for human-understanding.') 
+parser.add_argument("--agents",             type=int,        default = 36,
+                    help='How many agents are trained in this job?')
+parser.add_argument("--previous_agents",    type=int,        default = 0,
+                    help='How many agents with this argument-set are trained in previous jobs?')
+parser.add_argument("--init_seed",          type=float,      default = 777,
+                    help='Random seed.')
+parser.add_argument('--comp',               type=str,        default = "deigo",
+                    help='Cluster name (deigo or saion).')
+parser.add_argument('--device',             type=str,        default = device,
+                    help='Which device to use for Torch.')
 
-# Meta 
-parser.add_argument("--arg_title",          type=str,        default = "default") 
-parser.add_argument("--arg_name",           type=str,        default = "default") 
-parser.add_argument("--agents",             type=int,        default = 1)
-parser.add_argument("--previous_agents",    type=int,        default = 0)
-parser.add_argument("--init_seed",          type=float,      default = 777)
-parser.add_argument('--device',             type=str,        default = "cpu")
-parser.add_argument('--comp',               type=str,        default = "deigo")
+    # Task details
+parser.add_argument('--task_list',          type=literal,    default = ["1", "2"],
+                    help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
+parser.add_argument('--max_steps',          type=int,        default = 10,
+                    help='How many steps the agent can make in one episode.')
+parser.add_argument('--step_lim_punishment',type=float,      default = -1,
+                    help='Extrinsic punishment for taking max_steps steps.')
+parser.add_argument('--step_cost',          type=float,      default = .9,
+                    help='How much extrinsic rewards for exiting are reduced per step.')
+parser.add_argument('--reward',             type=float,      default = 5,
+                    help='Extrinsic reward for choosing incorrect action, shape, and color.') 
+parser.add_argument('--actions',            type=int,        default = 5,
+                    help='Maximum count of actions in one episode.')
+parser.add_argument('--objects',            type=int,        default = 3,
+                    help='Maximum count of objects in one episode.')
+parser.add_argument('--shapes',             type=int,        default = 5,
+                    help='Maximum count of shapes in one episode.')
+parser.add_argument('--colors',             type=int,        default = 6,
+                    help='Maximum count of colors in one episode.')
+parser.add_argument('--max_comm_len',       type=int,        default = 20,
+                    help='Maximum length of communication.')
 
-# Scenario 
-parser.add_argument('--scenario_list',      type=literal,    default = [(1,False,False)])#(3,False,False),(3,False,True),(3,True,True)]) # Are there two agents? Do we use all goals?
-parser.add_argument('--max_steps',          type=int,        default = 20)
-parser.add_argument('--reward',             type=float,      default = 1)
-parser.add_argument('--step_lim_punishment',type=float,      default = -1)
-parser.add_argument('--step_cost',          type=float,      default = .99999)
-parser.add_argument('--body_size',          type=float,      default = 2)    
-parser.add_argument('--image_size',         type=int,        default = 8)
-parser.add_argument('--max_yaw_change',     type=float,      default = pi/2)
-parser.add_argument('--min_speed',          type=float,      default = 0)
-parser.add_argument('--max_speed',          type=float,      default = 300)
-parser.add_argument('--steps_per_step',     type=int,        default = 5)
-parser.add_argument('--symbols',            type=int,        default = 20)
+    # Simulation details
+parser.add_argument('--body_size',          type=float,      default = 2,
+                    help='How large is the agent\'s body?')    
+parser.add_argument('--image_size',         type=int,        default = 8,
+                    help='Dimensions of the images observed.')
+parser.add_argument('--max_yaw_change',     type=float,      default = pi/2,
+                    help='Max amount agent can change angle, in radians.')
+parser.add_argument('--min_speed',          type=float,      default = 0,
+                    help='Agent\'s minimum speed.')
+parser.add_argument('--max_speed',          type=float,      default = 300,
+                    help='Agent\'s maximum speed.')
+parser.add_argument('--steps_per_step',     type=int,        default = 5,
+                    help='To avoid intersections, simulation makes each episode step multiple simulation steps.')
 
-# Module 
-parser.add_argument('--hidden_size',        type=int,        default = 32)   
-parser.add_argument('--state_size',         type=int,        default = 32)
-parser.add_argument('--actor_hq',           type=literal,    default = True)
-parser.add_argument('--critic_hq',          type=literal,    default = False)
-parser.add_argument('--forward_lr',         type=float,      default = .01)
-parser.add_argument('--alpha_lr',           type=float,      default = .01) 
-parser.add_argument('--actor_lr',           type=float,      default = .01)
-parser.add_argument('--critic_lr',          type=float,      default = .01)
-parser.add_argument('--action_prior',       type=str,        default = "normal")
-parser.add_argument("--tau",                type=float,      default = 1)      # For soft-updating target critics
+    # Training
+parser.add_argument('--epochs',             type=literal,    default = [50, 50],
+                    help='List of how many epochs to train in each task.')
+parser.add_argument('--batch_size',         type=int,        default = 128, 
+                    help='How many episodes are sampled for each epoch.')      
+parser.add_argument('--rgbd_scaler',        type=float,      default = 1, 
+                    help='How much to consider rgbd prediction in accuracy compared to comm and speed.')  
+parser.add_argument('--speed_scaler',       type=float,      default = 1, 
+                    help='How much to consider speed prediction in accuracy compared to rgbd and comm.')  
+parser.add_argument('--comm_scaler',        type=float,      default = 1, 
+                    help='How much to consider comm prediction in accuracy compared to rgbd and speed.')       
 
-# Complexity 
-parser.add_argument('--std_min',            type=int,        default = exp(-20))
-parser.add_argument('--std_max',            type=int,        default = exp(2))
-parser.add_argument("--beta",               type=float,      default = 0)
+    # Memory buffer
+parser.add_argument('--capacity',           type=int,        default = 250,
+                    help='How many episodes can the memory buffer contain.')
 
-# Entropy
-parser.add_argument("--alpha",              type=str,        default = 0)        # Soft-Actor-Critic entropy aim
-parser.add_argument("--target_entropy",     type=float,      default = -4)       # Soft-Actor-Critic entropy aim
+    # Module 
+parser.add_argument('--critics',            type=int,        default = 2,
+                    help='How many critics?')   
+parser.add_argument('--hidden_size',        type=int,        default = 32,
+                    help='Parameters in hidden layers.')   
+parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 64,
+                    help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
+parser.add_argument('--state_size',         type=int,        default = 128,
+                    help='Parameters in prior and posterior inner-states.')
+parser.add_argument('--time_scales',        type=literal,    default = [1],
+                    help='Time-scales for MTRNN.')
+parser.add_argument('--forward_lr',         type=float,      default = .01,
+                    help='Learning rate for forward model.')
+parser.add_argument('--alpha_lr',           type=float,      default = .01,
+                    help='Learning rate for alpha value.') 
+parser.add_argument('--actor_lr',           type=float,      default = .01,
+                    help='Learning rate for actor model.')
+parser.add_argument('--critic_lr',          type=float,      default = .01,
+                    help='Learning rate for critic model.')
+parser.add_argument("--tau",                type=float,      default = .1,
+                    help='Rate at which target-critics approach critics.')      
+parser.add_argument('--GAMMA',              type=float,      default = .9,
+                    help='How heavily critics consider the future.')
+parser.add_argument("--d",                  type=int,        default = 2,
+                    help='Delay for training actors.') 
 
-# Curiosity
-parser.add_argument("--curiosity",          type=str,        default = "none")     # Which kind of curiosity
-parser.add_argument("--naive_eta",          type=float,      default = 10)        # Scale curiosity
-parser.add_argument("--free_eta",           type=float,      default = 10)        # Scale curiosity
-parser.add_argument("--dkl_max",            type=float,      default = 1)        
+    # Complexity 
+parser.add_argument('--std_min',            type=int,        default = exp(-20),
+                    help='Minimum value for standard deviation.')
+parser.add_argument('--std_max',            type=int,        default = exp(2),
+                    help='Maximum value for standard deviation.')
+parser.add_argument("--beta",               type=literal,    default = [1],
+                    help='Relative importance of complexity in each layer.')
 
-# Memory buffer
-parser.add_argument('--capacity',           type=int,        default = 250)
+    # Entropy
+parser.add_argument("--alpha",              type=literal,    default = 0,
+                    help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
+parser.add_argument("--target_entropy",     type=float,      default = 0,
+                    help='Target for choosing alpha if alpha set to None. Recommended: negative size of action-space.')      
+parser.add_argument('--action_prior',       type=str,        default = "uniform",
+                    help='The actor can be trained based on normal or uniform distributions.')
 
-# Training
-parser.add_argument('--epochs',             type=literal,    default = [1000])#,10,10,10])
-parser.add_argument('--steps_per_epoch',    type=int,        default = 10)
-parser.add_argument('--batch_size',         type=int,        default = 128)
-parser.add_argument('--elbo_num',           type=int,        default = 1)
-parser.add_argument('--GAMMA',              type=float,      default = .9)
-parser.add_argument("--d",                  type=int,        default = 2)        # Delay to train actors
-parser.add_argument('--speed_scalar',       type=float,      default = .0001)
-parser.add_argument('--comm_scalar',        type=float,      default = .0001)
+    # Curiosity
+parser.add_argument("--curiosity",          type=str,        default = "none",
+                    help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
+parser.add_argument("--dkl_max",            type=float,      default = 1,
+                    help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')        
+parser.add_argument("--prediction_error_eta", type=float,    default = 1,
+                    help='Nonnegative value, how much to consider prediction_error curiosity.')    
+parser.add_argument("--hidden_state_eta",   type=literal,    default = [1, 1],
+                    help='Nonnegative valued, how much to consider hidden_state curiosity in each layer.')       
 
-# Saving data
-parser.add_argument('--keep_data',           type=int,        default = 25)
+    # Imitation
+parser.add_argument("--delta",              type=float,     default = 0,
+                    help='How much to consider action\'s similarity to recommended action.')  
 
-parser.add_argument('--epochs_per_gen',      type=int,        default = 100)
+    # Saving data
+parser.add_argument('--keep_data',           type=int,        default = 1,
+                    help='How many epochs should pass before saving data.')
 
-parser.add_argument('--epochs_per_pred_list',type=int,        default = 100)
-parser.add_argument('--agents_per_pred_list',type=int,        default = 1)
-parser.add_argument('--episodes_in_pred_list',type=int,       default = 1)
-parser.add_argument('--samples_per_pred',    type=int,        default = 2)
+parser.add_argument('--epochs_per_gen_test', type=int,        default = 10,
+                    help='How many epochs should pass before trying generalization test.')
 
-parser.add_argument('--epochs_per_agent_list',type=int,       default = 100)
-parser.add_argument('--agents_per_agent_list',type=int,       default = 1)
+parser.add_argument('--epochs_per_episode_dict',type=int,        default = 250,
+                    help='How many epochs should pass before saving an episode.')
+parser.add_argument('--agents_per_episode_dict',type=int,        default = 3,
+                    help='How many agents to save episodes.')
+parser.add_argument('--episodes_in_episode_dict',type=int,       default = 1,
+                    help='How many episodes to save per agent.')
 
-
+parser.add_argument('--epochs_per_agent_list',type=int,       default = 100000,
+                    help='How many epochs should pass before saving agent model.')
+parser.add_argument('--agents_per_agent_list',type=int,       default = 1,
+                    help='How many agents to save.') 
 
 try:
     default_args = parser.parse_args([])
@@ -132,20 +264,24 @@ except:
     default_args = parser.parse_args([])
     try:    args    = parser.parse_args()
     except: args, _ = parser.parse_known_args()
+    
+def extend_list_to_match_length(target_list, length, value):
+    while len(target_list) < length:
+        target_list.append(value)
+    return target_list
 
-if(default_args.alpha == "None"): default_args.alpha = None
-if(args.alpha == "None"):         args.alpha = None
-
-for arg in vars(default_args):
-    if(getattr(default_args, arg) == "None"):  default_args.arg = None
-    if(getattr(default_args, arg) == "True"):  default_args.arg = True
-    if(getattr(default_args, arg) == "False"): default_args.arg = False
-    if(getattr(args, arg) == "None"):  args.arg = None
-    if(getattr(args, arg) == "True"):  args.arg = True
-    if(getattr(args, arg) == "False"): args.arg = False
-
-
-
+for arg_set in [default_args, args]:
+    arg_set.steps_per_epoch = arg_set.max_steps
+    arg_set.object_shape = arg_set.shapes + arg_set.colors
+    arg_set.comm_shape = len(comm_map)
+    arg_set.action_shape = 6
+    arg_set.max_comm_len = max([arg_set.max_comm_len, max_len_action_name + max_len_color_name + max_len_shape_name + 3])
+    max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
+    arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)
+    arg_set.beta = extend_list_to_match_length(arg_set.beta, max_length, 0)
+    arg_set.hidden_state_eta = extend_list_to_match_length(arg_set.hidden_state_eta, max_length, 0)
+    arg_set.layers = len(arg_set.time_scales)
+        
 args_not_in_title = ["arg_title", "id", "agents", "previous_agents", "init_seed", "keep_data", "epochs_per_pred_list", "episodes_in_pred_list", "agents_per_pred_list", "epochs_per_pos_list", "episodes_in_pos_list", "agents_per_pos_list"]
 def get_args_title(default_args, args):
     if(args.arg_title[:3] == "___"): return(args.arg_title)
@@ -177,11 +313,15 @@ def get_args_title(default_args, args):
 
 args.arg_title = get_args_title(default_args, args)
 
+try: os.mkdir("saved")
+except: pass
 folder = "saved/" + args.arg_name
 if(args.arg_title[:3] != "___" and not args.arg_name in ["default", "finishing_dictionaries", "plotting", "plotting_predictions", "plotting_positions"]):
     try: os.mkdir(folder)
     except: pass
     try: os.mkdir("saved/thesis_pics")
+    except: pass
+    try: os.mkdir("saved/thesis_pics/final")
     except: pass
 if(default_args.alpha == "None"): default_args.alpha = None
 if(args.alpha == "None"):         args.alpha = None
@@ -195,21 +335,186 @@ else:
 
 
 
+# For printing tensors as what they represent.
+def string_to_onehots(s):
+    s = ''.join([char.upper() if char.upper() in char_to_index else ' ' for char in s])
+    onehots = []
+    for char in s:
+        tensor = torch.zeros(len(comm_map))
+        tensor[char_to_index[char]] = 1
+        onehots.append(tensor.unsqueeze(0))
+    onehots = torch.cat(onehots, dim = 0)
+    return onehots
+
+def onehots_to_string(onehots):
+    string = ''
+    for tensor in onehots:
+        index = torch.argmax(tensor).item()
+        string += comm_map[index]
+    return string
+
+def multihots_to_string(multihots):
+    shapes = multihots[:,:len(shape_map)]
+    colors = multihots[:,len(shape_map):]
+    to_return = ""
+    for i in range(multihots.shape[0]):
+        shape_index = torch.argmax(shapes[i]).item()
+        color_index = torch.argmax(colors[i]).item()
+        to_return += "{} {}{}".format(color_map[color_index], shape_map[shape_index], "." if i+1 == multihots.shape[0] else ", ")
+    return(to_return)
+
+
+
+# PyTorch functions.
 def init_weights(m):
     try:
         torch.nn.init.xavier_normal_(m.weight)
         m.bias.data.fill_(0.01)
     except: pass
+
+def episodes_steps(this):
+    return(this.shape[0], this.shape[1])
+
+def var(x, mu_func, std_func, args):
+    mu = mu_func(x)
+    std = torch.clamp(std_func(x), min = args.std_min, max = args.std_max)
+    return(mu, std)
+
+def sample(mu, std, device):
+    e = Normal(0, 1).sample(std.shape).to(device)
+    return(mu + e * std)
+
+def rnn_cnn(do_this, to_this):
+    episodes, steps = episodes_steps(to_this)
+    this = to_this.view((episodes * steps, to_this.shape[2], to_this.shape[3], to_this.shape[4]))
+    this = do_this(this)
+    this = this.view((episodes, steps, this.shape[1], this.shape[2], this.shape[3]))
+    return(this)
+
+def extract_and_concatenate(tensor, expected_len):
+    episodes, steps, _ = tensor.shape
+    all_indices = []
+    for episode in range(episodes):
+        episode_indices = []
+        for step in range(steps):
+            ones_indices = tensor[episode, step].nonzero(as_tuple=True)[0]
+            if(ones_indices.shape[0] < expected_len):
+                ones_indices = torch.zeros((expected_len,)).int()
+            episode_indices.append(ones_indices)
+        episode_tensor = torch.stack(episode_indices)
+        all_indices.append(episode_tensor)
+    final_tensor = torch.stack(all_indices, dim=0)
+    return final_tensor
+    
+def attach_list(tensor_list, device):
+    updated_list = []
+    for tensor in tensor_list:
+        if isinstance(tensor, list):
+            updated_sublist = [t.to(device) if t.device != device else t for t in tensor]
+            updated_list.append(updated_sublist)
+        else:
+            updated_tensor = tensor.to(device) if tensor.device != device else tensor
+            updated_list.append(updated_tensor)
+    return updated_list
+
+def detach_list(l): 
+    return([element.detach() for element in l])
+    
+def memory_usage(device):
+    print(device, ":", platform.node(), torch.cuda.memory_allocated(device), "out of", torch.cuda.max_memory_allocated(device))
+
+def pad_zeros(value, length):
+    rows_to_add = length - value.size(-2)
+    padding_shape = list(value.shape)
+    padding_shape[-2] = rows_to_add
+    padding = torch.zeros(padding_shape)
+    padding
+    padding[..., 0] = 1
+    value = torch.cat([value, padding], dim=-2)
+    return value
+
+def create_comm_mask(comm):
+    period_index = char_to_index["."]  # Index for the period character in the one-hot encoding
+    mask = torch.ones_like(comm[..., 0], dtype=torch.float32)  # Create a mask with the same shape except for the last dimension
+    max_indices = comm.argmax(dim=-1)
+    period_mask = torch.where(max_indices == period_index, 1, 0)
+
+    def apply_mask(mask, period_mask):
+        if period_mask.any():
+            first_period_index = period_mask.argmax()
+            mask[first_period_index+1:] = 0
+            return mask, first_period_index
+        else:
+            return mask, mask.size(0) - 1  # Return the last index if no period
+
+    if len(comm.shape) == 2:  # Handling (sequence_length, len(comm_map))
+        mask, last_index = apply_mask(mask, period_mask)
+        last_indices = last_index.expand_as(mask)
+    elif len(comm.shape) == 3:  # Handling (steps, sequence_length, len(comm_map))
+        last_indices = torch.empty(comm.shape[0], dtype=torch.long)
+        for step in range(comm.shape[0]):
+            mask[step], last_indices[step] = apply_mask(mask[step], period_mask[step])
+    elif len(comm.shape) == 4:  # Handling (episodes, steps, sequence_length, len(comm_map))
+        last_indices = torch.empty((comm.shape[0], comm.shape[1]), dtype=torch.long)
+        for episode in range(comm.shape[0]):
+            for step in range(comm.shape[1]):
+                mask[episode, step], last_indices[episode, step] = apply_mask(mask[episode, step], period_mask[episode, step])
+
+    return mask, last_indices
+
+#example_comm = torch.stack([
+#    pad_zeros(string_to_onehots("HELLO WORLD."), args.max_comm_len),
+#    pad_zeros(string_to_onehots("GOODBYE WORLD."), args.max_comm_len),
+#    pad_zeros(string_to_onehots("YOWSERS. HI.. ."), args.max_comm_len),
+#    pad_zeros(string_to_onehots("YOWSERS"), args.max_comm_len),
+#    pad_zeros(string_to_onehots("."), args.max_comm_len),
+#    pad_zeros(string_to_onehots("ABCDEF."), args.max_comm_len)],
+#    dim = 0)
+#example_comm = example_comm.reshape((2,3,args.max_comm_len, args.comm_shape))
+#mask, last_indices = create_comm_mask(example_comm)
+
+def dkl(mu_1, std_1, mu_2, std_2):
+    std_1 = std_1**2
+    std_2 = std_2**2
+    term_1 = (mu_2 - mu_1)**2 / std_2 
+    term_2 = std_1 / std_2 
+    term_3 = torch.log(term_2)
+    out = (.5 * (term_1 + term_2 - term_3 - 1))
+    out = torch.nan_to_num(out)
+    return(out)
+
+class ConstrainedConv1d(nn.Conv1d):
+    def forward(self, input):
+        return nn.functional.conv1d(input, self.weight.clamp(min=-1.0, max=1.0), self.bias, self.stride,
+                                    self.padding, self.dilation, self.groups)
+        
+class Ted_Conv1d(nn.Module):
+    
+    def __init__(self, in_channels, out_channels, kernels = [1,2,3]):
+        super(Ted_Conv1d, self).__init__()
+        
+        self.Conv1ds = nn.ModuleList()
+        for kernel, out_channel in zip(kernels, out_channels):
+            padding = (kernel-1)//2
+            layer = nn.Sequential(
+                ConstrainedConv1d(
+                    in_channels = in_channels,
+                    out_channels = out_channel,
+                    kernel_size = kernel,
+                    padding = padding,
+                    padding_mode = "reflect"),
+                nn.PReLU())
+            self.Conv1ds.append(layer)
+                
+    def forward(self, x):
+        y = []
+        for Conv1d in self.Conv1ds: y.append(Conv1d(x)) 
+        return(torch.cat(y, dim = -2))
     
 class ConstrainedConv2d(nn.Conv2d):
     def forward(self, input):
         return nn.functional.conv2d(input, self.weight.clamp(min=-1.0, max=1.0), self.bias, self.stride,
                                     self.padding, self.dilation, self.groups)
-        
-class ConstrainedConvTranspose2d(nn.ConvTranspose2d):
-    def forward(self, input):
-        return nn.functional.conv_transpose2d(input, self.weight.clamp(min=-1.0, max=1.0), self.bias, self.stride,
-                                    self.padding, self.output_padding, self.groups, self.dilation)
         
 class Ted_Conv2d(nn.Module):
     
@@ -233,18 +538,54 @@ class Ted_Conv2d(nn.Module):
         y = []
         for Conv2d in self.Conv2ds: y.append(Conv2d(x)) 
         return(torch.cat(y, dim = -3))
-
-
     
-def dkl(mu_1, std_1, mu_2, std_2):
-    std_1 = std_1**2
-    std_2 = std_2**2
-    term_1 = (mu_2 - mu_1)**2 / std_2 
-    term_2 = std_1 / std_2 
-    term_3 = torch.log(term_2)
-    out = (.5 * (term_1 + term_2 - term_3 - 1))
-    out = torch.nan_to_num(out)
-    return(out)
+def calculate_similarity(recommended_actions, actor_actions):
+    recommended_actions_flat = recommended_actions.view(recommended_actions.size(0), recommended_actions.size(1), -1)
+    actor_actions_flat = actor_actions.view(actor_actions.size(0), actor_actions.size(1), -1)
+    step_similarities = cosine_similarity(recommended_actions_flat, actor_actions_flat, dim=-1)
+    return step_similarities
+
+
+
+# For loading and plotting in final files.
+real_names = {
+    "d"  : "No Entropy, No Curiosity",
+    "e"  : "Entropy",
+    "n"  : "Prediction Error Curiosity",
+    "f"  : "Hidden State Curiosity",
+    "i"  : "Imitation",
+    "en" : "Entropy and Prediction Error Curiosity",
+    "ef" : "Entropy and Hidden State Curiosity",
+    "ei" : "Entropy and Imitation",
+    "ni" : "Prediction Error Curiosity and Imitation",
+    "fi" : "Hidden State Curiosity and Imitation",
+    "eni" : "Entropy, Prediction Error Curiosity, and Imitation",
+    "efi" : "Entropy, Hidden State Curiosity, and Imitation",
+}
+
+def add_this(name):
+    keys, values = [], []
+    for key, value in real_names.items(): keys.append(key) ; values.append(value)
+    for key, value in zip(keys, values):  
+        new_key = key + "_" + name 
+        real_names[new_key] = value
+add_this("hard")
+add_this("many")
+
+short_real_names = {
+    "d"  : "N",
+    "e"  : "E",
+    "n"  : "P",
+    "f"  : "H",
+    "i"  : "I",
+    "en" : "EP",
+    "ef" : "EH",
+    "ei" : "EI",
+    "ni" : "PI",
+    "fi" : "HI",
+    "eni" : "EPI",
+    "efi" : "EHI",
+}
 
 
 
@@ -254,7 +595,7 @@ def load_dicts(args):
         
     complete_order = args.arg_title[3:-3].split("+")
     order = [o for o in complete_order if not o in ["empty_space", "break"]]
-
+    
     for name in order:
         got_plot_dicts = False ; got_min_max_dicts = False
         while(not got_plot_dicts):
@@ -270,7 +611,7 @@ def load_dicts(args):
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():
-        if(not key in ["args", "arg_title", "arg_name", "pred_lists", "pos_lists", "agents_lists", "spot_names"]):
+        if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps"]):
             minimum = None ; maximum = None
             for mm_dict in min_max_dicts:
                 if(mm_dict[key] != (None, None)):
@@ -280,34 +621,19 @@ def load_dicts(args):
                     elif(maximum < mm_dict[key][1]): maximum = mm_dict[key][1]
             min_max_dict[key] = (minimum, maximum)
             
-    complete_order = []
+    final_complete_order = [] ; final_plot_dicts = []
 
     for arg_name in complete_order: 
         if(arg_name in ["break", "empty_space"]): 
-            complete_order.append(arg_name)
+            final_complete_order.append(arg_name)
         else:
             for plot_dict in plot_dicts:
                 if(plot_dict["args"].arg_name == arg_name):    
-                    complete_order.append(arg_name) ; plot_dicts.append(plot_dict) 
+                    final_complete_order.append(arg_name) 
+                    final_plot_dicts.append(plot_dict)
                     
-    while(len(complete_order) > 0 and complete_order[0] in ["break", "empty_space"]): complete_order.pop(0)
-            
-    return(plot_dicts, min_max_dict, complete_order, plot_dicts)
-
-shapes = [f.name for f in os.scandir("pybullet_data/shapes")]
-shapes.sort()
-shapes = shapes[:1]
-colors = [(1,0,0,1),(0,1,0,1),(0,0,1,1),(0,1,1,1),(1,0,1,1),(1,1,0,1)]
-colors = colors[:1]
-goals = ["touch"]#, "watch", "push", "pull", "topple"]
-
-test_objects = {shape : [color_1, color_2] for shape, color_1, color_2 in zip(shapes, colors, colors[1:] + [colors[0]])}
-test_objects = {shape : [] for shape in shapes}
-
-if __name__ == "__main__":
-    print(shapes)
-    print(colors)
-    print(goals)
-    print(test_objects)
-
+    while(len(final_complete_order) > 0 and final_complete_order[0] in ["break", "empty_space"]): 
+        final_complete_order.pop(0)              
+    
+    return(final_plot_dicts, min_max_dict, complete_order)
 # %%

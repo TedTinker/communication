@@ -9,102 +9,112 @@ import numpy as np
 from math import log
 from itertools import accumulate
 from copy import deepcopy
+import matplotlib.pyplot as plt
 
-from utils import default_args, dkl, print, goals
-from scenario import Scenario
+from utils import default_args, dkl, print, calculate_similarity, onehots_to_string, multihots_to_string, create_comm_mask
+from task import Task, Task_Runner
 from buffer import RecurrentReplayBuffer
-from models import Forward, Actor, Actor_HQ, Critic, Critic_HQ
-
-action_size = 2
+from pvrnn import PVRNN
+from models import Actor, Critic
 
 
 
 class Agent:
     
-    def __init__(self, i, args = default_args):
-        
-        self.start_time = None
+    def __init__(self, i = -1, GUI = False, args = default_args):
         
         self.agent_num = i
         self.args = args
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
-        self.scenario_desc = self.args.scenario_list[0]
-        self.goal_comm = not self.scenario_desc[1]
-        self.arms = self.scenario_desc[2]
-        self.scenario = Scenario(self.scenario_desc, args = args)
         
-        self.target_entropy = args.target_entropy # -dim(A)
+        self.tasks = {
+            "1" : Task(actions = 5, objects = 3, shapes = 5, colors = 6, args = self.args),
+            "2" : Task(actions = 5, objects = 3, shapes = 5, colors = 6, parent = False, args = self.args)}
+        self.task_runners = {task_name : Task_Runner(task, GUI = GUI if i == 0 else False) for i, (task_name, task) in enumerate(self.tasks.items())}
+        self.task_name = self.args.task_list[0]
+        
+        self.target_entropy = self.args.target_entropy
         self.alpha = 1
         self.log_alpha = torch.tensor([0.0], requires_grad=True)
-        self.alpha_opt = optim.Adam(params=[self.log_alpha], lr=args.alpha_lr, weight_decay=0) 
-        
-        self.eta = 1
-        self.log_eta = torch.tensor([0.0], requires_grad=True)
-        
-        self.forward = Forward(args)
-        self.forward_opt = optim.Adam(self.forward.parameters(), lr=args.forward_lr, weight_decay=0)   
-                           
-        self.actor = Actor_HQ(args) if args.actor_hq else Actor(args)
-        self.actor_opt = optim.Adam(self.actor.parameters(), lr=args.actor_lr, weight_decay=0)     
-        
-        self.critic1 = Critic_HQ(args) if args.critic_hq else Critic(args)
-        self.critic1_opt = optim.Adam(self.critic1.parameters(), lr=args.critic_lr, weight_decay=0)
-        self.critic1_target = Critic_HQ(args) if args.critic_hq else Critic(args)
-        self.critic1_target.load_state_dict(self.critic1.state_dict())
+        self.alpha_opt = optim.Adam(params=[self.log_alpha], lr=self.args.alpha_lr) 
 
-        self.critic2 = Critic_HQ(args) if args.critic_hq else Critic(args)
-        self.critic2_opt = optim.Adam(self.critic2.parameters(), lr=args.critic_lr, weight_decay=0) 
-        self.critic2_target = Critic_HQ(args) if args.critic_hq else Critic(args)
-        self.critic2_target.load_state_dict(self.critic2.state_dict())
+        self.forward = PVRNN(self.args)
+        self.forward_opt = optim.Adam(self.forward.parameters(), lr=self.args.forward_lr)
+                           
+        self.actor = Actor(self.args)
+        self.actor_opt = optim.Adam(self.actor.parameters(), lr=self.args.actor_lr) 
         
+        self.critics = []
+        self.critic_targets = []
+        self.critic_opts = []
+        for _ in range(self.args.critics):
+            self.critics.append(Critic(self.args))
+            self.critic_targets.append(Critic(self.args))
+            self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
+            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr=self.args.critic_lr))
+        
+        self.memory = RecurrentReplayBuffer(self.args)
         self.train()
         
-        self.memory = RecurrentReplayBuffer(args)
         self.plot_dict = {
-            "args" : args,
+            "args" : self.args,
             "arg_title" : args.arg_title,
             "arg_name" : args.arg_name,
-            "pred_lists" : {},
-            "agent_lists" : {"forward" : Forward, "actor" : Actor_HQ if args.actor_hq else Actor, "critic" : Critic_HQ if args.critic_hq else Critic},
+            "episode_dicts" : {}, 
+            "agent_lists" : {"forward" : PVRNN, "actor" : Actor, "critic" : Critic},
+            "wins" : [], 
             "rewards" : [], 
-            "accuracy" : [], "complexity" : [],
-            "alpha" : [], "actor" : [], 
-            "critic_1" : [], "critic_2" : [], 
-            "extrinsic" : [], "intrinsic_curiosity" : [], 
+            "gen_rewards" : [], 
+            "steps" : [],
+            "accuracy" : [], 
+            "rgbd_loss" : [], 
+            "speed_loss" : [],
+            "comm_loss" : [], 
+            "complexity" : [],
+            "alpha" : [], 
+            "actor" : [], 
+            "critics" : [[] for _ in range(self.args.critics)], 
+            "extrinsic" : [], 
+            "q" : [], 
+            "intrinsic_curiosity" : [], 
             "intrinsic_entropy" : [], 
-            "naive" : [], "free" : []}
+            "intrinsic_imitation" : [],
+            "prediction_error" : [], 
+            "hidden_state" : [[] for _ in range(self.args.layers)]}
         
         
         
-    def training(self, q):
-        self.pred_episodes_hq() if self.args.actor_hq else self.pred_episodes()
+    def training(self, q = None):      
+        self.gen_test()  
+        self.save_episodes()
         self.save_agent()
         while(True):
             cumulative_epochs = 0
-            prev_scenario_desc = self.scenario_desc
-            for j, epochs in enumerate(self.args.epochs): 
+            prev_task_name = self.task_name
+            for i, epochs in enumerate(self.args.epochs): 
                 cumulative_epochs += epochs
-                if(self.epochs < cumulative_epochs): self.scenario_desc = self.args.scenario_list[j] ; break
-            if(prev_scenario_desc != self.scenario_desc): 
-                self.pred_episodes_hq() if self.args.actor_hq else self.pred_episodes()
-                for arena in self.scenario.arenas:
-                    arena.stop()
-                self.goal_comm = not self.scenario_desc[1]
-                self.scenario = Scenario(self.scenario_desc, args = self.args)
-                self.memory = RecurrentReplayBuffer(self.args)
-                self.pred_episodes_hq() if self.args.actor_hq else self.pred_episodes()
+                if(self.epochs < cumulative_epochs): 
+                    self.task_name = self.args.task_list[i] 
+                    break
+            if(prev_task_name != self.task_name): 
+                self.gen_test()  
+                self.save_episodes(swapping = True)
             self.training_episode()
             percent_done = str(self.epochs / sum(self.args.epochs))
-            q.put((self.agent_num, percent_done))
+            if(q != None):
+                q.put((self.agent_num, percent_done))
             if(self.epochs >= sum(self.args.epochs)): break
+            if(self.epochs % self.args.epochs_per_gen_test == 0): self.gen_test()
+            if(self.epochs % self.args.epochs_per_episode_dict == 0): self.save_episodes()
             if(self.epochs % self.args.epochs_per_agent_list == 0): self.save_agent()
         self.plot_dict["rewards"] = list(accumulate(self.plot_dict["rewards"]))
-        self.pred_episodes_hq() if self.args.actor_hq else self.pred_episodes()
+        self.plot_dict["gen_rewards"] = list(accumulate(self.plot_dict["gen_rewards"]))
+        self.gen_test()  
+        self.save_episodes()
         self.save_agent()
-        
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
-            if(not key in ["args", "arg_title", "arg_name", "agent_lists", "pred_lists"]):
+            if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps"]):
                 minimum = None ; maximum = None 
                 l = self.plot_dict[key]
                 l = deepcopy(l)
@@ -116,228 +126,411 @@ class Agent:
                     elif(maximum < max(l)): maximum = max(l)
                 self.min_max_dict[key] = (minimum, maximum)
                 
+    
+    
+    def step_in_episode(self, 
+                        prev_action_1, prev_comm_out_1, hq_1, ha_1, 
+                        prev_action_2, prev_comm_out_2, hq_2, ha_2):
+        with torch.no_grad():
+            comm_from_parent = self.task.task.parent
+            
+            rgbd_1, spe_1, parent_comm = self.task.obs()
+            rgbd_2, spe_2, _ = self.task.obs(agent_1 = False)
+            recommended_action_1 = self.task.task.get_recommended_action()
+            (_, _, hp_1), (_, _, hq_1) = self.forward.bottom_to_top_step(hq_1, rgbd_1, spe_1, parent_comm if comm_from_parent else prev_comm_out_2, prev_action_1, prev_comm_out_1) 
+            action_1, comm_out_1, _, ha_1 = self.actor(rgbd_1, spe_1, parent_comm if comm_from_parent else prev_comm_out_2, prev_action_1, prev_comm_out_1, hq_1[:,:,0].detach(), ha_1) 
+            
+            if(self.task.task.parent): 
+                action_2 = torch.zeros_like(action_1) 
+                comm_out_2 = None
+                hp_2 = None
+                hq_2 = None
+            else:
+                recommended_action_2 = self.task.task.get_recommended_action(agent_1 = False)
+                (_, _, hp_2), (_, _, hq_2) = self.forward.bottom_to_top_step(hq_2, rgbd_2, spe_2, prev_comm_out_1, prev_action_2, prev_comm_out_2) 
+                action_2, comm_out_2, _, ha_2 = self.actor(rgbd_2, spe_2, prev_comm_out_1, prev_action_2, prev_comm_out_2, hq_2[:,:,0].detach(), ha_2) 
                 
+            reward, done, win = self.task.action(action_1[0,0], action_2[0,0])
+            next_rgbd_1, next_spe_1, next_parent_comm = self.task.obs()
+            next_rgbd_2, next_spe_2, _ = self.task.obs(agent_1 = False)
+            
+            to_push_1 = [
+                rgbd_1,
+                spe_1,
+                parent_comm if comm_from_parent else prev_comm_out_2,
+                action_1,
+                comm_out_1,
+                recommended_action_1,
+                reward,
+                next_rgbd_1,
+                next_spe_1,
+                next_parent_comm if comm_from_parent else comm_out_2,
+                done]
+            
+            if(self.task.task.parent): 
+                to_push_2 = None
+            else:
+                to_push_2 = [
+                    rgbd_2,
+                    spe_2,
+                    prev_comm_out_1,
+                    action_2,
+                    comm_out_2,
+                    recommended_action_2,
+                    reward,
+                    next_rgbd_2,
+                    next_spe_2,
+                    comm_out_1,
+                    done]
+        torch.cuda.empty_cache()
+        
+        return(action_1, comm_out_1, hp_1.squeeze(1), hq_1.squeeze(1), ha_1, action_2, comm_out_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), ha_2, reward, done, win, to_push_1, to_push_2)
+            
+           
+    
+    def training_episode(self):
+        done = False
+        total_reward = 0
+        steps = 0
+        
+        to_push_list_1 = []
+        prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
+        prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
+        hq_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
+        ha_1 = torch.zeros((1, 1, self.args.hidden_size)) 
+        
+        to_push_list_2 = []
+        prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
+        prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
+        hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
+        ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
+        
+        self.task = self.task_runners[self.task_name]
+        self.task.begin()        
+        for step in range(self.args.max_steps):
+            self.steps += 1 
+            if(not done):
+                steps += 1
+                prev_action_1, prev_comm_out_1, hp_1, hq_1, ha_1, \
+                    prev_action_2, prev_comm_out_2, hp_2, hq_2, ha_2, \
+                        reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                            prev_action_1, prev_comm_out_1, hq_1, ha_1, 
+                            prev_action_2, prev_comm_out_2, hq_2, ha_2)
+                to_push_list_1.append(to_push_1)
+                to_push_list_2.append(to_push_2)
+                total_reward += reward
+            if(self.steps % self.args.steps_per_epoch == 0):
+                plot_data = self.epoch(self.args.batch_size)
+                if(plot_data == False): pass
+                else:
+                    accuracy, rgbd_loss, speed_loss, comm_loss, complexity, \
+                        alpha_loss, actor_loss, critic_losses, \
+                            e, q, ic, ie, ii, prediction_error, hidden_state = plot_data
+                    if(self.epochs == 1 or self.epochs >= sum(self.args.epochs) or self.epochs % self.args.keep_data == 0):
+                        self.plot_dict["accuracy"].append(accuracy)
+                        self.plot_dict["rgbd_loss"].append(rgbd_loss)
+                        self.plot_dict["speed_loss"].append(speed_loss)
+                        self.plot_dict["comm_loss"].append(comm_loss)
+                        self.plot_dict["complexity"].append(complexity)
+                        self.plot_dict["alpha"].append(alpha_loss)
+                        self.plot_dict["actor"].append(actor_loss)
+                        for layer, f in enumerate(critic_losses):
+                            self.plot_dict["critics"][layer].append(f)    
+                        self.plot_dict["critics"].append(critic_losses)
+                        self.plot_dict["extrinsic"].append(e)
+                        self.plot_dict["q"].append(q)
+                        self.plot_dict["intrinsic_curiosity"].append(ic)
+                        self.plot_dict["intrinsic_entropy"].append(ie)
+                        self.plot_dict["intrinsic_imitation"].append(ii)
+                        self.plot_dict["prediction_error"].append(prediction_error)
+                        for layer, f in enumerate(hidden_state):
+                            self.plot_dict["hidden_state"][layer].append(f)    
+        self.plot_dict["steps"].append(steps)
+        self.plot_dict["rewards"].append(total_reward)
+        self.plot_dict["wins"].append(win)
+                             
+        for to_push in to_push_list_1:
+            rgbd, spe, comm_in, action, comm_out, recommended_action, reward, next_rgbd, next_spe, next_comm_in, done = to_push
+            self.memory.push(
+                rgbd,
+                spe, 
+                comm_in, 
+                action, 
+                comm_out,
+                recommended_action,
+                reward, 
+                next_rgbd,
+                next_spe, 
+                next_comm_in, 
+                done)
+            
+        for to_push in to_push_list_2:
+            if(to_push != None):
+                rgbd, spe, comm_in, action, comm_out, recommended_action, reward, next_rgbd, next_spe, next_comm_in, done = to_push
+                self.memory.push(
+                    rgbd,
+                    spe, 
+                    comm_in, 
+                    action, 
+                    comm_out,
+                    recommended_action,
+                    reward, 
+                    next_rgbd,
+                    next_spe, 
+                    next_comm_in, 
+                    done)
                 
+        self.episodes += 1
+        
+        
+        
+    def gen_test(self):
+        done = False
+        total_reward = 0
+        steps = 0
+        
+        prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
+        prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
+        hq_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
+        ha_1 = torch.zeros((1, 1, self.args.hidden_size)) 
+        
+        prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
+        prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
+        hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
+        ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
+        
+        self.task = self.task_runners[self.task_name]
+        self.task.begin(test = True)        
+        for step in range(self.args.max_steps):
+            self.steps += 1 
+            if(not done):
+                steps += 1
+                prev_action_1, prev_comm_out_1, hp_1, hq_1, ha_1, \
+                    prev_action_2, prev_comm_out_2, hp_2, hq_2, ha_2, \
+                        reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                            prev_action_1, prev_comm_out_1, hq_1, ha_1, 
+                            prev_action_2, prev_comm_out_2, hq_2, ha_2)
+                total_reward += reward
+        self.plot_dict["gen_rewards"].append(total_reward)
+        
+        
+        
+    def save_episodes(self, swapping = False):
+        with torch.no_grad():
+            comm_from_parent = self.task.task.parent
+            if(self.args.agents_per_episode_dict != -1 and self.agent_num > self.args.agents_per_episode_dict): return
+            for episode_num in range(self.args.episodes_in_episode_dict):
+                episode_dict = {
+                    "task" : self.task.task,
+                    "rgbds_1" : [],
+                    "rgbds_2" : [],
+                    "speeds_1" : [],
+                    "speeds_2" : [],
+                    "comms_in_1" : [],
+                    "comms_in_2" : [],
+                    "actions_1" : [],
+                    "actions_2" : [],
+                    "comms_out_1" : [],
+                    "comms_out_2" : [],
+                    "rewards" : [],
+                    "prior_predicted_rgbds_1" : [],
+                    "prior_predicted_speeds_1" : [],
+                    "prior_predicted_comms_in_1" : [],
+                    "posterior_predicted_rgbds_1" : [],
+                    "posterior_predicted_speeds_1" : [],
+                    "posterior_predicted_comms_in_1" : [],
+                    "prior_predicted_rgbds_2" : [],
+                    "prior_predicted_speeds_2" : [],
+                    "prior_predicted_comms_in_2" : [],
+                    "posterior_predicted_rgbds_2" : [],
+                    "posterior_predicted_speeds_2" : [],
+                    "posterior_predicted_comms_in_2" : []}
+                done = False
+                
+                hps_1 = []
+                hqs_1 = []
+                prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
+                prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
+                hq_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
+                ha_1 = torch.zeros((1, 1, self.args.hidden_size)) 
+                
+                hps_2 = []
+                hqs_2 = []
+                prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
+                prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
+                hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
+                ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
+                
+                self.task = self.task_runners[self.task_name]
+                self.task.begin()        
+                rgbd_1, spe_1, parent_comm = self.task.obs()
+                rgbd_2, spe_2, _ = self.task.obs(agent_1 = False)
+                episode_dict["rgbds_1"].append(rgbd_1)
+                episode_dict["rgbds_2"].append(rgbd_2)
+                episode_dict["speeds_1"].append(spe_1)
+                episode_dict["speeds_2"].append(spe_2)
+                episode_dict["comms_in_1"].append(onehots_to_string(parent_comm if comm_from_parent else prev_comm_out_2))
+                episode_dict["comms_in_2"].append(onehots_to_string(prev_comm_out_1)) 
+                
+                for step in range(self.args.max_steps):
+                    if(not done):
+                        prev_action_1, prev_comm_out_1, hp_1, hq_1, ha_1, \
+                            prev_action_2, prev_comm_out_2, hp_2, hq_2, ha_2, \
+                                reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                                    prev_action_1, prev_comm_out_1, hq_1, ha_1, 
+                                    prev_action_2, prev_comm_out_2, hq_2, ha_2)
+                        episode_dict["actions_1"].append(prev_action_1)
+                        episode_dict["actions_2"].append(prev_action_2)
+                        episode_dict["comms_out_1"].append(prev_comm_out_1)
+                        episode_dict["comms_out_2"].append(prev_comm_out_2)
+                        episode_dict["rewards"].append(str(reward))
+                        rgbd_1, spe_1, parent_comm = self.task.obs()
+                        rgbd_2, spe_2, _ = self.task.obs(agent_1 = False)
+                        episode_dict["rgbds_1"].append(rgbd_1)
+                        episode_dict["rgbds_2"].append(rgbd_2)
+                        episode_dict["speeds_1"].append(spe_1)
+                        episode_dict["speeds_2"].append(spe_2)
+                        episode_dict["comms_in_1"].append(onehots_to_string(parent_comm if comm_from_parent else prev_comm_out_2[0,0]))
+                        episode_dict["comms_in_2"].append(onehots_to_string(prev_comm_out_1[0,0])) 
+                        hps_1.append(hp_1[:,0].unsqueeze(0))
+                        hqs_1.append(hq_1[:,0].unsqueeze(0))
+                        hps_2.append(hp_2 if hp_2 == None else hp_2[:,0].unsqueeze(0))
+                        hqs_2.append(hq_2 if hq_2 == None else hq_2[:,0].unsqueeze(0))
+                        
+                hp_1 = torch.cat(hps_1, dim = 1)
+                hq_1 = torch.cat(hqs_1, dim = 1)
+                actions_1 = torch.cat(episode_dict["actions_1"], dim = 1)
+                comms_out_1 = torch.cat(episode_dict["comms_out_1"], dim = 1)
+                episode_dict["comms_out_1"] = [onehots_to_string(comms_out[0,0]) for comms_out in episode_dict["comms_out_1"]]
+                pred_rgbds_p, pred_speeds_p, pred_comm_in_p = self.forward.predict(hp_1, actions_1, comms_out_1) 
+                pred_rgbds_q, pred_speeds_q, pred_comm_in_q = self.forward.predict(hq_1, actions_1, comms_out_1)
+                for step in range(pred_rgbds_p.shape[1]):
+                    episode_dict["prior_predicted_rgbds_1"].append(torch.sigmoid(pred_rgbds_p[0,step][:,:,0:3]))
+                    episode_dict["prior_predicted_speeds_1"].append(pred_speeds_p[0,step])
+                    episode_dict["prior_predicted_comms_in_1"].append(onehots_to_string(pred_comm_in_p[0,step]))
+                    episode_dict["posterior_predicted_rgbds_1"].append(torch.sigmoid(pred_rgbds_q[0,step][:,:,0:3]))
+                    episode_dict["posterior_predicted_speeds_1"].append(pred_speeds_q[0,step])
+                    episode_dict["posterior_predicted_comms_in_1"].append(onehots_to_string(pred_comm_in_q[0,step]))
+                #if(self.agent_num == 1):
+                #    for step in range(hp_1.shape[1]):
+                #        print("\nIn Saving Episode:")
+                #        print("Real: ", episode_dict["comms_1"][step])
+                #        print("Prior:", episode_dict["prior_predicted_comms_1"][step])
+                #        print("Postr:", episode_dict["posterior_predicted_comms_1"][step])
+                #        print("\n")
+                
+                if(not comm_from_parent):
+                    hp_2 = torch.cat(hps_2, dim = 1)
+                    hq_2 = torch.cat(hqs_2, dim = 1)
+                    actions_2 = torch.cat(episode_dict["actions_2"], dim = 1)
+                    comms_out_2 = torch.cat(episode_dict["comms_out_2"], dim = 1)
+                    episode_dict["comms_out_2"] = [onehots_to_string(comms_out[0,0]) for comms_out in episode_dict["comms_out_2"]]
+                    pred_rgbds_p, pred_speeds_p, pred_comm_in_p = self.forward.predict(hp_2, actions_2, comms_out_2) 
+                    pred_rgbds_q, pred_speeds_q, pred_comm_in_q = self.forward.predict(hq_2, actions_2, comms_out_2)
+                    for step in range(pred_rgbds_p.shape[1]):
+                        episode_dict["prior_predicted_rgbds_2"].append(torch.sigmoid(pred_rgbds_p[0,step][:,:,0:3]))
+                        episode_dict["prior_predicted_speeds_2"].append(pred_speeds_p[0,step])
+                        episode_dict["prior_predicted_comms_in_2"].append(onehots_to_string(pred_comm_in_p[0,step]))
+                        episode_dict["posterior_predicted_rgbds_2"].append(torch.sigmoid(pred_rgbds_q[0,step][:,:,0:3]))
+                        episode_dict["posterior_predicted_speeds_2"].append(pred_speeds_q[0,step])
+                        episode_dict["posterior_predicted_comms_in_2"].append(onehots_to_string(pred_comm_in_q[0,step]))
+                    #if(self.agent_num == 1):
+                    #    for step in range(hp_2.shape[1]):
+                    #        print("\nIn Saving Episode:")
+                    #        print("Real: ", episode_dict["comms_2"][step])
+                    #        print("Prior:", episode_dict["prior_predicted_comms_2"][step])
+                    #        print("Postr:", episode_dict["posterior_predicted_comms_2"][step])
+                    #        print("\n")
+                
+                self.plot_dict["episode_dicts"]["{}_{}_{}_{}".format(self.agent_num, self.epochs, episode_num, 1 if swapping else 0)] = episode_dict
+        
+        
+        
     def save_agent(self):
         if(self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list): return
         self.plot_dict["agent_lists"]["{}_{}".format(self.agent_num, self.epochs)] = deepcopy(self.state_dict())
-                
-                
-                
-    def step_in_episode(self, i, prev_a, h_actor, push, verbose):
-        to_push = None
-        with torch.no_grad():
-            o, s, c, gc = self.scenario.obs(i)
-            comm = gc if self.goal_comm else c
-            a, _, new_h_actor = self.actor(o, s, comm, prev_a[i], h_actor[i], goal_comm = self.goal_comm)
-            h_actor[i] = new_h_actor
-            action = torch.flatten(a).tolist()
-            r, done, action_name = self.scenario.action(i, action, verbose)
-            no, ns, nc, ngc = self.scenario.obs(i)
-            if(push): 
-                to_push = [o, s, c, gc, a, r, no, ns, nc, ngc, done]
-        return(a, h_actor, r, done, action_name, to_push)
     
-    
-    
-    def step_in_episode_hq(self, i, prev_a, h_q_m1, push, verbose):
-        to_push = None
-        with torch.no_grad():
-            o, s, c, gc = self.scenario.obs(i)
-            comm = gc if self.goal_comm else c
-            _, _, h_q = self.forward(o, s, comm, prev_a[i], h_q_m1[i], goal_comm = self.goal_comm)
-            a, _, _ = self.actor(h_q, goal_comm = self.goal_comm)
-            action = torch.flatten(a).tolist()
-            r, done, action_name = self.scenario.action(i, action, verbose)
-            no, ns, nc, ngc = self.scenario.obs(i)
-            if(push): 
-                to_push = [o, s, c, gc, a, r, no, ns, nc, ngc, done]
-        return(a, h_q, r, done, action_name, to_push)
-    
-    
-    
-    def pred_episodes(self):
-        with torch.no_grad():
-            if(self.args.agents_per_pred_list != -1 and self.agent_num > self.args.agents_per_pred_list): return
-            pred_lists = []
-            for episode in range(self.args.episodes_in_pred_list):
-                done = False ; prev_a = torch.zeros((1, 1, 4 + self.args.symbols))
-                h_actor = torch.zeros((1, 1, self.args.hidden_size))
-                h_q     = torch.zeros((1, 1, self.args.hidden_size))
-                self.scenario.begin()
-                rgbd, spe, comm, goal_comm = self.scenario.obs(0)
-                comm = goal_comm if self.goal_comm else comm
-                pred_list = [(None, (rgbd.squeeze(0), spe.squeeze(0), comm.squeeze(0)), ((None, None, None), (None, None, None)), ((None, None, None), (None, None, None)))]
-                for step in range(self.args.max_steps):
-                    if(not done): 
-                        rgbd, spe, comm, goal_comm = self.scenario.obs(0)
-                        comm = goal_comm if self.goal_comm else comm
-                        a, h_actor, _, done, action_name, _ = self.step_in_episode(0, prev_a, h_actor, push = False, verbose = False)
-                        (zp_mu, zp_std), (zq_mu, zq_std), h_q_p1 = self.forward(rgbd, spe, comm, prev_a, h_q, goal_comm = self.goal_comm)
-                        (rgbd_mu_pred_p, pred_rgbd_p), (spe_mu_pred_p, pred_spe_p), (comm_mu_pred_p, pred_comm_p) = self.forward.get_preds(a, zp_mu, zp_std, h_q, quantity = self.args.samples_per_pred, goal_comm = self.goal_comm)
-                        (rgbd_mu_pred_q, pred_rgbd_q), (spe_mu_pred_q, pred_spe_q), (comm_mu_pred_q, pred_comm_q) = self.forward.get_preds(a, zq_mu, zq_std, h_q, quantity = self.args.samples_per_pred, goal_comm = self.goal_comm)
-                        pred_rgbd_p = [pred.squeeze(0).squeeze(0) for pred in pred_rgbd_p] ; pred_rgbd_q = [pred.squeeze(0).squeeze(0) for pred in pred_rgbd_q]
-                        pred_spe_p = [pred.squeeze(0).squeeze(0) for pred in pred_spe_p]   ; pred_spe_q = [pred.squeeze(0).squeeze(0) for pred in pred_spe_q]
-                        pred_comm_p = [pred.squeeze(0).squeeze(0) for pred in pred_comm_p] ; pred_comm_q = [pred.squeeze(0).squeeze(0) for pred in pred_comm_q]
-                        rgbd, spe, comm, goal_comm = self.scenario.obs(0)
-                        comm = goal_comm if self.goal_comm else comm
-                        pred_list.append((
-                            action_name, (rgbd.squeeze(0), spe.squeeze(0), comm.squeeze(0)), 
-                            ((rgbd_mu_pred_p.squeeze(0).squeeze(0), pred_rgbd_p), (spe_mu_pred_p.squeeze(0).squeeze(0), pred_spe_p), (comm_mu_pred_p.squeeze(0).squeeze(0), pred_comm_p)), 
-                            ((rgbd_mu_pred_q.squeeze(0).squeeze(0), pred_rgbd_q), (spe_mu_pred_q.squeeze(0).squeeze(0), pred_spe_q), (comm_mu_pred_q.squeeze(0).squeeze(0), pred_comm_q))))
-                        prev_a = a ; h_q = h_q_p1
-                pred_lists.append(pred_list)
-            self.plot_dict["pred_lists"]["{}_{}_{}".format(self.agent_num, self.epochs, self.scenario.desc)] = pred_lists
-            
-            
-            
-    def pred_episodes_hq(self):
-        with torch.no_grad():
-            if(self.args.agents_per_pred_list != -1 and self.agent_num > self.args.agents_per_pred_list): return
-            pred_lists = []
-            for episode in range(self.args.episodes_in_pred_list):
-                done = False ; prev_a = torch.zeros((1, 1, 4 + self.args.symbols))
-                h_q = torch.zeros((1, 1, self.args.hidden_size))
-                self.scenario.begin()
-                rgbd, spe, comm, goal_comm = self.scenario.obs(0)
-                comm = goal_comm if self.goal_comm else comm
-                pred_list = [(None, (rgbd.squeeze(0), spe.squeeze(0), comm.squeeze(0)), ((None, None, None), (None, None, None)), ((None, None, None), (None, None, None)))]
-                for step in range(self.args.max_steps):
-                    if(not done): 
-                        rgbd, spe, comm, goal_comm = self.scenario.obs(0)
-                        comm = goal_comm if self.goal_comm else comm
-                        a, h_q_p1, _, done, action_name, _ = self.step_in_episode_hq(0, prev_a, h_q.unsqueeze(0), push = False, verbose = False)
-                        (zp_mu, zp_std), (zq_mu, zq_std), _ = self.forward(rgbd, spe, comm, prev_a, h_q, goal_comm = self.goal_comm)
-                        (rgbd_mu_pred_p, pred_rgbd_p), (spe_mu_pred_p, pred_spe_p), (comm_mu_pred_p, pred_comm_p) = self.forward.get_preds(a, zp_mu, zp_std, h_q, quantity = self.args.samples_per_pred, goal_comm = self.goal_comm)
-                        (rgbd_mu_pred_q, pred_rgbd_q), (spe_mu_pred_q, pred_spe_q), (comm_mu_pred_q, pred_comm_q) = self.forward.get_preds(a, zq_mu, zq_std, h_q, quantity = self.args.samples_per_pred, goal_comm = self.goal_comm)
-                        pred_rgbd_p = [pred.squeeze(0).squeeze(0) for pred in pred_rgbd_p] ; pred_rgbd_q = [pred.squeeze(0).squeeze(0) for pred in pred_rgbd_q]
-                        pred_spe_p = [pred.squeeze(0).squeeze(0) for pred in pred_spe_p]   ; pred_spe_q = [pred.squeeze(0).squeeze(0) for pred in pred_spe_q]
-                        pred_comm_p = [pred.squeeze(0).squeeze(0) for pred in pred_comm_p] ; pred_comm_q = [pred.squeeze(0).squeeze(0) for pred in pred_comm_q]
-                        rgbd, spe, comm, goal_comm = self.scenario.obs(0)
-                        comm = goal_comm if self.goal_comm else comm
-                        pred_list.append((
-                            action_name, (rgbd.squeeze(0), spe.squeeze(0), comm.squeeze(0)), 
-                            ((rgbd_mu_pred_p.squeeze(0).squeeze(0), pred_rgbd_p), (spe_mu_pred_p.squeeze(0).squeeze(0), pred_spe_p), (comm_mu_pred_p.squeeze(0).squeeze(0), pred_comm_p)), 
-                            ((rgbd_mu_pred_q.squeeze(0).squeeze(0), pred_rgbd_q), (spe_mu_pred_q.squeeze(0).squeeze(0), pred_spe_q), (comm_mu_pred_q.squeeze(0).squeeze(0), pred_comm_q))))
-                        prev_a = a ; h_q = h_q_p1
-                pred_lists.append(pred_list)
-            self.plot_dict["pred_lists"]["{}_{}_{}".format(self.agent_num, self.epochs, self.scenario.desc)] = pred_lists
-    
-    
-    
-    def training_episode(self, push = True, verbose = False):
-        dones = [False for _ in self.scenario.arenas]
-        prev_as = [torch.zeros((1, 1, 4 + self.args.symbols)) for _ in self.scenario.arenas]
-        cumulative_rs = [0 for _ in range(self.args.max_steps)]
-        hs = [torch.zeros((1, 1, self.args.hidden_size)) for _ in self.scenario.arenas]
-        to_be_pushed = [[] for _ in self.scenario.arenas]
-        self.scenario.begin()
-        if(verbose): print("\n\n\n\n\nSTART!\n")
-        
-        for step in range(self.args.max_steps):
-            self.steps += 1
-            for i in range(len(self.scenario.arenas)):
-                if(not any(dones)):
-                    prev_as[i], hs[i], r, dones[i], _, to_push = self.step_in_episode_hq(i, prev_as, hs, push, verbose) if self.args.actor_hq else self.step_in_episode(i, prev_as, hs, push, verbose)
-                    cumulative_rs[step] += r
-                    to_be_pushed[i].append(to_push)
-            self.scenario.replace_comms()
-                
-            if(self.steps % self.args.steps_per_epoch == 0):
-                #print("episodes: {}. epochs: {}. steps: {}.".format(self.episodes, self.epochs, self.steps))
-                plot_data = self.epoch(batch_size = self.args.batch_size)
-                if(plot_data == False): pass
-                else:
-                    l, e, ic, ie, naive, free = plot_data
-                    if(self.epochs == 1 or self.epochs >= sum(self.args.epochs) or self.epochs % self.args.keep_data == 0):
-                        self.plot_dict["accuracy"].append(l[0][0])
-                        self.plot_dict["complexity"].append(l[0][1])
-                        self.plot_dict["alpha"].append(l[0][2])
-                        self.plot_dict["actor"].append(l[0][3])
-                        self.plot_dict["critic_1"].append(l[0][4])
-                        self.plot_dict["critic_2"].append(l[0][5])
-                        self.plot_dict["extrinsic"].append(e)
-                        self.plot_dict["intrinsic_curiosity"].append(ic)
-                        self.plot_dict["intrinsic_entropy"].append(ie)
-                        self.plot_dict["naive"].append(naive)
-                        self.plot_dict["free"].append(free)    
-        self.plot_dict["rewards"].append(sum(cumulative_rs)/self.scenario.num_agents)
-        self.episodes += 1
-        if(push):
-            for i in range(len(self.scenario.arenas)):
-                _, _, c, gc = self.scenario.obs(i)
-                to_be_pushed[i][-1][8] = c
-                to_be_pushed[i][-1][9] = gc
-            for to_push in to_be_pushed:
-                for step, (o, s, c, gc, a, r, no, ns, nc, ngc, done) in enumerate(to_push):
-                    self.memory.push(o, s, c, gc, a, cumulative_rs[step], no, ns, nc, ngc, done, done)
-                        
     
     
     def epoch(self, batch_size):
-                                        
+                                
         batch = self.memory.sample(batch_size)
         if(batch == False): return(False)
-                        
+                
         self.epochs += 1
 
-        rgbd, spe, comm, goal_comm, actions, rewards, dones, masks = batch
-        comm = goal_comm if self.goal_comm else comm 
-        actions = torch.cat([torch.zeros(actions[:,0].unsqueeze(1).shape), actions], dim = 1)
-        episodes = rewards.shape[0] ; steps = rewards.shape[1]
-                
+        rgbds, speeds, comms_in, actions, comms_out, recommended_actions, rewards, dones, masks = batch
+        rgbds = torch.from_numpy(rgbds)
+        speeds = torch.from_numpy(speeds)
+        comms_in = torch.from_numpy(comms_in)
+        actions = torch.from_numpy(actions)
+        comms_out = torch.from_numpy(comms_out)
+        recommended_actions = torch.from_numpy(recommended_actions)
+        rewards = torch.from_numpy(rewards)
+        dones = torch.from_numpy(dones)
+        masks = torch.from_numpy(masks)
+        actions = torch.cat([torch.zeros(actions[:,0].unsqueeze(1).shape).to(self.args.device), actions], dim = 1)
+        comms_out = torch.cat([torch.zeros(comms_out[:,0].unsqueeze(1).shape).to(self.args.device), comms_out], dim = 1)
+        all_masks = torch.cat([torch.ones(masks.shape[0], 1, 1).to(self.args.device), masks], dim = 1)   
+        episodes = rewards.shape[0]
+        steps = rewards.shape[1]
+        
         #print("\n\n")
-        #print("{}. rgbd: {}. spe: {}. comm: {}. actions: {}. rewards: {}. dones: {}. masks: {}.".format(
-        #    self.agent_num, rgbd.shape, spe.shape, comm.shape, actions.shape, rewards.shape, dones.shape, masks.shape))
+        #print("Agent {}, epoch {}. rgbds: {}. speeds: {}. comms in: {}. actions: {}. comms out: {}. recommended actions: {}. rewards: {}. dones: {}. masks: {}.".format(
+        #    self.agent_num, self.epochs, rgbds.shape, speeds.shape, comms_in.shape, actions.shape, comms_out.shape, recommended_actions.shape, rewards.shape, dones.shape, masks.shape))
         #print("\n\n")
+        
                 
         
-
         # Train forward
-        h_qs = [torch.zeros((episodes, 1, self.args.hidden_size)).to(rgbd.device)]
-        zp_mus = []       ; zp_stds = []
-        zq_mus = []       ; zq_stds = []
-        zq_pred_rgbd = [] ; zq_pred_spe = [] ; zq_pred_comm = []
-        for step in range(steps):
-            (zp_mu, zp_std), (zq_mu, zq_std), h_q_p1 = self.forward(rgbd[:, step], spe[:, step], comm[:, step], actions[:, step], h_qs[-1], goal_comm = self.goal_comm)
-            (_, zq_preds_rgbd), (_, zq_preds_spe), (_, zq_preds_comm) = self.forward.get_preds(actions[:, step+1], zq_mu, zq_std, h_qs[-1], quantity = self.args.elbo_num, goal_comm = self.goal_comm)
-            zp_mus.append(zp_mu) ; zp_stds.append(zp_std)
-            zq_mus.append(zq_mu) ; zq_stds.append(zq_std)
-            zq_pred_rgbd.append(torch.cat(zq_preds_rgbd, -1)) ; zq_pred_spe.append(torch.cat(zq_preds_spe, -1))
-            zq_pred_comm.append(torch.cat(zq_preds_comm, -1))
-            h_qs.append(h_q_p1)
-        h_qs.append(h_qs.pop(0)) ; h_qs = torch.cat(h_qs, dim = 1) ; next_hqs = h_qs[:, 1:] ; hqs = h_qs[:, :-1]
-        zp_mus = torch.cat(zp_mus, dim = 1) ; zp_stds = torch.cat(zp_stds, dim = 1)
-        zq_mus = torch.cat(zq_mus, dim = 1) ; zq_stds = torch.cat(zq_stds, dim = 1)
-        zq_pred_rgbd = torch.cat(zq_pred_rgbd, dim = 1) ; zq_pred_spe = torch.cat(zq_pred_spe, dim = 1)
-        zq_pred_comm = torch.cat(zq_pred_comm, dim = 1) 
+        (zp_mu, zp_std, hps), (zq_mu, zq_std, hqs), (pred_rgbds, pred_speeds, pred_comms) = self.forward(torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), rgbds, speeds, comms_in, actions, comms_out)
+        hqs = hqs[:,:,0]
         
-        next_rgbd_tiled = torch.tile(rgbd[:,1:], (1, 1, 1, 1, self.args.elbo_num))
-        next_spe_tiled  = torch.tile(spe[:,1:], (1, 1, self.args.elbo_num))
-        next_comm_tiled = torch.tile(comm[:,1:], (1, 1, self.args.elbo_num))
         
-        image_loss = F.binary_cross_entropy_with_logits(zq_pred_rgbd, next_rgbd_tiled, reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * masks / self.args.elbo_num
-        speed_loss = self.args.speed_scalar * F.mse_loss(zq_pred_spe, next_spe_tiled,  reduction = "none").mean(-1).unsqueeze(-1) * masks / self.args.elbo_num
-        comm_loss  = self.args.comm_scalar * F.mse_loss(zq_pred_comm, next_comm_tiled,  reduction = "none").mean(-1).unsqueeze(-1) * masks / self.args.elbo_num
-        accuracy_for_naive = image_loss + speed_loss + comm_loss
-        accuracy            = accuracy_for_naive.mean()
-        complexity_for_free = dkl(zq_mus, zq_stds, zp_mus, zp_stds).mean(-1).unsqueeze(-1) * masks
-        if(self.args.dkl_max != None):
-            complexity_for_free = torch.clamp(complexity_for_free, min = 0, max = self.args.dkl_max)
-        complexity          = self.args.beta * complexity_for_free.mean() 
+        rgbd_loss = F.binary_cross_entropy_with_logits(pred_rgbds, rgbds[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * masks
+        speed_loss = F.mse_loss(pred_speeds, speeds[:,1:], reduction = "none").mean(-1).unsqueeze(-1) * masks
+                
+        real_comm_mask, _ = create_comm_mask(comms_in[:,1:])
+        pred_comm_mask, _ = create_comm_mask(pred_comms)
+        comm_mask = combined_mask = real_comm_mask.int() | pred_comm_mask.int()
+        
+        real_comms = comms_in[:,1:].reshape((episodes * steps * self.args.max_comm_len, self.args.comm_shape))
+        real_comms = torch.argmax(real_comms, dim = -1)
+        pred_comms = pred_comms.reshape((episodes * steps * self.args.max_comm_len, self.args.comm_shape))
+    
+        comm_loss = F.cross_entropy(pred_comms, real_comms, reduction = "none")
+        comm_loss = comm_loss.reshape((episodes, steps, self.args.max_comm_len))
+        comm_loss *= comm_mask
+        comm_loss = comm_loss.mean(-1).unsqueeze(-1) * masks
+        
+        accuracy_for_prediction_error = \
+            rgbd_loss * self.args.rgbd_scaler + \
+            speed_loss * self.args.speed_scaler + \
+            comm_loss * self.args.comm_scaler
+        accuracy           = accuracy_for_prediction_error.mean()
+        
+        complexity_for_hidden_state = [dkl(zq_mu[:,:,layer], zq_std[:,:,layer], zp_mu[:,:,layer], zp_std[:,:,layer]).mean(-1).unsqueeze(-1) * all_masks for layer in range(self.args.layers)] 
+        complexity          = sum([self.args.beta[layer] * complexity_for_hidden_state[layer].mean() for layer in range(self.args.layers)])       
+        complexity_for_hidden_state = [layer[:,1:] for layer in complexity_for_hidden_state] 
                                 
         self.forward_opt.zero_grad()
         (accuracy + complexity).backward()
         self.forward_opt.step()
         
         if(self.args.beta == 0): complexity = None
-                                
+        torch.cuda.empty_cache()
+                        
+                        
+        
         # Get curiosity                  
-        naive_curiosity = self.args.naive_eta * accuracy_for_naive  
-        free_curiosity = self.args.free_eta * complexity_for_free
-        if(self.args.curiosity == "naive"):  curiosity = naive_curiosity
-        elif(self.args.curiosity == "free"): curiosity = free_curiosity
-        else:                                curiosity = torch.zeros(rewards.shape)
+        if(self.args.dkl_max != None):
+            complexity_for_hidden_state = [torch.sigmoid(c) for c in complexity_for_hidden_state] # Or tanh? sigmoid? Or just clamp?
+        prediction_error_curiosity = accuracy_for_prediction_error * (self.args.prediction_error_eta if self.args.prediction_error_eta != None else self.prediction_error_eta)
+        hidden_state_curiosities = [complexity_for_hidden_state[layer] * (self.args.hidden_state_eta[layer] if self.args.hidden_state_eta[layer] != None else self.hidden_state_eta[layer]) for layer in range(self.args.layers)]
+        hidden_state_curiosity = sum(hidden_state_curiosities)
+        if(self.args.curiosity == "prediction_error"):  curiosity = prediction_error_curiosity
+        elif(self.args.curiosity == "hidden_state"): curiosity = hidden_state_curiosity
+        else:                                curiosity = torch.zeros(rewards.shape).to(self.args.device)
         extrinsic = torch.mean(rewards).item()
         intrinsic_curiosity = curiosity.mean().item()
         rewards += curiosity
@@ -346,91 +539,113 @@ class Agent:
                 
         # Train critics
         with torch.no_grad():
-            new_actions, log_pis_next, _ = self.actor(next_hqs, goal_comm = self.goal_comm) if self.args.actor_hq else self.actor(rgbd[:,1:], spe[:,1:], comm[:,1:], actions[:,1:], goal_comm = self.goal_comm)
-            Q_target1_next, _ = self.critic1_target(next_hqs, new_actions) if self.args.critic_hq else self.critic1_target(rgbd[:,1:], spe[:,1:], comm[:,1:], new_actions, goal_comm = self.goal_comm)
-            Q_target2_next, _ = self.critic2_target(next_hqs, new_actions) if self.args.critic_hq else self.critic2_target(rgbd[:,1:], spe[:,1:], comm[:,1:], new_actions, goal_comm = self.goal_comm)
-            Q_target_next = torch.min(Q_target1_next, Q_target2_next)
+            new_actions, new_comms_out, log_pis_next, _ = self.actor(rgbds, speeds, comms_in, actions, comms_out, hqs.detach(), torch.zeros((episodes, steps, self.args.hidden_size)))
+            Q_target_nexts = []
+            for i in range(self.args.critics):
+                Q_target_next, _ = self.critic_targets[i](rgbds, speeds, comms_in, new_actions, new_comms_out, hqs.detach(), torch.zeros((episodes, steps, self.args.hidden_size)))
+                Q_target_next[:,1:]
+                Q_target_nexts.append(Q_target_next)
+            log_pis_next = log_pis_next[:,1:]
+            Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
+            Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
+            Q_target_next = Q_target_next[:,1:]
             if self.args.alpha == None: Q_targets = rewards + (self.args.GAMMA * (1 - dones) * (Q_target_next - self.alpha * log_pis_next))
             else:                       Q_targets = rewards + (self.args.GAMMA * (1 - dones) * (Q_target_next - self.args.alpha * log_pis_next))
         
-        Q_1, _ = self.critic1(hqs.detach(), actions[:,1:]) if self.args.critic_hq else self.critic1(rgbd[:,:-1], spe[:,:-1], comm[:,:-1], actions[:,1:], goal_comm = self.goal_comm)
-        critic1_loss = 0.5*F.mse_loss(Q_1*masks, Q_targets*masks)
-        self.critic1_opt.zero_grad()
-        critic1_loss.backward()
-        self.critic1_opt.step()
+        critic_losses = []
+        Qs = []
+        for i in range(self.args.critics):
+            Q, _ = self.critics[i](rgbds[:,:-1], speeds[:,:-1], comms_in[:,:-1], actions[:,1:], comms_out[:,1:], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)))
+            critic_loss = 0.5*F.mse_loss(Q*masks, Q_targets*masks)
+            critic_losses.append(critic_loss)
+            Qs.append(Q[0,0].item())
+            self.critic_opts[i].zero_grad()
+            critic_loss.backward()
+            self.critic_opts[i].step()
         
-        Q_2, _ = self.critic2(hqs.detach(), actions[:,1:]) if self.args.critic_hq else self.critic2(rgbd[:,:-1], spe[:,:-1], comm[:,:-1], actions[:,1:], goal_comm = self.goal_comm)
-        critic2_loss = 0.5*F.mse_loss(Q_2*masks, Q_targets*masks)
-        self.critic2_opt.zero_grad()
-        critic2_loss.backward()
-        self.critic2_opt.step()
+            self.soft_update(self.critics[i], self.critic_targets[i], self.args.tau)
+        
+        torch.cuda.empty_cache()
                                 
         
         
         # Train alpha
         if self.args.alpha == None:
-            _, log_pis, _ = self.actor(hqs.detach(), goal_comm = self.goal_comm) if self.args.actor_hq else self.actor(rgbd[:,:-1], spe[:,:-1], comm[:,:-1], actions[:,:-1], goal_comm = self.goal_comm)
-            alpha_loss = -(self.log_alpha * (log_pis + self.target_entropy))*masks
+            _, _, log_pis, _ = self.actor(rgbds[:,:-1], speeds[:,:-1], comms_in[:,:-1], actions[:,:-1], comms_out[:,:-1], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)))
+            alpha_loss = -(self.log_alpha.to(self.args.device) * (log_pis + self.target_entropy))*masks
             alpha_loss = alpha_loss.mean() / masks.mean()
             self.alpha_opt.zero_grad()
             alpha_loss.backward()
             self.alpha_opt.step()
-            self.alpha = torch.exp(self.log_alpha) 
+            self.alpha = torch.exp(self.log_alpha).to(self.args.device)
+            torch.cuda.empty_cache()
         else:
             alpha_loss = None
-                                                
+                                    
             
         
         # Train actor
         if self.epochs % self.args.d == 0:
             if self.args.alpha == None: alpha = self.alpha 
             else:                       alpha = self.args.alpha
-            new_actions, log_pis, _ = self.actor(hqs.detach(), goal_comm = self.goal_comm) if self.args.actor_hq else self.actor(rgbd[:,:-1], spe[:,:-1], comm[:,:-1], actions[:,:-1], goal_comm = self.goal_comm)
-
+            new_actions, new_comms_out, log_pis, _ = self.actor(rgbds[:,:-1], speeds[:,:-1], comms_in[:,:-1], actions[:,:-1], comms_out[:,:-1], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)))
             if self.args.action_prior == "normal":
-                loc = torch.zeros(new_actions.shape[-1], dtype=torch.float64)
-                scale_tril = torch.tensor([[0 if j > i else 1 for j in range(new_actions.shape[-1])] for i in range(new_actions.shape[-1])], dtype=torch.float64)
+                loc = torch.zeros(self.args.action_shape, dtype=torch.float64).to(self.args.device)
+                n = self.args.action_shape
+                scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device)
                 policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
                 policy_prior_log_prrgbd = policy_prior.log_prob(new_actions).unsqueeze(-1)
             elif self.args.action_prior == "uniform":
                 policy_prior_log_prrgbd = 0.0
-            Q_1, _ = self.critic1(hqs.detach(), new_actions) if self.args.critic_hq else self.critic1(rgbd[:,:-1], spe[:,:-1], comm[:,:-1], new_actions, goal_comm = self.goal_comm)
-            Q_2, _ = self.critic2(hqs.detach(), new_actions) if self.args.critic_hq else self.critic2(rgbd[:,:-1], spe[:,:-1], comm[:,:-1], new_actions, goal_comm = self.goal_comm)
-            Q = torch.min(Q_1, Q_2).mean(-1).unsqueeze(-1)
+            Qs = []
+            for i in range(self.args.critics):
+                Q, _ = self.critics[i](rgbds[:,:-1], speeds[:,:-1], comms_in[:,:-1], new_actions, new_comms_out, hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)))
+                Qs.append(Q)
+            Qs_stacked = torch.stack(Qs, dim=0)
+            Q, _ = torch.min(Qs_stacked, dim=0)
+            Q = Q.mean(-1).unsqueeze(-1)
             intrinsic_entropy = torch.mean((alpha * log_pis)*masks).item()
-            actor_loss = (alpha * log_pis - policy_prior_log_prrgbd - Q)*masks
+            recommendation_value = calculate_similarity(recommended_actions, new_actions).unsqueeze(-1)
+            intrinsic_imitation = -torch.mean((self.args.delta * recommendation_value)*masks).item() 
+            recommendation_value = torch.zeros_like(recommendation_value) # Need to actually make these values to use it!
+            actor_loss = (alpha * log_pis - policy_prior_log_prrgbd - self.args.delta * recommendation_value - Q)*masks
             actor_loss = actor_loss.mean() / masks.mean()
 
             self.actor_opt.zero_grad()
             actor_loss.backward()
             self.actor_opt.step()
-
-            self.soft_update(self.critic1, self.critic1_target, self.args.tau)
-            self.soft_update(self.critic2, self.critic2_target, self.args.tau)
             
         else:
+            Q = None
             intrinsic_entropy = None
+            intrinsic_imitation = None
             actor_loss = None
+        
+        #intrinsic_entropy = None
+        #intrinsic_imitation = None 
+        #actor_loss = None
                                 
                                 
                                 
         if(accuracy != None):   accuracy = accuracy.item()
+        if(rgbd_loss != None):   rgbd_loss = rgbd_loss.mean().item()
+        if(speed_loss != None):   speed_loss = speed_loss.mean().item()
+        if(comm_loss != None):   comm_loss = comm_loss.mean().item()
         if(complexity != None): complexity = complexity.item()
         if(alpha_loss != None): alpha_loss = alpha_loss.item()
         if(actor_loss != None): actor_loss = actor_loss.item()
-        if(critic1_loss != None): 
-            critic1_loss = critic1_loss.item()
-            critic1_loss = log(critic1_loss) if critic1_loss > 0 else critic1_loss
-        if(critic2_loss != None): 
-            critic2_loss = critic2_loss.item()
-            critic2_loss = log(critic2_loss) if critic2_loss > 0 else critic2_loss
-        losses = np.array([[accuracy, complexity, alpha_loss, actor_loss, critic1_loss, critic2_loss]])
+        if(Q != None): Q = -Q.mean().item()
+        for i in range(self.args.critics):
+            if(critic_losses[i] != None): 
+                critic_losses[i] = critic_losses[i].item()
+                critic_losses[i] = log(critic_losses[i]) if critic_losses[i] > 0 else critic_losses[i]
         
-        naive_curiosity = naive_curiosity.mean().item()
-        free_curiosity = free_curiosity.mean().item()
-        if(free_curiosity == 0): free_curiosity = None
+        prediction_error_curiosity = prediction_error_curiosity.mean().item()
+        hidden_state_curiosities = [hidden_state_curiosity.mean().item() for hidden_state_curiosity in hidden_state_curiosities]
+        hidden_state_curiosities = [hidden_state_curiosity for hidden_state_curiosity in hidden_state_curiosities]
         
-        return(losses, extrinsic, intrinsic_curiosity, intrinsic_entropy, naive_curiosity, free_curiosity)
+        return(accuracy, rgbd_loss, speed_loss, comm_loss, complexity, alpha_loss, actor_loss, critic_losses, 
+               extrinsic, Q, intrinsic_curiosity, intrinsic_entropy, intrinsic_imitation, prediction_error_curiosity, hidden_state_curiosities)
     
     
                      
@@ -439,41 +654,36 @@ class Agent:
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
     def state_dict(self):
-        return(
-            self.forward.state_dict(),
-            self.actor.state_dict(),
-            self.critic1.state_dict(),
-            self.critic1_target.state_dict(),
-            self.critic2.state_dict(),
-            self.critic2_target.state_dict())
+        to_return = [self.forward.state_dict(), self.actor.state_dict()]
+        for i in range(self.args.critics):
+            to_return.append(self.critics[i].state_dict())
+            to_return.append(self.critic_targets[i].state_dict())
+        return(to_return)
 
     def load_state_dict(self, state_dict):
         self.forward.load_state_dict(state_dict[0])
         self.actor.load_state_dict(state_dict[1])
-        self.critic1.load_state_dict(state_dict[2])
-        self.critic1_target.load_state_dict(state_dict[3])
-        self.critic2.load_state_dict(state_dict[4])
-        self.critic2_target.load_state_dict(state_dict[5])
+        for i in range(self.args.critics):
+            self.critics[i].load_state_dict(state_dict[2+2*i])
+            self.critic_target[i].load_state_dict(state_dict[3+2*i])
         self.memory = RecurrentReplayBuffer(self.args)
 
     def eval(self):
         self.forward.eval()
         self.actor.eval()
-        self.critic1.eval()
-        self.critic1_target.eval()
-        self.critic2.eval()
-        self.critic2_target.eval()
+        for i in range(self.args.critics):
+            self.critics[i].eval()
+            self.critic_targets[i].eval()
 
     def train(self):
         self.forward.train()
         self.actor.train()
-        self.critic1.train()
-        self.critic1_target.train()
-        self.critic2.train()
-        self.critic2_target.train()
+        for i in range(self.args.critics):
+            self.critics[i].train()
+            self.critic_targets[i].train()
         
         
         
 if __name__ == "__main__":
-    agent = Agent(0)
+    agent = Agent(args = default_args)
 # %%

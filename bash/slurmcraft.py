@@ -44,32 +44,36 @@ def expand_args(name, args):
     return(name, combos)
 
 slurm_dict = {
-    "d"    : {}, 
-    "e"    : {"alpha" : "None"},
-    "n"    : {                  "curiosity" : "naive"},
-    "en"   : {"alpha" : "None", "curiosity" : "naive"},
-    "f"    : {                  "curiosity" : "free",  "beta" : .05},
-    "ef"   : {"alpha" : "None", "curiosity" : "free",  "beta" : .05},
+    "d"     : {}, 
     }
 
-def get_args(name):
-    s = "" 
-    for key, value in slurm_dict[name].items(): s += "--{} {} ".format(key, value)
-    return(s)
+
+
 
 def add_this(name, args):
     keys, values = [], []
     for key, value in slurm_dict.items(): keys.append(key) ; values.append(value)
     for key, value in zip(keys, values):  
-        new_key = key + "_" + name 
+        if(key == "d"): key = ""
+        between = "" if key == "" or len(name) == 1 else "_"
+        new_key = key + between + name 
         new_value = deepcopy(value)
         for arg_name, arg in args.items():
-            if(type(arg) != list or type(arg[0]) != dict): new_value[arg_name] = arg
+            if(type(arg) != list): new_value[arg_name] = arg
+            elif(type(arg[0]) != list): new_value[arg_name] = arg
             else:
-                for if_arg_name, if_arg in arg[0].items():
-                    if(if_arg_name in value and value[if_arg_name] == if_arg):
-                        new_value[arg_name] = arg[1]
+                for condition in arg:
+                    for if_arg_name, if_arg in condition[0].items():
+                        if(if_arg_name in value and value[if_arg_name] == if_arg):
+                            new_value[arg_name] = condition[1]
         slurm_dict[new_key] = new_value
+
+
+
+add_this("e",   {"alpha" : "None"})
+add_this("n",   {"curiosity" : "prediction_error"})
+add_this("f",   {"curiosity" : "hidden_state"})
+add_this("i",   {"delta" : 1})
 
 
 
@@ -82,6 +86,11 @@ for key, value in slurm_dict.items():
         
 slurm_dict = new_slurm_dict
 
+def get_args(name):
+    s = "" 
+    for key, value in slurm_dict[name].items(): s += "--{} {} ".format(key, value)
+    return(s)
+
 def all_like_this(this): 
     if(this in ["break", "empty_space"]): result = [this]
     elif(this[-1] != "_"):                result = [this]
@@ -93,31 +102,37 @@ def all_like_this(this):
         
 if(__name__ == "__main__" and args.arg_list == []):
     for key, value in slurm_dict.items(): print(key, ":", value,"\n")
+    interesting = []
+    for this in interesting:
+        print("{} : {}".format(this,slurm_dict[this]))
 
 max_cpus = 36
 if(__name__ == "__main__" and args.arg_list != []):
     
     if(args.comp == "deigo"):
+        nv = ""
+        module = "module load singularity"
         partition = \
 """
 #!/bin/bash -l
 #SBATCH --partition=compute
+#SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time 48:00:00
-#SBATCH --mem=50G
-"""
+#SBATCH --time 5:00:00
+#SBATCH --mem=50G"""
 
     if(args.comp == "saion"):
+        nv = "--nv"
+        module = "module load singularity cuda"
         partition = \
 """
 #!/bin/bash -l
 #SBATCH --partition=taniu
-#SBATCH --gres=gpu:1
+#SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
 #SBATCH --time 48:00:00
-#SBATCH --mem=50G
-"""
-
+#SBATCH --mem=490G
+#SBATCH --gres=gpu:4"""
     for name in args.arg_list:
         if(name in ["break", "empty_space"]): pass 
         else:
@@ -126,9 +141,9 @@ if(__name__ == "__main__" and args.arg_list != []):
 """
 {}
 #SBATCH --ntasks={}
-module load singularity
-singularity exec maze.sif python communication/main.py --comp {} --arg_name {} {} --agents $agents_per_job --previous_agents $previous_agents
-""".format(partition, max_cpus, args.comp, name, get_args(name))[2:])
+{}
+singularity exec {} maze.sif python communication/main.py --comp {} --arg_name {} {} --agents $agents_per_job --previous_agents $previous_agents
+""".format(partition, max_cpus, module, nv, args.comp, name, get_args(name))[2:])
             
 
 
@@ -136,24 +151,40 @@ singularity exec maze.sif python communication/main.py --comp {} --arg_name {} {
         f.write(
 """
 {}
-module load singularity
-singularity exec maze.sif python communication/finish_dicts.py --comp {} --arg_title {} --arg_name finishing_dictionaries
-""".format(partition, args.comp, combined)[2:])
+{}
+singularity exec {} maze.sif python communication/finish_dicts.py --comp {} --arg_title {} --arg_name finishing_dictionaries
+""".format(partition, module, nv, args.comp, combined)[2:])
         
     with open("plotting.slurm", "w") as f:
         f.write(
 """
 {}
-module load singularity
-singularity exec maze.sif python communication/plotting.py --comp {} --arg_title {} --arg_name plotting
-""".format(partition, args.comp, combined)[2:])
+{}
+singularity exec {} maze.sif python communication/plotting.py --comp {} --arg_title {} --arg_name plotting
+""".format(partition, module, nv, args.comp, combined)[2:])
         
-    with open("plotting_pred.slurm", "w") as f:
+    with open("plotting_episodes.slurm", "w") as f:
         f.write(
 """
 {}
-module load singularity
-singularity exec maze.sif python communication/plotting_pred.py --comp {} --arg_title {} --arg_name plotting_predictions
-""".format(partition, args.comp, combined)[2:])
+{}
+singularity exec {} maze.sif python communication/plotting_episodes.py --comp {} --arg_title {} --arg_name plotting_episodes
+""".format(partition, module, nv, args.comp, combined)[2:])
+        
+    with open("plotting_p_values.slurm", "w") as f:
+        f.write(
+"""
+{}
+{}
+singularity exec {} maze.sif python communication/plotting_p_val.py --comp {} --arg_title {} --arg_name plotting_p_values
+""".format(partition, module, nv, args.comp, combined)[2:])
+        
+    with open("combine_plots.slurm", "w") as f:
+        f.write(
+"""
+{}
+{}
+singularity exec {} maze.sif python communication/combine_plots.py --comp {} --arg_title {} --arg_name combining_plots
+""".format(partition, module, nv, args.comp, combined)[2:])
 # %%
 

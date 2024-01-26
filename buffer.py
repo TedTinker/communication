@@ -1,214 +1,136 @@
 #%%
 
 import numpy as np
-import torch
-import torch.nn.functional as F
 
-from collections import namedtuple
-from utils import default_args, shapes, colors, goals
-        
+from utils import default_args, pad_zeros
 
 
-# Ted got this from: Recurrent Off-policy Baselines for Memory-based Continuous Control, https://github.com/zhihanyang2022/off-policy-continuous-control
 
-        
+class VariableBuffer:
+    def __init__(self, shape = (1,), before_and_after = False, args = default_args):
+        self.args = args
+        self.shape = shape
+        self.data = np.zeros((self.args.capacity, self.args.max_steps + (1 if before_and_after else 0)) + self.shape, dtype='float32')
 
-def as_probas(positive_values: np.array) -> np.array:
-    return positive_values / np.sum(positive_values)
+    def reset_episode(self, episode_ptr):
+        self.data[episode_ptr] = 0
+
+    def push(self, episode_ptr, time_ptr, value):
+        if self.shape == (1,): self.data[episode_ptr, time_ptr]    = value
+        else:                  self.data[episode_ptr, time_ptr, :] = value
+
+    def sample(self, indices):
+        return self.data[indices]
 
 
-def as_tensor_on_device(np_array: np.array):
-    return torch.tensor(np_array).float().to("cpu")
 
 class RecurrentReplayBuffer:
-
-    """Use this version when num_bptt == max_episode_len"""
-
-    def __init__(
-        self, args = default_args, segment_len=None  # for non-overlapping truncated bptt, maybe need a large batch size
-    ):
-    
+    def __init__(self, args = default_args):
         self.args = args
-            
-        # pointers
-      
-        self.index = 1
+        self.capacity = self.args.capacity
+        self.max_episode_len = self.args.max_steps
+        self.num_episodes = 0
+
+        self.rgbds = VariableBuffer(
+            shape = (self.args.image_size, self.args.image_size, 4), 
+            before_and_after = True, 
+            args = self.args)
+        self.speeds = VariableBuffer(
+            shape = (1,), 
+            before_and_after = True, 
+            args = self.args)
+        self.communications_in = VariableBuffer(
+            shape = (self.args.max_comm_len, self.args.comm_shape,), 
+            before_and_after = True, 
+            args = self.args)
+        self.actions = VariableBuffer(
+            shape = (self.args.action_shape,), 
+            args = self.args)
+        self.communications_out = VariableBuffer(
+            shape = (self.args.max_comm_len, self.args.comm_shape,), 
+            args = self.args)
+        self.recommended_actions = VariableBuffer(
+            shape = (self.args.action_shape,), 
+            args = self.args)
+        self.rewards = VariableBuffer(args = self.args)
+        self.dones = VariableBuffer(args = self.args)
+        self.masks = VariableBuffer(args = self.args)
+
         self.episode_ptr = 0
         self.time_ptr = 0
-      
-        # trackers
-      
-        self.starting_new_episode = True
-        self.num_episodes = 0
-      
-        # hyper-parameters
-      
-        self.capacity = self.args.capacity
-        self.o_dim = (self.args.image_size, self.args.image_size, 4)
-        self.a_dim = 4 + args.symbols
-      
-        self.max_episode_len = args.max_steps + 1
-      
-        if segment_len is not None:
-            assert self.max_episode_len % segment_len == 0  # e.g., if max_episode_len = 1000, then segment_len = 100 is ok
-      
-        self.segment_len = segment_len
-      
-        # placeholders
 
-        self.o = np.zeros((self.args.capacity, self.max_episode_len + 1) + self.o_dim, dtype='float32')
-        self.s = np.zeros((self.args.capacity, self.max_episode_len + 1, 1), dtype='float32')
-        self.c = np.zeros((self.args.capacity, self.max_episode_len + 1, args.symbols), dtype='float32')
-        self.gc = np.zeros((self.args.capacity, self.max_episode_len + 1, len(shapes) + len(colors) + len(goals)), dtype='float32')
-        self.a = np.zeros((self.args.capacity, self.max_episode_len, self.a_dim), dtype='float32')
-        self.r = np.zeros((self.args.capacity, self.max_episode_len, 1), dtype='float32')
-        self.d = np.zeros((self.args.capacity, self.max_episode_len, 1), dtype='float32')
-        self.m = np.zeros((self.args.capacity, self.max_episode_len, 1), dtype='float32')
+    def push(
+            self, 
+            rgbd,
+            speed, 
+            communication_in, 
+            action, 
+            communication_out, 
+            recommended_action,
+            reward, 
+            next_rgbd,
+            next_speed, 
+            next_communication_in, 
+            done):
         
-        self.ep_len = np.zeros((self.args.capacity,), dtype='float32')
-        self.ready_for_sampling = np.zeros((self.args.capacity,), dtype='int')
+        if self.time_ptr == 0:
+            for buffer in [
+                    self.rgbds,
+                    self.speeds, 
+                    self.communications_in, 
+                    self.actions, 
+                    self.communications_out, 
+                    self.recommended_actions,
+                    self.rewards, 
+                    self.dones, 
+                    self.masks]:
+                buffer.reset_episode(self.episode_ptr)
 
-    def push(self, o, s, c, gc, a, r, no, ns, nc, ngc, d, cutoff):
+        communication_in = pad_zeros(communication_in, self.args.max_comm_len)
+        next_communication_in = pad_zeros(next_communication_in, self.args.max_comm_len)
+        self.rgbds.push(self.episode_ptr, self.time_ptr, rgbd)
+        self.speeds.push(self.episode_ptr, self.time_ptr, speed)
+        self.communications_in.push(self.episode_ptr, self.time_ptr, communication_in)
+        self.actions.push(self.episode_ptr, self.time_ptr, action)
+        self.communications_out.push(self.episode_ptr, self.time_ptr, communication_out)
+        self.recommended_actions.push(self.episode_ptr, self.time_ptr, recommended_action)
+        self.rewards.push(self.episode_ptr, self.time_ptr, reward)
+        self.dones.push(self.episode_ptr, self.time_ptr, done)
+        self.masks.push(self.episode_ptr, self.time_ptr, 1.0)
 
-        # zero-out current slot at the beginning of an episode
-
-        if self.starting_new_episode:
-
-            self.o[self.episode_ptr] = 0
-            self.s[self.episode_ptr] = 0
-            self.c[self.episode_ptr] = 0
-            self.gc[self.episode_ptr] = 0
-            self.a[self.episode_ptr] = 0
-            self.r[self.episode_ptr] = 0
-            self.d[self.episode_ptr] = 0
-            self.m[self.episode_ptr] = 0
-            self.ep_len[self.episode_ptr] = 0
-            self.ready_for_sampling[self.episode_ptr] = 0
-
-            self.starting_new_episode = False
-
-        # fill placeholders
-
-        self.o[self.episode_ptr, self.time_ptr] = o
-        self.s[self.episode_ptr, self.time_ptr] = s
-        self.c[self.episode_ptr, self.time_ptr] = c
-        self.gc[self.episode_ptr, self.time_ptr] = gc
-        self.a[self.episode_ptr, self.time_ptr] = a
-        self.r[self.episode_ptr, self.time_ptr] = r
-        self.d[self.episode_ptr, self.time_ptr] = d
-        self.m[self.episode_ptr, self.time_ptr] = 1
-        self.ep_len[self.episode_ptr] += 1
-
-        if d or cutoff:
-
-            # fill placeholders
-
-            self.o[self.episode_ptr, self.time_ptr+1] = no
-            self.s[self.episode_ptr, self.time_ptr+1] = ns
-            self.c[self.episode_ptr, self.time_ptr+1] = nc
-            self.gc[self.episode_ptr, self.time_ptr+1] = ngc
-            self.ready_for_sampling[self.episode_ptr] = 1
-
-            # reset pointers
-
+        self.time_ptr += 1
+        if done or self.time_ptr >= self.max_episode_len:
+            self.rgbds.push(self.episode_ptr, self.time_ptr, next_rgbd)
+            self.speeds.push(self.episode_ptr, self.time_ptr, next_speed)
+            self.communications_in.push(self.episode_ptr, self.time_ptr, next_communication_in)
             self.episode_ptr = (self.episode_ptr + 1) % self.capacity
             self.time_ptr = 0
-
-            # update trackers
-
-            self.starting_new_episode = True
-            if self.num_episodes < self.capacity:
-                self.num_episodes += 1
-
-        else:
-
-            # update pointers
-
-            self.time_ptr += 1
+            self.num_episodes = min(self.num_episodes + 1, self.capacity)
 
     def sample(self, batch_size):
-
         if(self.num_episodes == 0): return(False)
-        if(self.num_episodes < batch_size): return self.sample(self.num_episodes)
-
-        # sample episode indices
-
-        options = np.where(self.ready_for_sampling == 1)[0]
-        ep_lens_of_options = self.ep_len[options]
-        probas_of_options = as_probas(ep_lens_of_options)
-        choices = np.random.choice(options, p=probas_of_options, size=batch_size)
-
-        ep_lens_of_choices = self.ep_len[choices]
-
-        if self.segment_len is None:
-
-            # grab the corresponding numpy array
-            # and save computational effort for lstm
-
-            max_ep_len_in_batch = int(np.max(ep_lens_of_choices))
-
-            o = self.o[choices][:, :max_ep_len_in_batch+1, :]
-            s = self.s[choices][:, :max_ep_len_in_batch+1, :]
-            c = self.c[choices][:, :max_ep_len_in_batch+1, :]
-            gc = self.gc[choices][:, :max_ep_len_in_batch+1, :]
-            a = self.a[choices][:, :max_ep_len_in_batch, :]
-            r = self.r[choices][:, :max_ep_len_in_batch, :]
-            d = self.d[choices][:, :max_ep_len_in_batch, :]
-            m = self.m[choices][:, :max_ep_len_in_batch, :]
-
-            # convert to tensors on the right device
-
-            o = as_tensor_on_device(o).view((batch_size, max_ep_len_in_batch+1) + self.o_dim)
-            s = as_tensor_on_device(s).view(batch_size, max_ep_len_in_batch+1, 1)
-            c = as_tensor_on_device(c).view(batch_size, max_ep_len_in_batch+1, self.args.symbols)
-            gc = as_tensor_on_device(gc).view(batch_size, max_ep_len_in_batch+1, len(shapes) + len(colors) + len(goals))
-            a = as_tensor_on_device(a).view(batch_size, max_ep_len_in_batch, self.a_dim)
-            r = as_tensor_on_device(r).view(batch_size, max_ep_len_in_batch, 1)
-            d = as_tensor_on_device(d).view(batch_size, max_ep_len_in_batch, 1)
-            m = as_tensor_on_device(m).view(batch_size, max_ep_len_in_batch, 1)
-
-            return((o, s, c, gc, a, r, d, m))
-
+        if(self.num_episodes < batch_size):
+            indices = np.random.choice(self.num_episodes, self.num_episodes, replace=False)
+            batch = (
+                self.rgbds.sample(indices),
+                self.speeds.sample(indices),
+                self.communications_in.sample(indices),
+                self.actions.sample(indices),
+                self.communications_out.sample(indices),
+                self.recommended_actions.sample(indices),
+                self.rewards.sample(indices),
+                self.dones.sample(indices),
+                self.masks.sample(indices))
         else:
-
-            num_segments_for_each_item = np.ceil(ep_lens_of_choices / self.segment_len).astype(int)
-
-            o = self.o[choices]
-            s = self.s[choices]
-            c = self.c[choices]
-            gc = self.gc[choices]
-            a = self.a[choices]
-            r = self.r[choices]
-            d = self.d[choices]
-            m = self.m[choices]
-
-            o_seg = np.zeros((batch_size, self.segment_len + 1) + self.o_dim)
-            s_seg = np.zeros((batch_size, self.segment_len + 1, 1))
-            c_seg = np.zeros((batch_size, self.segment_len + 1, self.args.symbols))
-            gc_seg = np.zeros((batch_size, self.segment_len + 1, len(shapes) + len(colors) + len(goals)))
-            a_seg = np.zeros((batch_size, self.segment_len, self.a_dim))
-            r_seg = np.zeros((batch_size, self.segment_len, 1))
-            d_seg = np.zeros((batch_size, self.segment_len, 1))
-            m_seg = np.zeros((batch_size, self.segment_len, 1))
-
-            for i in range(batch_size):
-                start_idx = np.random.randint(num_segments_for_each_item[i]) * self.segment_len
-                o_seg[i] = o[i][start_idx:start_idx + self.segment_len + 1]
-                s_seg[i] = s[i][start_idx:start_idx + self.segment_len + 1]
-                c_seg[i] = c[i][start_idx:start_idx + self.segment_len + 1]
-                gc_seg[i] = gc[i][start_idx:start_idx + self.segment_len + 1]
-                a_seg[i] = a[i][start_idx:start_idx + self.segment_len]
-                r_seg[i] = r[i][start_idx:start_idx + self.segment_len]
-                d_seg[i] = d[i][start_idx:start_idx + self.segment_len]
-                m_seg[i] = m[i][start_idx:start_idx + self.segment_len]
-
-            o_seg = as_tensor_on_device(o_seg)
-            s_seg = as_tensor_on_device(s_seg)
-            c_seg = as_tensor_on_device(c_seg)
-            gc_seg = as_tensor_on_device(gc_seg)
-            a_seg = as_tensor_on_device(a_seg)
-            r_seg = as_tensor_on_device(r_seg)
-            d_seg = as_tensor_on_device(d_seg)
-            m_seg = as_tensor_on_device(m_seg)
-
-            return((o_seg, s_seg, c_seg, gc_seg, a_seg, r_seg, d_seg, m_seg))
+            indices = np.random.choice(self.num_episodes, batch_size, replace=False)
+            batch = (
+                self.rgbds.sample(indices),
+                self.speeds.sample(indices),
+                self.communications_in.sample(indices),
+                self.actions.sample(indices),
+                self.communications_out.sample(indices),
+                self.recommended_actions.sample(indices),
+                self.rewards.sample(indices),
+                self.dones.sample(indices),
+                self.masks.sample(indices))
+        return batch
