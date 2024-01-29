@@ -64,17 +64,11 @@ class Task:
         self.goal_comm = pad_zeros(self.goal_comm, self.args.max_comm_len)
         return(index)
     
-    def get_recommended_action(self, agent_1 = True):
-        pass
-    
     def __str__(self):
         to_return = "\n\nSHAPE-COLORS (1):\t{}".format(["{} {}".format(list(color_map)[color], list(shape_map)[shape]) for shape, color in self.current_objects_1])
         if(not self.parent):
             to_return += "\nSHAPE-COLORS (2):\t{}".format(["{} {}".format(list(color_map)[color], list(shape_map)[shape]) for shape, color in self.current_objects_2])
         to_return += "\nGOAL:\t{}".format(onehots_to_string(self.goal_comm))
-        to_return += "\nRECOMMENDED ACTION (1):\t{}".format(self.get_recommended_action())
-        if(not self.parent):
-            to_return += "\nRECOMMENDED ACTION (2):\t{}".format(self.get_recommended_action(agent_1 = False))
         return(to_return)
 
 
@@ -169,7 +163,7 @@ class Task_Runner:
             round(degrees(yaw)), round(spe), (round(degrees(right_arm)), round(degrees(left_arm))), (round(degrees(right_hand), round(degrees(left_hand))))))
         
         for s in range(self.args.steps_per_step):
-            self.change_velocity(yaw/self.args.steps_per_step, spe/self.args.steps_per_step, right_arm, right_hand, left_arm, left_hand, verbose = verbose if s == 0 else False)
+            self.change_velocity(yaw/self.args.steps_per_step, spe, right_arm, right_hand, left_arm, left_hand, verbose = verbose if s == 0 else False)
             arena.step()
         
         reward, win = arena.rewards()
@@ -181,7 +175,7 @@ class Task_Runner:
         
         reward, win = self.step(action_1, verbose = verbose)
         if(not self.parenting): 
-            reward_2, win_2 = self.step(action_1, agent_1 = False, verbose = verbose)
+            reward_2, win_2 = self.step(action_2, agent_1 = False, verbose = verbose)
             reward = max([reward, reward_2])
             win = win or win_2
                     
@@ -197,12 +191,31 @@ class Task_Runner:
                 print("Correct!", end = " ")
         if(verbose):
             print("Reward:", reward)
-            if(done): print("Done.")
-        if(done):
-            self.arena_1.end()
-            if(not self.parenting):
-                self.arena_2.end()
+            if(done): 
+                print("Done.")
         return(reward, done, win)
+    
+    def done(self):
+        self.arena_1.end()
+        if(not self.parenting):
+            self.arena_2.end()
+    
+    def get_recommended_action(self, agent_1 = True):
+        # Find angle between agent and the first correct object.
+        # If angle is large, just turn.
+        # If angle is small...
+        #   If action is watch, wait.
+        #   Otherwise, find distance.
+        #   If distance is large, move closer.
+        #   If distance is small...
+        #       If action is touch, move closer.
+        #       If action is pull, find arm angle.
+        #           If arms are close together, separate them.
+        #           If arms are far apart, move closer.
+        #           Then bring arms together.
+        #           Then move backward.
+        # ETC.
+        return(torch.tensor([0,0,0,0,0,0]))
     
     
     

@@ -85,7 +85,8 @@ class Arena():
     def begin(self, objects, goal):
         self.setBaseVelocity(0, 0)
         self.setBasePositionAndOrientation((0, 0, 1), 0)
-        self.setArmsAndHands(1, 1, -1, -1)
+        self.setArmsAndHands(0, 0, 0, 0)
+        p.stepSimulation(physicsClientId = self.physicsClient)
         self.goal = goal
         self.objects_in_play = {}
         self.watching = {}
@@ -114,9 +115,10 @@ class Arena():
     def end(self):
         for (shape, color, old_pos), object in self.objects_in_play.items():
             p.resetBasePositionAndOrientation(object, old_pos, self.default_orn, physicsClientId = self.physicsClient)
+        self.setArmsAndHands(0, 0, 0, 0)
         self.setBaseVelocity(0, 0)
         self.setBasePositionAndOrientation((0, 0, 1), 0)
-        self.setArmsAndHands(1, 1, -1, -1)
+        p.stepSimulation(physicsClientId = self.physicsClient)
             
     def stop(self):
         p.disconnect(self.physicsClient)
@@ -133,7 +135,10 @@ class Arena():
     
     def setBasePositionAndOrientation(self, pos, yaw):
         orn = p.getQuaternionFromEuler([0, 0, yaw])
+        pos = (pos[0], pos[1], 1)
+        (x, y, _), _ = p.getBaseVelocity(self.body_num, physicsClientId = self.physicsClient)
         p.resetBasePositionAndOrientation(self.body_num, pos, orn, physicsClientId = self.physicsClient)
+        self.setBaseVelocity(x, y)
         
     def setArmsAndHands(self, right_arm, right_hand, left_arm, left_hand):
         for limb_name, target in [
@@ -155,17 +160,17 @@ class Arena():
                 if(goal_action == "watch"):
                     object_pos, _ = p.getBasePositionAndOrientation(object_num, physicsClientId = self.physicsClient)
                     body_num_pos, body_num_ori = p.getBasePositionAndOrientation(self.body_num)
-                    vector_to_object = np.subtract(object_pos, body_num_pos)
+                    distance_to_object = np.subtract(object_pos, body_num_pos)
                     matrix = p.getMatrixFromQuaternion(body_num_ori)
                     forward_vector = [matrix[0], matrix[3], matrix[6]]
-                    vector_to_object /= np.linalg.norm(vector_to_object)
-                    distance = np.linalg.norm(vector_to_object)
+                    distance_to_object /= np.linalg.norm(distance_to_object)
+                    distance = np.linalg.norm(distance_to_object)
                     forward_vector /= np.linalg.norm(forward_vector)
-                    dot_product = np.dot(forward_vector, vector_to_object)
+                    dot_product = np.dot(forward_vector, distance_to_object)
                     watching = dot_product >= .9 and distance > 2
                     if watching: self.watching[object_num] += 1
                     else:        self.watching[object_num] = 0 
-                    if(self.watching[object_num] >= 2):
+                    if(self.watching[object_num] >= 2 and distance_to_object > 100):
                         reward = True
                 
                 if(goal_action == "touch"):
@@ -176,19 +181,6 @@ class Arena():
                 if(goal_action == "lift"):
                     pos, _ = p.getBasePositionAndOrientation(object_num, physicsClientId = self.physicsClient)
                     if(pos[-1] > 2):
-                        reward = True
-                        
-                if(goal_action == "push"):
-                    body_pos, _ = p.getBasePositionAndOrientation(self.body_num, physicsClientId = self.physicsClient)
-                    object_pos, _ = p.getBasePositionAndOrientation(object_num, physicsClientId = self.physicsClient)
-                    velocity, _ = p.getBaseVelocity(object_num, physicsClientId = self.physicsClient)
-                    body_pos = np.array(body_pos)
-                    object_pos = np.array(object_pos)
-                    velocity = np.array(velocity)
-                    direction_vector = body_pos - object_pos
-                    direction_vector /= np.linalg.norm(direction_vector)
-                    speed_toward_body = np.dot(velocity, direction_vector)
-                    if(speed_toward_body < -1):
                         reward = True
                         
                 if(goal_action == "pull"):
@@ -204,19 +196,32 @@ class Arena():
                     if(speed_toward_body > 1):
                         reward = True
                         
-                if(goal_action == "topple"):
-                    _, object_quaternion = p.getBasePositionAndOrientation(object_num, physicsClientId=self.physicsClient)
-                    orn = p.getEulerFromQuaternion(object_quaternion)
-                    rotation_z = np.rad2deg(orn[2])
-                    if(np.abs(rotation_z) > 45):
-                        reward = True
+                if(goal_action == "spin"):
+                    pass
+                    #reward = True
         win = reward
         reward = self.args.reward if reward else 0
         return(reward, win)
+    
+    def photo_from_above(self):
+        pos, _, _ = self.get_pos_yaw_spe()
+        view_matrix = p.computeViewMatrix(
+            cameraEyePosition = [pos[0], pos[1], 5], 
+            cameraTargetPosition = [pos[0], pos[1], 2],    # Camera / target position very important
+            cameraUpVector = [-1, 0, 0], physicsClientId = self.physicsClient)
+        proj_matrix = p.computeProjectionMatrixFOV(
+            fov = 90, aspect = 1, nearVal = .01, 
+            farVal = 10, physicsClientId = self.physicsClient)
+        _, _, rgba, _, _ = p.getCameraImage(
+            width=128, height=128,
+            projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
+            physicsClientId = self.physicsClient)
+        return(rgba)
         
         
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
     args = default_args
     from utils import make_object
     arena = Arena(GUI = True)
@@ -226,5 +231,6 @@ if __name__ == "__main__":
     while(True):
         arena.step()
         arena.rewards()
+        rgba = arena.photo_from_above()
         sleep(.01)
 # %%

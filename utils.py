@@ -1,13 +1,9 @@
 #%% 
 
 # To do: 
+#   Expert to imitate.
 #   Reset arm positions every episode.
 #   Make it work!
-#   Fix saved episode plotting.
-#   Add positions to episode plotting.
-
-# Done in easy, but not here:
-#   Add critic-values to saved episode. 
 
 import os
 import pickle
@@ -129,7 +125,7 @@ parser.add_argument('--device',             type=str,        default = device,
                     help='Which device to use for Torch.')
 
     # Task details
-parser.add_argument('--task_list',          type=literal,    default = ["1", "2"],
+parser.add_argument('--task_list',          type=literal,    default = ["1"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
 parser.add_argument('--max_steps',          type=int,        default = 10,
                     help='How many steps the agent can make in one episode.')
@@ -141,7 +137,7 @@ parser.add_argument('--reward',             type=float,      default = 5,
                     help='Extrinsic reward for choosing incorrect action, shape, and color.') 
 parser.add_argument('--actions',            type=int,        default = 5,
                     help='Maximum count of actions in one episode.')
-parser.add_argument('--objects',            type=int,        default = 3,
+parser.add_argument('--objects',            type=int,        default = 2,
                     help='Maximum count of objects in one episode.')
 parser.add_argument('--shapes',             type=int,        default = 5,
                     help='Maximum count of shapes in one episode.')
@@ -157,15 +153,15 @@ parser.add_argument('--image_size',         type=int,        default = 8,
                     help='Dimensions of the images observed.')
 parser.add_argument('--max_yaw_change',     type=float,      default = pi/2,
                     help='Max amount agent can change angle, in radians.')
-parser.add_argument('--min_speed',          type=float,      default = 0,
+parser.add_argument('--min_speed',          type=float,      default = -100,
                     help='Agent\'s minimum speed.')
-parser.add_argument('--max_speed',          type=float,      default = 300,
+parser.add_argument('--max_speed',          type=float,      default = 100,
                     help='Agent\'s maximum speed.')
 parser.add_argument('--steps_per_step',     type=int,        default = 5,
                     help='To avoid intersections, simulation makes each episode step multiple simulation steps.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [50, 50],
+parser.add_argument('--epochs',             type=literal,    default = [50],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--batch_size',         type=int,        default = 128, 
                     help='How many episodes are sampled for each epoch.')      
@@ -353,15 +349,15 @@ def onehots_to_string(onehots):
         string += comm_map[index]
     return string
 
-def multihots_to_string(multihots):
-    shapes = multihots[:,:len(shape_map)]
-    colors = multihots[:,len(shape_map):]
-    to_return = ""
-    for i in range(multihots.shape[0]):
-        shape_index = torch.argmax(shapes[i]).item()
-        color_index = torch.argmax(colors[i]).item()
-        to_return += "{} {}{}".format(color_map[color_index], shape_map[shape_index], "." if i+1 == multihots.shape[0] else ", ")
-    return(to_return)
+def action_to_string(action):
+    action = action[0,0]
+    string = "Yaw: {} ".format(round(action[0].item(),2))
+    string += "Speed: {} ".format(round(action[1].item(),2))
+    string += "Right Arm: {} ".format(round(action[2].item(),2))
+    string += "Right Hand: {} ".format(round(action[3].item(),2))
+    string += "Left Arm: {} ".format(round(action[4].item(),2))
+    string += "Left Hand: {} ".format(round(action[5].item(),2))
+    return(string)
 
 
 

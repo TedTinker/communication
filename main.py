@@ -17,7 +17,7 @@ print("\nagents: {}. previous_agents: {}.".format(args.agents, args.previous_age
 def train(q, i):
     seed = args.init_seed + i
     np.random.seed(seed) ; random.seed(seed) ; torch.manual_seed(seed) ; torch.cuda.manual_seed(seed)
-    agent = Agent(i, args)
+    agent = Agent(i, args = args)
     agent.training(q)
     with open(folder + "/plot_dict_{}.pickle".format(   str(i).zfill(3)), "wb") as handle:
         pickle.dump(agent.plot_dict, handle)

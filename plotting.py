@@ -150,7 +150,7 @@ def plots(plot_dicts, min_max_dict):
     
         # Cumulative rewards
         rew_dict = get_quantiles(plot_dict, "rewards", adjust_xs = False)
-        max_reward = args.action_reward + args.shape_reward + args.color_reward + args.correct_reward
+        max_reward = args.reward
         max_rewards = [max_reward*x for x in range(rew_dict["xs"][-1])]
         min_reward = args.step_lim_punishment
         min_rewards = [min_reward*x for x in range(rew_dict["xs"][-1])]
@@ -186,7 +186,7 @@ def plots(plot_dicts, min_max_dict):
         
         # Cumulative generalization-test rewards
         gen_rew_dict = get_quantiles(plot_dict, "gen_rewards", adjust_xs = False)
-        max_reward = args.action_reward + args.shape_reward + args.color_reward + args.correct_reward
+        max_reward = args.reward
         max_rewards = [max_reward*x for x in range(gen_rew_dict["xs"][-1])]
         min_reward = args.step_lim_punishment
         min_rewards = [min_reward*x for x in range(gen_rew_dict["xs"][-1])]
@@ -222,64 +222,70 @@ def plots(plot_dicts, min_max_dict):
         
         if(not too_many_plot_dicts): 
             # Forward Losses
-            object_dict = get_quantiles(plot_dict, "object_loss")
+            rgbd_dict = get_quantiles(plot_dict, "rgbd_loss")
+            speed_dict = get_quantiles(plot_dict, "speed_loss")
             comm_dict = get_quantiles(plot_dict, "comm_loss")
             accuracy_dict = get_quantiles(plot_dict, "accuracy")
             comp_dict = get_quantiles(plot_dict, "complexity")
             min_max = many_min_max([min_max_dict["accuracy"], min_max_dict["complexity"]])
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            h1 = awesome_plot(ax, object_dict, "blue", "Object-Loss")
-            h2 = awesome_plot(ax, comm_dict, "red", "Comm-Loss")
-            h3 = awesome_plot(ax, accuracy_dict, "purple", "Accuracy")
-            h4 = awesome_plot(ax, comp_dict, "green",  "Complexity")
+            h1 = awesome_plot(ax, rgbd_dict, "blue", "RGBD-Loss")
+            h2 = awesome_plot(ax, speed_dict, "cyan", "Speed-Loss")
+            h3 = awesome_plot(ax, comm_dict, "red", "Comm-Loss")
+            h4 = awesome_plot(ax, accuracy_dict, "purple", "Accuracy")
+            h5 = awesome_plot(ax, comp_dict, "green",  "Complexity")
             ax.set_ylabel("Loss")
             ax.set_xlabel("Epochs")
-            ax.legend(handles = [h1, h2, h3, h4])
+            ax.legend(handles = [h1, h2, h3, h4, h5])
             ax.set_title(plot_dict["arg_title"] + "\nForward Losses")
             divide_arenas(accuracy_dict, ax)
             
-            min_max = many_min_max([min_max_dict["object_loss"], min_max_dict["comm_loss"], min_max_dict["accuracy"], min_max_dict["complexity"]])
+            min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["speed_loss"], min_max_dict["comm_loss"], min_max_dict["accuracy"], min_max_dict["complexity"]])
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            h1 = awesome_plot(ax, object_dict, "blue", "Object-Loss", min_max)
-            h2 = awesome_plot(ax, comm_dict, "red", "Comm-Loss", min_max)
-            h3 = awesome_plot(ax, accuracy_dict, "purple", "Accuracy", min_max)
-            h4 = awesome_plot(ax, comp_dict, "green",  "Complexity", min_max)
+            h1 = awesome_plot(ax, rgbd_dict, "blue", "RGBD-Loss", min_max)
+            h2 = awesome_plot(ax, speed_dict, "cyan", "Speed-Loss", min_max)
+            h3 = awesome_plot(ax, comm_dict, "red", "Comm-Loss", min_max)
+            h4 = awesome_plot(ax, accuracy_dict, "purple", "Accuracy", min_max)
+            h5 = awesome_plot(ax, comp_dict, "green",  "Complexity", min_max)
             ax.set_ylabel("Loss")
             ax.set_xlabel("Epochs")
-            ax.legend(handles = [h1, h2, h3, h4])
+            ax.legend(handles = [h1, h2, h3, h4, h5])
             ax.set_title(plot_dict["arg_title"] + "\nForward Losses, shared min/max")
             divide_arenas(accuracy_dict, ax)
             
             
             
             # Log Forward Losses
-            log_object_dict = get_logs(object_dict)
+            log_rgbd_dict = get_logs(rgbd_dict)
+            log_speed_dict = get_logs(speed_dict)
             log_comm_dict = get_logs(comm_dict)
             log_accuracy_dict = get_logs(accuracy_dict)
             log_comp_dict = get_logs(comp_dict)
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            h1 = awesome_plot(ax, log_object_dict, "blue", "Object-Loss")
-            h2 = awesome_plot(ax, log_comm_dict, "red", "Comm-Loss")
-            h3 = awesome_plot(ax, log_accuracy_dict, "purple", "Accuracy")
-            h4 = awesome_plot(ax, log_comp_dict, "green",  "Complexity")
+            h1 = awesome_plot(ax, log_rgbd_dict, "blue", "RGBD-Loss")
+            h2 = awesome_plot(ax, log_speed_dict, "cyan", "Speed-Loss")
+            h3 = awesome_plot(ax, log_comm_dict, "red", "Comm-Loss")
+            h4 = awesome_plot(ax, log_accuracy_dict, "purple", "Accuracy")
+            h5 = awesome_plot(ax, log_comp_dict, "green",  "Complexity")
             ax.set_ylabel("Loss")
             ax.set_xlabel("Epochs")
-            ax.legend(handles = [h1, h2, h3, h4])
+            ax.legend(handles = [h1, h2, h3, h4, h5])
             ax.set_title(plot_dict["arg_title"] + "\nlog Forward Losses")
             divide_arenas(accuracy_dict, ax)
             
             try:
                 min_max = (log(min_max[0]), log(min_max[1]))
                 ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-                h1 = awesome_plot(ax, log_object_dict, "blue", "Object-Loss", min_max)
-                h2 = awesome_plot(ax, log_comm_dict, "red", "Comm-Loss", min_max)
-                h3 = awesome_plot(ax, log_accuracy_dict, "purple", "Accuracy", min_max)
-                h4 = awesome_plot(ax, log_comp_dict, "green",  "Complexity", min_max)
+                h1 = awesome_plot(ax, log_rgbd_dict, "blue", "RGBD-Loss", min_max)
+                h2 = awesome_plot(ax, log_speed_dict, "cyan", "Speed-Loss", min_max)
+                h3 = awesome_plot(ax, log_comm_dict, "red", "Comm-Loss", min_max)
+                h4 = awesome_plot(ax, log_accuracy_dict, "purple", "Accuracy", min_max)
+                h5 = awesome_plot(ax, log_comp_dict, "green",  "Complexity", min_max)
                 ax.set_ylabel("Loss")
                 ax.set_xlabel("Epochs")
-                ax.legend(handles = [h1, h2, h3, h4])
+                ax.legend(handles = [h1, h2, h3, h4, h5])
                 ax.set_title(plot_dict["arg_title"] + "\nlog Forward Losses, shared min/max")
                 divide_arenas(accuracy_dict, ax)
             except: pass
@@ -329,7 +335,7 @@ def plots(plot_dicts, min_max_dict):
             ext_dict = get_quantiles(plot_dict, "extrinsic")
             ent_dict = get_quantiles(plot_dict, "intrinsic_entropy")
             cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity")
-            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation")
+            #imi_dict = get_quantiles(plot_dict, "intrinsic_imitation")
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             handles = []
@@ -345,11 +351,11 @@ def plots(plot_dicts, min_max_dict):
                 ax3.spines["right"].set_position(("axes", 1.08))
                 handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity"))
                 ax3.set_ylabel("Curiosity")
-            if((imi_dict["min"] != imi_dict["max"]).all()):
-                ax4 = ax.twinx()
-                ax4.spines["right"].set_position(("axes", 1.16))
-                handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation"))
-                ax4.set_ylabel("Imitation")
+            #if((imi_dict["min"] != imi_dict["max"]).all()):
+            #    ax4 = ax.twinx()
+            #    ax4.spines["right"].set_position(("axes", 1.16))
+            #    handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation"))
+            #    ax4.set_ylabel("Imitation")
             ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards")
             divide_arenas(ext_dict, ax)
@@ -368,11 +374,11 @@ def plots(plot_dicts, min_max_dict):
                 ax3.spines["right"].set_position(("axes", 1.08))
                 handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity", min_max_dict["intrinsic_curiosity"]))
                 ax3.set_ylabel("Curiosity")
-            if((imi_dict["min"] != imi_dict["max"]).all()):
-                ax4 = ax.twinx()
-                ax4.spines["right"].set_position(("axes", 1.16))
-                handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation", min_max_dict["intrinsic_imitation"]))
-                ax3.set_ylabel("Imitation")
+            #if((imi_dict["min"] != imi_dict["max"]).all()):
+            #    ax4 = ax.twinx()
+            #    ax4.spines["right"].set_position(("axes", 1.16))
+            #    handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation", min_max_dict["intrinsic_imitation"]))
+            #    ax3.set_ylabel("Imitation")
             ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared min/max")
             divide_arenas(ext_dict, ax)        
@@ -382,8 +388,8 @@ def plots(plot_dicts, min_max_dict):
             ext_dict = get_quantiles(plot_dict, "extrinsic")
             ent_dict = get_quantiles(plot_dict, "intrinsic_entropy")
             cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity")
-            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation")
-            min_max = many_min_max([min_max_dict["extrinsic"], min_max_dict["intrinsic_entropy"], min_max_dict["intrinsic_curiosity"], min_max_dict["intrinsic_imitation"]])
+            #imi_dict = get_quantiles(plot_dict, "intrinsic_imitation")
+            min_max = many_min_max([min_max_dict["extrinsic"], min_max_dict["intrinsic_entropy"], min_max_dict["intrinsic_curiosity"]])#, min_max_dict["intrinsic_imitation"]])
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             handles = []
@@ -394,8 +400,8 @@ def plots(plot_dicts, min_max_dict):
                 handles.append(awesome_plot(ax, ent_dict, "black", "Entropy"))
             if((cur_dict["min"] != cur_dict["max"]).all()):
                 handles.append(awesome_plot(ax, cur_dict, "green", "Curiosity"))
-            if((imi_dict["min"] != imi_dict["max"]).all()):
-                handles.append(awesome_plot(ax, imi_dict, "blue", "Imitation"))
+            #if((imi_dict["min"] != imi_dict["max"]).all()):
+            #    handles.append(awesome_plot(ax, imi_dict, "blue", "Imitation"))
             ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared dims")
             divide_arenas(ext_dict, ax)
@@ -409,8 +415,8 @@ def plots(plot_dicts, min_max_dict):
                 handles.append(awesome_plot(ax, ent_dict, "black", "Entropy", min_max))
             if((cur_dict["min"] != cur_dict["max"]).all()):
                 handles.append(awesome_plot(ax, cur_dict, "green", "Curiosity", min_max))
-            if((imi_dict["min"] != imi_dict["max"]).all()):
-                handles.append(awesome_plot(ax, imi_dict, "blue", "Imitation", min_max))
+            #if((imi_dict["min"] != imi_dict["max"]).all()):
+            #    handles.append(awesome_plot(ax, imi_dict, "blue", "Imitation", min_max))
             ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared min/max and dim")
             divide_arenas(ext_dict, ax)
