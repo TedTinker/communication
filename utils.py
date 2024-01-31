@@ -1,9 +1,10 @@
 #%% 
 
 # To do: 
+#   Fix definitions of lift, pull, spin.
 #   Expert to imitate.
-#   Reset arm positions every episode.
-#   Make it work!
+#   Stop making the agent communicate if not necessary.
+#   Fix high memory-use.
 
 import os
 import pickle
@@ -19,7 +20,8 @@ import torch
 from torch import nn 
 import platform
 from torch.distributions import Normal
-from torch.nn.functional import cosine_similarity
+import torch.nn.functional as F
+import psutil
 
 if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
 
@@ -38,26 +40,62 @@ max_len_shape_name = len(max(shape_map, key=len))
 
 color_map = {
     "red" : (1,0,0,1), 
-    "blue" : (0,1,0,1), 
-    "green" : (0,0,1,1), 
+    "green" : (0,1,0,1), 
+    "blue" : (0,0,1,1), 
     "cyan" : (0,1,1,1), 
     "magenta" : (1,0,1,1),
     "yellow" : (1,1,0,1)}
 max_len_color_name = len(max(color_map, key=len))
 
-test_combos = []
-for index in range(len(shape_map)):
-    test_combos.append((index, index))
-    test_combos.append((index, index+1))
+test_combos = [
+    (0,3),(0,5),
+    (1,2),(1,4),
+    (2,1),(2,3),(2,5),
+    (3,0),(3,2),(3,4),
+    (4,1),(4,3),(4,5),
+    (5,0),(5,2)]
 
 def make_object(shapes = len(shape_map), colors = len(color_map), test = False):
     if(test):
-        filtered_list = [(a, b) for (a, b) in test_combos if a <= shapes and b <= colors]
-        return(choice(filtered_list))
+        filtered_list = [(a, b) for (a, b) in test_combos if a < shapes and b < colors]
+        if(filtered_list == []): 
+            pass
+        else:            
+            return(choice(filtered_list))
     shape_color = test_combos[0]
     while(shape_color in test_combos):
         shape_color = ((randint(0, shapes - 1), randint(0, colors - 1)))
     return(shape_color)
+
+if(__name__ == "__main__"):
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    import matplotlib.patches as patches
+    fig = plt.figure(figsize=(15, 15))
+    gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
+    axs = []
+    for i in range(len(shape_map)):
+        row = []
+        for j in range(len(color_map)):
+            ax = fig.add_subplot(gs[i, j])
+            ax.axis('off')
+            if(not (i,j) in test_combos):
+                rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
+                ax.add_patch(rect)
+            shape = list(shape_map)[i]
+            color = list(color_map)[j]
+            ax.text(.5, .5, f"{color}\n{shape}", va='center', ha='center', fontsize=20)
+            row.append(ax)
+        axs.append(row)
+    for ax_2 in [axs[1][1], axs[2][2], axs[3][3], axs[4][5]]:
+        p0 = axs[0][0].get_position()
+        p1 = ax_2.get_position()
+        width, height = p1.x1 - p0.x0, p1.y0 - p0.y1
+        rect = patches.Rectangle((p0.x0, p0.y1), width, height, linewidth=5, edgecolor='black', facecolor='none')
+        fig.add_artist(rect)
+    plt.show()
+    plt.close()
+            
 
 action_map = {
     0: "touch", 
@@ -101,6 +139,13 @@ def estimate_total_duration(proportion_completed, start_time=start_time):
         estimated_total = estimated_total - datetime.timedelta(microseconds=estimated_total.microseconds)
     else: estimated_total = "?:??:??"
     return(estimated_total)
+
+# Memory functions. 
+def cpu_memory_usage():
+    process = psutil.Process(os.getpid())
+    mem_usage_bytes = process.memory_info().rss  # rss is the Resident Set Size
+    mem_usage_gb = mem_usage_bytes / (1024 ** 3)  # Convert bytes to gigabytes
+    print('memory use:', mem_usage_gb, "gigabytes")
 
 
 
@@ -149,7 +194,7 @@ parser.add_argument('--max_comm_len',       type=int,        default = 20,
     # Simulation details
 parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
-parser.add_argument('--image_size',         type=int,        default = 8,
+parser.add_argument('--image_size',         type=int,        default = 16,
                     help='Dimensions of the images observed.')
 parser.add_argument('--max_yaw_change',     type=float,      default = pi/2,
                     help='Max amount agent can change angle, in radians.')
@@ -159,11 +204,15 @@ parser.add_argument('--max_speed',          type=float,      default = 100,
                     help='Agent\'s maximum speed.')
 parser.add_argument('--steps_per_step',     type=int,        default = 5,
                     help='To avoid intersections, simulation makes each episode step multiple simulation steps.')
+parser.add_argument('--watch_duration',     type=int,        default = 3,
+                    help='How long must the agent watch the object to achieve watching.')
+parser.add_argument('--watch_distance',     type=int,        default = 5,
+                    help='Minimum distance for watching an object.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [50],
+parser.add_argument('--epochs',             type=literal,    default = [300],
                     help='List of how many epochs to train in each task.')
-parser.add_argument('--batch_size',         type=int,        default = 128, 
+parser.add_argument('--batch_size',         type=int,        default = 64, 
                     help='How many episodes are sampled for each epoch.')      
 parser.add_argument('--rgbd_scaler',        type=float,      default = 1, 
                     help='How much to consider rgbd prediction in accuracy compared to comm and speed.')  
@@ -173,7 +222,7 @@ parser.add_argument('--comm_scaler',        type=float,      default = 1,
                     help='How much to consider comm prediction in accuracy compared to rgbd and speed.')       
 
     # Memory buffer
-parser.add_argument('--capacity',           type=int,        default = 250,
+parser.add_argument('--capacity',           type=int,        default = 256,
                     help='How many episodes can the memory buffer contain.')
 
     # Module 
@@ -213,9 +262,13 @@ parser.add_argument("--beta",               type=literal,    default = [1],
     # Entropy
 parser.add_argument("--alpha",              type=literal,    default = 0,
                     help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
-parser.add_argument("--target_entropy",     type=float,      default = 0,
+parser.add_argument("--target_entropy",     type=float,      default = -4,
                     help='Target for choosing alpha if alpha set to None. Recommended: negative size of action-space.')      
-parser.add_argument('--action_prior',       type=str,        default = "uniform",
+parser.add_argument("--alpha_text",              type=literal,    default = 0,
+                    help='Nonnegative value, how much to consider entropy regarding communication. Set to None to use target_entropy_text.')        
+parser.add_argument("--target_entropy_text",     type=float,      default = -4,
+                    help='Target for choosing alpha_text if alpha_text set to None. Recommended: negative size of action-space.')      
+parser.add_argument('--action_prior',       type=str,        default = "normal",
                     help='The actor can be trained based on normal or uniform distributions.')
 
     # Curiosity
@@ -233,7 +286,7 @@ parser.add_argument("--delta",              type=float,     default = 0,
                     help='How much to consider action\'s similarity to recommended action.')  
 
     # Saving data
-parser.add_argument('--keep_data',           type=int,        default = 1,
+parser.add_argument('--keep_data',           type=int,        default = 25,
                     help='How many epochs should pass before saving data.')
 
 parser.add_argument('--epochs_per_gen_test', type=int,        default = 10,
@@ -241,7 +294,7 @@ parser.add_argument('--epochs_per_gen_test', type=int,        default = 10,
 
 parser.add_argument('--epochs_per_episode_dict',type=int,        default = 250,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_episode_dict',type=int,        default = 3,
+parser.add_argument('--agents_per_episode_dict',type=int,        default = 1,
                     help='How many agents to save episodes.')
 parser.add_argument('--episodes_in_episode_dict',type=int,       default = 1,
                     help='How many episodes to save per agent.')
@@ -270,7 +323,7 @@ for arg_set in [default_args, args]:
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.object_shape = arg_set.shapes + arg_set.colors
     arg_set.comm_shape = len(comm_map)
-    arg_set.action_shape = 6
+    arg_set.action_shape = 8
     arg_set.max_comm_len = max([arg_set.max_comm_len, max_len_action_name + max_len_color_name + max_len_shape_name + 3])
     max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
     arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)
@@ -536,10 +589,8 @@ class Ted_Conv2d(nn.Module):
         return(torch.cat(y, dim = -3))
     
 def calculate_similarity(recommended_actions, actor_actions):
-    recommended_actions_flat = recommended_actions.view(recommended_actions.size(0), recommended_actions.size(1), -1)
-    actor_actions_flat = actor_actions.view(actor_actions.size(0), actor_actions.size(1), -1)
-    step_similarities = cosine_similarity(recommended_actions_flat, actor_actions_flat, dim=-1)
-    return step_similarities
+    similarities = -F.mse_loss(recommended_actions, actor_actions, reduction='none').mean(-1)
+    return similarities
 
 
 
@@ -556,8 +607,7 @@ real_names = {
     "ni" : "Prediction Error Curiosity and Imitation",
     "fi" : "Hidden State Curiosity and Imitation",
     "eni" : "Entropy, Prediction Error Curiosity, and Imitation",
-    "efi" : "Entropy, Hidden State Curiosity, and Imitation",
-}
+    "efi" : "Entropy, Hidden State Curiosity, and Imitation"}
 
 def add_this(name):
     keys, values = [], []
@@ -580,8 +630,7 @@ short_real_names = {
     "ni" : "PI",
     "fi" : "HI",
     "eni" : "EPI",
-    "efi" : "EHI",
-}
+    "efi" : "EHI"}
 
 
 

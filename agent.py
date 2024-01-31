@@ -1,17 +1,17 @@
 #%%
 
-import torch
-import torch.nn.functional as F
-from torch.distributions import MultivariateNormal
-import torch.optim as optim
-
 import numpy as np
 from math import log
 from itertools import accumulate
 from copy import deepcopy
 import matplotlib.pyplot as plt
 
-from utils import default_args, dkl, print, calculate_similarity, onehots_to_string, action_to_string, create_comm_mask
+import torch
+import torch.nn.functional as F
+from torch.distributions import MultivariateNormal
+import torch.optim as optim
+
+from utils import default_args, dkl, print, calculate_similarity, onehots_to_string, action_to_string, create_comm_mask, cpu_memory_usage
 from task import Task, Task_Runner
 from buffer import RecurrentReplayBuffer
 from pvrnn import PVRNN
@@ -237,8 +237,6 @@ class Agent:
                 to_push_list_1.append(to_push_1)
                 to_push_list_2.append(to_push_2)
                 total_reward += reward
-            else: 
-                self.task.done()
             if(self.steps % self.args.steps_per_epoch == 0):
                 plot_data = self.epoch(self.args.batch_size)
                 if(plot_data == False): pass
@@ -265,6 +263,7 @@ class Agent:
                         self.plot_dict["prediction_error"].append(prediction_error)
                         for layer, f in enumerate(hidden_state):
                             self.plot_dict["hidden_state"][layer].append(f)    
+        self.task.done()
         self.plot_dict["steps"].append(steps)
         self.plot_dict["rewards"].append(total_reward)
         self.plot_dict["wins"].append(win)
@@ -333,8 +332,7 @@ class Agent:
                             prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1,
                             prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2)
                 total_reward += reward
-            else: 
-                self.task.done()
+        self.task.done()
         self.plot_dict["gen_rewards"].append(total_reward)
         
         
@@ -436,8 +434,7 @@ class Agent:
                         hqs_1.append(hq_1[:,0].unsqueeze(0))
                         hps_2.append(hp_2 if hp_2 == None else hp_2[:,0].unsqueeze(0))
                         hqs_2.append(hq_2 if hq_2 == None else hq_2[:,0].unsqueeze(0))
-                    else: 
-                        self.task.done()
+                self.task.done()
                         
                 hp_1 = torch.cat(hps_1, dim = 1)
                 hq_1 = torch.cat(hqs_1, dim = 1)
@@ -590,11 +587,13 @@ class Agent:
                 Q_target_next[:,1:]
                 Q_target_nexts.append(Q_target_next)
             log_pis_next = log_pis_next[:,1:]
+            recommendation_value = calculate_similarity(recommended_actions, new_actions[:,:-1]).unsqueeze(-1)
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
             Q_target_next = Q_target_next[:,1:]
-            if self.args.alpha == None: Q_targets = rewards + (self.args.GAMMA * (1 - dones) * (Q_target_next - self.alpha * log_pis_next))
-            else:                       Q_targets = rewards + (self.args.GAMMA * (1 - dones) * (Q_target_next - self.args.alpha * log_pis_next))
+            if self.args.alpha == None: alpha = self.alpha 
+            else:                       alpha = self.args.alpha
+            Q_targets = rewards + (self.args.GAMMA * (1 - dones) * (Q_target_next - alpha * log_pis_next + self.args.delta * recommendation_value))
         
         critic_losses = []
         Qs = []
@@ -633,14 +632,19 @@ class Agent:
             if self.args.alpha == None: alpha = self.alpha 
             else:                       alpha = self.args.alpha
             new_actions, new_comms_out, log_pis, _ = self.actor(rgbds[:,:-1], speeds[:,:-1], comms_in[:,:-1], actions[:,:-1], comms_out[:,:-1], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)))
+            recommendation_value = calculate_similarity(recommended_actions, new_actions).unsqueeze(-1)
+            intrinsic_imitation = -torch.mean((self.args.delta * recommendation_value)*masks).item() 
+            
             if self.args.action_prior == "normal":
-                loc = torch.zeros(self.args.action_shape, dtype=torch.float64).to(self.args.device)
+                loc = torch.zeros(self.args.action_shape, dtype=torch.float64).to(self.args.device).float()
                 n = self.args.action_shape
-                scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device)
+                scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device).float()
                 policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
                 policy_prior_log_prrgbd = policy_prior.log_prob(new_actions).unsqueeze(-1)
             elif self.args.action_prior == "uniform":
                 policy_prior_log_prrgbd = 0.0
+            intrinsic_entropy = torch.mean((alpha * log_pis - policy_prior_log_prrgbd)*masks).item()
+                
             Qs = []
             for i in range(self.args.critics):
                 Q, _ = self.critics[i](rgbds[:,:-1], speeds[:,:-1], comms_in[:,:-1], new_actions, new_comms_out, hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)))
@@ -648,9 +652,7 @@ class Agent:
             Qs_stacked = torch.stack(Qs, dim=0)
             Q, _ = torch.min(Qs_stacked, dim=0)
             Q = Q.mean(-1).unsqueeze(-1)
-            intrinsic_entropy = torch.mean((alpha * log_pis)*masks).item()
-            recommendation_value = calculate_similarity(recommended_actions, new_actions).unsqueeze(-1)
-            intrinsic_imitation = -torch.mean((self.args.delta * recommendation_value)*masks).item() 
+            
             actor_loss = (alpha * log_pis - policy_prior_log_prrgbd - self.args.delta * recommendation_value - Q)*masks
             actor_loss = actor_loss.mean() / masks.mean()
 

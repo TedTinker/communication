@@ -79,10 +79,14 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         label_list.append("Reward:")
         
         values = episode_dict[f"critic_predictions_{agent_num}"][step]
-        values = ""
+        print("BEFORE:")
+        print(values)
+        values_text = ""
         for i, value in enumerate(values):
-            values += "{}".format(value) + ("." if i+1 == len(values) else ", ")
-        text_list.append(values)
+            values_text += "{}".format(value) + ("." if i+1 == len(values) else ", ")
+        print("AFTER:")
+        print(values_text)
+        text_list.append(values_text)
         label_list.append(f"Predicted Values ({agent_num}):")
 
         rgbd_p = episode_dict[f"prior_predicted_rgbds_{agent_num}"][step]
@@ -115,6 +119,8 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
     gs = gridspec.GridSpec(len(label_list), 2, width_ratios=[1, 4])
     images_plotted = 0
     for i, (text, label) in enumerate(zip(text_list, label_list)):
+        print(label)
+        if(label == f"Predicted Values ({agent_num}):"): print(text)
         ax_text = fig.add_subplot(gs[i, 0])
         ax_text.axis('off')
         ax_img = fig.add_subplot(gs[i, 1])

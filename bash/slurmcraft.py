@@ -70,7 +70,7 @@ def add_this(name, args):
 
 
 
-add_this("e",   {"alpha" : "None"})
+add_this("e",   {"alpha" : "None", "target_entropy" : [-4,-3,-2,-1,0,1]})
 add_this("n",   {"curiosity" : "prediction_error"})
 add_this("f",   {"curiosity" : "hidden_state"})
 add_this("i",   {"delta" : 1})

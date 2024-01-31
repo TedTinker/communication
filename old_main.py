@@ -1,11 +1,15 @@
 #%%
+from memory_profiler import profile
 
 from utils import args
 from agent import Agent
 
-args.alpha = .1
-args.delta = 1
+args.alpha = None
+args.delta = 10
 
-agent = Agent(1, GUI = True, args = args)
-agent.training()
+def run():
+    agent = Agent(1, GUI = True, args = args)
+    agent.training()
+    
+run()
 # %%

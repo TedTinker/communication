@@ -335,7 +335,7 @@ def plots(plot_dicts, min_max_dict):
             ext_dict = get_quantiles(plot_dict, "extrinsic")
             ent_dict = get_quantiles(plot_dict, "intrinsic_entropy")
             cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity")
-            #imi_dict = get_quantiles(plot_dict, "intrinsic_imitation")
+            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation")
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             handles = []
@@ -351,11 +351,11 @@ def plots(plot_dicts, min_max_dict):
                 ax3.spines["right"].set_position(("axes", 1.08))
                 handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity"))
                 ax3.set_ylabel("Curiosity")
-            #if((imi_dict["min"] != imi_dict["max"]).all()):
-            #    ax4 = ax.twinx()
-            #    ax4.spines["right"].set_position(("axes", 1.16))
-            #    handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation"))
-            #    ax4.set_ylabel("Imitation")
+            if((imi_dict["min"] != imi_dict["max"]).all()):
+                ax4 = ax.twinx()
+                ax4.spines["right"].set_position(("axes", 1.16))
+                handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation"))
+                ax4.set_ylabel("Imitation")
             ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards")
             divide_arenas(ext_dict, ax)
@@ -374,11 +374,11 @@ def plots(plot_dicts, min_max_dict):
                 ax3.spines["right"].set_position(("axes", 1.08))
                 handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity", min_max_dict["intrinsic_curiosity"]))
                 ax3.set_ylabel("Curiosity")
-            #if((imi_dict["min"] != imi_dict["max"]).all()):
-            #    ax4 = ax.twinx()
-            #    ax4.spines["right"].set_position(("axes", 1.16))
-            #    handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation", min_max_dict["intrinsic_imitation"]))
-            #    ax3.set_ylabel("Imitation")
+            if((imi_dict["min"] != imi_dict["max"]).all()):
+                ax4 = ax.twinx()
+                ax4.spines["right"].set_position(("axes", 1.16))
+                handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation", min_max_dict["intrinsic_imitation"]))
+                ax3.set_ylabel("Imitation")
             ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared min/max")
             divide_arenas(ext_dict, ax)        
@@ -388,7 +388,7 @@ def plots(plot_dicts, min_max_dict):
             ext_dict = get_quantiles(plot_dict, "extrinsic")
             ent_dict = get_quantiles(plot_dict, "intrinsic_entropy")
             cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity")
-            #imi_dict = get_quantiles(plot_dict, "intrinsic_imitation")
+            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation")
             min_max = many_min_max([min_max_dict["extrinsic"], min_max_dict["intrinsic_entropy"], min_max_dict["intrinsic_curiosity"]])#, min_max_dict["intrinsic_imitation"]])
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
@@ -400,8 +400,8 @@ def plots(plot_dicts, min_max_dict):
                 handles.append(awesome_plot(ax, ent_dict, "black", "Entropy"))
             if((cur_dict["min"] != cur_dict["max"]).all()):
                 handles.append(awesome_plot(ax, cur_dict, "green", "Curiosity"))
-            #if((imi_dict["min"] != imi_dict["max"]).all()):
-            #    handles.append(awesome_plot(ax, imi_dict, "blue", "Imitation"))
+            if((imi_dict["min"] != imi_dict["max"]).all()):
+                handles.append(awesome_plot(ax, imi_dict, "blue", "Imitation"))
             ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared dims")
             divide_arenas(ext_dict, ax)
@@ -415,8 +415,8 @@ def plots(plot_dicts, min_max_dict):
                 handles.append(awesome_plot(ax, ent_dict, "black", "Entropy", min_max))
             if((cur_dict["min"] != cur_dict["max"]).all()):
                 handles.append(awesome_plot(ax, cur_dict, "green", "Curiosity", min_max))
-            #if((imi_dict["min"] != imi_dict["max"]).all()):
-            #    handles.append(awesome_plot(ax, imi_dict, "blue", "Imitation", min_max))
+            if((imi_dict["min"] != imi_dict["max"]).all()):
+                handles.append(awesome_plot(ax, imi_dict, "blue", "Imitation", min_max))
             ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared min/max and dim")
             divide_arenas(ext_dict, ax)
