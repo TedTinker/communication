@@ -48,6 +48,17 @@ class RGBD_IN(nn.Module):
             nn.AvgPool2d(
                 kernel_size = (3,3),
                 stride = (2,2),
+                padding = (1,1)),
+            ConstrainedConv2d(
+                in_channels = 16,
+                out_channels = 16,
+                kernel_size = (3,3),
+                padding = (1,1),
+                padding_mode = "reflect"),
+            nn.PReLU(),
+            nn.AvgPool2d(
+                kernel_size = (3,3),
+                stride = (2,2),
                 padding = (1,1)))
         example = self.rgbd_in(example)
         rgbd_latent_size = example.flatten(1).shape[1]
@@ -267,10 +278,26 @@ class RGBD_OUT(nn.Module):
         self.rgbd_out_lin = nn.Sequential(
             nn.Linear(
                 in_features = self.args.pvrnn_mtrnn_size + 2 * self.args.hidden_size,
-                out_features = 16 * ((self.args.image_size//2) ** 2)),
+                out_features = 16 * ((self.args.image_size//8) ** 2)),
             nn.PReLU())
         
         self.rgbd_out = nn.Sequential(
+            ConstrainedConv2d(
+                in_channels = 16,
+                out_channels = 16,
+                kernel_size = (3,3),
+                padding = (1,1),
+                padding_mode = "reflect"),
+            nn.PReLU(),
+            nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True),
+            ConstrainedConv2d(
+                in_channels = 16,
+                out_channels = 16,
+                kernel_size = (3,3),
+                padding = (1,1),
+                padding_mode = "reflect"),
+            nn.PReLU(),
+            nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True),
             ConstrainedConv2d(
                 in_channels = 16,
                 out_channels = 16,
@@ -293,7 +320,7 @@ class RGBD_OUT(nn.Module):
         if(len(h_w_action.shape) == 2): h_w_action = h_w_action.unsqueeze(1)
         episodes, steps = episodes_steps(h_w_action)
         h_w_action = self.rgbd_out_lin(h_w_action)
-        rgbd = h_w_action.reshape(episodes, steps, 16, self.args.image_size//2, self.args.image_size//2)
+        rgbd = h_w_action.reshape(episodes, steps, 16, self.args.image_size//8, self.args.image_size//8)
         rgbd = rnn_cnn(self.rgbd_out, rgbd)
         rgbd = rgbd.permute(0, 1, 3, 4, 2)
         return(rgbd)

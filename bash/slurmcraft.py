@@ -70,7 +70,7 @@ def add_this(name, args):
 
 
 
-add_this("e",   {"alpha" : "None", "target_entropy" : [-4,-3,-2,-1,0,1]})
+add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
 add_this("n",   {"curiosity" : "prediction_error"})
 add_this("f",   {"curiosity" : "hidden_state"})
 add_this("i",   {"delta" : 1})
@@ -102,7 +102,7 @@ def all_like_this(this):
         
 if(__name__ == "__main__" and args.arg_list == []):
     for key, value in slurm_dict.items(): print(key, ":", value,"\n")
-    interesting = []
+    interesting = ["f_15", "f_18"]
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
 

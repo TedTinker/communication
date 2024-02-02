@@ -6,7 +6,7 @@ import pybullet as p
 import numpy as np
 
 from utils import default_args, shape_map, color_map, action_map, make_object, pad_zeros,\
-    string_to_onehots, onehots_to_string, print
+    string_to_onehots, onehots_to_string, print, relative_to, opposite_relative_to
 from arena import Arena
 
 
@@ -58,7 +58,7 @@ class Task:
         action = randint(0, self.actions - 1)
         index = randrange(len(self.current_objects_1))
         shape, color = self.current_objects_1[index]
-        self.goal = (action_map[action] if goal_action == None else goal_action, (shape, color))
+        self.goal = (action_map[action].upper() if goal_action == None else goal_action.upper(), (shape, color))
         self.goal_text = "{} {} {}.".format(self.goal[0], list(color_map)[color], list(shape_map)[shape])
         self.goal_comm = string_to_onehots(self.goal_text)
         self.goal_comm = pad_zeros(self.goal_comm, self.args.max_comm_len)
@@ -151,19 +151,21 @@ class Task_Runner:
         yaw, spe, right_shoulder, right_arm, right_hand, left_shoulder, left_arm, left_hand = \
             action[0].item(), action[1].item(), action[2].item(), action[3].item(), action[4].item(), action[5].item(), action[6].item(), action[7].item()
         
-        if(verbose): print("\n\nStep {}:.".format(self.steps))
         yaw = -yaw * self.args.max_yaw_change
-        yaw = [-self.args.max_yaw_change, self.args.max_yaw_change, yaw] ; yaw.sort() ; yaw = yaw[1]
-        spe = self.args.min_speed + ((spe + 1)/2) * \
-            (self.args.max_speed - self.args.min_speed)
-        spe = [self.args.min_speed, self.args.max_speed, spe] ; spe.sort() ; spe = spe[1]
-        right_shoulder *= pi
-        right_arm *= pi
-        right_hand *= pi
-        left_shoulder *= pi
-        left_arm *= pi 
-        left_hand *= pi
-        if(verbose): print("Yaw: {}. Speed: {}. Shoulders: {}. Arms: {}. Hands: {}.".format(
+        yaw = [-self.args.max_yaw_change, self.args.max_yaw_change, yaw] 
+        yaw.sort() 
+        yaw = yaw[1]
+      
+        spe = relative_to(spe, self.args.min_speed, self.args.max_speed)
+        right_shoulder = relative_to(right_shoulder, self.args.min_shoulder, self.args.max_shoulder)
+        right_arm = -relative_to(right_arm, self.args.min_arm, self.args.max_arm)
+        right_hand = -relative_to(right_hand, self.args.min_hand, self.args.max_hand)
+        left_shoulder = relative_to(left_shoulder, self.args.min_shoulder, self.args.max_shoulder)
+        left_arm = relative_to(left_arm, self.args.min_arm, self.args.max_arm)
+        left_hand = relative_to(left_hand, self.args.min_hand, self.args.max_hand)
+        if(verbose): 
+            print("\n\nStep {}:".format(self.steps))
+            print("Yaw: {}. Speed: {}. Shoulders: {}. Arms: {}. Hands: {}.".format(
             round(degrees(yaw)), round(spe), (round(degrees(right_shoulder)), round(degrees(left_shoulder))), (round(degrees(right_arm)), round(degrees(left_arm))), (round(degrees(right_hand)), round(degrees(left_hand)))))
         
         for s in range(self.args.steps_per_step):
@@ -206,7 +208,11 @@ class Task_Runner:
     
     def get_recommended_action(self, agent_1 = True, verbose = False):
         if(agent_1): arena = self.arena_1
-        else:        arena = self.arena_2
+        else:        
+            if(self.parenting):
+                return(None)
+            else:
+                arena = self.arena_2
         goal = arena.goal
         goal_action = goal[0]
         goal_shape = list(shape_map)[goal[1][0]]
@@ -230,10 +236,11 @@ class Task_Runner:
                 if cross_product[2] < 0:  
                     angle_radians = -angle_radians
                 distance_angles.append((distance, angle_radians))
+                
         distance, angle = min(distance_angles, key=lambda t: abs(t[1]))
         
         if(verbose):
-            print(distance, angle)
+            print("\nDISTANCE:", distance, "ANGLE:", angle, "\n")
 
         angle /= self.args.max_yaw_change
         yaw_change = [-1, 1, -angle]
@@ -241,12 +248,21 @@ class Task_Runner:
         yaw_change = yaw_change[1]
         
         speed = 0
-        right_shoulder = 0 if goal_action.upper() == "TOUCH" else -.5
+        right_shoulder = .5 if goal_action.upper() == "TOUCH" else -1
         right_arm = 0
-        right_hand = 0
-        left_shoulder = 0 if goal_action.upper() == "TOUCH" else -.5
+        right_hand = 1
+        left_shoulder = .5 if goal_action.upper() == "TOUCH" else -1
         left_arm = 0
-        left_hand = 0
+        left_hand = 1
+        
+        right_shoulder_before, right_arm_before, right_hand_before,\
+            left_shoulder_before, left_arm_before, left_hand_before = arena.get_arm_angles()
+        right_shoulder_before = opposite_relative_to(right_shoulder_before, self.args.min_shoulder, self.args.max_shoulder)
+        right_arm_before = opposite_relative_to(right_arm_before, -self.args.min_arm, -self.args.max_arm)
+        right_hand_before = opposite_relative_to(right_hand_before, -self.args.min_hand, -self.args.max_hand)
+        left_shoulder_before = opposite_relative_to(left_shoulder_before, self.args.min_shoulder, self.args.max_shoulder)
+        left_arm_before = opposite_relative_to(left_arm_before, self.args.min_arm, self.args.max_arm)
+        left_hand_before = opposite_relative_to(left_hand_before, self.args.min_hand, self.args.max_hand)
         
         if(abs(angle) < pi/8):
             if(goal_action.upper() == "WATCH"):
@@ -254,16 +270,44 @@ class Task_Runner:
                     speed = -1
             elif(goal_action.upper() == "TOUCH"):
                 speed = 1
-            else:
-                if(distance > 3):
+            elif(goal_action.upper() in ["LIFT", "PULL"]):
+                if(distance > 3.5 and goal_action.upper() == "PULL"):
                     speed = .5
+                elif(distance > 4):
+                    speed = 1
                 else:
                     if(goal_action.upper() == "LIFT"):
-                        pass
+                        if(right_shoulder_before < -.95 and left_shoulder_before < -.95):
+                            if(right_arm_before < .1 and left_arm_before < .1):
+                                right_arm = 1
+                                left_arm = 1
+                            else:
+                                right_shoulder = 1
+                                right_hand = -1
+                                left_shoulder = 1
+                                left_hand = -1
                     if(goal_action.upper() == "PULL"):
-                        pass
-                    if(goal_action.upper() == "SPIN"):
-                        pass
+                        if(right_shoulder_before < -.95 and left_shoulder_before < -.95):
+                            if(right_arm_before < .1 and left_arm_before < .1):
+                                right_arm = 1
+                                left_arm = 1
+                            else:
+                                right_shoulder = .5
+                                right_hand = -1
+                                left_shoulder = .5
+                                left_hand = -1
+                        if(right_shoulder_before > 0 and left_shoulder_before > 0):
+                            speed = -1
+            elif(goal_action.upper() == "SPIN"):
+                if(distance > 4):
+                    speed = .75
+                else:
+                    if(right_shoulder_before < -.95):
+                        if(right_arm_before < .1):
+                            right_arm = 1
+                        else:
+                            right_shoulder = .5
+                            right_hand = -1
                 
         return(torch.tensor([
             yaw_change,
@@ -281,18 +325,43 @@ if __name__ == "__main__":
     from time import sleep
     import matplotlib.pyplot as plt
     args = default_args
-
-    task_runner = Task_Runner(Task(actions = 2, objects = 2, shapes = 2, colors = 2), GUI = True)
-    task_runner.begin(goal_action = "WATCH", verbose = True)
-    done = False
-    while(done == False):
+    
+    task_runner = Task_Runner(Task(actions = 5, objects = 2, shapes = 5, colors = 6), GUI = True)
+    
+    def get_images():
         rgba = task_runner.arena_1.photo_from_above()
-        plt.imshow(rgba)
-        plt.show()
-        plt.close()
-        recommendation = task_runner.get_recommended_action(verbose = True)
-        action = torch.tensor([.3, 1, 1, 1, 1, 1, 1, 1]) 
+        rgbd, _ , _ = task_runner.obs()
+        rgb = rgbd[0,:,:,0:3]
+        return(rgba, rgb)
         
-        reward, done, win = task_runner.action(recommendation, verbose = True)
-        sleep(.1)
+    def example_images(images):
+        num_images = len(images)
+        fig, axs = plt.subplots(2, num_images, figsize=(num_images * 5, 10), gridspec_kw={'wspace':0.1, 'hspace':0.1})
+        for i, (rgba, rgb) in enumerate(images):
+            if num_images > 1:
+                ax1 = axs[0, i]
+                ax2 = axs[1, i]
+            else:
+                ax1 = axs[0]
+                ax2 = axs[1]
+            ax1.imshow(rgba)
+            ax1.axis('off') 
+            ax2.imshow(rgb)
+            ax2.axis('off') 
+        plt.tight_layout()
+        plt.show()
+
+    while(True):
+        images = []
+        task_runner.begin(goal_action = "LIFT", verbose = True)
+        done = False
+        while(done == False):
+            images.append(get_images())
+            recommendation = task_runner.get_recommended_action(verbose = False)#True)
+            reward, done, win = task_runner.action(recommendation, verbose = False)#True)
+            sleep(.1)
+        images.append(get_images())
+        print("Win:", win)
+        example_images(images)
+        task_runner.done()
 # %%

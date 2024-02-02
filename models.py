@@ -43,7 +43,7 @@ class Actor(nn.Module):
                 time_constant = 1,
                 args = self.args)
         
-        self.comm = Actor_Comm_OUT(self.args)
+        self.comm_out = Actor_Comm_OUT(self.args)
         
         self.mu = nn.Sequential(
             nn.Linear(
@@ -58,7 +58,7 @@ class Actor(nn.Module):
         self.apply(init_weights)
         self.to(args.device)
 
-    def forward(self, rgbd, speed, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden):
+    def forward(self, rgbd, speed, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden, parented = False):
         if(len(forward_hidden.shape) == 2): forward_hidden = forward_hidden.unsqueeze(1)
         if(len(comm_in.shape) == 2):  comm_in = comm_in.unsqueeze(0)
         if(len(comm_in.shape) == 3):  comm_in = comm_in.unsqueeze(1)
@@ -72,18 +72,24 @@ class Actor(nn.Module):
         
         obs = self.obs_in(rgbd, speed, comm_in)
         prev_action = self.action_in(prev_action)
-        prev_comm_out = self.comm_in(prev_comm_out)
-        x = self.lin(torch.cat([obs, prev_action, prev_comm_out, forward_hidden], dim = -1))
+        prev_comm_out_encoded = self.comm_in(prev_comm_out)
+        x = self.lin(torch.cat([obs, prev_action, prev_comm_out_encoded, forward_hidden], dim = -1))
         x = self.mtrnn(x, action_hidden)
         action_hidden = action_hidden[:,-1].unsqueeze(1)
-        comm_out, comm_log_prob = self.comm(x)
+        
         mu, std = var(x, self.mu, self.std, self.args)
-        x = sample(mu, std, self.args.device)
-        action = torch.tanh(x)
-        log_prob = Normal(mu, std).log_prob(x) - torch.log(1 - action.pow(2) + 1e-6)
+        sampled = sample(mu, std, self.args.device)
+        action = torch.tanh(sampled)
+        log_prob = Normal(mu, std).log_prob(sampled) - torch.log(1 - action.pow(2) + 1e-6)
         log_prob = torch.mean(log_prob, -1).unsqueeze(-1)
-        log_prob += comm_log_prob
-        return action, comm_out, log_prob, action_hidden
+        
+        if(parented):
+            comm_out = torch.zeros_like(prev_comm_out)
+            comm_log_prob = torch.zeros_like(log_prob)
+        else:
+            comm_out, comm_log_prob = self.comm_out(x)
+        
+        return action, comm_out, log_prob, comm_log_prob, action_hidden
     
     
     

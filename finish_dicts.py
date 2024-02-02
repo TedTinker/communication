@@ -34,7 +34,7 @@ for folder in folders:
     plot_dict["agent_lists"] = agent_lists
         
     for key in min_max_dict.keys():
-        if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps"]):
+        if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
             if(key == "hidden_state"):
                 min_maxes = []
                 for layer in min_max_dict[key]:

@@ -12,10 +12,9 @@ print("name:\n{}\n".format(args.arg_name),)
 
 
 
+"""
 def get_quantiles(plot_dict, name, adjust_xs = True):
     xs = [i for i, x in enumerate(plot_dict[name][0]) if x != None]
-    #print("\n\n", name)
-    #for agent_record in plot_dict[name]: print(len(agent_record))
     lists = np.array(plot_dict[name], dtype=float)    
     lists = lists[:,xs]
     quantile_dict = {"xs" : [x * plot_dict["args"].keep_data for x in xs] if adjust_xs else xs}
@@ -31,6 +30,40 @@ def get_quantiles(plot_dict, name, adjust_xs = True):
     quantile_dict["q90"] = np.quantile(lists, .9, 0)
     quantile_dict["max"] = np.max(lists, 0)
     return(quantile_dict)
+"""
+
+def get_quantiles(plot_dict, name, adjust_xs=True):
+    # Convert all None to np.nan in the dataset for uniformity
+    lists = np.array([[np.nan if x is None else x for x in agent] for agent in plot_dict[name]], dtype=float)
+    
+    # Identify indices where all values are nan across a row after filtering None values
+    valid_xs_mask = ~np.isnan(lists).all(axis=0)
+    
+    # Filter the lists and xs based on valid_xs_mask
+    lists = lists[:, valid_xs_mask]
+    
+    # Adjust xs based on whether to adjust them by 'keep_data' multiplier or not
+    xs = np.arange(lists.shape[1])
+    if adjust_xs and "args" in plot_dict and hasattr(plot_dict["args"], "keep_data"):
+        xs = xs * plot_dict["args"].keep_data
+
+    # Prepare quantile_dict with adjusted or original xs
+    quantile_dict = {"xs": xs}
+    
+    # Calculate quantiles and other statistics only on non-nan values
+    quantile_dict["min"] = np.nanmin(lists, axis=0)
+    quantile_dict["q10"] = np.nanquantile(lists, 0.1, axis=0)
+    quantile_dict["q20"] = np.nanquantile(lists, 0.2, axis=0)
+    quantile_dict["q30"] = np.nanquantile(lists, 0.3, axis=0)
+    quantile_dict["q40"] = np.nanquantile(lists, 0.4, axis=0)
+    quantile_dict["med"] = np.nanquantile(lists, 0.5, axis=0)
+    quantile_dict["q60"] = np.nanquantile(lists, 0.6, axis=0)
+    quantile_dict["q70"] = np.nanquantile(lists, 0.7, axis=0)
+    quantile_dict["q80"] = np.nanquantile(lists, 0.8, axis=0)
+    quantile_dict["q90"] = np.nanquantile(lists, 0.9, axis=0)
+    quantile_dict["max"] = np.nanmax(lists, axis=0)
+
+    return quantile_dict
 
 def get_list_quantiles(list_of_lists, plot_dict):
     quantile_dicts = []
@@ -106,7 +139,7 @@ def plots(plot_dicts, min_max_dict):
     too_many_plot_dicts = len(plot_dicts) > 25
     figsize = (10, 10)
     if(not too_many_plot_dicts):
-        fig, axs = plt.subplots(20, len(plot_dicts), figsize = (20*len(plot_dicts), 300))
+        fig, axs = plt.subplots(24, len(plot_dicts), figsize = (20*len(plot_dicts), 300))
                 
     for i, plot_dict in enumerate(plot_dicts):
         
@@ -122,31 +155,27 @@ def plots(plot_dicts, min_max_dict):
             for x in xs: here.axvline(x=x, color = (0,0,0,.2))
     
         # Rolling win-rate
-        win_dict = get_quantiles(plot_dict, "wins", adjust_xs = False)
-        win_dict = get_rolling_average(win_dict)
-        if(not too_many_plot_dicts):
-            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            awesome_plot(ax, win_dict, "turquoise", "WinRate")
-            ax.set_ylabel("Rolling-Average Win-Rate")
-            ax.set_xlabel("Epochs")
-            ax.set_title(plot_dict["arg_title"] + "\nRolling-Average Win-Rate")
-            divide_arenas(win_dict, ax)
+        for action_name in ["touch", "watch", "lift", "pull", "spin"]:
+            print("wins_" + action_name)
+            # Difficulty: Comparing things which may or may not be None. I've been assuming same Nones every time!
+            win_dict = get_quantiles(plot_dict, "wins_" + action_name, adjust_xs = False)
+            win_dict = get_rolling_average(win_dict)
+                
+            def plot_rolling_average_wins_shared_min_max(here):
+                awesome_plot(here, win_dict, "turquoise", "WinRate", (0,1))
+                here.set_ylabel("Rolling-Average Win-Rate")
+                here.set_xlabel("Epochs")
+                here.set_title(plot_dict["arg_title"] + f"\nRolling-Average Win-Rate ({action_name})")
+                divide_arenas(win_dict, here)
             
-            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            
-        def plot_rolling_average_wins_shared_min_max(here):
-            awesome_plot(here, win_dict, "turquoise", "WinRate", min_max_dict["wins"])
-            here.set_ylabel("Rolling-Average Win-Rate")
-            here.set_xlabel("Epochs")
-            here.set_title(plot_dict["arg_title"] + "\nRolling-Average Win-Rate, shared min/max")
-            divide_arenas(win_dict, here)
-        
-        if(not too_many_plot_dicts): plot_rolling_average_wins_shared_min_max(ax)
-        fig2, ax2 = plt.subplots(figsize = figsize)  
-        plot_rolling_average_wins_shared_min_max(ax2)  
-        ax2.set_title("Rolling-Average Win-Rate")
-        fig2.savefig("thesis_pics/wins_{}.png".format(plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
-        plt.close(fig2)
+            if(not too_many_plot_dicts): 
+                ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
+                plot_rolling_average_wins_shared_min_max(ax)
+            fig2, ax2 = plt.subplots(figsize = figsize)  
+            plot_rolling_average_wins_shared_min_max(ax2)  
+            ax2.set_title("Rolling-Average Win-Rate")
+            fig2.savefig("thesis_pics/wins_{}_{}.png".format(action_name, plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
+            plt.close(fig2)
     
         # Cumulative rewards
         rew_dict = get_quantiles(plot_dict, "rewards", adjust_xs = False)

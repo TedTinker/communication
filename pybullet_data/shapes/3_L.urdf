@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<robot name="3_bottom">
+<robot name="3_L">
 
     <!-- The base --> 
     <link name="base_link">

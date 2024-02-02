@@ -65,11 +65,11 @@ def make_urdf(file_name, widths, heights):
     file.write(text)
     file.close()
 
-make_urdf("1_pole",          [.2],          [1])
-make_urdf("2_top",           [.2, .6],      [.9, .1])
-make_urdf("3_bottom",        [.6, .2],      [.1, .9])
-make_urdf("4_middle",        [.2, .6, .2],  [.45, .1, .45])
-make_urdf("5_top_bottom",    [.6, .2, .6],  [.1, .8, .1])
+make_urdf("1_pole",     [.2],          [1])
+make_urdf("2_T",        [.2, .6],      [.9, .1])
+make_urdf("3_L",        [.6, .2],      [.1, .9])
+make_urdf("4_cross",    [.2, .6, .2],  [.45, .1, .45])
+make_urdf("5_I",        [.6, .2, .6],  [.1, .8, .1])
 
 
 
@@ -102,7 +102,7 @@ class Arena:
             angle = p.getQuaternionFromEuler([0,0,0])
             object = p.loadURDF("{}".format(urdf_file), (difference*k, 0, 0), angle, 
                                 useFixedBase=False, physicsClientId=self.physicsClient)
-            p.changeVisualShape(object, -1, rgbaColor = (0,0,0,.2), physicsClientId = self.physicsClient)
+            p.changeVisualShape(object, -1, rgbaColor = (0,0,0,0), physicsClientId = self.physicsClient)
             for i in range(p.getNumJoints(object)):
                 p.changeVisualShape(object, i, rgbaColor=colors[k], physicsClientId = self.physicsClient)
             p.loadURDF("plane.urdf", (10*k,0,0), globalScaling=.5, useFixedBase=True, physicsClientId=self.physicsClient)

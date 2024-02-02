@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<robot name="5_top_bottom">
+<robot name="2_T">
 
     <!-- The base --> 
     <link name="base_link">
@@ -33,13 +33,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <cylinder length="0.1" radius="0.6"/>
+                <cylinder length="0.9" radius="0.2"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <cylinder length="0.1" radius="0.6"/>
+                <cylinder length="0.9" radius="0.2"/>
             </geometry>
         </collision>
     </link>
@@ -48,7 +48,7 @@
     <joint name="base_0_joint" type="fixed">
         <parent link="base_link"/>
         <child link="0_link"/>
-        <origin xyz="0 0 0.05" rpy="0 0 0"/>
+        <origin xyz="0 0 0.45" rpy="0 0 0"/>
     </joint>
 
     <!-- 1 -->
@@ -61,13 +61,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <cylinder length="0.8" radius="0.2"/>
+                <cylinder length="0.1" radius="0.6"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <cylinder length="0.8" radius="0.2"/>
+                <cylinder length="0.1" radius="0.6"/>
             </geometry>
         </collision>
     </link>
@@ -76,35 +76,7 @@
     <joint name="0_1_joint" type="fixed">
         <parent link="0_link"/>
         <child link="1_link"/>
-        <origin xyz="0 0 0.45" rpy="0 0 0"/>
-    </joint>
-
-    <!-- 2 -->
-    <link name="2_link">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="1"/>
-            <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <cylinder length="0.1" radius="0.6"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <cylinder length="0.1" radius="0.6"/>
-            </geometry>
-        </collision>
-    </link>
-
-    <!-- Joint from 1 to 2 -->
-    <joint name="1_2_joint" type="fixed">
-        <parent link="1_link"/>
-        <child link="2_link"/>
-        <origin xyz="0 0 0.45" rpy="0 0 0"/>
+        <origin xyz="0 0 0.5" rpy="0 0 0"/>
     </joint>
 
 </robot>

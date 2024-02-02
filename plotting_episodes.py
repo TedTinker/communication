@@ -65,6 +65,10 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
     label_list.append(f"Comms In ({agent_num}):")
     
     if not last_step:
+        
+        recommended_actions = episode_dict[f"recommended_{agent_num}"][step]
+        text_list.append(recommended_actions)
+        label_list.append(f"Recommendation ({agent_num}):")
 
         actions = episode_dict[f"actions_{agent_num}"][step]
         text_list.append(actions)
@@ -79,13 +83,9 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         label_list.append("Reward:")
         
         values = episode_dict[f"critic_predictions_{agent_num}"][step]
-        print("BEFORE:")
-        print(values)
         values_text = ""
         for i, value in enumerate(values):
             values_text += "{}".format(value) + ("." if i+1 == len(values) else ", ")
-        print("AFTER:")
-        print(values_text)
         text_list.append(values_text)
         label_list.append(f"Predicted Values ({agent_num}):")
 
@@ -116,11 +116,9 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         label_list.append(f"Predicted Comms (Posterior) ({agent_num}):")
         
     fig = plt.figure(figsize=(15, 10))
-    gs = gridspec.GridSpec(len(label_list), 2, width_ratios=[1, 4])
+    gs = gridspec.GridSpec(len(label_list), 2, height_ratios=[5 if text == None else 4 if text.startswith("Yaw:") else 1 for text in text_list], width_ratios=[1, 4])
     images_plotted = 0
     for i, (text, label) in enumerate(zip(text_list, label_list)):
-        print(label)
-        if(label == f"Predicted Values ({agent_num}):"): print(text)
         ax_text = fig.add_subplot(gs[i, 0])
         ax_text.axis('off')
         ax_img = fig.add_subplot(gs[i, 1])

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<robot name="4_middle">
+<robot name="4_cross">
 
     <!-- The base --> 
     <link name="base_link">

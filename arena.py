@@ -84,8 +84,7 @@ class Arena():
     def begin(self, objects, goal):
         self.setBaseVelocity(0, 0)
         self.setBasePositionAndOrientation((0, 0, 1), 0)
-        self.setArmsAndHands(0, 0, 0, 0, 0, 0)
-        p.stepSimulation(physicsClientId = self.physicsClient)
+        self.setArmsAndHands()
         self.goal = goal
         self.objects_in_play = {}
         self.watching = {}
@@ -106,6 +105,11 @@ class Arena():
         
     def step(self):
         p.stepSimulation(physicsClientId = self.physicsClient)
+        for (shape, color, old_pos), object in self.objects_in_play.items():
+            pos, _ = p.getBasePositionAndOrientation(object, physicsClientId = self.physicsClient)
+            v, o = p.getBaseVelocity(object, physicsClientId=self.physicsClient)
+            p.resetBasePositionAndOrientation(object, pos, self.default_orn, physicsClientId = self.physicsClient)
+            p.resetBaseVelocity(object, v, o, physicsClientId = self.physicsClient)    
         pos, ors = p.getBasePositionAndOrientation(self.body_num, physicsClientId = self.physicsClient)
         yaw = p.getEulerFromQuaternion(ors)[-1]
         self.setBasePositionAndOrientation(pos, yaw)
@@ -113,10 +117,9 @@ class Arena():
     def end(self):
         for (shape, color, old_pos), object in self.objects_in_play.items():
             p.resetBasePositionAndOrientation(object, old_pos, self.default_orn, physicsClientId = self.physicsClient)
-        self.setArmsAndHands(0, 0, 0, 0, 0, 0)
+        self.setArmsAndHands()
         self.setBaseVelocity(0, 0)
         self.setBasePositionAndOrientation((0, 0, 1), 0)
-        p.stepSimulation(physicsClientId = self.physicsClient)
             
     def stop(self):
         p.disconnect(self.physicsClient)
@@ -130,6 +133,21 @@ class Arena():
         spe = float(np.dot(velocity_vec, forward_dir))
         return(pos, yaw, spe)
     
+    def get_arm_angles(self):
+        angles = []
+        joint_names = [
+            'body_right_shoulder_joint',
+            'right_shoulder_right_arm_joint',
+            'right_arm_right_hand_joint',
+            'body_left_shoulder_joint',
+            'left_shoulder_left_arm_joint',
+            'left_arm_left_hand_joint']
+        for joint_name in joint_names:
+            joint_index = get_joint_index(self.body_num, joint_name)
+            joint_state = p.getJointState(self.body_num, joint_index, physicsClientId=self.physicsClient)
+            angles.append(joint_state[0])  # joint_state[0] is the position (angle) of the joint
+        return angles
+    
     def setBaseVelocity(self, x, y):    
         p.resetBaseVelocity(self.body_num, (x,y,0), (0,0,0), physicsClientId = self.physicsClient)    
     
@@ -140,7 +158,7 @@ class Arena():
         p.resetBasePositionAndOrientation(self.body_num, pos, orn, physicsClientId = self.physicsClient)
         self.setBaseVelocity(x, y)
         
-    def setArmsAndHands(self, right_shoulder, right_arm, right_hand, left_shoulder, left_arm, left_hand):
+    def setArmsAndHands(self, right_shoulder = -1.3, right_arm = 0, right_hand = 0, left_shoulder = -1.3, left_arm = 0, left_hand = 0):
         for limb_name, target in [
             ('body_right_shoulder_joint', right_shoulder), 
             ('right_shoulder_right_arm_joint', right_arm), 
@@ -186,10 +204,9 @@ class Arena():
                             
                 if(goal_action.upper() == "LIFT"):
                     pos, _ = p.getBasePositionAndOrientation(object_num, physicsClientId = self.physicsClient)
-                    if(pos[-1] > 2):
+                    if(pos[-1] >= 1.5):
                         reward = True
                 
-                # Need to fix this!
                 if(goal_action.upper() == "PULL"):
                     body_pos, _ = p.getBasePositionAndOrientation(self.body_num, physicsClientId = self.physicsClient)
                     object_pos, _ = p.getBasePositionAndOrientation(object_num, physicsClientId = self.physicsClient)
@@ -200,12 +217,16 @@ class Arena():
                     direction_vector = body_pos - object_pos
                     direction_vector /= np.linalg.norm(direction_vector)
                     speed_toward_body = np.dot(velocity, direction_vector)
-                    if(speed_toward_body > 1):
+                    if(speed_toward_body > 2):
                         reward = True
                         
-                if(goal_action == "spin"):
-                    pass
-                    #reward = True
+                if(goal_action.upper() == "SPIN"):
+                    _, angular_velocity = p.getBaseVelocity(object_num, physicsClientId=self.physicsClient)
+                    angular_velocity = np.array(angular_velocity)
+                    angular_velocity_z = angular_velocity[2]
+                    spin_threshold = 1
+                    if(angular_velocity_z > spin_threshold or angular_velocity_z < -spin_threshold):
+                        reward = True
         win = reward
         reward = self.args.reward if reward else 0
         return(reward, win)
@@ -213,14 +234,14 @@ class Arena():
     def photo_from_above(self):
         pos, _, _ = self.get_pos_yaw_spe()
         view_matrix = p.computeViewMatrix(
-            cameraEyePosition = [pos[0], pos[1], 5], 
-            cameraTargetPosition = [pos[0], pos[1], 2],    # Camera / target position very important
+            cameraEyePosition = [pos[0], pos[1], 8], 
+            cameraTargetPosition = [pos[0], pos[1], -1],    # Camera / target position very important
             cameraUpVector = [-1, 0, 0], physicsClientId = self.physicsClient)
         proj_matrix = p.computeProjectionMatrixFOV(
             fov = 90, aspect = 1, nearVal = .01, 
             farVal = 10, physicsClientId = self.physicsClient)
         _, _, rgba, _, _ = p.getCameraImage(
-            width=64, height=64,
+            width=256, height=256,
             projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
             physicsClientId = self.physicsClient)
         return(rgba)
@@ -236,15 +257,18 @@ if __name__ == "__main__":
     goal = [choices(action_map)[0], objects[0]]
     arena.begin(objects = objects, goal = goal)
     i = 0
+    arena.setArmsAndHands(args.min_shoulder, -args.min_arm, -args.min_hand, args.max_shoulder, args.max_arm, args.max_hand)
+    """
     while(True):
         arena.setArmsAndHands(.5, -i, i, .5, i, -i)
         i += .01
         arena.step()
         arena.rewards()
         rgba = arena.photo_from_above()
-        sleep(.01)
+        sleep(1)
         if(i > 1):
             arena.end()
             i = 0
             arena.begin(objects = objects, goal = goal)
+    """
 # %%

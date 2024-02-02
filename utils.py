@@ -1,9 +1,9 @@
 #%% 
 
 # To do: 
-#   Fix definitions of lift, pull, spin.
-#   Expert to imitate.
-#   Stop making the agent communicate if not necessary.
+#   Big win from Tani: Make it watch, push, pull, left, and right.
+#   Plot win-rates for different tasks separately?
+#   Separate curiosities based on predicting observations or communication.
 #   Fix high memory-use.
 
 import os
@@ -39,12 +39,12 @@ shape_map = {shape_file[2:-5] : shape_file for shape_file in shape_files}
 max_len_shape_name = len(max(shape_map, key=len))
 
 color_map = {
-    "red" : (1,0,0,1), 
-    "green" : (0,1,0,1), 
-    "blue" : (0,0,1,1), 
-    "cyan" : (0,1,1,1), 
-    "magenta" : (1,0,1,1),
-    "yellow" : (1,1,0,1)}
+    "RED" : (1,0,0,1), 
+    "GREEN" : (0,1,0,1), 
+    "BLUE" : (0,0,1,1), 
+    "CYAN" : (0,1,1,1), 
+    "PINK" : (1,0,1,1),
+    "YELLOW" : (1,1,0,1)}
 max_len_color_name = len(max(color_map, key=len))
 
 test_combos = [
@@ -96,13 +96,12 @@ if(__name__ == "__main__"):
     plt.show()
     plt.close()
             
-
 action_map = {
-    0: "touch", 
-    1: "watch", 
-    2: "lift", 
-    3: "pull", 
-    4: "spin"}
+    0: "TOUCH", 
+    1: "WATCH", 
+    2: "LIFT", 
+    3: "PULL", 
+    4: "SPIN"}
 max_len_action_name = len(max(action_map.values(), key=len))
 
 comm_map = {
@@ -176,7 +175,7 @@ parser.add_argument('--max_steps',          type=int,        default = 10,
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',type=float,      default = -1,
                     help='Extrinsic punishment for taking max_steps steps.')
-parser.add_argument('--step_cost',          type=float,      default = .9,
+parser.add_argument('--step_cost',          type=float,      default = .975,
                     help='How much extrinsic rewards for exiting are reduced per step.')
 parser.add_argument('--reward',             type=float,      default = 5,
                     help='Extrinsic reward for choosing incorrect action, shape, and color.') 
@@ -202,6 +201,18 @@ parser.add_argument('--min_speed',          type=float,      default = -100,
                     help='Agent\'s minimum speed.')
 parser.add_argument('--max_speed',          type=float,      default = 100,
                     help='Agent\'s maximum speed.')
+parser.add_argument('--min_shoulder',       type=float,      default = -1.3,
+                    help='Agent\'s minimum shoulder angle.')
+parser.add_argument('--max_shoulder',       type=float,      default = .4,
+                    help='Agent\'s maximum shoulder angle.')
+parser.add_argument('--min_arm',            type=float,      default = -1,
+                    help='Agent\'s minimum arm angle.')
+parser.add_argument('--max_arm',            type=float,      default = .75,
+                    help='Agent\'s maximum arm angle.')
+parser.add_argument('--min_hand',           type=float,      default = -1,
+                    help='Agent\'s minimum hand angle.')
+parser.add_argument('--max_hand',           type=float,      default = 0,
+                    help='Agent\'s maximum hand angle.')
 parser.add_argument('--steps_per_step',     type=int,        default = 5,
                     help='To avoid intersections, simulation makes each episode step multiple simulation steps.')
 parser.add_argument('--watch_duration',     type=int,        default = 3,
@@ -210,13 +221,13 @@ parser.add_argument('--watch_distance',     type=int,        default = 5,
                     help='Minimum distance for watching an object.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [300],
+parser.add_argument('--epochs',             type=literal,    default = [100],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--batch_size',         type=int,        default = 64, 
                     help='How many episodes are sampled for each epoch.')      
 parser.add_argument('--rgbd_scaler',        type=float,      default = 1, 
                     help='How much to consider rgbd prediction in accuracy compared to comm and speed.')  
-parser.add_argument('--speed_scaler',       type=float,      default = 1, 
+parser.add_argument('--speed_scaler',       type=float,      default = .00001, 
                     help='How much to consider speed prediction in accuracy compared to rgbd and comm.')  
 parser.add_argument('--comm_scaler',        type=float,      default = 1, 
                     help='How much to consider comm prediction in accuracy compared to rgbd and speed.')       
@@ -238,12 +249,14 @@ parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
 parser.add_argument('--forward_lr',         type=float,      default = .01,
                     help='Learning rate for forward model.')
-parser.add_argument('--alpha_lr',           type=float,      default = .01,
-                    help='Learning rate for alpha value.') 
 parser.add_argument('--actor_lr',           type=float,      default = .01,
                     help='Learning rate for actor model.')
 parser.add_argument('--critic_lr',          type=float,      default = .01,
                     help='Learning rate for critic model.')
+parser.add_argument('--alpha_lr',           type=float,      default = .01,
+                    help='Learning rate for alpha value.') 
+parser.add_argument('--alpha_text_lr',      type=float,      default = .01,
+                    help='Learning rate for alpha value.') 
 parser.add_argument("--tau",                type=float,      default = .1,
                     help='Rate at which target-critics approach critics.')      
 parser.add_argument('--GAMMA',              type=float,      default = .9,
@@ -262,23 +275,25 @@ parser.add_argument("--beta",               type=literal,    default = [1],
     # Entropy
 parser.add_argument("--alpha",              type=literal,    default = 0,
                     help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
-parser.add_argument("--target_entropy",     type=float,      default = -4,
+parser.add_argument("--target_entropy",     type=float,      default = -1,
                     help='Target for choosing alpha if alpha set to None. Recommended: negative size of action-space.')      
-parser.add_argument("--alpha_text",              type=literal,    default = 0,
+parser.add_argument("--alpha_text",         type=literal,    default = 0,
                     help='Nonnegative value, how much to consider entropy regarding communication. Set to None to use target_entropy_text.')        
-parser.add_argument("--target_entropy_text",     type=float,      default = -4,
+parser.add_argument("--target_entropy_text",type=float,      default = -2,
                     help='Target for choosing alpha_text if alpha_text set to None. Recommended: negative size of action-space.')      
 parser.add_argument('--action_prior',       type=str,        default = "normal",
                     help='The actor can be trained based on normal or uniform distributions.')
+parser.add_argument("--normal_alpha",       type=float,      default = 0,
+                    help='Nonnegative value, how much to consider policy prior.')      
 
     # Curiosity
 parser.add_argument("--curiosity",          type=str,        default = "none",
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
 parser.add_argument("--dkl_max",            type=float,      default = 1,
                     help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')        
-parser.add_argument("--prediction_error_eta", type=float,    default = 1,
+parser.add_argument("--prediction_error_eta", type=float,    default = 10,
                     help='Nonnegative value, how much to consider prediction_error curiosity.')    
-parser.add_argument("--hidden_state_eta",   type=literal,    default = [1, 1],
+parser.add_argument("--hidden_state_eta",   type=literal,    default = [10],
                     help='Nonnegative valued, how much to consider hidden_state curiosity in each layer.')       
 
     # Imitation
@@ -286,7 +301,7 @@ parser.add_argument("--delta",              type=float,     default = 0,
                     help='How much to consider action\'s similarity to recommended action.')  
 
     # Saving data
-parser.add_argument('--keep_data',           type=int,        default = 25,
+parser.add_argument('--keep_data',           type=int,        default = 10,
                     help='How many epochs should pass before saving data.')
 
 parser.add_argument('--epochs_per_gen_test', type=int,        default = 10,
@@ -309,7 +324,7 @@ try:
     try:    args    = parser.parse_args()
     except: args, _ = parser.parse_known_args()
 except:
-    import sys ; sys.argv=[''] ; del sys           # Comment this out when using bash
+    import sys ; sys.argv=[''] ; del sys           
     default_args = parser.parse_args([])
     try:    args    = parser.parse_args()
     except: args, _ = parser.parse_known_args()
@@ -403,14 +418,29 @@ def onehots_to_string(onehots):
     return string
 
 def action_to_string(action):
-    action = action[0,0]
+    while(len(action.shape) > 1):
+        action = action.squeeze(0)
     string = "Yaw: {} ".format(round(action[0].item(),2))
-    string += "Speed: {} ".format(round(action[1].item(),2))
-    string += "Right Arm: {} ".format(round(action[2].item(),2))
-    string += "Right Hand: {} ".format(round(action[3].item(),2))
-    string += "Left Arm: {} ".format(round(action[4].item(),2))
-    string += "Left Hand: {} ".format(round(action[5].item(),2))
+    string += "Speed: {}\n".format(round(action[1].item(),2))
+    string += "Right Shoulder: {} ".format(round(action[2].item(),2))
+    string += "Right Arm: {} ".format(round(action[3].item(),2))
+    string += "Right Hand: {}\n".format(round(action[4].item(),2))
+    string += "Left Shoulder: {} ".format(round(action[5].item(),2))
+    string += "Left Arm: {} ".format(round(action[6].item(),2))
+    string += "Left Hand: {} ".format(round(action[7].item(),2))
     return(string)
+
+
+
+# Functions for relative value of actor-output to actions.
+def relative_to(this, min, max):
+    this = min + ((this + 1)/2) * (max - min)
+    this = [min, max, this]
+    this.sort()
+    return(this[1])
+
+def opposite_relative_to(this, min, max):
+    return ((this - min) / (max - min)) * 2 - 1
 
 
 
@@ -656,7 +686,7 @@ def load_dicts(args):
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():
-        if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps"]):
+        if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
             minimum = None ; maximum = None
             for mm_dict in min_max_dicts:
                 if(mm_dict[key] != (None, None)):
