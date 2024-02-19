@@ -27,34 +27,19 @@ class RGBD_IN(nn.Module):
         example = torch.zeros(rgbd_size)
         
         self.rgbd_in = nn.Sequential(
-            ConstrainedConv2d(
+            Ted_Conv2d(
                 in_channels = 4,
-                out_channels = 16,
-                kernel_size = (3,3),
-                padding = (1,1),
-                padding_mode = "reflect"),
+                out_channels = [2, 2, 2, 2],
+                kernels = [1, 3, 3, 5]),
             nn.PReLU(),
             nn.AvgPool2d(
                 kernel_size = (3,3),
                 stride = (2,2),
                 padding = (1,1)),
-            ConstrainedConv2d(
-                in_channels = 16,
-                out_channels = 16,
-                kernel_size = (3,3),
-                padding = (1,1),
-                padding_mode = "reflect"),
-            nn.PReLU(),
-            nn.AvgPool2d(
-                kernel_size = (3,3),
-                stride = (2,2),
-                padding = (1,1)),
-            ConstrainedConv2d(
-                in_channels = 16,
-                out_channels = 16,
-                kernel_size = (3,3),
-                padding = (1,1),
-                padding_mode = "reflect"),
+            Ted_Conv2d(
+                in_channels = 8,
+                out_channels = [2, 2, 2, 2],
+                kernels = [1, 1, 3, 3]),
             nn.PReLU(),
             nn.AvgPool2d(
                 kernel_size = (3,3),
@@ -92,38 +77,6 @@ if __name__ == "__main__":
                         (episodes, steps, args.image_size, args.image_size, 4)))
     
     
-    
-class Spe_IN(nn.Module):
-        
-    def __init__(self, args = default_args):
-        super(Spe_IN, self).__init__()  
-        
-        self.args = args 
-        
-        self.spe_in = nn.Sequential(
-            nn.Linear(
-                in_features = 1, 
-                out_features = args.hidden_size),
-            nn.PReLU())
-        
-    def forward(self, spe):
-        if(len(spe.shape) == 2): spe = spe.unsqueeze(1)
-        spe = (spe - self.args.min_speed) / (self.args.max_speed - self.args.min_speed)
-        return(self.spe_in(spe))
-    
-    
-    
-if __name__ == "__main__":
-    
-    spe_in = Spe_IN(args = args)
-    
-    print("\n\n")
-    print(spe_in)
-    print()
-    print(torch_summary(spe_in, 
-                        (episodes, steps, 1)))
-    
-    
 
 class Comm_IN(nn.Module):
 
@@ -135,15 +88,14 @@ class Comm_IN(nn.Module):
         self.comm_embedding = nn.Sequential(
             nn.Embedding(
                 num_embeddings = self.args.comm_shape,
-                embedding_dim = self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(.2))
+                embedding_dim = self.args.encode_size),
+            nn.PReLU())
         
         self.comm_cnn = nn.Sequential(
             Ted_Conv1d(
-                in_channels = self.args.hidden_size, 
+                in_channels = self.args.encode_size, 
                 out_channels = [self.args.hidden_size//4]*4, 
-                kernels = [1,3,5,7]),
+                kernels = [1,1,3,5]),
             #nn.BatchNorm1d(self.args.hidden_size),
             nn.PReLU())
         
@@ -154,7 +106,6 @@ class Comm_IN(nn.Module):
             args = self.args)
         
         self.comm_lin = nn.Sequential(
-            nn.Dropout(.2),
             nn.PReLU(),
             nn.Linear(
                 in_features = self.args.hidden_size, 
@@ -171,11 +122,10 @@ class Comm_IN(nn.Module):
         comm = pad_zeros(comm, self.args.max_comm_len)
         comm = torch.argmax(comm, dim = -1)
         comm = self.comm_embedding(comm.int())
-        comm = comm.reshape((episodes*steps, self.args.max_comm_len, self.args.hidden_size))
+        comm = comm.reshape((episodes*steps, self.args.max_comm_len, self.args.encode_size))
         comm = self.comm_cnn(comm.permute((0,2,1))).permute((0,2,1))
         comm = self.comm_rnn(comm)
-        # Should use create_comm_mask to avoid unnecessary info
-        comm = comm[:,-1]
+        comm = comm[:,-1]         # Should use create_comm_mask to avoid unnecessary info after period.
         comm = comm.reshape((episodes, steps, self.args.hidden_size))
         comm = self.comm_lin(comm)
         return(comm)
@@ -201,14 +151,12 @@ class Obs_IN(nn.Module):
                 
         self.args = args
         self.rgbd_in = RGBD_IN(self.args)
-        self.spe_in = Spe_IN(self.args)
         self.comm_in = Comm_IN(self.args)
         
-    def forward(self, rgbd, speed, comm):
+    def forward(self, rgbd, comm):
         rgbd = self.rgbd_in(rgbd)
-        speed = self.spe_in(speed)
         comm = self.comm_in(comm)
-        return(torch.cat([rgbd, speed, comm], dim = -1))
+        return(torch.cat([rgbd, comm], dim = -1))
     
     
     
@@ -221,7 +169,6 @@ if __name__ == "__main__":
     print()
     print(torch_summary(obs_in, 
                         ((episodes, steps, args.image_size, args.image_size, 4),
-                         (episodes, steps, 1),
                          (episodes, steps, args.max_comm_len, args.comm_shape))))
     
     
@@ -237,13 +184,7 @@ class Action_IN(nn.Module):
             nn.Linear(
                 in_features = self.args.action_shape, 
                 out_features = args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(.2),
-            nn.Linear(
-                in_features = self.args.hidden_size, 
-                out_features = args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(.2))
+            nn.PReLU())
         
         self.apply(init_weights)
         self.to(args.device)
@@ -278,40 +219,26 @@ class RGBD_OUT(nn.Module):
         self.rgbd_out_lin = nn.Sequential(
             nn.Linear(
                 in_features = self.args.pvrnn_mtrnn_size + 2 * self.args.hidden_size,
-                out_features = 16 * ((self.args.image_size//8) ** 2)),
+                out_features = 4 * ((self.args.image_size//4) ** 2)),
             nn.PReLU())
         
         self.rgbd_out = nn.Sequential(
-            ConstrainedConv2d(
-                in_channels = 16,
-                out_channels = 16,
-                kernel_size = (3,3),
-                padding = (1,1),
-                padding_mode = "reflect"),
+            Ted_Conv2d(
+                in_channels = 4,
+                out_channels = [4, 4, 4, 4],
+                kernels = [1, 1, 3, 3]),
             nn.PReLU(),
             nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True),
-            ConstrainedConv2d(
+            Ted_Conv2d(
                 in_channels = 16,
-                out_channels = 16,
-                kernel_size = (3,3),
-                padding = (1,1),
-                padding_mode = "reflect"),
+                out_channels = [4, 4, 4, 4],
+                kernels = [1, 1, 3, 3]),
             nn.PReLU(),
             nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True),
-            ConstrainedConv2d(
+            Ted_Conv2d(
                 in_channels = 16,
-                out_channels = 16,
-                kernel_size = (3,3),
-                padding = (1,1),
-                padding_mode = "reflect"),
-            nn.PReLU(),
-            nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True),
-            ConstrainedConv2d(
-                in_channels = 16,
-                out_channels = 4,
-                kernel_size = (3,3),
-                padding = (1,1),
-                padding_mode = "reflect"))
+                out_channels = [4],
+                kernels = [1]),)
         
         self.apply(init_weights)
         self.to(args.device)
@@ -320,7 +247,7 @@ class RGBD_OUT(nn.Module):
         if(len(h_w_action.shape) == 2): h_w_action = h_w_action.unsqueeze(1)
         episodes, steps = episodes_steps(h_w_action)
         h_w_action = self.rgbd_out_lin(h_w_action)
-        rgbd = h_w_action.reshape(episodes, steps, 16, self.args.image_size//8, self.args.image_size//8)
+        rgbd = h_w_action.reshape(episodes, steps, 4, self.args.image_size//4, self.args.image_size//4)
         rgbd = rnn_cnn(self.rgbd_out, rgbd)
         rgbd = rgbd.permute(0, 1, 3, 4, 2)
         return(rgbd)
@@ -338,40 +265,6 @@ if __name__ == "__main__":
                         (episodes, steps, args.pvrnn_mtrnn_size + 2 * args.hidden_size)))
     
     
-    
-class Spe_OUT(nn.Module):
-        
-    def __init__(self, args = default_args):
-        super(Spe_OUT, self).__init__()  
-        
-        self.args = args 
-        
-        self.spe_out = nn.Sequential(
-            nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + 2 * self.args.hidden_size, 
-                out_features = self.args.hidden_size),
-            nn.PReLU(),
-            nn.Linear(
-                in_features = self.args.hidden_size, 
-                out_features = 1))
-        
-    def forward(self, h_w_action):
-        if(len(h_w_action.shape) == 2): h_w_action = h_w_action.unsqueeze(1)
-        return(self.spe_out(h_w_action))
-    
-    
-    
-if __name__ == "__main__":
-    
-    spe_out = Spe_OUT(args = args)
-    
-    print("\n\n")
-    print(spe_out)
-    print()
-    print(torch_summary(spe_out, 
-                        (episodes, steps, args.pvrnn_mtrnn_size + 2 * args.hidden_size)))
-    
-    
 
 class Comm_OUT(nn.Module):
 
@@ -383,23 +276,22 @@ class Comm_OUT(nn.Module):
         self.comm_lin = nn.Sequential(
             nn.Linear(
                 in_features = self.args.pvrnn_mtrnn_size + 2 * self.args.hidden_size, 
-                out_features = self.args.hidden_size),
+                out_features = self.args.hidden_size//2),
             nn.PReLU())
         
         self.comm_rnn = MTRNN(
-            input_size = self.args.hidden_size, 
-            hidden_size = self.args.hidden_size, 
+            input_size = self.args.hidden_size//2, 
+            hidden_size = self.args.hidden_size//2, 
             time_constant = 1,
             args = self.args)
         
         self.comm_cnn = nn.Sequential(
             Ted_Conv1d(
-                in_channels = self.args.hidden_size, 
+                in_channels = self.args.hidden_size//2, 
                 out_channels = [self.args.hidden_size//4]*4, 
-                kernels = [1,3,5,7]),
+                kernels = [1,1,3,5]),
             #nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(.2))
+            nn.PReLU())
         
         self.comm_out = nn.Sequential(
             nn.Linear(
@@ -449,14 +341,24 @@ class Obs_OUT(nn.Module):
         
         self.args = args 
         self.rgbd_out = RGBD_OUT(self.args)
-        self.spe_out = Spe_OUT(self.args)
         self.comm_out = Comm_OUT(self.args)
         
     def forward(self, h_w_action):
         rgbd_pred = self.rgbd_out(h_w_action)
-        spe_pred = self.spe_out(h_w_action)
         comm_pred = self.comm_out(h_w_action)
-        return(rgbd_pred, spe_pred, comm_pred)
+        return(rgbd_pred, comm_pred)
+    
+    
+    
+if __name__ == "__main__":
+    
+    obs_out = Obs_OUT(args = args)
+    
+    print("\n\n")
+    print(obs_out)
+    print()
+    print(torch_summary(obs_out, 
+                        (episodes, steps, args.pvrnn_mtrnn_size + 2 * args.hidden_size)))
     
     
     
@@ -476,11 +378,10 @@ class Actor_Comm_OUT(nn.Module):
         self.comm_cnn = nn.Sequential(
             Ted_Conv1d(
                 in_channels = self.args.hidden_size, 
-                out_channels = [self.args.hidden_size//4]*4, 
+                out_channels = [self.args.encode_size]*4, 
                 kernels = [1,3,5,7]),
             #nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(.2))
+            nn.PReLU())
         
         self.comm_out_mu = nn.Sequential(
             nn.Linear(

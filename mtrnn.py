@@ -25,19 +25,31 @@ class MTRNNCell(nn.Module):
         self.old = 1 - self.new
 
         self.r_x = nn.Sequential(
-            nn.Linear(input_size, hidden_size))
+            nn.Linear(
+                in_features = input_size, 
+                out_features = hidden_size))
         self.r_h = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size))
+            nn.Linear(
+                in_features = hidden_size, 
+                out_features = hidden_size))
         
         self.z_x = nn.Sequential(
-            nn.Linear(input_size, hidden_size))
+            nn.Linear(
+                in_features = input_size, 
+                out_features = hidden_size))
         self.z_h = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size))
+            nn.Linear(
+                in_features = hidden_size, 
+                out_features = hidden_size))
         
         self.n_x = nn.Sequential(
-            nn.Linear(input_size, hidden_size))
+            nn.Linear(
+                in_features = input_size, 
+                out_features = hidden_size))
         self.n_h = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size))
+            nn.Linear(
+                in_features = hidden_size, 
+                out_features = hidden_size))
         
         self.apply(init_weights)
         self.to(args.device)

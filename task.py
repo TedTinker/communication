@@ -4,6 +4,7 @@ from math import cos, sin, pi, degrees
 import torch
 import pybullet as p
 import numpy as np
+from time import sleep
 
 from utils import default_args, shape_map, color_map, action_map, make_object, pad_zeros,\
     string_to_onehots, onehots_to_string, print, relative_to, opposite_relative_to
@@ -94,35 +95,14 @@ class Task_Runner:
             if(self.parenting):
                 return(
                     torch.zeros((1, self.args.image_size, self.args.image_size, 4)),
-                    torch.zeros((1, 1)),
                     None)
             else:
                 arena = self.arena_2
-        pos, yaw, spe = arena.get_pos_yaw_spe()
-        x, y = cos(yaw), sin(yaw)
-        view_matrix = p.computeViewMatrix(
-            cameraEyePosition = [pos[0] + x, pos[1] + y, 2], 
-            cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    # Camera / target position very important
-            cameraUpVector = [0, 0, 1], physicsClientId = arena.physicsClient)
-        proj_matrix = p.computeProjectionMatrixFOV(
-            fov = 90, aspect = 1, nearVal = .01, 
-            farVal = 10, physicsClientId = arena.physicsClient)
-        _, _, rgba, depth, _ = p.getCameraImage(
-            width=self.args.image_size, height=self.args.image_size,
-            projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
-            physicsClientId = arena.physicsClient)
-        
-        rgb = np.divide(rgba[:,:,:-1], 255)
-        d = np.nan_to_num(np.expand_dims(depth, axis=-1), nan=1)
-        if(d.max() == d.min()): pass
-        else: d = (d.max() - d)/(d.max()-d.min())
-        rgbd = np.concatenate([rgb, d], axis = -1)
+        rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
-        spe = torch.tensor(spe).unsqueeze(0).unsqueeze(0)
-        
-        return(rgbd, spe, self.task.goal_comm)
+        return(rgbd, self.task.goal_comm)
     
-    def change_velocity(self, yaw_change, speed, right_shoulder, right_arm, right_hand, left_shoulder, left_arm, left_hand, agent_1 = True, verbose = False):
+    def change_velocity(self, yaw_change, shoulder, arm, agent_1 = True, verbose = False):
         if(agent_1): arena = self.arena_1
         else:        arena = self.arena_2
         pos, yaw, spe = arena.get_pos_yaw_spe()
@@ -132,46 +112,44 @@ class Task_Runner:
         new_yaw %= 2*pi
         arena.setBasePositionAndOrientation((pos[0], pos[1], 1), new_yaw)
         
-        old_speed = spe
-        x = cos(new_yaw)*speed
-        y = sin(new_yaw)*speed
-        arena.setBaseVelocity(x, y)
-        
-        arena.setArmsAndHands(right_shoulder, right_arm, right_hand, left_shoulder, left_arm, left_hand)
+        arena.setArmsAndHands(shoulder, arm)
                 
         if(verbose):
             print("\nOld yaw:\t{}\nChange:\t\t{}\nNew yaw:\t{}".format(
                 round(degrees(old_yaw)) % 360, round(degrees(yaw_change)), round(degrees(new_yaw))))
-            print("Old speed:\t{}\nNew speed:\t{}".format(old_speed, speed))
             #self.render(view = "body")  
             
     def step(self, action, agent_1 = True, verbose = False):
         if(agent_1): arena = self.arena_1
         else:        arena = self.arena_2
-        yaw, spe, right_shoulder, right_arm, right_hand, left_shoulder, left_arm, left_hand = \
-            action[0].item(), action[1].item(), action[2].item(), action[3].item(), action[4].item(), action[5].item(), action[6].item(), action[7].item()
+        yaw, shoulder, arm = \
+            action[0].item(), action[1].item(), action[2].item()
         
         yaw = -yaw * self.args.max_yaw_change
         yaw = [-self.args.max_yaw_change, self.args.max_yaw_change, yaw] 
         yaw.sort() 
         yaw = yaw[1]
       
-        spe = relative_to(spe, self.args.min_speed, self.args.max_speed)
-        right_shoulder = relative_to(right_shoulder, self.args.min_shoulder, self.args.max_shoulder)
-        right_arm = -relative_to(right_arm, self.args.min_arm, self.args.max_arm)
-        right_hand = -relative_to(right_hand, self.args.min_hand, self.args.max_hand)
-        left_shoulder = relative_to(left_shoulder, self.args.min_shoulder, self.args.max_shoulder)
-        left_arm = relative_to(left_arm, self.args.min_arm, self.args.max_arm)
-        left_hand = relative_to(left_hand, self.args.min_hand, self.args.max_hand)
         if(verbose): 
             print("\n\nStep {}:".format(self.steps))
-            print("Yaw: {}. Speed: {}. Shoulders: {}. Arms: {}. Hands: {}.".format(
-            round(degrees(yaw)), round(spe), (round(degrees(right_shoulder)), round(degrees(left_shoulder))), (round(degrees(right_arm)), round(degrees(left_arm))), (round(degrees(right_hand)), round(degrees(left_hand)))))
+            print("Yaw: {}. Shoulders: {}. Arms: {}. Hands: {}.".format(
+            round(degrees(yaw)), round(degrees(shoulder)), round(degrees(arm))))
         
+        shoulder_before, arm_before = arena.get_arm_angles()
+        shoulder_before = -opposite_relative_to(shoulder_before, self.args.min_shoulder, self.args.max_shoulder)
+        arm_before = opposite_relative_to(arm_before, self.args.min_arm, self.args.max_arm)
+        #print("\n\nSTART: {}, to {}.".format(shoulder_before, shoulder))
         for s in range(self.args.steps_per_step):
-            self.change_velocity(yaw/self.args.steps_per_step, spe, right_shoulder, right_arm, right_hand, left_shoulder, left_arm, left_hand, verbose = verbose if s == 0 else False)
+            portion = (s+1)/self.args.steps_per_step
+            current_shoulder = (shoulder * portion) + (shoulder_before * (1 - portion))
+            current_arm = (arm * portion) + (arm_before * (1 - portion))
+            self.change_velocity(
+                yaw/self.args.steps_per_step, 
+                current_shoulder, 
+                current_arm,  
+                verbose = verbose if s == 0 else False)
+            #print("{} + {} = {}".format(shoulder * portion, shoulder_before * (1 - portion), current_shoulder))
             arena.step()
-        
         reward, win = arena.rewards()
         return(reward, win)
         
@@ -217,112 +195,85 @@ class Task_Runner:
         goal_action = goal[0]
         goal_shape = list(shape_map)[goal[1][0]]
         goal_color = list(color_map.values())[goal[1][1]]
-        distance_angles = []
-        for i, ((shape, color, old_pos), object_num) in enumerate(arena.objects_in_play.items()):
-            if(shape != goal_shape or color != goal_color): pass 
-            else:
-                object_pos, _ = p.getBasePositionAndOrientation(object_num, physicsClientId=arena.physicsClient)
-                agent_pos, agent_ori = p.getBasePositionAndOrientation(arena.body_num)
-                distance_vector = np.subtract(object_pos, agent_pos)
-                distance = np.linalg.norm(distance_vector)
-                normalized_distance_vector = distance_vector / distance
-                rotation_matrix = p.getMatrixFromQuaternion(agent_ori)
-                forward_vector = np.array([rotation_matrix[0], rotation_matrix[3], rotation_matrix[6]])
-                forward_vector /= np.linalg.norm(forward_vector)
-
-                dot_product = np.dot(forward_vector, normalized_distance_vector)
-                angle_radians = np.arccos(np.clip(dot_product, -1.0, 1.0))  
-                cross_product = np.cross(forward_vector, normalized_distance_vector)
-                if cross_product[2] < 0:  
-                    angle_radians = -angle_radians
-                distance_angles.append((distance, angle_radians))
                 
-        distance, angle = min(distance_angles, key=lambda t: abs(t[1]))
+        distances = []
+        hand_distances = []
+        angles = []
+        shapes = []
+        colors = []
+        for i, ((shape, color, old_pos), object_num) in enumerate(arena.objects_in_play.items()):
+            object_pos, _ = p.getBasePositionAndOrientation(object_num, physicsClientId=arena.physicsClient)
+            agent_pos, agent_ori = p.getBasePositionAndOrientation(arena.body_num)
+            distance_vector = np.subtract(object_pos, agent_pos)
+            distance = np.linalg.norm(distance_vector)
+            normalized_distance_vector = distance_vector / distance
+            rotation_matrix = p.getMatrixFromQuaternion(agent_ori)
+            forward_vector = np.array([rotation_matrix[0], rotation_matrix[3], rotation_matrix[6]])
+            forward_vector /= np.linalg.norm(forward_vector)
+            dot_product = np.dot(forward_vector, normalized_distance_vector)
+            angle_radians = np.arccos(np.clip(dot_product, -1.0, 1.0))  
+            cross_product = np.cross(forward_vector, normalized_distance_vector)
+            if cross_product[2] < 0:  
+                angle_radians = -angle_radians
+            distances.append(distance)
+            angles.append(angle_radians)
+            shapes.append(shape)
+            colors.append(color)
         
+        relevant_distances_and_angles = [(distances[i], angles[i]) for i in range(len(distances)) if shapes[i] == goal_shape and colors[i] == goal_color]
+        relevant_distance, relevant_angle = min(relevant_distances_and_angles, key=lambda t: abs(t[1]))
+                        
         if(verbose):
-            print("\nDISTANCE:", distance, "ANGLE:", angle, "\n")
+            print("\nDISTANCE:", relevant_distance, "ANGLE:", relevant_angle, "\n")
 
-        angle /= self.args.max_yaw_change
-        yaw_change = [-1, 1, -angle]
-        yaw_change.sort() 
-        yaw_change = yaw_change[1]
+        relevant_angle /= self.args.max_yaw_change
+        relevant_angle += (-.5 if goal_action == "LEFT" else .2 if goal_action == "RIGHT" else 0)
         
-        speed = 0
-        right_shoulder = .5 if goal_action.upper() == "TOUCH" else -1
-        right_arm = 0
-        right_hand = 1
-        left_shoulder = .5 if goal_action.upper() == "TOUCH" else -1
-        left_arm = 0
-        left_hand = 1
+        # By default: Turn toward closest relevent object, shoulder up, arm halfway out. 
+        # For 'watch,' that's all needed!
+        yaw_change = relative_to(-relevant_angle, -1, 1)
+        shoulder = 1
+        arm = 0
         
-        right_shoulder_before, right_arm_before, right_hand_before,\
-            left_shoulder_before, left_arm_before, left_hand_before = arena.get_arm_angles()
-        right_shoulder_before = opposite_relative_to(right_shoulder_before, self.args.min_shoulder, self.args.max_shoulder)
-        right_arm_before = opposite_relative_to(right_arm_before, -self.args.min_arm, -self.args.max_arm)
-        right_hand_before = opposite_relative_to(right_hand_before, -self.args.min_hand, -self.args.max_hand)
-        left_shoulder_before = opposite_relative_to(left_shoulder_before, self.args.min_shoulder, self.args.max_shoulder)
-        left_arm_before = opposite_relative_to(left_arm_before, self.args.min_arm, self.args.max_arm)
-        left_hand_before = opposite_relative_to(left_hand_before, self.args.min_hand, self.args.max_hand)
+        shoulder_before, arm_before = arena.get_arm_angles()
+        shoulder_before = -opposite_relative_to(shoulder_before, self.args.min_shoulder, self.args.max_shoulder)
+        arm_before = opposite_relative_to(arm_before, self.args.min_arm, self.args.max_arm)
         
-        if(abs(angle) < pi/8):
-            if(goal_action.upper() == "WATCH"):
-                if(distance < self.args.watch_distance):
-                    speed = -1
-            elif(goal_action.upper() == "TOUCH"):
-                speed = 1
-            elif(goal_action.upper() in ["LIFT", "PULL"]):
-                if(distance > 3.5 and goal_action.upper() == "PULL"):
-                    speed = .5
-                elif(distance > 4):
-                    speed = 1
-                else:
-                    if(goal_action.upper() == "LIFT"):
-                        if(right_shoulder_before < -.95 and left_shoulder_before < -.95):
-                            if(right_arm_before < .1 and left_arm_before < .1):
-                                right_arm = 1
-                                left_arm = 1
-                            else:
-                                right_shoulder = 1
-                                right_hand = -1
-                                left_shoulder = 1
-                                left_hand = -1
-                    if(goal_action.upper() == "PULL"):
-                        if(right_shoulder_before < -.95 and left_shoulder_before < -.95):
-                            if(right_arm_before < .1 and left_arm_before < .1):
-                                right_arm = 1
-                                left_arm = 1
-                            else:
-                                right_shoulder = .5
-                                right_hand = -1
-                                left_shoulder = .5
-                                left_hand = -1
-                        if(right_shoulder_before > 0 and left_shoulder_before > 0):
-                            speed = -1
-            elif(goal_action.upper() == "SPIN"):
-                if(distance > 4):
-                    speed = .75
-                else:
-                    if(right_shoulder_before < -.95):
-                        if(right_arm_before < .1):
-                            right_arm = 1
-                        else:
-                            right_shoulder = .5
-                            right_hand = -1
+        #print("shoulder before:", round(shoulder_before,2), "\tarm before:", round(arm_before,2))
+        
+        # If pointed at valid object, move arm based on goal.
+        if(goal_action in ["PUSH", "PULL"] and abs(relevant_angle) < pi/8):
+            push = goal_action == "PUSH"
+            pull = goal_action == "PULL"
+            arm = -1 if push else 1
+            if((push and arm_before < -.8) or
+                (pull and arm_before > .8)):
+                shoulder = -1
+            if(shoulder_before <= 0 and 
+                ((push and arm_before < 0) or 
+                (pull and arm_before > 0))):
+                arm = arm_before + (.5 if push else -.5)
+                shoulder = -1
+                    
+        if(goal_action in ["LEFT", "RIGHT"]):
+            arm = 1
+            if(abs(relevant_angle) < pi/8):
+                left = goal_action == "LEFT"
+                right = goal_action == "RIGHT"
+                shoulder = -1
+                if(shoulder_before <= 0):
+                    yaw_change += -.2 if left else .2
+            
+        #print("shoulder after:", shoulder, "\tarm after:", arm)
                 
         return(torch.tensor([
             yaw_change,
-            speed,
-            right_shoulder,
-            right_arm,
-            right_hand,
-            left_shoulder,
-            left_arm,
-            left_hand]).float())
+            shoulder,
+            arm]).float())
     
     
     
 if __name__ == "__main__":        
-    from time import sleep
     import matplotlib.pyplot as plt
     args = default_args
     
@@ -330,7 +281,7 @@ if __name__ == "__main__":
     
     def get_images():
         rgba = task_runner.arena_1.photo_from_above()
-        rgbd, _ , _ = task_runner.obs()
+        rgbd, _ = task_runner.obs()
         rgb = rgbd[0,:,:,0:3]
         return(rgba, rgb)
         
@@ -353,7 +304,7 @@ if __name__ == "__main__":
 
     while(True):
         images = []
-        task_runner.begin(goal_action = "LIFT", verbose = True)
+        task_runner.begin(goal_action = "LEFT", verbose = True)
         done = False
         while(done == False):
             images.append(get_images())

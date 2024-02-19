@@ -55,10 +55,6 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
     text_list.append(None)
     image_list.append(rgbd)
     label_list.append(f"RGBD ({agent_num}):")
-    
-    speed = episode_dict[f"speeds_{agent_num}"][step]
-    text_list.append(speed)
-    label_list.append(f"Speed ({agent_num}):")
 
     comms_in = episode_dict[f"comms_in_{agent_num}"][step]
     text_list.append(comms_in)
@@ -93,10 +89,6 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         text_list.append(None)
         image_list.append(rgbd_p)
         label_list.append(f"Predicted RGBD (Prior) ({agent_num}):")
-        
-        speed_p = episode_dict[f"prior_predicted_speeds_{agent_num}"][step]
-        text_list.append(speed_p)
-        label_list.append(f"Predicted Speed (Prior) ({agent_num}):")
 
         comms_in_p = episode_dict[f"prior_predicted_comms_in_{agent_num}"][step]
         text_list.append(comms_in_p)
@@ -106,10 +98,6 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         text_list.append(None)
         image_list.append(rgbd_q)
         label_list.append(f"Predicted RGBD (Posterior) ({agent_num}):")
-        
-        speed_q = episode_dict[f"posterior_predicted_speeds_{agent_num}"][step]
-        text_list.append(speed_q)
-        label_list.append(f"Predicted Speed (Posterior) ({agent_num}):")
 
         comms_in_q = episode_dict[f"posterior_predicted_comms_in_{agent_num}"][step]
         text_list.append(comms_in_q)

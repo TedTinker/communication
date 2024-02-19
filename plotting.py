@@ -6,7 +6,7 @@ import numpy as np
 from math import log
 from itertools import accumulate
 
-from utils import args, duration, load_dicts, print, real_names
+from utils import args, duration, load_dicts, print, real_names, action_name_list
 
 print("name:\n{}\n".format(args.arg_name),)
 
@@ -155,10 +155,10 @@ def plots(plot_dicts, min_max_dict):
             for x in xs: here.axvline(x=x, color = (0,0,0,.2))
     
         # Rolling win-rate
-        for action_name in ["touch", "watch", "lift", "pull", "spin"]:
+        for action_name in action_name_list:
             print("wins_" + action_name)
             # Difficulty: Comparing things which may or may not be None. I've been assuming same Nones every time!
-            win_dict = get_quantiles(plot_dict, "wins_" + action_name, adjust_xs = False)
+            win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), adjust_xs = False)
             win_dict = get_rolling_average(win_dict)
                 
             def plot_rolling_average_wins_shared_min_max(here):
@@ -174,7 +174,7 @@ def plots(plot_dicts, min_max_dict):
             fig2, ax2 = plt.subplots(figsize = figsize)  
             plot_rolling_average_wins_shared_min_max(ax2)  
             ax2.set_title("Rolling-Average Win-Rate")
-            fig2.savefig("thesis_pics/wins_{}_{}.png".format(action_name, plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
+            fig2.savefig("thesis_pics/wins_{}_{}.png".format(action_name.lower(), plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
             plt.close(fig2)
     
         # Cumulative rewards
@@ -252,34 +252,33 @@ def plots(plot_dicts, min_max_dict):
         if(not too_many_plot_dicts): 
             # Forward Losses
             rgbd_dict = get_quantiles(plot_dict, "rgbd_loss")
-            speed_dict = get_quantiles(plot_dict, "speed_loss")
             comm_dict = get_quantiles(plot_dict, "comm_loss")
             accuracy_dict = get_quantiles(plot_dict, "accuracy")
             comp_dict = get_quantiles(plot_dict, "complexity")
             min_max = many_min_max([min_max_dict["accuracy"], min_max_dict["complexity"]])
             
+            handles = []
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            h1 = awesome_plot(ax, rgbd_dict, "blue", "RGBD-Loss")
-            h2 = awesome_plot(ax, speed_dict, "cyan", "Speed-Loss")
-            h3 = awesome_plot(ax, comm_dict, "red", "Comm-Loss")
-            h4 = awesome_plot(ax, accuracy_dict, "purple", "Accuracy")
-            h5 = awesome_plot(ax, comp_dict, "green",  "Complexity")
+            handles.append(awesome_plot(ax, rgbd_dict, "blue", "RGBD-Loss"))
+            handles.append(awesome_plot(ax, comm_dict, "red", "Comm-Loss"))
+            handles.append(awesome_plot(ax, accuracy_dict, "purple", "Accuracy"))
+            handles.append(awesome_plot(ax, comp_dict, "green",  "Complexity"))
             ax.set_ylabel("Loss")
             ax.set_xlabel("Epochs")
-            ax.legend(handles = [h1, h2, h3, h4, h5])
+            ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nForward Losses")
             divide_arenas(accuracy_dict, ax)
             
-            min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["speed_loss"], min_max_dict["comm_loss"], min_max_dict["accuracy"], min_max_dict["complexity"]])
+            handles = []
+            min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["comm_loss"], min_max_dict["accuracy"], min_max_dict["complexity"]])
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            h1 = awesome_plot(ax, rgbd_dict, "blue", "RGBD-Loss", min_max)
-            h2 = awesome_plot(ax, speed_dict, "cyan", "Speed-Loss", min_max)
-            h3 = awesome_plot(ax, comm_dict, "red", "Comm-Loss", min_max)
-            h4 = awesome_plot(ax, accuracy_dict, "purple", "Accuracy", min_max)
-            h5 = awesome_plot(ax, comp_dict, "green",  "Complexity", min_max)
+            handles.append(awesome_plot(ax, rgbd_dict, "blue", "RGBD-Loss", min_max))
+            handles.append(awesome_plot(ax, comm_dict, "red", "Comm-Loss", min_max))
+            handles.append(awesome_plot(ax, accuracy_dict, "purple", "Accuracy", min_max))
+            handles.append(awesome_plot(ax, comp_dict, "green",  "Complexity", min_max))
             ax.set_ylabel("Loss")
             ax.set_xlabel("Epochs")
-            ax.legend(handles = [h1, h2, h3, h4, h5])
+            ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nForward Losses, shared min/max")
             divide_arenas(accuracy_dict, ax)
             
@@ -287,34 +286,32 @@ def plots(plot_dicts, min_max_dict):
             
             # Log Forward Losses
             log_rgbd_dict = get_logs(rgbd_dict)
-            log_speed_dict = get_logs(speed_dict)
             log_comm_dict = get_logs(comm_dict)
             log_accuracy_dict = get_logs(accuracy_dict)
             log_comp_dict = get_logs(comp_dict)
-            
+            handles = []
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            h1 = awesome_plot(ax, log_rgbd_dict, "blue", "RGBD-Loss")
-            h2 = awesome_plot(ax, log_speed_dict, "cyan", "Speed-Loss")
-            h3 = awesome_plot(ax, log_comm_dict, "red", "Comm-Loss")
-            h4 = awesome_plot(ax, log_accuracy_dict, "purple", "Accuracy")
-            h5 = awesome_plot(ax, log_comp_dict, "green",  "Complexity")
+            handles.append(awesome_plot(ax, log_rgbd_dict, "blue", "RGBD-Loss"))
+            handles.append(awesome_plot(ax, log_comm_dict, "red", "Comm-Loss"))
+            handles.append(awesome_plot(ax, log_accuracy_dict, "purple", "Accuracy"))
+            handles.append(awesome_plot(ax, log_comp_dict, "green",  "Complexity"))
             ax.set_ylabel("Loss")
             ax.set_xlabel("Epochs")
-            ax.legend(handles = [h1, h2, h3, h4, h5])
+            ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nlog Forward Losses")
             divide_arenas(accuracy_dict, ax)
             
             try:
+                handles = []
                 min_max = (log(min_max[0]), log(min_max[1]))
                 ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-                h1 = awesome_plot(ax, log_rgbd_dict, "blue", "RGBD-Loss", min_max)
-                h2 = awesome_plot(ax, log_speed_dict, "cyan", "Speed-Loss", min_max)
-                h3 = awesome_plot(ax, log_comm_dict, "red", "Comm-Loss", min_max)
-                h4 = awesome_plot(ax, log_accuracy_dict, "purple", "Accuracy", min_max)
-                h5 = awesome_plot(ax, log_comp_dict, "green",  "Complexity", min_max)
+                handles.append(awesome_plot(ax, log_rgbd_dict, "blue", "RGBD-Loss", min_max))
+                handles.append(awesome_plot(ax, log_comm_dict, "red", "Comm-Loss", min_max))
+                handles.append(awesome_plot(ax, log_accuracy_dict, "purple", "Accuracy", min_max))
+                handles.append(awesome_plot(ax, log_comp_dict, "green",  "Complexity", min_max))
                 ax.set_ylabel("Loss")
                 ax.set_xlabel("Epochs")
-                ax.legend(handles = [h1, h2, h3, h4, h5])
+                ax.legend(handles = handles)
                 ax.set_title(plot_dict["arg_title"] + "\nlog Forward Losses, shared min/max")
                 divide_arenas(accuracy_dict, ax)
             except: pass
@@ -326,35 +323,37 @@ def plots(plot_dicts, min_max_dict):
             actor_dict = get_quantiles(plot_dict, "actor")
             crit_dicts = get_list_quantiles(plot_dict["critics"], plot_dict)
             
+            handles = []
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            h1 = awesome_plot(ax, actor_dict, "red", "Actor")
+            handles.append(awesome_plot(ax, actor_dict, "red", "Actor"))
             ax.set_ylabel("Actor Loss")
             ax2 = ax.twinx()
-            h2 = awesome_plot(ax2, crit_dicts[0], "blue", "log Critic 1")
+            handles.append(awesome_plot(ax2, crit_dicts[0], "blue", "log Critic 1"))
             ax2.set_ylabel("log Critic Losses")
             ax3 = ax.twinx()
             ax3.spines["right"].set_position(("axes", 1.08))
-            h3 = awesome_plot(ax3, alpha_dict, "black", "Alpha")
+            handles.append(awesome_plot(ax3, alpha_dict, "black", "Alpha"))
             ax3.set_ylabel("Alpha Loss")
             ax.set_xlabel("Epochs")
-            ax.legend(handles = [h1, h2, h3])
+            ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nOther Losses")
             divide_arenas(actor_dict, ax)
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             crit_min_max = many_min_max([crit_min_max for crit_min_max in min_max_dict["critics"]])
             
-            h1 = awesome_plot(ax, actor_dict, "red", "Actor", min_max_dict["actor"])
+            handles = []
+            handles.append(awesome_plot(ax, actor_dict, "red", "Actor", min_max_dict["actor"]))
             ax.set_ylabel("Actor Loss")
             ax.set_xlabel("Epochs")
             ax2 = ax.twinx()
-            h2 = awesome_plot(ax2, crit_dicts[0], "blue", "log Critic", crit_min_max)
+            handles.append(awesome_plot(ax2, crit_dicts[0], "blue", "log Critic", crit_min_max))
             ax2.set_ylabel("log Critic Losses")
             ax3 = ax.twinx()
             ax3.spines["right"].set_position(("axes", 1.08))
-            h3 = awesome_plot(ax3, alpha_dict, "black", "Alpha", min_max_dict["alpha"])
+            handles.append(awesome_plot(ax3, alpha_dict, "black", "Alpha", min_max_dict["alpha"]))
             ax3.set_ylabel("Alpha Loss")
-            ax.legend(handles = [h1, h3])
+            ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nOther Losses, shared min/max")
             divide_arenas(actor_dict, ax)
             

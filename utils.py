@@ -1,9 +1,9 @@
 #%% 
 
 # To do: 
-#   Big win from Tani: Make it watch, push, pull, left, and right.
-#   Plot win-rates for different tasks separately?
-#   Separate curiosities based on predicting observations or communication.
+#   "Speed right" isn't good; it gives a win if the agent is turning relative to the object!
+#   Add sense of touch?
+#   Predict change in image instead of image?
 #   Fix high memory-use.
 
 import os
@@ -97,12 +97,13 @@ if(__name__ == "__main__"):
     plt.close()
             
 action_map = {
-    0: "TOUCH", 
-    1: "WATCH", 
-    2: "LIFT", 
-    3: "PULL", 
-    4: "SPIN"}
+    0: "WATCH",  
+    1: "PUSH", 
+    2: "PULL", 
+    3: "LEFT", 
+    4: "RIGHT"}
 max_len_action_name = len(max(action_map.values(), key=len))
+action_name_list = list(action_map.values())
 
 comm_map = {
     0: ' ', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G',
@@ -128,7 +129,7 @@ start_time = datetime.datetime.now()
 
 def duration(start_time = start_time):
     change_time = datetime.datetime.now() - start_time
-    change_time = change_time - datetime.timedelta(microseconds=change_time.microseconds)
+    change_time = change_time# - datetime.timedelta(microseconds=change_time.microseconds)
     return(change_time)
 
 def estimate_total_duration(proportion_completed, start_time=start_time):
@@ -189,48 +190,40 @@ parser.add_argument('--colors',             type=int,        default = 6,
                     help='Maximum count of colors in one episode.')
 parser.add_argument('--max_comm_len',       type=int,        default = 20,
                     help='Maximum length of communication.')
+parser.add_argument('--watch_duration',     type=int,        default = 3,
+                    help='How long must the agent watch the object to achieve watching.')
+parser.add_argument('--push_speed',         type=float,      default = 1,
+                    help='Needed speed of an object for push/pull/left/right.')
 
     # Simulation details
 parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
-parser.add_argument('--image_size',         type=int,        default = 16,
+parser.add_argument('--image_size',         type=int,        default = 8,
                     help='Dimensions of the images observed.')
 parser.add_argument('--max_yaw_change',     type=float,      default = pi/2,
                     help='Max amount agent can change angle, in radians.')
-parser.add_argument('--min_speed',          type=float,      default = -100,
-                    help='Agent\'s minimum speed.')
-parser.add_argument('--max_speed',          type=float,      default = 100,
-                    help='Agent\'s maximum speed.')
-parser.add_argument('--min_shoulder',       type=float,      default = -1.3,
+parser.add_argument('--min_shoulder',       type=float,      default = -pi/2,
                     help='Agent\'s minimum shoulder angle.')
-parser.add_argument('--max_shoulder',       type=float,      default = .4,
+parser.add_argument('--max_shoulder',       type=float,      default = 0,
                     help='Agent\'s maximum shoulder angle.')
-parser.add_argument('--min_arm',            type=float,      default = -1,
-                    help='Agent\'s minimum arm angle.')
-parser.add_argument('--max_arm',            type=float,      default = .75,
-                    help='Agent\'s maximum arm angle.')
-parser.add_argument('--min_hand',           type=float,      default = -1,
-                    help='Agent\'s minimum hand angle.')
-parser.add_argument('--max_hand',           type=float,      default = 0,
-                    help='Agent\'s maximum hand angle.')
-parser.add_argument('--steps_per_step',     type=int,        default = 5,
+parser.add_argument('--min_arm',            type=float,      default = -1.5,
+                    help='Agent\'s minimum arm length.')
+parser.add_argument('--max_arm',            type=float,      default = 1.25,
+                    help='Agent\'s maximum arm length.')
+parser.add_argument('--object_distance',    type=float,      default = 3.5,
+                    help='How far objects are from the agent.')
+parser.add_argument('--steps_per_step',     type=int,        default = 1,
                     help='To avoid intersections, simulation makes each episode step multiple simulation steps.')
-parser.add_argument('--watch_duration',     type=int,        default = 3,
-                    help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--watch_distance',     type=int,        default = 5,
-                    help='Minimum distance for watching an object.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [100],
+parser.add_argument('--epochs',             type=literal,    default = [1000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--batch_size',         type=int,        default = 64, 
                     help='How many episodes are sampled for each epoch.')      
 parser.add_argument('--rgbd_scaler',        type=float,      default = 1, 
-                    help='How much to consider rgbd prediction in accuracy compared to comm and speed.')  
-parser.add_argument('--speed_scaler',       type=float,      default = .00001, 
-                    help='How much to consider speed prediction in accuracy compared to rgbd and comm.')  
+                    help='How much to consider rgbd prediction in accuracy compared to comm.')  
 parser.add_argument('--comm_scaler',        type=float,      default = 1, 
-                    help='How much to consider comm prediction in accuracy compared to rgbd and speed.')       
+                    help='How much to consider comm prediction in accuracy compared to rgbd.')       
 
     # Memory buffer
 parser.add_argument('--capacity',           type=int,        default = 256,
@@ -241,7 +234,9 @@ parser.add_argument('--critics',            type=int,        default = 2,
                     help='How many critics?')   
 parser.add_argument('--hidden_size',        type=int,        default = 32,
                     help='Parameters in hidden layers.')   
-parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 64,
+parser.add_argument('--encode_size',        type=int,        default = 8,
+                    help='Parameters in encoding.')   
+parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 32,
                     help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
 parser.add_argument('--state_size',         type=int,        default = 128,
                     help='Parameters in prior and posterior inner-states.')
@@ -307,9 +302,9 @@ parser.add_argument('--keep_data',           type=int,        default = 10,
 parser.add_argument('--epochs_per_gen_test', type=int,        default = 10,
                     help='How many epochs should pass before trying generalization test.')
 
-parser.add_argument('--epochs_per_episode_dict',type=int,        default = 250,
+parser.add_argument('--epochs_per_episode_dict',type=int,        default = 500,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_episode_dict',type=int,        default = 1,
+parser.add_argument('--agents_per_episode_dict',type=int,        default = 3,
                     help='How many agents to save episodes.')
 parser.add_argument('--episodes_in_episode_dict',type=int,       default = 1,
                     help='How many episodes to save per agent.')
@@ -338,7 +333,7 @@ for arg_set in [default_args, args]:
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.object_shape = arg_set.shapes + arg_set.colors
     arg_set.comm_shape = len(comm_map)
-    arg_set.action_shape = 8
+    arg_set.action_shape = 3
     arg_set.max_comm_len = max([arg_set.max_comm_len, max_len_action_name + max_len_color_name + max_len_shape_name + 3])
     max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
     arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)
@@ -421,13 +416,8 @@ def action_to_string(action):
     while(len(action.shape) > 1):
         action = action.squeeze(0)
     string = "Yaw: {} ".format(round(action[0].item(),2))
-    string += "Speed: {}\n".format(round(action[1].item(),2))
-    string += "Right Shoulder: {} ".format(round(action[2].item(),2))
-    string += "Right Arm: {} ".format(round(action[3].item(),2))
-    string += "Right Hand: {}\n".format(round(action[4].item(),2))
-    string += "Left Shoulder: {} ".format(round(action[5].item(),2))
-    string += "Left Arm: {} ".format(round(action[6].item(),2))
-    string += "Left Hand: {} ".format(round(action[7].item(),2))
+    string += "Left Shoulder: {} ".format(round(action[1].item(),2))
+    string += "Left Arm: {} ".format(round(action[2].item(),2))
     return(string)
 
 
@@ -602,6 +592,8 @@ class Ted_Conv2d(nn.Module):
         
         self.Conv2ds = nn.ModuleList()
         for kernel, out_channel in zip(kernels, out_channels):
+            if(type(kernel) == int): 
+                kernel = (kernel, kernel)
             padding = ((kernel[0]-1)//2, (kernel[1]-1)//2)
             layer = nn.Sequential(
                 ConstrainedConv2d(

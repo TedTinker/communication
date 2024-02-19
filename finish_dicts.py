@@ -6,8 +6,8 @@ print("name:\n{}".format(args.arg_name))
 
 os.chdir("saved")
 folders = os.listdir() ; folders.sort()
-try: folders.remove("thesis_pics")
-except: pass 
+try: folders.remove("thesis_pics")                                                                                                                                                                          
+except: pass                                                                                                                                                                                
 print("\n{} folders.".format(len(folders)))
 
 plot_dicts = {}
@@ -15,11 +15,11 @@ for folder in folders:
     plot_dict = {} ; min_max_dict = {}
     files = os.listdir(folder) ; files.sort()
     print("{} files in folder {}.".format(len(files), folder))
-    for file in files:
+    for file in files:                                                                                                                                                                          
         if(file.split("_")[0] == "plot"): d = plot_dict    ; plot = True 
         if(file.split("_")[0] == "min"):  d = min_max_dict ; plot = False
         with open(folder + "/" + file, "rb") as handle: 
-            saved_d = pickle.load(handle) ; os.remove(folder + "/" + file)
+            saved_d = pickle.load(handle) ; os.remove(folder + "/" + file)              
         for key in saved_d.keys(): 
             if(not key in d): d[key] = []
             if(key in ["args", "arg_title", "arg_name"]): d[key] = saved_d[key]

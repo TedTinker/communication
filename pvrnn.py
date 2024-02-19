@@ -45,12 +45,12 @@ class PVRNN_LAYER(nn.Module):
         # Posterior: Previous hidden state, plus observation and action if bottom, plus lower-layer hidden state otherwise.
         self.zq_mu = nn.Sequential(
                 nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size + (5 * self.args.hidden_size if self.bottom else self.args.pvrnn_mtrnn_size), 
+                    in_features = self.args.pvrnn_mtrnn_size + (4 * self.args.hidden_size if self.bottom else self.args.pvrnn_mtrnn_size), 
                     out_features = self.args.state_size), 
                 nn.Tanh())
         self.zq_std = nn.Sequential(
                 nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size + (5 * self.args.hidden_size if self.bottom else self.args.pvrnn_mtrnn_size), 
+                    in_features = self.args.pvrnn_mtrnn_size + (4 * self.args.hidden_size if self.bottom else self.args.pvrnn_mtrnn_size), 
                     out_features = self.args.state_size), 
                 nn.Softplus())
                             
@@ -67,7 +67,7 @@ class PVRNN_LAYER(nn.Module):
     def forward(
         self, 
         prev_hidden_states, 
-        rgbd = None, speed = None, comms_in = None, prev_actions = None, prev_comms_out = None, 
+        rgbd = None, comms_in = None, prev_actions = None, prev_comms_out = None, 
         hidden_states_below = None, 
         prev_hidden_states_above = None):
                 
@@ -77,7 +77,7 @@ class PVRNN_LAYER(nn.Module):
             mask, last_indexes = create_comm_mask(prev_comms_out)
             prev_comms_out *= mask.unsqueeze(-1).tile((1,self.args.comm_shape))
             
-            obs = self.obs_in(rgbd, speed, comms_in)
+            obs = self.obs_in(rgbd, comms_in)
             prev_actions = self.action_in(prev_actions)
             prev_comms_out = self.comm_in(prev_comms_out)
             zp_inputs = torch.cat([prev_hidden_states, prev_actions, prev_comms_out], dim = -1)
@@ -120,9 +120,8 @@ if __name__ == "__main__":
     print(torch_summary(bottom_top_layer, 
                         ((episodes, 1, args.pvrnn_mtrnn_size), 
                          (episodes, 1, args.image_size, args.image_size, 4), 
-                         (episodes, 1, 1), 
                          (episodes, 1, args.max_comm_len, args.comm_shape),
-                         (episodes, 1, args.actions + args.objects),
+                         (episodes, 1, args.action_shape),
                          (episodes, 1, args.max_comm_len, args.comm_shape))))
     
     bottom_layer = PVRNN_LAYER(bottom = True, args = args)
@@ -133,9 +132,8 @@ if __name__ == "__main__":
     print(torch_summary(bottom_layer, 
                         ((episodes, 1, args.pvrnn_mtrnn_size), 
                          (episodes, 1, args.image_size, args.image_size, 4), 
-                         (episodes, 1, 1), 
                          (episodes, 1, args.max_comm_len, args.comm_shape),
-                         (episodes, 1, args.actions + args.objects),
+                         (episodes, 1, args.action_shape),
                          (episodes, 1, args.max_comm_len, args.comm_shape),
                          (1,), # No hidden_states_below 
                          (episodes, 1, args.pvrnn_mtrnn_size))))
@@ -148,7 +146,6 @@ if __name__ == "__main__":
     print(torch_summary(top_layer, 
                         ((episodes, 1, args.pvrnn_mtrnn_size), 
                          (1,), # No rgbd
-                         (1,), # No speed
                          (1,), # No comms in
                          (1,), # No actions
                          (1,), # No comms out 
@@ -162,7 +159,6 @@ if __name__ == "__main__":
     print(torch_summary(middle_layer, 
                         ((episodes, 1, args.pvrnn_mtrnn_size), 
                          (1,), # No rgbd
-                         (1,), # No speed
                          (1,), # No comms in
                          (1,), # No actions
                          (1,), # comms out
@@ -195,14 +191,12 @@ class PVRNN(nn.Module):
         
     def predict(self, h, action, comm_out):
         h_w_actions = torch.cat([h, self.pvrnn_layers[0].action_in(action), self.pvrnn_layers[0].comm_in(comm_out)], dim = -1)
-        pred_rgbd, pred_speed, pred_comms = self.predict_obs(h_w_actions)
-        return(pred_rgbd, pred_speed, pred_comms)
+        pred_rgbd, pred_comms = self.predict_obs(h_w_actions)
+        return(pred_rgbd, pred_comms)
         
-    def bottom_to_top_step(self, prev_hidden_states, rgbd = None, speed = None, comms = None, prev_actions = None, prev_comms_out = None):
+    def bottom_to_top_step(self, prev_hidden_states, rgbd = None, comms = None, prev_actions = None, prev_comms_out = None):
         if(rgbd != None and len(rgbd.shape) == 4): 
             rgbd = rgbd.unsqueeze(1)
-        if(speed != None and len(speed.shape) == 2): 
-            speed = speed.unsqueeze(1)
         if(comms != None and len(comms.shape) == 3): 
             comms = comms.unsqueeze(1)
         if(prev_actions != None and len(prev_actions.shape) == 2): 
@@ -221,7 +215,7 @@ class PVRNN(nn.Module):
             (zp_mu, zp_std, new_hidden_states_p), (zq_mu, zq_std, new_hidden_states_q) = \
                 self.pvrnn_layers[layer](
                     prev_hidden_states[:,layer].unsqueeze(1), 
-                    rgbd, speed, comms, prev_actions, prev_comms_out,
+                    rgbd, comms, prev_actions, prev_comms_out,
                     new_hidden_states_list_q[-1] if layer > 0 else None, 
                     prev_hidden_states[:,layer+1].unsqueeze(1) if layer + 1 < self.args.layers else None)
     
@@ -239,7 +233,7 @@ class PVRNN(nn.Module):
             (zp_mu.unsqueeze(1), zp_std.unsqueeze(1), new_hidden_states_p.unsqueeze(1)),
             (zq_mu.unsqueeze(1), zq_std.unsqueeze(1), new_hidden_states_q.unsqueeze(1)))
     
-    def forward(self, prev_hidden_states, rgbd, speed, comms_in, prev_actions, prev_comms_out):
+    def forward(self, prev_hidden_states, rgbd, comms_in, prev_actions, prev_comms_out):
         zp_mu_list = []
         zp_std_list = []
         zq_mu_list = []
@@ -251,7 +245,7 @@ class PVRNN(nn.Module):
         
         for step in range(steps):
             (zp_mu, zp_std, new_hidden_states_p), (zq_mu, zq_std, new_hidden_states_q) = \
-                self.bottom_to_top_step(prev_hidden_states, rgbd[:,step], speed[:,step], comms_in[:,step], prev_actions[:,step], prev_comms_out[:,step])
+                self.bottom_to_top_step(prev_hidden_states, rgbd[:,step], comms_in[:,step], prev_actions[:,step], prev_comms_out[:,step])
             
             for l, o in zip(
                 [zp_mu_list, zp_std_list, zq_mu_list, zq_std_list, new_hidden_states_list_p, new_hidden_states_list_q],
@@ -265,12 +259,12 @@ class PVRNN(nn.Module):
             lists[i] = torch.cat(lists[i], dim=1)
         zp_mu, zp_std, zq_mu, zq_std, new_hidden_states_p, new_hidden_states_q = lists
         
-        pred_rgbd, pred_speed, pred_comms = self.predict(new_hidden_states_q[:,:-1,0], prev_actions[:,1:], prev_comms_out[:,1:])
+        pred_rgbd, pred_comms = self.predict(new_hidden_states_q[:,:-1,0], prev_actions[:,1:], prev_comms_out[:,1:])
         
         return(
             (zp_mu, zp_std, new_hidden_states_p),
             (zq_mu, zq_std, new_hidden_states_q),
-            (pred_rgbd, pred_speed, pred_comms))
+            (pred_rgbd, pred_comms))
         
         
         
@@ -287,9 +281,8 @@ if __name__ == "__main__":
     print(torch_summary(pvrnn, 
                         ((episodes, args.layers, args.pvrnn_mtrnn_size), 
                          (episodes, steps+1, args.image_size, args.image_size, 4), 
-                         (episodes, steps+1, 1), 
                          (episodes, steps+1, args.max_comm_len, args.comm_shape),
-                         (episodes, steps+1, args.actions + args.objects),
+                         (episodes, steps+1, args.action_shape),
                          (episodes, steps+1, args.max_comm_len, args.comm_shape))))
 """
     args.layers = 5
@@ -304,7 +297,9 @@ if __name__ == "__main__":
                         ((episodes, args.layers, args.hidden_size), 
                          (episodes, steps+1, args.objects, args.object_shape), 
                          (episodes, steps+1, args.max_comm_len, args.comm_shape),
-                         (episodes, steps+1, args.actions + args.objects),
+                         (episodes, steps+1, args.action_shape),
                          (episodes, steps+1, args.max_comm_len, args.comm_shape))))
 """
             
+
+# %%

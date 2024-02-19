@@ -32,10 +32,9 @@ class Actor(nn.Module):
 
         self.lin = nn.Sequential(
             nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + 5 * args.hidden_size, 
+                in_features = self.args.pvrnn_mtrnn_size, # + 4 * args.hidden_size, 
                 out_features = args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(.2))
+            nn.PReLU())
         
         self.mtrnn = MTRNN(
                 input_size = self.args.hidden_size,
@@ -58,24 +57,25 @@ class Actor(nn.Module):
         self.apply(init_weights)
         self.to(args.device)
 
-    def forward(self, rgbd, speed, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden, parented = False):
+    def forward(self, rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden, parented = False):
         if(len(forward_hidden.shape) == 2): forward_hidden = forward_hidden.unsqueeze(1)
-        if(len(comm_in.shape) == 2):  comm_in = comm_in.unsqueeze(0)
-        if(len(comm_in.shape) == 3):  comm_in = comm_in.unsqueeze(1)
-        if(len(prev_comm_out.shape) == 2):  prev_comm_out = prev_comm_out.unsqueeze(0)
-        if(len(prev_comm_out.shape) == 3):  prev_comm_out = prev_comm_out.unsqueeze(1)
+        #if(len(comm_in.shape) == 2):  comm_in = comm_in.unsqueeze(0)
+        #if(len(comm_in.shape) == 3):  comm_in = comm_in.unsqueeze(1)
+        #if(len(prev_comm_out.shape) == 2):  prev_comm_out = prev_comm_out.unsqueeze(0)
+        #if(len(prev_comm_out.shape) == 3):  prev_comm_out = prev_comm_out.unsqueeze(1)
         
-        mask, last_indexes = create_comm_mask(comm_in)
-        comm_in *= mask.unsqueeze(-1).tile((1,1,1,self.args.comm_shape))
-        mask, last_indexes = create_comm_mask(prev_comm_out)
-        prev_comm_out *= mask.unsqueeze(-1).tile((1,1,1,self.args.comm_shape))
+        #mask, last_indexes = create_comm_mask(comm_in)
+        #comm_in *= mask.unsqueeze(-1).tile((1,1,1,self.args.comm_shape))
+        #mask, last_indexes = create_comm_mask(prev_comm_out)
+        #prev_comm_out *= mask.unsqueeze(-1).tile((1,1,1,self.args.comm_shape))
         
-        obs = self.obs_in(rgbd, speed, comm_in)
-        prev_action = self.action_in(prev_action)
-        prev_comm_out_encoded = self.comm_in(prev_comm_out)
-        x = self.lin(torch.cat([obs, prev_action, prev_comm_out_encoded, forward_hidden], dim = -1))
-        x = self.mtrnn(x, action_hidden)
-        action_hidden = action_hidden[:,-1].unsqueeze(1)
+        #obs = self.obs_in(rgbd, comm_in)
+        #prev_action = self.action_in(prev_action)
+        #prev_comm_out_encoded = self.comm_in(prev_comm_out)
+        # x = torch.cat([obs, prev_action, prev_comm_out_encoded, forward_hidden], dim = -1)
+        x = self.lin(forward_hidden)
+        #x = self.mtrnn(x, action_hidden)
+        #action_hidden = action_hidden[:,-1].unsqueeze(1)
         
         mu, std = var(x, self.mu, self.std, self.args)
         sampled = sample(mu, std, self.args.device)
@@ -102,7 +102,6 @@ if __name__ == "__main__":
     print()
     print(torch_summary(actor,
                         ((episodes, steps, args.image_size, args.image_size, 4), 
-                         (episodes, steps, 1), 
                          (episodes, steps, args.max_comm_len, args.comm_shape), 
                          (episodes, steps, args.action_shape),
                          (episodes, steps, args.max_comm_len, args.comm_shape),
@@ -124,7 +123,7 @@ class Critic(nn.Module):
         
         self.lin = nn.Sequential(
             nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + 5 * self.args.hidden_size,
+                in_features = 4 * self.args.hidden_size,
                 out_features = self.args.hidden_size),
             nn.PReLU())
         
@@ -139,14 +138,13 @@ class Critic(nn.Module):
                 in_features = self.args.hidden_size,
                 out_features = self.args.hidden_size),
             nn.PReLU(),
-            nn.Dropout(.2),
             nn.Linear(                
                 in_features = self.args.hidden_size,
                 out_features = 1))
         
-    def forward(self, rgbd, speed, comm_in, action, comm_out, forward_hidden, critic_hidden):
+    def forward(self, rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden):
         if(len(action.shape) == 2): action = action.unsqueeze(1)
-        if(len(forward_hidden.shape) == 2): forward_hidden = forward_hidden.unsqueeze(1)
+        #if(len(forward_hidden.shape) == 2): forward_hidden = forward_hidden.unsqueeze(1)
         if(len(comm_in.shape) == 2):  comm_in = comm_in.unsqueeze(0)
         if(len(comm_in.shape) == 3):  comm_in = comm_in.unsqueeze(1)
         if(len(comm_out.shape) == 2):  comm_out = comm_out.unsqueeze(0)
@@ -156,10 +154,11 @@ class Critic(nn.Module):
         comm_in *= mask.unsqueeze(-1).tile((1,1,1,self.args.comm_shape))
         # Can't mask comm_out, or else actor loses backprop!
         
-        obs = self.obs_in(rgbd, speed, comm_in)
+        obs = self.obs_in(rgbd, comm_in)
         action = self.action_in(action)
         comm_out = self.comm_in(comm_out)
-        x = self.lin(torch.cat([obs, action, comm_out, forward_hidden], dim=-1))
+        x = torch.cat([obs, action, comm_out], dim=-1)
+        x = self.lin(x)
         value = self.mtrnn(x, critic_hidden)
         critic_hidden = value[:,-1].unsqueeze(1)
         value = self.value(value)
@@ -176,7 +175,6 @@ if __name__ == "__main__":
     print()
     print(torch_summary(critic, 
                         ((episodes, steps, args.image_size, args.image_size, 4), 
-                         (episodes, steps, 1), 
                          (episodes, steps, args.max_comm_len, args.comm_shape), 
                          (episodes, steps, args.action_shape),
                          (episodes, steps, args.max_comm_len, args.comm_shape),
