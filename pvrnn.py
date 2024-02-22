@@ -1,9 +1,10 @@
 #%%
 import torch
 from torch import nn
+from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, init_weights, var, sample, attach_list, detach_list, episodes_steps, pad_zeros, create_comm_mask
+from utils import default_args, init_weights, var, sample, attach_list, detach_list, episodes_steps, pad_zeros
 from mtrnn import MTRNN
 from submodules import Obs_IN, Obs_OUT, Action_IN, Comm_IN
 
@@ -12,7 +13,7 @@ from submodules import Obs_IN, Obs_OUT, Action_IN, Comm_IN
 if __name__ == "__main__":
     
     args = default_args
-    episodes = 4 ; steps = 3
+    episodes = args.batch_size ; steps = args.max_steps
 
 
 
@@ -72,11 +73,6 @@ class PVRNN_LAYER(nn.Module):
         prev_hidden_states_above = None):
                 
         if(self.bottom):
-            mask, last_indexes = create_comm_mask(comms_in)
-            comms_in *= mask.unsqueeze(-1).tile((1,self.args.comm_shape))
-            mask, last_indexes = create_comm_mask(prev_comms_out)
-            prev_comms_out *= mask.unsqueeze(-1).tile((1,self.args.comm_shape))
-            
             obs = self.obs_in(rgbd, comms_in)
             prev_actions = self.action_in(prev_actions)
             prev_comms_out = self.comm_in(prev_comms_out)
@@ -117,53 +113,65 @@ if __name__ == "__main__":
     print("\n\nBOTTOM-TOP")
     print(bottom_top_layer)
     print()
-    print(torch_summary(bottom_top_layer, 
-                        ((episodes, 1, args.pvrnn_mtrnn_size), 
-                         (episodes, 1, args.image_size, args.image_size, 4), 
-                         (episodes, 1, args.max_comm_len, args.comm_shape),
-                         (episodes, 1, args.action_shape),
-                         (episodes, 1, args.max_comm_len, args.comm_shape))))
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(bottom_top_layer, 
+                                ((episodes, 1, args.pvrnn_mtrnn_size), 
+                                (episodes, 1, args.image_size, args.image_size * 4, 4), 
+                                (episodes, 1, args.max_comm_len, args.comm_shape),
+                                (episodes, 1, args.action_shape),
+                                (episodes, 1, args.max_comm_len, args.comm_shape))))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     bottom_layer = PVRNN_LAYER(bottom = True, args = args)
     
     print("\n\nBOTTOM")
     print(bottom_layer)
     print()
-    print(torch_summary(bottom_layer, 
-                        ((episodes, 1, args.pvrnn_mtrnn_size), 
-                         (episodes, 1, args.image_size, args.image_size, 4), 
-                         (episodes, 1, args.max_comm_len, args.comm_shape),
-                         (episodes, 1, args.action_shape),
-                         (episodes, 1, args.max_comm_len, args.comm_shape),
-                         (1,), # No hidden_states_below 
-                         (episodes, 1, args.pvrnn_mtrnn_size))))
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(bottom_layer, 
+                                ((episodes, 1, args.pvrnn_mtrnn_size), 
+                                (episodes, 1, args.image_size, args.image_size * 4, 4), 
+                                (episodes, 1, args.max_comm_len, args.comm_shape),
+                                (episodes, 1, args.action_shape),
+                                (episodes, 1, args.max_comm_len, args.comm_shape),
+                                (1,), # No hidden_states_below 
+                                (episodes, 1, args.pvrnn_mtrnn_size))))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     top_layer = PVRNN_LAYER(top = True, args = args)
     
     print("\n\nTOP")
     print(top_layer)
     print()
-    print(torch_summary(top_layer, 
-                        ((episodes, 1, args.pvrnn_mtrnn_size), 
-                         (1,), # No rgbd
-                         (1,), # No comms in
-                         (1,), # No actions
-                         (1,), # No comms out 
-                         (episodes, 1, args.pvrnn_mtrnn_size))))
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(top_layer, 
+                                ((episodes, 1, args.pvrnn_mtrnn_size), 
+                                (1,), # No rgbd
+                                (1,), # No comms in
+                                (1,), # No actions
+                                (1,), # No comms out 
+                                (episodes, 1, args.pvrnn_mtrnn_size))))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     middle_layer = PVRNN_LAYER(args = args)
     
     print("\n\nMIDDLE")
     print(middle_layer)
     print()
-    print(torch_summary(middle_layer, 
-                        ((episodes, 1, args.pvrnn_mtrnn_size), 
-                         (1,), # No rgbd
-                         (1,), # No comms in
-                         (1,), # No actions
-                         (1,), # comms out
-                         (episodes, 1, args.pvrnn_mtrnn_size),
-                         (episodes, 1, args.pvrnn_mtrnn_size))))
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(middle_layer, 
+                                ((episodes, 1, args.pvrnn_mtrnn_size), 
+                                (1,), # No rgbd
+                                (1,), # No comms in
+                                (1,), # No actions
+                                (1,), # comms out
+                                (episodes, 1, args.pvrnn_mtrnn_size),
+                                (episodes, 1, args.pvrnn_mtrnn_size))))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     
     
@@ -189,8 +197,8 @@ class PVRNN(nn.Module):
         self.apply(init_weights)
         self.to(args.device)
         
-    def predict(self, h, action, comm_out):
-        h_w_actions = torch.cat([h, self.pvrnn_layers[0].action_in(action), self.pvrnn_layers[0].comm_in(comm_out)], dim = -1)
+    def predict(self, h, action):
+        h_w_actions = torch.cat([h, self.pvrnn_layers[0].action_in(action)], dim = -1)
         pred_rgbd, pred_comms = self.predict_obs(h_w_actions)
         return(pred_rgbd, pred_comms)
         
@@ -259,7 +267,7 @@ class PVRNN(nn.Module):
             lists[i] = torch.cat(lists[i], dim=1)
         zp_mu, zp_std, zq_mu, zq_std, new_hidden_states_p, new_hidden_states_q = lists
         
-        pred_rgbd, pred_comms = self.predict(new_hidden_states_q[:,:-1,0], prev_actions[:,1:], prev_comms_out[:,1:])
+        pred_rgbd, pred_comms = self.predict(new_hidden_states_q[:, :-1, 0], prev_actions[:, 1:])
         
         return(
             (zp_mu, zp_std, new_hidden_states_p),
@@ -278,12 +286,15 @@ if __name__ == "__main__":
     print("\n\nPVRNN: ONE LAYER")
     print(pvrnn)
     print()
-    print(torch_summary(pvrnn, 
-                        ((episodes, args.layers, args.pvrnn_mtrnn_size), 
-                         (episodes, steps+1, args.image_size, args.image_size, 4), 
-                         (episodes, steps+1, args.max_comm_len, args.comm_shape),
-                         (episodes, steps+1, args.action_shape),
-                         (episodes, steps+1, args.max_comm_len, args.comm_shape))))
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(pvrnn, 
+                                ((episodes, args.layers, args.pvrnn_mtrnn_size), 
+                                (episodes, steps+1, args.image_size, args.image_size * 4, 4), 
+                                (episodes, steps+1, args.max_comm_len, args.comm_shape),
+                                (episodes, steps+1, args.action_shape),
+                                (episodes, steps+1, args.max_comm_len, args.comm_shape))))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 """
     args.layers = 5
     args.time_scales = [1, 1, 1, 1, 1]
@@ -293,12 +304,15 @@ if __name__ == "__main__":
     print("\n\nPVRNN: MANY LAYERS")
     print(pvrnn)
     print()
-    print(torch_summary(pvrnn, 
-                        ((episodes, args.layers, args.hidden_size), 
-                         (episodes, steps+1, args.objects, args.object_shape), 
-                         (episodes, steps+1, args.max_comm_len, args.comm_shape),
-                         (episodes, steps+1, args.action_shape),
-                         (episodes, steps+1, args.max_comm_len, args.comm_shape))))
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(pvrnn, 
+                                ((episodes, args.layers, args.hidden_size), 
+                                (episodes, steps+1, args.objects, args.object_shape), 
+                                (episodes, steps+1, args.max_comm_len, args.comm_shape),
+                                (episodes, steps+1, args.action_shape),
+                                (episodes, steps+1, args.max_comm_len, args.comm_shape))))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 """
             
 

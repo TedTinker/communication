@@ -1,10 +1,11 @@
 #%% 
 
 # To do: 
-#   "Speed right" isn't good; it gives a win if the agent is turning relative to the object!
-#   Add sense of touch?
+#   Change object choice. Never use multiple of the same object, especially between the same two agents (except the correct object).
+#   Consider making the agent move again.
+#   Add actions to the compositionality.
+#   Animate the saved episodes!
 #   Predict change in image instead of image?
-#   Fix high memory-use.
 
 import os
 import pickle
@@ -22,6 +23,7 @@ import platform
 from torch.distributions import Normal
 import torch.nn.functional as F
 import psutil
+from itertools import product
 
 if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
 
@@ -46,6 +48,28 @@ color_map = {
     "PINK" : (1,0,1,1),
     "YELLOW" : (1,1,0,1)}
 max_len_color_name = len(max(color_map, key=len))
+
+action_map = {
+    0: "WATCH",  
+    1: "TOP", 
+    2: "BOTTOM", 
+    3: "LEFT", 
+    4: "RIGHT"}
+max_len_action_name = len(max(action_map.values(), key=len))
+action_name_list = list(action_map.values())
+
+def make_objects_and_goal(num_objects, allowed_goals, test = False):
+    action_num = randint(0, allowed_goals - 1) 
+    action = action_map[action_num].upper()
+    # Choose object related to task
+    # Make objects for one agent
+    # Make more objects for the over agent
+
+all_combos = list(product(range(len(shape_map)), range(len(color_map)), range(len(action_map))))
+print(all_combos)
+
+training_combos = [(s, c, a) for (s, c, a) in all_combos if (s == 0 and c == 0)]
+print(training_combos)
 
 test_combos = [
     (0,3),(0,5),
@@ -95,15 +119,6 @@ if(__name__ == "__main__"):
         fig.add_artist(rect)
     plt.show()
     plt.close()
-            
-action_map = {
-    0: "WATCH",  
-    1: "PUSH", 
-    2: "PULL", 
-    3: "LEFT", 
-    4: "RIGHT"}
-max_len_action_name = len(max(action_map.values(), key=len))
-action_name_list = list(action_map.values())
 
 comm_map = {
     0: ' ', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G',
@@ -196,6 +211,10 @@ parser.add_argument('--push_speed',         type=float,      default = 1,
                     help='Needed speed of an object for push/pull/left/right.')
 
     # Simulation details
+parser.add_argument('--object_distance',    type=float,      default = 3,
+                    help='How far objects are from the agent.')
+parser.add_argument('--object_size',        type=float,      default = 4,
+                    help='How large is the agent\'s body?')    
 parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--image_size',         type=int,        default = 8,
@@ -204,23 +223,17 @@ parser.add_argument('--max_yaw_change',     type=float,      default = pi/2,
                     help='Max amount agent can change angle, in radians.')
 parser.add_argument('--min_shoulder',       type=float,      default = -pi/2,
                     help='Agent\'s minimum shoulder angle.')
-parser.add_argument('--max_shoulder',       type=float,      default = 0,
+parser.add_argument('--max_shoulder',       type=float,      default = pi/2,
                     help='Agent\'s maximum shoulder angle.')
-parser.add_argument('--min_arm',            type=float,      default = -1.5,
-                    help='Agent\'s minimum arm length.')
-parser.add_argument('--max_arm',            type=float,      default = 1.25,
-                    help='Agent\'s maximum arm length.')
-parser.add_argument('--object_distance',    type=float,      default = 3.5,
-                    help='How far objects are from the agent.')
-parser.add_argument('--steps_per_step',     type=int,        default = 1,
+parser.add_argument('--steps_per_step',     type=int,        default = 5,
                     help='To avoid intersections, simulation makes each episode step multiple simulation steps.')
 
     # Training
 parser.add_argument('--epochs',             type=literal,    default = [1000],
                     help='List of how many epochs to train in each task.')
-parser.add_argument('--batch_size',         type=int,        default = 64, 
+parser.add_argument('--batch_size',         type=int,        default = 128, 
                     help='How many episodes are sampled for each epoch.')      
-parser.add_argument('--rgbd_scaler',        type=float,      default = 1, 
+parser.add_argument('--rgbd_scaler',        type=float,      default = 100, 
                     help='How much to consider rgbd prediction in accuracy compared to comm.')  
 parser.add_argument('--comm_scaler',        type=float,      default = 1, 
                     help='How much to consider comm prediction in accuracy compared to rgbd.')       
@@ -236,9 +249,9 @@ parser.add_argument('--hidden_size',        type=int,        default = 32,
                     help='Parameters in hidden layers.')   
 parser.add_argument('--encode_size',        type=int,        default = 8,
                     help='Parameters in encoding.')   
-parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 32,
+parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 64,
                     help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
-parser.add_argument('--state_size',         type=int,        default = 128,
+parser.add_argument('--state_size',         type=int,        default = 32,
                     help='Parameters in prior and posterior inner-states.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
@@ -286,9 +299,9 @@ parser.add_argument("--curiosity",          type=str,        default = "none",
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
 parser.add_argument("--dkl_max",            type=float,      default = 1,
                     help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')        
-parser.add_argument("--prediction_error_eta", type=float,    default = 10,
+parser.add_argument("--prediction_error_eta", type=float,    default = .1,
                     help='Nonnegative value, how much to consider prediction_error curiosity.')    
-parser.add_argument("--hidden_state_eta",   type=literal,    default = [10],
+parser.add_argument("--hidden_state_eta",   type=literal,    default = [.1],
                     help='Nonnegative valued, how much to consider hidden_state curiosity in each layer.')       
 
     # Imitation
@@ -302,7 +315,7 @@ parser.add_argument('--keep_data',           type=int,        default = 10,
 parser.add_argument('--epochs_per_gen_test', type=int,        default = 10,
                     help='How many epochs should pass before trying generalization test.')
 
-parser.add_argument('--epochs_per_episode_dict',type=int,        default = 500,
+parser.add_argument('--epochs_per_episode_dict',type=int,        default = 1000,
                     help='How many epochs should pass before saving an episode.')
 parser.add_argument('--agents_per_episode_dict',type=int,        default = 3,
                     help='How many agents to save episodes.')
@@ -333,7 +346,7 @@ for arg_set in [default_args, args]:
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.object_shape = arg_set.shapes + arg_set.colors
     arg_set.comm_shape = len(comm_map)
-    arg_set.action_shape = 3
+    arg_set.action_shape = 2
     arg_set.max_comm_len = max([arg_set.max_comm_len, max_len_action_name + max_len_color_name + max_len_shape_name + 3])
     max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
     arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)
@@ -416,8 +429,7 @@ def action_to_string(action):
     while(len(action.shape) > 1):
         action = action.squeeze(0)
     string = "Yaw: {} ".format(round(action[0].item(),2))
-    string += "Left Shoulder: {} ".format(round(action[1].item(),2))
-    string += "Left Arm: {} ".format(round(action[2].item(),2))
+    string += "Shoulder: {} ".format(round(action[1].item(),2))
     return(string)
 
 
@@ -531,16 +543,18 @@ def create_comm_mask(comm):
 
     return mask, last_indices
 
-#example_comm = torch.stack([
-#    pad_zeros(string_to_onehots("HELLO WORLD."), args.max_comm_len),
-#    pad_zeros(string_to_onehots("GOODBYE WORLD."), args.max_comm_len),
-#    pad_zeros(string_to_onehots("YOWSERS. HI.. ."), args.max_comm_len),
-#    pad_zeros(string_to_onehots("YOWSERS"), args.max_comm_len),
-#    pad_zeros(string_to_onehots("."), args.max_comm_len),
-#    pad_zeros(string_to_onehots("ABCDEF."), args.max_comm_len)],
-#    dim = 0)
-#example_comm = example_comm.reshape((2,3,args.max_comm_len, args.comm_shape))
-#mask, last_indices = create_comm_mask(example_comm)
+if __name__ == "__main__":
+    example_comm = torch.stack([
+        pad_zeros(string_to_onehots("HELLO WORLD."), args.max_comm_len),
+        pad_zeros(string_to_onehots("GOODBYE WORLD."), args.max_comm_len),
+        pad_zeros(string_to_onehots("YOWSERS. HI.. ."), args.max_comm_len),
+        pad_zeros(string_to_onehots("YOWSERS"), args.max_comm_len),
+        pad_zeros(string_to_onehots("."), args.max_comm_len),
+        pad_zeros(string_to_onehots("ABCDEF."), args.max_comm_len)],
+        dim = 0)
+    example_comm = example_comm.reshape((2,3,args.max_comm_len, args.comm_shape))
+    mask, last_indices = create_comm_mask(example_comm)
+    print(mask, last_indices)
 
 def dkl(mu_1, std_1, mu_2, std_2):
     std_1 = std_1**2

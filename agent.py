@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import default_args, duration, dkl, print, calculate_similarity, onehots_to_string, action_to_string, create_comm_mask, cpu_memory_usage, action_map, action_name_list
+from utils import default_args, duration, dkl, print, calculate_similarity, onehots_to_string, action_to_string, cpu_memory_usage, action_map, action_name_list
 from task import Task, Task_Runner
 from buffer import RecurrentReplayBuffer
 from pvrnn import PVRNN
@@ -28,7 +28,7 @@ class Agent:
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         
         self.tasks = {
-            "1" : Task(actions = 1, objects = 2, shapes = 2, colors = 2, parent = True,  args = self.args),
+            "1" : Task(actions = 1, objects = 2, shapes = 5, colors = 6, parent = True,  args = self.args),
             "2" : Task(actions = 5, objects = 2, shapes = 5, colors = 6, parent = False, args = self.args)}
         self.task_runners = {task_name : Task_Runner(task, GUI = GUI if i == 0 else False) for i, (task_name, task) in enumerate(self.tasks.items())}
         self.task_name = self.args.task_list[0]
@@ -68,8 +68,8 @@ class Agent:
             "episode_dicts" : {}, 
             "agent_lists" : {"forward" : PVRNN, "actor" : Actor, "critic" : Critic},
             "wins_watch" : [], 
-            "wins_push" : [], 
-            "wins_pull" : [], 
+            "wins_top" : [], 
+            "wins_bottom" : [], 
             "wins_left" : [], 
             "wins_right" : [], 
             "rewards" : [], 
@@ -156,7 +156,7 @@ class Agent:
                 new_hcs_1.append(hc)
             
             if(self.task.task.parent): 
-                action_2 = torch.zeros_like(action_1) 
+                action_2 = torch.zeros_like(action_1)
                 comm_out_2 = None
                 hp_2 = None
                 hq_2 = None
@@ -446,8 +446,8 @@ class Agent:
                 comms_out_1 = torch.cat(episode_dict["comms_out_1"], dim = 1)
                 episode_dict["comms_out_1"] = [onehots_to_string(comms_out[0,0]) for comms_out in episode_dict["comms_out_1"]]
                 episode_dict["actions_1"] = [action_to_string(action) for action in episode_dict["actions_1"]]
-                pred_rgbds_p, pred_comm_in_p = self.forward.predict(hp_1, actions_1, comms_out_1) 
-                pred_rgbds_q, pred_comm_in_q = self.forward.predict(hq_1, actions_1, comms_out_1)
+                pred_rgbds_p, pred_comm_in_p = self.forward.predict(hp_1, actions_1) 
+                pred_rgbds_q, pred_comm_in_q = self.forward.predict(hq_1, actions_1)
                 for step in range(pred_rgbds_p.shape[1]):
                     episode_dict["prior_predicted_rgbds_1"].append(torch.sigmoid(pred_rgbds_p[0,step][:,:,0:3]))
                     episode_dict["prior_predicted_comms_in_1"].append(onehots_to_string(pred_comm_in_p[0,step]))
@@ -468,8 +468,8 @@ class Agent:
                     comms_out_2 = torch.cat(episode_dict["comms_out_2"], dim = 1)
                     episode_dict["comms_out_2"] = [onehots_to_string(comms_out[0,0]) for comms_out in episode_dict["comms_out_2"]]
                     episode_dict["actions_2"] = [action_to_string(action) for action in episode_dict["actions_2"]]
-                    pred_rgbds_p, pred_comm_in_p = self.forward.predict(hp_2, actions_2, comms_out_2) 
-                    pred_rgbds_q, pred_comm_in_q = self.forward.predict(hq_2, actions_2, comms_out_2)
+                    pred_rgbds_p, pred_comm_in_p = self.forward.predict(hp_2, actions_2) 
+                    pred_rgbds_q, pred_comm_in_q = self.forward.predict(hq_2, actions_2)
                     for step in range(pred_rgbds_p.shape[1]):
                         episode_dict["prior_predicted_rgbds_2"].append(torch.sigmoid(pred_rgbds_p[0,step][:,:,0:3]))
                         episode_dict["prior_predicted_comms_in_2"].append(onehots_to_string(pred_comm_in_p[0,step]))
@@ -519,7 +519,7 @@ class Agent:
         steps = rewards.shape[1]
         
         time = duration()
-        print("\nGOT BATCH:", time - prev_time)
+        #print("\nGOT BATCH:", time - prev_time)
         prev_time = time
         
         #print("\n\n")
@@ -533,33 +533,28 @@ class Agent:
         (zp_mu, zp_std, hps), (zq_mu, zq_std, hqs), (pred_rgbds, pred_comms) = self.forward(torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), rgbds, comms_in, actions, comms_out)
         hqs = hqs[:,:,0]
         
-        time = duration()
-        print("USED FORWARD:", time - prev_time)
-        prev_time = time
-        
-        rgbd_loss = F.binary_cross_entropy_with_logits(pred_rgbds, rgbds[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * masks
-                
-        real_comm_mask, _ = create_comm_mask(comms_in[:,1:])
-        pred_comm_mask, _ = create_comm_mask(pred_comms)
-        comm_mask = combined_mask = real_comm_mask.int() | pred_comm_mask.int()
-        
+        rgbd_loss = F.binary_cross_entropy_with_logits(pred_rgbds, rgbds[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * masks * self.args.rgbd_scaler
+                        
         real_comms = comms_in[:,1:].reshape((episodes * steps * self.args.max_comm_len, self.args.comm_shape))
         real_comms = torch.argmax(real_comms, dim = -1)
         pred_comms = pred_comms.reshape((episodes * steps * self.args.max_comm_len, self.args.comm_shape))
     
         comm_loss = F.cross_entropy(pred_comms, real_comms, reduction = "none")
         comm_loss = comm_loss.reshape((episodes, steps, self.args.max_comm_len))
-        comm_loss *= comm_mask
-        comm_loss = comm_loss.mean(-1).unsqueeze(-1) * masks
+        comm_loss = comm_loss.mean(-1).unsqueeze(-1) * masks * self.args.comm_scaler
         
         accuracy_for_prediction_error = \
-            rgbd_loss * self.args.rgbd_scaler + \
-            comm_loss * self.args.comm_scaler
+            rgbd_loss + \
+            comm_loss
         accuracy           = accuracy_for_prediction_error.mean()
         
         complexity_for_hidden_state = [dkl(zq_mu[:,:,layer], zq_std[:,:,layer], zp_mu[:,:,layer], zp_std[:,:,layer]).mean(-1).unsqueeze(-1) * all_masks for layer in range(self.args.layers)] 
         complexity          = sum([self.args.beta[layer] * complexity_for_hidden_state[layer].mean() for layer in range(self.args.layers)])       
         complexity_for_hidden_state = [layer[:,1:] for layer in complexity_for_hidden_state] 
+                                
+        time = duration()
+        #print("USED FORWARD:", time - prev_time)
+        prev_time = time
                                 
         self.forward_opt.zero_grad()
         (accuracy + complexity).backward()
@@ -569,7 +564,7 @@ class Agent:
         torch.cuda.empty_cache()
         
         time = duration()
-        print("TRAINED EPOCH:", time - prev_time)
+        #print("TRAINED FORWARD:", time - prev_time)
         prev_time = time
                         
                         
@@ -588,7 +583,7 @@ class Agent:
         rewards += curiosity
         
         time = duration()
-        print("CURIOSITY:", time - prev_time)
+        #print("CURIOSITY:", time - prev_time)
         prev_time = time
                         
         
@@ -612,6 +607,10 @@ class Agent:
             if self.args.alpha_text == None: alpha_text = self.alpha_text 
             else:                            alpha_text = self.args.alpha_text
             Q_targets = rewards + (self.args.GAMMA * (1 - dones) * (Q_target_next - (alpha * log_pis_next) - (alpha_text * log_pis_next_text) + (self.args.delta * recommendation_value)))
+            
+        time = duration()
+        #print("USED TARGET CRITICS:", time - prev_time)
+        prev_time = time
         
         critic_losses = []
         Qs = []
@@ -629,7 +628,7 @@ class Agent:
         torch.cuda.empty_cache()
         
         time = duration()
-        print("TRAINED CRITICS:", time - prev_time)
+        #print("TRAINED CRITICS:", time - prev_time)
         prev_time = time
                                 
         
@@ -660,7 +659,7 @@ class Agent:
             alpha_text_loss = None
             
         time = duration()
-        print("TRAINED ALPHA:", time - prev_time)
+        #print("TRAINED ALPHA:", time - prev_time)
         prev_time = time
                                     
             
@@ -695,13 +694,17 @@ class Agent:
             
             actor_loss = ((alpha * log_pis - policy_prior_log_prrgbd) + (alpha_text * log_pis_text) - (self.args.delta * recommendation_value) - Q)*masks
             actor_loss = actor_loss.mean() / masks.mean()
+            
+            time = duration()
+            #print("USED ACTOR:", time - prev_time)
+            prev_time = time
 
             self.actor_opt.zero_grad()
             actor_loss.backward()
             self.actor_opt.step()
             
             time = duration()
-            print("TRAINED ACTOR:", time - prev_time)
+            #print("TRAINED ACTOR:", time - prev_time)
             prev_time = time
             
         else:
@@ -709,10 +712,6 @@ class Agent:
             intrinsic_entropy = None
             intrinsic_imitation = None
             actor_loss = None
-        
-        #intrinsic_entropy = None
-        #intrinsic_imitation = None 
-        #actor_loss = None
                                 
                                 
                                 

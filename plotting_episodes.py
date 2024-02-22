@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import os
 import torch
@@ -21,14 +22,18 @@ def plot_episodes(complete_order, plot_dicts):
                         
 def plot_episode(key, episode_dict, arg_name):
     agent_num, epoch, episode_num, swapping = key.split("_")
-    os.mkdir(f"{arg_name}/epoch_{epoch}_episode_{episode_num}_agent_{agent_num}_swapping_{swapping}")
+    try:
+        os.mkdir(f"{arg_name}/epoch_{epoch}_episode_{episode_num}_agent_{agent_num}_swapping_{swapping}")
+    except: 
+        pass
     os.chdir(f"{arg_name}/epoch_{epoch}_episode_{episode_num}_agent_{agent_num}_swapping_{swapping}")
-    print("{}: agent {}, epoch {}, episode {}.{}".format(arg_name, agent_num, epoch, episode_num, " Swapping!" if swapping == 1 else ""))
+    print("Plotting {}: agent {}, epoch {}, episode {}.{}".format(arg_name, agent_num, epoch, episode_num, " Swapping!" if swapping == 1 else ""))
     steps = len(episode_dict["rgbds_1"])
     for step in range(steps):
         plot_step(step, episode_dict, last_step = step + 1 == steps)
         if(episode_dict["task"]).parent: pass 
         else: plot_step(step, episode_dict, agent_1 = False, last_step = step + 1 == steps)
+    print("SAVED PLOTS")
     os.chdir('..')
     os.chdir('..')
     
@@ -84,27 +89,29 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
             values_text += "{}".format(value) + ("." if i+1 == len(values) else ", ")
         text_list.append(values_text)
         label_list.append(f"Predicted Values ({agent_num}):")
+        
+    if not step == 0:
 
-        rgbd_p = episode_dict[f"prior_predicted_rgbds_{agent_num}"][step]
+        rgbd_p = episode_dict[f"prior_predicted_rgbds_{agent_num}"][step-1]
         text_list.append(None)
         image_list.append(rgbd_p)
         label_list.append(f"Predicted RGBD (Prior) ({agent_num}):")
 
-        comms_in_p = episode_dict[f"prior_predicted_comms_in_{agent_num}"][step]
+        comms_in_p = episode_dict[f"prior_predicted_comms_in_{agent_num}"][step-1]
         text_list.append(comms_in_p)
         label_list.append(f"Predicted Comms (Prior) ({agent_num}):")
 
-        rgbd_q = episode_dict[f"posterior_predicted_rgbds_{agent_num}"][step]
+        rgbd_q = episode_dict[f"posterior_predicted_rgbds_{agent_num}"][step-1]
         text_list.append(None)
         image_list.append(rgbd_q)
         label_list.append(f"Predicted RGBD (Posterior) ({agent_num}):")
 
-        comms_in_q = episode_dict[f"posterior_predicted_comms_in_{agent_num}"][step]
+        comms_in_q = episode_dict[f"posterior_predicted_comms_in_{agent_num}"][step-1]
         text_list.append(comms_in_q)
         label_list.append(f"Predicted Comms (Posterior) ({agent_num}):")
         
-    fig = plt.figure(figsize=(15, 10))
-    gs = gridspec.GridSpec(len(label_list), 2, height_ratios=[5 if text == None else 4 if text.startswith("Yaw:") else 1 for text in text_list], width_ratios=[1, 4])
+    fig = plt.figure(figsize=(15, 20 if last_step else 20))
+    gs = gridspec.GridSpec(len(label_list), 2, height_ratios=[20 if text == None else 1 if text.startswith("Yaw:") else 1 for text in text_list], width_ratios=[1, 4])
     images_plotted = 0
     for i, (text, label) in enumerate(zip(text_list, label_list)):
         ax_text = fig.add_subplot(gs[i, 0])
@@ -116,7 +123,11 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
                     va='center', ha='left', fontsize=20, fontweight='bold')
         ax_text.text(0.1, 0, label, va='center', ha='left', fontsize=12, fontweight='bold')
         if(text) == None:
-            ax_img.imshow(image_list[images_plotted])
+            image = image_list[images_plotted]
+            ax_img.imshow(image)
+            pos = ax_img.get_position()
+            rect = patches.Rectangle((-.5, -.5), image.shape[1], image.shape[0], linewidth=4, edgecolor='black', facecolor='none')
+            ax_img.add_patch(rect)
             images_plotted += 1
         else:
             text = text.replace('\t', ' ').replace('(', ' ').replace(')', ' ')
@@ -124,7 +135,9 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
             
     plt.savefig(f"Step {step+1} Agent {agent_num}")
     plt.close()
-
+    
+    
+  
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 plot_episodes(complete_order, plot_dicts)
 print("\nDuration: {}. Done!".format(duration()))

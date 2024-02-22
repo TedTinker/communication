@@ -156,7 +156,6 @@ def plots(plot_dicts, min_max_dict):
     
         # Rolling win-rate
         for action_name in action_name_list:
-            print("wins_" + action_name)
             # Difficulty: Comparing things which may or may not be None. I've been assuming same Nones every time!
             win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), adjust_xs = False)
             win_dict = get_rolling_average(win_dict)

@@ -102,7 +102,7 @@ class Task_Runner:
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
         return(rgbd, self.task.goal_comm)
     
-    def change_velocity(self, yaw_change, shoulder, arm, agent_1 = True, verbose = False):
+    def change_velocity(self, yaw_change, shoulder, agent_1 = True, verbose = False):
         if(agent_1): arena = self.arena_1
         else:        arena = self.arena_2
         pos, yaw, spe = arena.get_pos_yaw_spe()
@@ -112,7 +112,7 @@ class Task_Runner:
         new_yaw %= 2*pi
         arena.setBasePositionAndOrientation((pos[0], pos[1], 1), new_yaw)
         
-        arena.setArmsAndHands(shoulder, arm)
+        arena.setShoulder(shoulder)
                 
         if(verbose):
             print("\nOld yaw:\t{}\nChange:\t\t{}\nNew yaw:\t{}".format(
@@ -122,8 +122,8 @@ class Task_Runner:
     def step(self, action, agent_1 = True, verbose = False):
         if(agent_1): arena = self.arena_1
         else:        arena = self.arena_2
-        yaw, shoulder, arm = \
-            action[0].item(), action[1].item(), action[2].item()
+        yaw, shoulder = \
+            action[0].item(), action[1].item()
         
         yaw = -yaw * self.args.max_yaw_change
         yaw = [-self.args.max_yaw_change, self.args.max_yaw_change, yaw] 
@@ -132,24 +132,14 @@ class Task_Runner:
       
         if(verbose): 
             print("\n\nStep {}:".format(self.steps))
-            print("Yaw: {}. Shoulders: {}. Arms: {}. Hands: {}.".format(
-            round(degrees(yaw)), round(degrees(shoulder)), round(degrees(arm))))
+            print("Yaw: {}. Shoulders: {}. Hands: {}.".format(
+            round(degrees(yaw)), round(degrees(shoulder))))
         
-        shoulder_before, arm_before = arena.get_arm_angles()
+        shoulder_before = arena.get_arm_angles()[0]
         shoulder_before = -opposite_relative_to(shoulder_before, self.args.min_shoulder, self.args.max_shoulder)
-        arm_before = opposite_relative_to(arm_before, self.args.min_arm, self.args.max_arm)
         #print("\n\nSTART: {}, to {}.".format(shoulder_before, shoulder))
-        for s in range(self.args.steps_per_step):
-            portion = (s+1)/self.args.steps_per_step
-            current_shoulder = (shoulder * portion) + (shoulder_before * (1 - portion))
-            current_arm = (arm * portion) + (arm_before * (1 - portion))
-            self.change_velocity(
-                yaw/self.args.steps_per_step, 
-                current_shoulder, 
-                current_arm,  
-                verbose = verbose if s == 0 else False)
-            #print("{} + {} = {}".format(shoulder * portion, shoulder_before * (1 - portion), current_shoulder))
-            arena.step()
+        self.change_velocity(yaw, shoulder, verbose = verbose)
+        arena.step()
         reward, win = arena.rewards()
         return(reward, win)
         
@@ -229,52 +219,27 @@ class Task_Runner:
         relevant_angle /= self.args.max_yaw_change
         relevant_angle += (-.5 if goal_action == "LEFT" else .2 if goal_action == "RIGHT" else 0)
         
-        # By default: Turn toward closest relevent object, shoulder up, arm halfway out. 
+        # By default: Turn toward closest relevent object, shoulder up. 
         # For 'watch,' that's all needed!
         yaw_change = relative_to(-relevant_angle, -1, 1)
-        shoulder = 1
-        arm = 0
+        shoulder = -1
         
-        shoulder_before, arm_before = arena.get_arm_angles()
+        shoulder_before = arena.get_arm_angles()[0]
         shoulder_before = -opposite_relative_to(shoulder_before, self.args.min_shoulder, self.args.max_shoulder)
-        arm_before = opposite_relative_to(arm_before, self.args.min_arm, self.args.max_arm)
         
-        #print("shoulder before:", round(shoulder_before,2), "\tarm before:", round(arm_before,2))
-        
-        # If pointed at valid object, move arm based on goal.
-        if(goal_action in ["PUSH", "PULL"] and abs(relevant_angle) < pi/8):
-            push = goal_action == "PUSH"
-            pull = goal_action == "PULL"
-            arm = -1 if push else 1
-            if((push and arm_before < -.8) or
-                (pull and arm_before > .8)):
-                shoulder = -1
-            if(shoulder_before <= 0 and 
-                ((push and arm_before < 0) or 
-                (pull and arm_before > 0))):
-                arm = arm_before + (.5 if push else -.5)
-                shoulder = -1
-                    
-        if(goal_action in ["LEFT", "RIGHT"]):
-            arm = 1
-            if(abs(relevant_angle) < pi/8):
-                left = goal_action == "LEFT"
-                right = goal_action == "RIGHT"
-                shoulder = -1
-                if(shoulder_before <= 0):
-                    yaw_change += -.2 if left else .2
-            
-        #print("shoulder after:", shoulder, "\tarm after:", arm)
+        #print("shoulder before:", round(shoulder_before,2))
+        #print("shoulder after:", shoulder)
                 
         return(torch.tensor([
             yaw_change,
-            shoulder,
-            arm]).float())
+            shoulder]).float())
     
     
     
 if __name__ == "__main__":        
     import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
+
     args = default_args
     
     task_runner = Task_Runner(Task(actions = 5, objects = 2, shapes = 5, colors = 6), GUI = True)
@@ -287,7 +252,7 @@ if __name__ == "__main__":
         
     def example_images(images):
         num_images = len(images)
-        fig, axs = plt.subplots(2, num_images, figsize=(num_images * 5, 10), gridspec_kw={'wspace':0.1, 'hspace':0.1})
+        fig, axs = plt.subplots(2, num_images, figsize=(num_images * 5, 6), gridspec_kw={'wspace':0.1, 'hspace':0.1})
         for i, (rgba, rgb) in enumerate(images):
             if num_images > 1:
                 ax1 = axs[0, i]
@@ -297,19 +262,31 @@ if __name__ == "__main__":
                 ax2 = axs[1]
             ax1.imshow(rgba)
             ax1.axis('off') 
+            rect1 = patches.Rectangle((-.5, -.5), rgba.shape[1], rgba.shape[0], linewidth=4, edgecolor='black', facecolor='none')
+            ax1.add_patch(rect1)
             ax2.imshow(rgb)
             ax2.axis('off') 
+            rect2 = patches.Rectangle((-.5, -.5), rgb.shape[1], rgb.shape[0], linewidth=4, edgecolor='black', facecolor='none')
+            ax2.add_patch(rect2)
         plt.tight_layout()
         plt.show()
 
+    i = 0
     while(True):
+        i += 1
+        print("episode", i)
         images = []
-        task_runner.begin(goal_action = "LEFT", verbose = True)
+        task_runner.begin(goal_action = "WATCH", verbose = True)
         done = False
+        j = 0
         while(done == False):
+            j += 1 
+            print("step", j)
             images.append(get_images())
             recommendation = task_runner.get_recommended_action(verbose = False)#True)
+            print("Got recommendation")
             reward, done, win = task_runner.action(recommendation, verbose = False)#True)
+            print("Done:", done)
             sleep(.1)
         images.append(get_images())
         print("Win:", win)

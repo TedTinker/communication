@@ -1,6 +1,7 @@
 #%%
 import torch 
 from torch import nn 
+from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
 from utils import default_args, init_weights, attach_list, detach_list, episodes_steps
@@ -10,7 +11,7 @@ from utils import default_args, init_weights, attach_list, detach_list, episodes
 if __name__ == "__main__":
     
     args = default_args
-    episodes = 4 ; steps = 3
+    episodes = args.batch_size ; steps = args.max_steps
 
 
 
@@ -55,13 +56,13 @@ class MTRNNCell(nn.Module):
         self.to(args.device)
 
     def forward(self, x, h):
-        attach_list([x, h], self.args.device)
+        #attach_list([x, h], self.args.device)
         r = torch.sigmoid(self.r_x(x) + self.r_h(h))
         z = torch.sigmoid(self.z_x(x) + self.z_h(h))
         new_h = torch.tanh(self.n_x(x) + r * self.n_h(h))
         new_h = new_h * (1 - z)  + h * z
         new_h = new_h * self.new + h * self.old
-        detach_list([r, z])
+        #detach_list([r, z])
         if(len(new_h.shape) == 2):
             new_h = new_h.unsqueeze(1)
         return new_h
@@ -79,9 +80,14 @@ if __name__ == "__main__":
     print("\n\n")
     print(cell)
     print()
-    print(torch_summary(cell, 
-                        ((episodes, 1, 16), 
-                         (episodes, 1, 32))))
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(cell, 
+                                ((episodes, 1, 16), 
+                                (episodes, 1, 32))))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+        
+#%%
     
     
 
@@ -96,7 +102,7 @@ class MTRNN(nn.Module):
     def forward(self, input, h = None):
         if(h == None):
             h = torch.zeros((input.shape[0], 1, self.hidden_size))
-        [input, h] = attach_list([input, h], self.args.device)
+        #[input, h] = attach_list([input, h], self.args.device)
         episodes, steps = episodes_steps(input)
         outputs = []
         for step in range(steps):  
@@ -118,7 +124,10 @@ if __name__ == "__main__":
     print("\n\n")
     print(mtrnn)
     print()
-    print(torch_summary(mtrnn, 
-                        ((episodes, steps, 16), 
-                         (episodes, steps, 32))))
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(mtrnn, 
+                                ((episodes, steps, 16), 
+                                (episodes, steps, 32))))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 # %%

@@ -32,7 +32,7 @@ class RecurrentReplayBuffer:
         self.num_episodes = 0
 
         self.rgbds = VariableBuffer(
-            shape = (self.args.image_size, self.args.image_size, 4), 
+            shape = (self.args.image_size, self.args.image_size * 4, 4), 
             before_and_after = True, 
             args = self.args)
         self.communications_in = VariableBuffer(

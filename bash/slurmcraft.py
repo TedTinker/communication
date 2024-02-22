@@ -43,9 +43,7 @@ def expand_args(name, args):
     if(complex and name[-1] != "_"): name += "_"
     return(name, combos)
 
-slurm_dict = {
-    "d"     : {}, 
-    }
+slurm_dict = {"d" : {}}
 
 
 
