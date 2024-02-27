@@ -34,24 +34,24 @@ class PVRNN_LAYER(nn.Module):
         # Prior: Previous hidden state, plus action if bottom.  
         self.zp_mu = nn.Sequential(
                 nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size + (2 * self.args.hidden_size if self.bottom else 0), 
+                    in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
                     out_features = self.args.state_size), 
                 nn.Tanh())
         self.zp_std = nn.Sequential(
                 nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size + (2 * self.args.hidden_size if self.bottom else 0), 
+                    in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
                     out_features = self.args.state_size), 
                 nn.Softplus())
                             
         # Posterior: Previous hidden state, plus observation and action if bottom, plus lower-layer hidden state otherwise.
         self.zq_mu = nn.Sequential(
                 nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size + (4 * self.args.hidden_size if self.bottom else self.args.pvrnn_mtrnn_size), 
+                    in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
                     out_features = self.args.state_size), 
                 nn.Tanh())
         self.zq_std = nn.Sequential(
                 nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size + (4 * self.args.hidden_size if self.bottom else self.args.pvrnn_mtrnn_size), 
+                    in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
                     out_features = self.args.state_size), 
                 nn.Softplus())
                             

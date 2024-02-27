@@ -1,11 +1,14 @@
 #%% 
 
 # To do: 
-#   Change object choice. Never use multiple of the same object, especially between the same two agents (except the correct object).
-#   Consider making the agent move again.
-#   Add actions to the compositionality.
-#   Animate the saved episodes!
-#   Predict change in image instead of image?
+#   Wrong goal-text saved.
+#   Image prediction collapsing.
+#   Agents can't do port or starboard.
+#   Maybe episode ends in failure if the agent does the wrong thing?
+#   Maybe arm moves like the agent turns?
+#   Maybe just four arm positions, up, top, middle, bottom?
+#   Consider making the agent move around (also change object position).
+#   Animate the saved episodes?
 
 import os
 import pickle
@@ -53,72 +56,76 @@ action_map = {
     0: "WATCH",  
     1: "TOP", 
     2: "BOTTOM", 
-    3: "LEFT", 
-    4: "RIGHT"}
+    3: "PORT", 
+    4: "STAR"}
 max_len_action_name = len(max(action_map.values(), key=len))
 action_name_list = list(action_map.values())
 
-def make_objects_and_goal(num_objects, allowed_goals, test = False):
+all_combos = list(product(range(len(shape_map)), range(len(color_map)), range(len(action_map))))
+
+training_combos = [(s, c, a) for (s, c, a) in all_combos if 
+                   (s in [0,1] and c in [0,1]) or 
+                   ((s + c) % 2 == 0 and (s + a) % 2 == 0)]
+
+testing_combos = [combo for combo in all_combos if not combo in training_combos]
+
+def valid_shape_color(action_num, other_shape_colors, goal = False, test = False):
+    if(not goal):
+        these_combos = all_combos 
+    else:
+        if(test):
+            these_combos = testing_combos
+        else:
+            these_combos = training_combos
+        these_combos = [combo for combo in these_combos if combo[2] == action_num]
+    these_combos = [combo for combo in these_combos if not combo in other_shape_colors]
+    shape_num, color_num, _ = choice(these_combos)
+    return(shape_num, color_num)
+
+def make_objects_and_action(num_objects, allowed_goals, test = False):
     action_num = randint(0, allowed_goals - 1) 
     action = action_map[action_num].upper()
-    # Choose object related to task
-    # Make objects for one agent
-    # Make more objects for the over agent
-
-all_combos = list(product(range(len(shape_map)), range(len(color_map)), range(len(action_map))))
-print(all_combos)
-
-training_combos = [(s, c, a) for (s, c, a) in all_combos if (s == 0 and c == 0)]
-print(training_combos)
-
-test_combos = [
-    (0,3),(0,5),
-    (1,2),(1,4),
-    (2,1),(2,3),(2,5),
-    (3,0),(3,2),(3,4),
-    (4,1),(4,3),(4,5),
-    (5,0),(5,2)]
-
-def make_object(shapes = len(shape_map), colors = len(color_map), test = False):
-    if(test):
-        filtered_list = [(a, b) for (a, b) in test_combos if a < shapes and b < colors]
-        if(filtered_list == []): 
-            pass
-        else:            
-            return(choice(filtered_list))
-    shape_color = test_combos[0]
-    while(shape_color in test_combos):
-        shape_color = ((randint(0, shapes - 1), randint(0, colors - 1)))
-    return(shape_color)
+    goal_object = valid_shape_color(action_num, [], goal = True, test = test)
+    shape_colors_1 = [goal_object]
+    shape_colors_2 = [goal_object]
+    for n in range(num_objects-1):
+        shape_colors_1.append(valid_shape_color(action_num, shape_colors_1 + shape_colors_2, goal = False, test = test))
+    for n in range(num_objects-1):
+        shape_colors_2.append(valid_shape_color(action_num, shape_colors_1 + shape_colors_2, goal = False, test = test))
+    return(action, shape_colors_1, shape_colors_2)
 
 if(__name__ == "__main__"):
+    for combo in all_combos:
+        print(combo, "TRAINING" if combo in training_combos else "TESTING")
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
     import matplotlib.patches as patches
-    fig = plt.figure(figsize=(15, 15))
-    gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
-    axs = []
-    for i in range(len(shape_map)):
-        row = []
-        for j in range(len(color_map)):
-            ax = fig.add_subplot(gs[i, j])
-            ax.axis('off')
-            if(not (i,j) in test_combos):
-                rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
-                ax.add_patch(rect)
-            shape = list(shape_map)[i]
-            color = list(color_map)[j]
-            ax.text(.5, .5, f"{color}\n{shape}", va='center', ha='center', fontsize=20)
-            row.append(ax)
-        axs.append(row)
-    for ax_2 in [axs[1][1], axs[2][2], axs[3][3], axs[4][5]]:
-        p0 = axs[0][0].get_position()
-        p1 = ax_2.get_position()
-        width, height = p1.x1 - p0.x0, p1.y0 - p0.y1
-        rect = patches.Rectangle((p0.x0, p0.y1), width, height, linewidth=5, edgecolor='black', facecolor='none')
-        fig.add_artist(rect)
-    plt.show()
-    plt.close()
+    for a, action in action_map.items():
+        fig = plt.figure(figsize=(15, 15))
+        fig.suptitle(action)
+        gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
+        axs = []
+        for s in range(len(shape_map)):
+            row = []
+            for c in range(len(color_map)):
+                ax = fig.add_subplot(gs[s, c])
+                ax.axis('off')
+                if((s,c,a) in training_combos):
+                    rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
+                    ax.add_patch(rect)
+                shape = list(shape_map)[s]
+                color = list(color_map)[c]
+                ax.text(.5, .5, f"{color}\n{shape}", va='center', ha='center', fontsize=20)
+                row.append(ax)
+            axs.append(row)
+        for ax_2 in [axs[1][1], axs[2][2], axs[3][3], axs[4][5]]:
+            p0 = axs[0][0].get_position()
+            p1 = ax_2.get_position()
+            width, height = p1.x1 - p0.x0, p1.y0 - p0.y1
+            rect = patches.Rectangle((p0.x0, p0.y1), width, height, linewidth=5, edgecolor='black', facecolor='none')
+            fig.add_artist(rect)
+        plt.show()
+        plt.close()
 
 comm_map = {
     0: ' ', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G',
@@ -229,7 +236,7 @@ parser.add_argument('--steps_per_step',     type=int,        default = 5,
                     help='To avoid intersections, simulation makes each episode step multiple simulation steps.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [1000],
+parser.add_argument('--epochs',             type=literal,    default = [10000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--batch_size',         type=int,        default = 128, 
                     help='How many episodes are sampled for each epoch.')      
@@ -251,7 +258,13 @@ parser.add_argument('--encode_size',        type=int,        default = 8,
                     help='Parameters in encoding.')   
 parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 64,
                     help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
-parser.add_argument('--state_size',         type=int,        default = 32,
+parser.add_argument('--encode_rgbd_size',   type=int,        default = 64,
+                    help='Parameters in encoding image.')   
+parser.add_argument('--encode_comm_size',   type=int,        default = 32,
+                    help='Parameters in encoding communicaiton.')   
+parser.add_argument('--encode_action_size', type=int,        default = 8,
+                    help='Parameters in encoding action.')   
+parser.add_argument('--state_size',         type=int,        default = 64,
                     help='Parameters in prior and posterior inner-states.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
@@ -347,6 +360,7 @@ for arg_set in [default_args, args]:
     arg_set.object_shape = arg_set.shapes + arg_set.colors
     arg_set.comm_shape = len(comm_map)
     arg_set.action_shape = 2
+    arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size
     arg_set.max_comm_len = max([arg_set.max_comm_len, max_len_action_name + max_len_color_name + max_len_shape_name + 3])
     max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
     arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)
@@ -585,8 +599,7 @@ class Ted_Conv1d(nn.Module):
                     out_channels = out_channel,
                     kernel_size = kernel,
                     padding = padding,
-                    padding_mode = "reflect"),
-                nn.PReLU())
+                    padding_mode = "reflect"))
             self.Conv1ds.append(layer)
                 
     def forward(self, x):
@@ -615,8 +628,7 @@ class Ted_Conv2d(nn.Module):
                     out_channels = out_channel,
                     kernel_size = kernel,
                     padding = padding,
-                    padding_mode = "reflect"),
-                nn.PReLU())
+                    padding_mode = "reflect"))
             self.Conv2ds.append(layer)
                 
     def forward(self, x):

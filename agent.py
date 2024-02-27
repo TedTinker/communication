@@ -28,7 +28,7 @@ class Agent:
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         
         self.tasks = {
-            "1" : Task(actions = 1, objects = 2, shapes = 5, colors = 6, parent = True,  args = self.args),
+            "1" : Task(actions = 5, objects = 2, shapes = 5, colors = 6, parent = True,  args = self.args),
             "2" : Task(actions = 5, objects = 2, shapes = 5, colors = 6, parent = False, args = self.args)}
         self.task_runners = {task_name : Task_Runner(task, GUI = GUI if i == 0 else False) for i, (task_name, task) in enumerate(self.tasks.items())}
         self.task_name = self.args.task_list[0]
@@ -70,8 +70,8 @@ class Agent:
             "wins_watch" : [], 
             "wins_top" : [], 
             "wins_bottom" : [], 
-            "wins_left" : [], 
-            "wins_right" : [], 
+            "wins_port" : [], 
+            "wins_star" : [], 
             "rewards" : [], 
             "gen_rewards" : [], 
             "steps" : [],
@@ -394,7 +394,7 @@ class Agent:
                 
                 self.task = self.task_runners[self.task_name]
                 self.task.begin()        
-                episode_dict["task"] = self.task.task
+                episode_dict["task"] = self.task.task # For some reason, this gives the wrong goal-text.
                 rgbd_1, parent_comm = self.task.obs()
                 rgbd_2, _ = self.task.obs(agent_1 = False)
                 birds_eye_1 = self.task.arena_1.photo_from_above()

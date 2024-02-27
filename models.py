@@ -130,7 +130,7 @@ class Critic(nn.Module):
         
         self.lin = nn.Sequential(
             nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + self.args.hidden_size,
+                in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size,
                 out_features = self.args.hidden_size),
             nn.PReLU())
         

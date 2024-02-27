@@ -6,7 +6,7 @@ import pybullet as p
 import numpy as np
 from time import sleep
 
-from utils import default_args, shape_map, color_map, action_map, make_object, pad_zeros,\
+from utils import default_args, shape_map, color_map, action_map, make_objects_and_action, pad_zeros,\
     string_to_onehots, onehots_to_string, print, relative_to, opposite_relative_to
 from arena import Arena
 
@@ -33,37 +33,17 @@ class Task:
         self.solved = False
         self.goal = []
         self.current_objects_1 = []
-        for i in range(self.objects):
-            self.make_object(test = test)
+            
+        action_str, self.current_objects_1, self.current_objects_2 = make_objects_and_action(num_objects = self.objects, allowed_goals = self.actions, test = test)
+        goal_shape, goal_color = self.current_objects_1[0]
         
-        index = self.make_goal(goal_action)
-
-        if(not self.parent):
-            self.current_objects_2 = []
-            for i in range(self.objects):
-                self.make_object(test = test, agent_1 = False)
-            new_index = randrange(len(self.current_objects_2))
-            self.current_objects_2[new_index] = self.current_objects_1[index]
-                
-        if(verbose):
-            print(self)
-        
-    def make_object(self, test = False, agent_1 = True):
-        shape, color = make_object(self.shapes, self.colors, test)
-        if(agent_1):
-            self.current_objects_1.append((shape, color))
-        else:
-            self.current_objects_2.append((shape, color))
-    
-    def make_goal(self, goal_action = None):
-        action = randint(0, self.actions - 1)
-        index = randrange(len(self.current_objects_1))
-        shape, color = self.current_objects_1[index]
-        self.goal = (action_map[action].upper() if goal_action == None else goal_action.upper(), (shape, color))
-        self.goal_text = "{} {} {}.".format(self.goal[0], list(color_map)[color], list(shape_map)[shape])
+        self.goal = (action_str.upper() if goal_action == None else goal_action.upper(), (goal_shape, goal_color))
+        self.goal_text = "{} {} {}.".format(self.goal[0], list(color_map)[goal_color], list(shape_map)[goal_shape])
         self.goal_comm = string_to_onehots(self.goal_text)
         self.goal_comm = pad_zeros(self.goal_comm, self.args.max_comm_len)
-        return(index)
+                        
+        if(verbose):
+            print(self)
     
     def __str__(self):
         to_return = "\n\nSHAPE-COLORS (1):\t{}".format(["{} {}".format(list(color_map)[color], list(shape_map)[shape]) for shape, color in self.current_objects_1])
@@ -135,9 +115,6 @@ class Task_Runner:
             print("Yaw: {}. Shoulders: {}. Hands: {}.".format(
             round(degrees(yaw)), round(degrees(shoulder))))
         
-        shoulder_before = arena.get_arm_angles()[0]
-        shoulder_before = -opposite_relative_to(shoulder_before, self.args.min_shoulder, self.args.max_shoulder)
-        #print("\n\nSTART: {}, to {}.".format(shoulder_before, shoulder))
         self.change_velocity(yaw, shoulder, verbose = verbose)
         arena.step()
         reward, win = arena.rewards()
@@ -217,18 +194,29 @@ class Task_Runner:
             print("\nDISTANCE:", relevant_distance, "ANGLE:", relevant_angle, "\n")
 
         relevant_angle /= self.args.max_yaw_change
-        relevant_angle += (-.5 if goal_action == "LEFT" else .2 if goal_action == "RIGHT" else 0)
+        relevant_angle += (.2 if goal_action == "LEFT" else -.6 if goal_action == "RIGHT" else 0)
         
         # By default: Turn toward closest relevent object, shoulder up. 
         # For 'watch,' that's all needed!
         yaw_change = relative_to(-relevant_angle, -1, 1)
         shoulder = -1
         
-        shoulder_before = arena.get_arm_angles()[0]
-        shoulder_before = -opposite_relative_to(shoulder_before, self.args.min_shoulder, self.args.max_shoulder)
-        
-        #print("shoulder before:", round(shoulder_before,2))
-        #print("shoulder after:", shoulder)
+        if(goal_action.upper() == "TOP"):
+            if(abs(relevant_angle) < .1):
+                shoulder = -.35
+                
+        if(goal_action.upper() == "BOTTOM"):
+            shoulder = 1
+            if(abs(relevant_angle) < .1):
+                shoulder = .35
+                
+        if(goal_action.upper() == "LEFT"):
+            if(abs(relevant_angle) < .1):
+                shoulder = .2
+                
+        if(goal_action.upper() == "RIGHT"):
+            if(abs(relevant_angle) < .1):
+                shoulder = .2
                 
         return(torch.tensor([
             yaw_change,
@@ -276,7 +264,7 @@ if __name__ == "__main__":
         i += 1
         print("episode", i)
         images = []
-        task_runner.begin(goal_action = "WATCH", verbose = True)
+        task_runner.begin(goal_action = "BOTTOM", verbose = True)
         done = False
         j = 0
         while(done == False):

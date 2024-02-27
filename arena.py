@@ -83,6 +83,15 @@ class Arena():
                 object_num = p.loadURDF("pybullet_data/shapes/{}".format(shape_file), pos, self.default_orn, useFixedBase=True, globalScaling = self.args.object_size, physicsClientId=self.physicsClient)
                 self.loaded[shape].append((object_num, (pos[0], pos[1], pos[2] + 1)))
                 p.changeDynamics(object_num, 0, maxJointVelocity=10000)
+                
+    def object_faces_body(self, object_num):
+        object_pos, _ = p.getBasePositionAndOrientation(object_num, physicsClientId = self.physicsClient)
+        body_pos, _ = p.getBasePositionAndOrientation(self.body_num, physicsClientId = self.physicsClient)
+        x = body_pos[0] - object_pos[0]
+        y = body_pos[1] - object_pos[1]
+        yaw_angle_radians = atan2(y, x)
+        orn = p.getQuaternionFromEuler([0, 0, yaw_angle_radians])
+        p.resetBasePositionAndOrientation(object_num, (object_pos[0], object_pos[1], 1), orn, physicsClientId = self.physicsClient)
                                 
     def begin(self, objects, goal):
         self.setBasePositionAndOrientation((0, 0, 1), 0)
@@ -100,9 +109,8 @@ class Arena():
             already_in_play[shape] += 1
             x = self.args.object_distance * sin(yaw)
             y = self.args.object_distance * cos(yaw)
-            theta = atan2(-y, -x)
-            orn = p.getQuaternionFromEuler([0, 0, theta])
-            p.resetBasePositionAndOrientation(object_num, (x, y, 1), orn, physicsClientId = self.physicsClient)
+            p.resetBasePositionAndOrientation(object_num, (x, y, 1), (0, 0, 0, 0), physicsClientId = self.physicsClient)
+            self.object_faces_body(object_num)
             for i in range(p.getNumJoints(object_num)):
                 if(i in [0, 1, 2, 3]): 
                     p.changeVisualShape(object_num, i, rgbaColor = (0,0,0,0), physicsClientId = self.physicsClient)
@@ -114,6 +122,8 @@ class Arena():
         
     def step(self):
         p.stepSimulation(physicsClientId = self.physicsClient)
+        for object_num in self.objects_in_play.values():
+            self.object_faces_body(object_num)
             
     def end(self):
         for (shape, color, old_pos), object in self.objects_in_play.items():
@@ -154,6 +164,27 @@ class Arena():
             ('body_shoulder_joint', shoulder)]:
             limb_index = get_joint_index(self.body_num, limb_name)
             p.resetJointState(self.body_num, limb_index, target, physicsClientId=self.physicsClient)
+            
+    def find_link_index(self, object_id, link_name):
+        num_joints = p.getNumJoints(object_id)
+        for joint_index in range(num_joints):
+            joint_info = p.getJointInfo(object_id, joint_index)
+            if joint_info[12].decode('utf-8') == link_name:
+                return joint_index
+            
+    def touching_sides(self, object_num):
+        arm_link_index = self.find_link_index(self.body_num, "arm_link")
+        left_side_index = self.find_link_index(object_num, "left")
+        right_side_index = self.find_link_index(object_num, "right")
+        top_side_index = self.find_link_index(object_num, "top")
+        bottom_side_index = self.find_link_index(object_num, "bottom")
+        
+        is_touching_left = bool(p.getContactPoints(bodyA=self.body_num, bodyB=object_num, linkIndexA=arm_link_index, linkIndexB=left_side_index))
+        is_touching_right = bool(p.getContactPoints(bodyA=self.body_num, bodyB=object_num, linkIndexA=arm_link_index, linkIndexB=right_side_index))
+        is_touching_top = bool(p.getContactPoints(bodyA=self.body_num, bodyB=object_num, linkIndexA=arm_link_index, linkIndexB=top_side_index))
+        is_touching_bottom = bool(p.getContactPoints(bodyA=self.body_num, bodyB=object_num, linkIndexA=arm_link_index, linkIndexB=bottom_side_index))
+        
+        return(is_touching_left, is_touching_right, is_touching_top, is_touching_bottom)
         
     def rewards(self):
         reward = False
@@ -163,7 +194,9 @@ class Arena():
         for (shape, color, old_pos), object_num in self.objects_in_play.items():
             if(shape != goal_shape or color != goal_color): pass 
             else:
+                is_touching_left, is_touching_right, is_touching_top, is_touching_bottom = self.touching_sides(object_num)
                 if(goal_action.upper() == "WATCH"):
+                    touching = is_touching_left or is_touching_right or is_touching_top or is_touching_bottom
                     object_pos, _ = p.getBasePositionAndOrientation(object_num, physicsClientId=self.physicsClient)
                     agent_pos, agent_ori = p.getBasePositionAndOrientation(self.body_num)
                     distance_vector = np.subtract(object_pos, agent_pos)
@@ -177,38 +210,20 @@ class Arena():
                     cross_product = np.cross(forward_vector, normalized_distance_vector)
                     if cross_product[2] < 0:  # Assuming Z-axis is up
                         angle_radians = -angle_radians
-                    watching = abs(angle_radians) < pi/8
+                    watching = abs(angle_radians) < pi/8 and not touching
                     if watching: self.watching[object_num] += 1
                     else:        self.watching[object_num] = 0 
                     if(self.watching[object_num] >= self.args.watch_duration):
                         reward = True
                 else:
-                    body_pos, _ = p.getBasePositionAndOrientation(self.body_num, physicsClientId = self.physicsClient)
-                    object_pos, _ = p.getBasePositionAndOrientation(object_num, physicsClientId = self.physicsClient)
-                    velocity, _ = p.getBaseVelocity(object_num, physicsClientId = self.physicsClient)
-                    body_pos = np.array(body_pos)
-                    object_pos = np.array(object_pos)
-                    velocity = np.array(velocity)
-                    direction_vector = body_pos - object_pos
-                    direction_vector /= np.linalg.norm(direction_vector)
-                    speed_toward_body = np.dot(velocity, direction_vector)
-                    up_vector = np.array([0, 0, 1]) 
-                    right_vector = np.cross(direction_vector, up_vector) 
-                    right_vector /= np.linalg.norm(right_vector) 
-                    speed_right = -np.dot(velocity, right_vector)
-                    # Speed right isn't good; it gives a win if the agent is turning relative to the object!
-                    if(goal_action.upper() == "PUSH"):
-                        if(speed_toward_body <= -self.args.push_speed):
-                            reward = True
-                    if(goal_action.upper() == "PULL"):
-                        if(speed_toward_body >= self.args.push_speed):
-                            reward = True
+                    if(goal_action.upper() == "TOP"):
+                        reward = is_touching_top
+                    if(goal_action.upper() == "BOTTOM"):
+                        reward = is_touching_bottom
                     if(goal_action.upper() == "LEFT"):
-                        if(speed_right <= -self.args.push_speed):
-                            reward = True 
+                        reward = is_touching_left
                     if(goal_action.upper() == "RIGHT"):
-                        if(speed_right >= self.args.push_speed):
-                            reward = True
+                        reward = is_touching_right
                 
         win = reward
         reward = self.args.reward if reward else 0
@@ -266,11 +281,11 @@ class Arena():
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     args = default_args
-    from utils import make_object
+    from utils import make_objects_and_action
     arena = Arena(GUI = True)
-    objects = [make_object() for i in range(args.objects)]
-    goal = [choices(action_map)[0], objects[0]]
-    arena.begin(objects = objects, goal = goal)
+    action, shape_colors_1, shape_colors_2 = make_objects_and_action(2, 5)
+    goal = [choices(action_map)[0], shape_colors_1[0]]
+    arena.begin(objects = shape_colors_1, goal = goal)
     i = -1
     going_up = True
     i_size = .1

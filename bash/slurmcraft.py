@@ -116,7 +116,7 @@ if(__name__ == "__main__" and args.arg_list != []):
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time 5:00:00
+#SBATCH --time 24:00:00
 #SBATCH --mem=50G"""
 
     if(args.comp == "saion"):

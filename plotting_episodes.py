@@ -46,10 +46,9 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
     image_list = []
     label_list = []
     
-    if(step == 0):
-        goal = episode_dict["task"].goal_text
-        text_list.append(goal)
-        label_list.append("Goal:")
+    goal = episode_dict["task"].goal_text
+    text_list.append(goal)
+    label_list.append("Goal:")
         
     birds_eye = episode_dict[f"birds_eye_{agent_num}"][step]
     text_list.append(None)

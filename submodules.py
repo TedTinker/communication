@@ -32,8 +32,17 @@ class RGBD_IN(nn.Module):
         self.rgbd_in = nn.Sequential(
             Ted_Conv2d(
                 in_channels = 4,
-                out_channels = [self.args.hidden_size],
-                kernels = [3]),
+                out_channels = [self.args.hidden_size//4]*4,
+                kernels = [1, 3, 3, 5]),
+            nn.PReLU(),
+            nn.AvgPool2d(
+                kernel_size = (3, 3),
+                stride = (2, 2),
+                padding = (1, 1)),
+            Ted_Conv2d(
+                in_channels = self.args.hidden_size,
+                out_channels = [self.args.hidden_size//2]*2,
+                kernels = [1,3]),
             nn.PReLU(),
             nn.AvgPool2d(
                 kernel_size = (3, 3),
@@ -42,19 +51,15 @@ class RGBD_IN(nn.Module):
             Ted_Conv2d(
                 in_channels = self.args.hidden_size,
                 out_channels = [self.args.hidden_size],
-                kernels = [3]),
-            nn.PReLU(),
-            nn.AvgPool2d(
-                kernel_size = (3, 3),
-                stride = (2, 2),
-                padding = (1, 1)))
+                kernels = [1]),
+            nn.PReLU(),)
         example = self.rgbd_in(example)
         rgbd_latent_size = example.flatten(1).shape[1]
         
         self.rgbd_in_lin = nn.Sequential(
             nn.Linear(
                 in_features = rgbd_latent_size, 
-                out_features = args.hidden_size),
+                out_features = args.encode_rgbd_size),
             nn.PReLU())
         
         self.apply(init_weights)
@@ -117,7 +122,7 @@ class Comm_IN(nn.Module):
             nn.PReLU(),
             nn.Linear(
                 in_features = self.args.hidden_size, 
-                out_features = self.args.hidden_size),
+                out_features = self.args.encode_comm_size),
             nn.PReLU())
                 
         self.apply(init_weights)
@@ -204,7 +209,7 @@ class Action_IN(nn.Module):
         self.action_in = nn.Sequential(
             nn.Linear(
                 in_features = self.args.action_shape, 
-                out_features = args.hidden_size),
+                out_features = args.encode_action_size),
             nn.PReLU())
         
         self.apply(init_weights)
@@ -244,23 +249,28 @@ class RGBD_OUT(nn.Module):
         
         self.rgbd_out_lin = nn.Sequential(
             nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + self.args.hidden_size,
-                out_features = 16 * (4 * (self.args.image_size//4)) * (self.args.image_size//4)),
+                in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size,
+                out_features = 4 * (4 * (self.args.image_size//4)) * (self.args.image_size//4)),
             nn.PReLU())
         
         self.rgbd_out = nn.Sequential(
             Ted_Conv2d(
-                in_channels = 16,
+                in_channels = 4,
                 out_channels = [self.args.hidden_size],
-                kernels = [3]),
+                kernels = [1]),
             nn.PReLU(),
             nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True),
             Ted_Conv2d(
                 in_channels = self.args.hidden_size,
-                out_channels = [self.args.hidden_size],
-                kernels = [3]),
+                out_channels = [self.args.hidden_size//2]*2,
+                kernels = [1, 3]),
             nn.PReLU(),
             nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True),
+            Ted_Conv2d(
+                in_channels = self.args.hidden_size,
+                out_channels = [self.args.hidden_size//4]*4,
+                kernels = [1, 3, 3, 5]),
+            nn.PReLU(),
             Ted_Conv2d(
                 in_channels = self.args.hidden_size,
                 out_channels = [4],
@@ -273,7 +283,7 @@ class RGBD_OUT(nn.Module):
         if(len(h_w_action.shape) == 2): h_w_action = h_w_action.unsqueeze(1)
         episodes, steps = episodes_steps(h_w_action)
         h_w_action = self.rgbd_out_lin(h_w_action)
-        rgbd = h_w_action.reshape(episodes, steps, 16, self.args.image_size//4, self.args.image_size//4 * 4)
+        rgbd = h_w_action.reshape(episodes, steps, 4, self.args.image_size//4, self.args.image_size//4 * 4)
         rgbd = rnn_cnn(self.rgbd_out, rgbd)
         rgbd = rgbd.permute(0, 1, 3, 4, 2)
         return(rgbd)
@@ -290,7 +300,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(rgbd_out, 
-                                (episodes, steps, args.pvrnn_mtrnn_size + args.hidden_size)))
+                                (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
 #%%
@@ -308,13 +318,13 @@ class Comm_OUT(nn.Module):
         if(self.actor):
             self.comm_lin = nn.Sequential(
                 nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size, 
+                    in_features = self.args.pvrnn_mtrnn_size + args.encode_action_size, 
                     out_features = self.args.hidden_size),
                 nn.PReLU())
         else:
             self.comm_lin = nn.Sequential(
                 nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size + self.args.hidden_size, 
+                    in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size, 
                     out_features = self.args.hidden_size),
                 nn.PReLU())
         
@@ -389,7 +399,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(comm_out, 
-                                (episodes, steps, args.pvrnn_mtrnn_size + args.hidden_size)))
+                                (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     comm_out = Comm_OUT(actor = True, args = args)
@@ -398,7 +408,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(comm_out, 
-                                (episodes, steps, args.pvrnn_mtrnn_size)))
+                                (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
         
 #%%
@@ -431,7 +441,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(obs_out, 
-                                (episodes, steps, args.pvrnn_mtrnn_size + args.hidden_size)))
+                                (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     

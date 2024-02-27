@@ -27,7 +27,7 @@ if [ $agents -eq 0 ]; then
     echo "No training"
 else
     jid_list=()
-    max_agents=36
+    max_agents=35
     for arg in ${arg_list//, / }
     do
         previous_agents=0 
