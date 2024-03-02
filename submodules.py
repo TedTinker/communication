@@ -7,10 +7,10 @@ from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
 from utils import print, default_args, init_weights, attach_list, detach_list, \
-    episodes_steps, pad_zeros, Ted_Conv1d, Ted_Conv2d, create_comm_mask, var, sample, rnn_cnn
+    episodes_steps, pad_zeros, Ted_Conv1d, Ted_Conv2d, create_comm_mask, var, sample, rnn_cnn, duration, ConstrainedConv1d, ConstrainedConv2d
 from mtrnn import MTRNN
 
-
+d = .01
 
 if __name__ == "__main__":
     
@@ -32,27 +32,57 @@ class RGBD_IN(nn.Module):
         self.rgbd_in = nn.Sequential(
             Ted_Conv2d(
                 in_channels = 4,
-                out_channels = [self.args.hidden_size//4]*4,
-                kernels = [1, 3, 3, 5]),
+                out_channels = [self.args.hidden_size // 4] * 4,
+                kernels = [3, 3, 5, 5]),
+            nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
-            nn.AvgPool2d(
-                kernel_size = (3, 3),
-                stride = (2, 2),
-                padding = (1, 1)),
+            nn.Dropout(d),
             Ted_Conv2d(
                 in_channels = self.args.hidden_size,
-                out_channels = [self.args.hidden_size//2]*2,
-                kernels = [1,3]),
+                out_channels = [self.args.hidden_size // 4] * 4,
+                kernels = [3, 3, 5, 5]),
+            nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
-            nn.AvgPool2d(
-                kernel_size = (3, 3),
-                stride = (2, 2),
-                padding = (1, 1)),
+            nn.MaxPool2d(
+                kernel_size = 2,
+                stride = 2,
+                padding = 0),
+            nn.Dropout(d),
+            
+            Ted_Conv2d(
+                in_channels = self.args.hidden_size,
+                out_channels = [self.args.hidden_size // 4] * 4,
+                kernels = [1, 3, 3, 3]),
+            nn.BatchNorm2d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(d),
+            Ted_Conv2d(
+                in_channels = self.args.hidden_size,
+                out_channels = [self.args.hidden_size // 4] * 4,
+                kernels = [1, 3, 3, 3]),
+            nn.BatchNorm2d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.MaxPool2d(
+                kernel_size = 2,
+                stride = 2,
+                padding = 0),
+            nn.Dropout(d),
+            
             Ted_Conv2d(
                 in_channels = self.args.hidden_size,
                 out_channels = [self.args.hidden_size],
                 kernels = [1]),
-            nn.PReLU(),)
+            nn.BatchNorm2d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(d),
+            Ted_Conv2d(
+                in_channels = self.args.hidden_size,
+                out_channels = [self.args.hidden_size],
+                kernels = [1]),
+            nn.BatchNorm2d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(d))
+        
         example = self.rgbd_in(example)
         rgbd_latent_size = example.flatten(1).shape[1]
         
@@ -66,10 +96,12 @@ class RGBD_IN(nn.Module):
         self.to(args.device)
         
     def forward(self, rgbd):
+        start = duration()
         if(len(rgbd.shape) == 4): rgbd = rgbd.unsqueeze(1)
         rgbd = (rgbd.permute(0, 1, 4, 2, 3) * 2) - 1
         rgbd = rnn_cnn(self.rgbd_in, rgbd).flatten(2)
         rgbd = self.rgbd_in_lin(rgbd)
+        #print("RGBD_IN:", duration() - start)
         return(rgbd)
     
     
@@ -102,33 +134,37 @@ class Comm_IN(nn.Module):
             nn.Embedding(
                 num_embeddings = self.args.comm_shape,
                 embedding_dim = self.args.encode_size),
-            nn.PReLU())
+            nn.PReLU(),
+            nn.Dropout(d))
         
         self.comm_cnn = nn.Sequential(
             Ted_Conv1d(
                 in_channels = self.args.encode_size, 
-                out_channels = [self.args.hidden_size//4]*4, 
-                kernels = [1, 1, 3, 5]),
-            #nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU())
+                out_channels = [self.args.hidden_size // 4] * 4, 
+                kernels = [1, 3, 5, 7]),
+            nn.BatchNorm1d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(d))
         
-        self.comm_rnn = MTRNN(
-            input_size = self.args.hidden_size, 
-            hidden_size = self.args.hidden_size, 
-            time_constant = 1,
-            args = self.args)
+        self.comm_rnn = nn.GRU(
+            input_size = self.args.hidden_size,
+            hidden_size = self.args.hidden_size,
+            batch_first = True)
         
         self.comm_lin = nn.Sequential(
             nn.PReLU(),
+            nn.Dropout(d),
             nn.Linear(
                 in_features = self.args.hidden_size, 
                 out_features = self.args.encode_comm_size),
-            nn.PReLU())
+            nn.PReLU(),
+            nn.Dropout(d))
                 
         self.apply(init_weights)
         self.to(self.args.device)
         
     def forward(self, comm):
+        start = duration()
         if(len(comm.shape) == 2):  comm = comm.unsqueeze(0)
         if(len(comm.shape) == 3):  comm = comm.unsqueeze(1)
         episodes, steps = episodes_steps(comm)
@@ -138,12 +174,13 @@ class Comm_IN(nn.Module):
         comm = self.comm_embedding(comm.int())
         comm = comm.reshape((episodes*steps, self.args.max_comm_len, self.args.encode_size))
         comm = self.comm_cnn(comm.permute((0, 2, 1))).permute((0, 2, 1))
-        comm = self.comm_rnn(comm)
+        comm, _ = self.comm_rnn(comm)
         comm = comm.reshape((episodes, steps, self.args.max_comm_len, self.args.hidden_size))
         idx0 = torch.arange(comm.size(0)).unsqueeze(1).expand_as(last_indices)
         idx1 = torch.arange(comm.size(1)).expand_as(last_indices) 
         comm = comm[idx0, idx1, last_indices, :] 
         comm = self.comm_lin(comm)
+        #print("COMM_IN:", duration() - start)
         return(comm)
 
     
@@ -210,7 +247,8 @@ class Action_IN(nn.Module):
             nn.Linear(
                 in_features = self.args.action_shape, 
                 out_features = args.encode_action_size),
-            nn.PReLU())
+            nn.PReLU(),
+            nn.Dropout(d))
         
         self.apply(init_weights)
         self.to(args.device)
@@ -251,41 +289,66 @@ class RGBD_OUT(nn.Module):
             nn.Linear(
                 in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size,
                 out_features = 4 * (4 * (self.args.image_size//4)) * (self.args.image_size//4)),
-            nn.PReLU())
+            nn.PReLU(),
+            nn.Dropout(d))
         
         self.rgbd_out = nn.Sequential(
             Ted_Conv2d(
                 in_channels = 4,
                 out_channels = [self.args.hidden_size],
                 kernels = [1]),
+            nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
-            nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True),
+            nn.Dropout(d),
             Ted_Conv2d(
                 in_channels = self.args.hidden_size,
-                out_channels = [self.args.hidden_size//2]*2,
-                kernels = [1, 3]),
+                out_channels = [self.args.hidden_size * 4],
+                kernels = [1]),
+            nn.BatchNorm2d(self.args.hidden_size * 4),
             nn.PReLU(),
-            nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True),
+            nn.PixelShuffle(upscale_factor = 2),
+            nn.Dropout(d),
+            
             Ted_Conv2d(
                 in_channels = self.args.hidden_size,
-                out_channels = [self.args.hidden_size//4]*4,
-                kernels = [1, 3, 3, 5]),
+                out_channels = [self.args.hidden_size // 4] * 4,
+                kernels = [1, 3, 3, 3]),
+            nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
+            nn.Dropout(d),
+            Ted_Conv2d(
+                in_channels = self.args.hidden_size,
+                out_channels = [self.args.hidden_size] * 4,
+                kernels = [1, 3, 3, 3]),
+            nn.BatchNorm2d(self.args.hidden_size * 4),
+            nn.PReLU(),
+            nn.PixelShuffle(upscale_factor = 2),
+            nn.Dropout(d),
+            
+            Ted_Conv2d(
+                in_channels = self.args.hidden_size,
+                out_channels = [self.args.hidden_size // 4] * 4,
+                kernels = [3, 3, 5, 5]),
+            nn.BatchNorm2d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(d),
             Ted_Conv2d(
                 in_channels = self.args.hidden_size,
                 out_channels = [4],
-                kernels = [1]),)
+                kernels = [1]))
         
         self.apply(init_weights)
         self.to(args.device)
         
     def forward(self, h_w_action):
+        start = duration()
         if(len(h_w_action.shape) == 2): h_w_action = h_w_action.unsqueeze(1)
         episodes, steps = episodes_steps(h_w_action)
         h_w_action = self.rgbd_out_lin(h_w_action)
         rgbd = h_w_action.reshape(episodes, steps, 4, self.args.image_size//4, self.args.image_size//4 * 4)
         rgbd = rnn_cnn(self.rgbd_out, rgbd)
         rgbd = rgbd.permute(0, 1, 3, 4, 2)
+        #print("RGBD_OUT:", duration() - start)
         return(rgbd)
     
     
@@ -320,28 +383,31 @@ class Comm_OUT(nn.Module):
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + args.encode_action_size, 
                     out_features = self.args.hidden_size),
-                nn.PReLU())
+                nn.PReLU(),
+                nn.Dropout(d))
         else:
             self.comm_lin = nn.Sequential(
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size, 
                     out_features = self.args.hidden_size),
-                nn.PReLU())
-        
-        self.comm_rnn = MTRNN(
-            input_size = self.args.hidden_size, 
-            hidden_size = self.args.hidden_size, 
-            time_constant = 1,
-            args = self.args)
+                nn.PReLU(),
+                nn.Dropout(d))
+            
+        self.comm_rnn = nn.GRU(
+            input_size = self.args.hidden_size,
+            hidden_size = self.args.hidden_size,
+            batch_first = True)
         
         self.comm_cnn = nn.Sequential(
             nn.PReLU(),
+            nn.Dropout(d),
             Ted_Conv1d(
                 in_channels = self.args.hidden_size, 
-                out_channels = [self.args.hidden_size//4]*4, 
-                kernels = [1, 1, 3, 5]),
-            #nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU())
+                out_channels = [self.args.hidden_size // 4] * 4,
+                kernels = [1, 3, 5, 7]),
+            nn.BatchNorm1d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(d))
         
         self.comm_out_mu = nn.Sequential(
             nn.Linear(
@@ -359,6 +425,7 @@ class Comm_OUT(nn.Module):
         self.to(self.args.device)
                 
     def forward(self, h_w_action):
+        start = duration()
         if(len(h_w_action.shape) == 2):   h_w_action = h_w_action.unsqueeze(1)
         #[h_w_action] = attach_list([h_w_action], self.args.device)
         episodes, steps = episodes_steps(h_w_action)
@@ -367,7 +434,7 @@ class Comm_OUT(nn.Module):
         comm_h = None
         comm_hs = []
         for i in range(self.args.max_comm_len):
-            comm_h = self.comm_rnn(h_w_action, comm_h)
+            comm_h, _ = self.comm_rnn(h_w_action, comm_h if comm_h == None else comm_h.permute(1, 0, 2))
             comm_hs.append(comm_h)
         comm_h = torch.cat(comm_hs, dim = -2)
         comm_h = self.comm_cnn(comm_h.permute((0, 2, 1))).permute((0, 2, 1))
@@ -385,6 +452,7 @@ class Comm_OUT(nn.Module):
             comm_pred = self.comm_out_mu(comm_h)
             mask, last_indexes = create_comm_mask(comm_pred)
             comm_pred = comm_pred * mask.unsqueeze(-1).tile((1, 1, 1, self.args.comm_shape))
+            #print("COMM_OUT:", duration() - start)
             return(comm_pred)
     
     

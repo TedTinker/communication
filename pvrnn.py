@@ -56,6 +56,11 @@ class PVRNN_LAYER(nn.Module):
                 nn.Softplus())
                             
         # New hidden state: Previous hidden state, zq value, plus higher-layer hidden state if not top.
+        #self.mtrnn = nn.GRU(
+        #    input_size = self.args.state_size + (self.args.pvrnn_mtrnn_size if not self.top else 0),
+        #    hidden_size = self.args.pvrnn_mtrnn_size,
+        #    batch_first = True)
+        
         self.mtrnn = MTRNN(
                 input_size = self.args.state_size + (self.args.pvrnn_mtrnn_size if not self.top else 0),
                 hidden_size = self.args.pvrnn_mtrnn_size, 

@@ -1,14 +1,8 @@
 #%% 
 
 # To do: 
-#   Wrong goal-text saved.
-#   Image prediction collapsing.
-#   Agents can't do port or starboard.
-#   Maybe episode ends in failure if the agent does the wrong thing?
-#   Maybe arm moves like the agent turns?
-#   Maybe just four arm positions, up, top, middle, bottom?
-#   Consider making the agent move around (also change object position).
-#   Animate the saved episodes?
+#   Image prediction collapsing?
+#   Make the agent move around (also change object positioning).
 
 import os
 import pickle
@@ -78,8 +72,9 @@ def valid_shape_color(action_num, other_shape_colors, goal = False, test = False
         else:
             these_combos = training_combos
         these_combos = [combo for combo in these_combos if combo[2] == action_num]
+    these_combos = [(combo[0], combo[1]) for combo in these_combos]
     these_combos = [combo for combo in these_combos if not combo in other_shape_colors]
-    shape_num, color_num, _ = choice(these_combos)
+    shape_num, color_num = choice(these_combos)
     return(shape_num, color_num)
 
 def make_objects_and_action(num_objects, allowed_goals, test = False):
@@ -192,7 +187,7 @@ parser.add_argument('--device',             type=str,        default = device,
                     help='Which device to use for Torch.')
 
     # Task details
-parser.add_argument('--task_list',          type=literal,    default = ["1"],
+parser.add_argument('--task_list',          type=literal,    default = ["1"],#, "2"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
 parser.add_argument('--max_steps',          type=int,        default = 10,
                     help='How many steps the agent can make in one episode.')
@@ -201,7 +196,9 @@ parser.add_argument('--step_lim_punishment',type=float,      default = -1,
 parser.add_argument('--step_cost',          type=float,      default = .975,
                     help='How much extrinsic rewards for exiting are reduced per step.')
 parser.add_argument('--reward',             type=float,      default = 5,
-                    help='Extrinsic reward for choosing incorrect action, shape, and color.') 
+                    help='Extrinsic reward for choosing correct action, shape, and color.') 
+parser.add_argument('--punishment',         type=float,      default = 0,
+                    help='Extrinsic punishment for choosing incorrect action, shape, or color.') 
 parser.add_argument('--actions',            type=int,        default = 5,
                     help='Maximum count of actions in one episode.')
 parser.add_argument('--objects',            type=int,        default = 2,
@@ -226,17 +223,17 @@ parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--image_size',         type=int,        default = 8,
                     help='Dimensions of the images observed.')
-parser.add_argument('--max_yaw_change',     type=float,      default = pi/2,
-                    help='Max amount agent can change angle, in radians.')
-parser.add_argument('--min_shoulder',       type=float,      default = -pi/2,
-                    help='Agent\'s minimum shoulder angle.')
-parser.add_argument('--max_shoulder',       type=float,      default = pi/2,
-                    help='Agent\'s maximum shoulder angle.')
-parser.add_argument('--steps_per_step',     type=int,        default = 5,
+parser.add_argument('--max_speed',          type=float,      default = 100,
+                    help='Max agent speed.')
+parser.add_argument('--max_yaw_speed',      type=float,      default = 100,
+                    help='Max speed agent can change angle')
+parser.add_argument('--max_shoulder_speed', type=float,      default = 100,
+                    help='Agent\'s maximum shoulder velocity.')
+parser.add_argument('--steps_per_step',     type=int,        default = 10,
                     help='To avoid intersections, simulation makes each episode step multiple simulation steps.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [10000],
+parser.add_argument('--epochs',             type=literal,    default = [2000],#, 1000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--batch_size',         type=int,        default = 128, 
                     help='How many episodes are sampled for each epoch.')      
@@ -262,7 +259,7 @@ parser.add_argument('--encode_rgbd_size',   type=int,        default = 64,
                     help='Parameters in encoding image.')   
 parser.add_argument('--encode_comm_size',   type=int,        default = 32,
                     help='Parameters in encoding communicaiton.')   
-parser.add_argument('--encode_action_size', type=int,        default = 8,
+parser.add_argument('--encode_action_size', type=int,        default = 16,
                     help='Parameters in encoding action.')   
 parser.add_argument('--state_size',         type=int,        default = 64,
                     help='Parameters in prior and posterior inner-states.')
@@ -359,7 +356,7 @@ for arg_set in [default_args, args]:
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.object_shape = arg_set.shapes + arg_set.colors
     arg_set.comm_shape = len(comm_map)
-    arg_set.action_shape = 2
+    arg_set.action_shape = 3
     arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size
     arg_set.max_comm_len = max([arg_set.max_comm_len, max_len_action_name + max_len_color_name + max_len_shape_name + 3])
     max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))

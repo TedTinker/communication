@@ -1,5 +1,5 @@
 #%%
-from random import randint, choice, randrange
+from random import randint, choice, randrange, uniform
 from math import cos, sin, pi, degrees
 import torch
 import pybullet as p
@@ -66,8 +66,8 @@ class Task_Runner:
     def begin(self, goal_action = None, test = False, verbose = False):
         self.steps = 0 
         self.task.begin(goal_action, test, verbose)
-        self.arena_1.begin(self.task.current_objects_1, self.task.goal)
-        if(not self.parenting): self.arena_2.begin(self.task.current_objects_2, self.task.goal)
+        self.arena_1.begin(self.task.current_objects_1, self.task.goal, self.parenting)
+        if(not self.parenting): self.arena_2.begin(self.task.current_objects_2, self.task.goal, self.parenting)
         
     def obs(self, agent_1 = True):
         if(agent_1): arena = self.arena_1
@@ -82,41 +82,29 @@ class Task_Runner:
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
         return(rgbd, self.task.goal_comm)
     
-    def change_velocity(self, yaw_change, shoulder, agent_1 = True, verbose = False):
+    def change_velocity(self, speed, yaw, shoulder, agent_1 = True, verbose = False):
         if(agent_1): arena = self.arena_1
         else:        arena = self.arena_2
-        pos, yaw, spe = arena.get_pos_yaw_spe()
+        pos, old_yaw, spe = arena.get_pos_yaw_spe()
         
-        old_yaw = yaw
-        new_yaw = old_yaw + yaw_change
-        new_yaw %= 2*pi
-        arena.setBasePositionAndOrientation((pos[0], pos[1], 1), new_yaw)
-        
-        arena.setShoulder(shoulder)
-                
-        if(verbose):
-            print("\nOld yaw:\t{}\nChange:\t\t{}\nNew yaw:\t{}".format(
-                round(degrees(old_yaw)) % 360, round(degrees(yaw_change)), round(degrees(new_yaw))))
-            #self.render(view = "body")  
+        arena.set_pos((pos[0], pos[1], 1))
+        arena.set_speed_and_yaw_speed(speed, yaw)
+        arena.set_shoulder_speed(shoulder)
             
     def step(self, action, agent_1 = True, verbose = False):
         if(agent_1): arena = self.arena_1
         else:        arena = self.arena_2
-        yaw, shoulder = \
-            action[0].item(), action[1].item()
-        
-        yaw = -yaw * self.args.max_yaw_change
-        yaw = [-self.args.max_yaw_change, self.args.max_yaw_change, yaw] 
-        yaw.sort() 
-        yaw = yaw[1]
+        speed, yaw, shoulder = \
+            action[0].item(), action[1].item(), action[2].item()
       
         if(verbose): 
             print("\n\nStep {}:".format(self.steps))
-            print("Yaw: {}. Shoulders: {}. Hands: {}.".format(
-            round(degrees(yaw)), round(degrees(shoulder))))
-        
-        self.change_velocity(yaw, shoulder, verbose = verbose)
-        arena.step()
+            print("Speed: {}. Yaw: {}. Shoulders: {}.".format(
+            round(speed, 2), round(yaw, 2), round(shoulder, 2)))
+            
+        self.change_velocity(speed, yaw, shoulder, agent_1, verbose = verbose)
+        for step in range(self.args.steps_per_step):
+            arena.step()
         reward, win = arena.rewards()
         return(reward, win)
         
@@ -164,7 +152,6 @@ class Task_Runner:
         goal_color = list(color_map.values())[goal[1][1]]
                 
         distances = []
-        hand_distances = []
         angles = []
         shapes = []
         colors = []
@@ -189,37 +176,28 @@ class Task_Runner:
         
         relevant_distances_and_angles = [(distances[i], angles[i]) for i in range(len(distances)) if shapes[i] == goal_shape and colors[i] == goal_color]
         relevant_distance, relevant_angle = min(relevant_distances_and_angles, key=lambda t: abs(t[1]))
-                        
-        if(verbose):
-            print("\nDISTANCE:", relevant_distance, "ANGLE:", relevant_angle, "\n")
-
-        relevant_angle /= self.args.max_yaw_change
-        relevant_angle += (.2 if goal_action == "LEFT" else -.6 if goal_action == "RIGHT" else 0)
+        shoulder_before = arena.get_joint_angles()[0]
+        shoulder_before = -opposite_relative_to(shoulder_before, -1.57, 1.57)
         
-        # By default: Turn toward closest relevent object, shoulder up. 
-        # For 'watch,' that's all needed!
-        yaw_change = relative_to(-relevant_angle, -1, 1)
-        shoulder = -1
+        yaw = 0 # uniform(-.2, .2)
+        shoulder = 0 # uniform(-1, 1)
+        speed = 0 # uniform(-1, 1)
         
         if(goal_action.upper() == "TOP"):
-            if(abs(relevant_angle) < .1):
-                shoulder = -.35
+            pass
                 
         if(goal_action.upper() == "BOTTOM"):
-            shoulder = 1
-            if(abs(relevant_angle) < .1):
-                shoulder = .35
+            pass
                 
-        if(goal_action.upper() == "LEFT"):
-            if(abs(relevant_angle) < .1):
-                shoulder = .2
+        if(goal_action.upper() == "PORT"):
+            pass
                 
-        if(goal_action.upper() == "RIGHT"):
-            if(abs(relevant_angle) < .1):
-                shoulder = .2
+        if(goal_action.upper() == "STAR"):
+            pass
                 
         return(torch.tensor([
-            yaw_change,
+            speed,
+            yaw,
             shoulder]).float())
     
     
@@ -264,7 +242,7 @@ if __name__ == "__main__":
         i += 1
         print("episode", i)
         images = []
-        task_runner.begin(goal_action = "BOTTOM", verbose = True)
+        task_runner.begin(goal_action = "WATCH", verbose = True)
         done = False
         j = 0
         while(done == False):
@@ -272,7 +250,7 @@ if __name__ == "__main__":
             print("step", j)
             images.append(get_images())
             recommendation = task_runner.get_recommended_action(verbose = False)#True)
-            print("Got recommendation")
+            print("Got recommendation:", recommendation)
             reward, done, win = task_runner.action(recommendation, verbose = False)#True)
             print("Done:", done)
             sleep(.1)

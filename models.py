@@ -59,6 +59,7 @@ class Actor(nn.Module):
         self.to(args.device)
 
     def forward(self, rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden, parented = True):
+        start = duration()
         if(len(forward_hidden.shape) == 2): forward_hidden = forward_hidden.unsqueeze(1)
         #if(len(comm_in.shape) == 2):  comm_in = comm_in.unsqueeze(0)
         #if(len(comm_in.shape) == 3):  comm_in = comm_in.unsqueeze(1)
@@ -90,7 +91,7 @@ class Actor(nn.Module):
             comm_log_prob = torch.zeros_like(log_prob)
         else:
             comm_out, comm_log_prob = self.comm_out(forward_hidden)
-        
+        #print("ACTOR:", duration() - start)
         return action, comm_out, log_prob, comm_log_prob, action_hidden
     
     
@@ -150,6 +151,7 @@ class Critic(nn.Module):
                 out_features = 1))
         
     def forward(self, rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden):
+        start = duration()
         if(len(action.shape) == 2): action = action.unsqueeze(1)
         if(len(forward_hidden.shape) == 2): forward_hidden = forward_hidden.unsqueeze(1)
         #if(len(comm_in.shape) == 2):  comm_in = comm_in.unsqueeze(0)
@@ -169,6 +171,7 @@ class Critic(nn.Module):
         #value = self.mtrnn(x, critic_hidden)
         #critic_hidden = value[:,-1].unsqueeze(1)
         value = self.value(x)
+        #print("CRITIC:", duration() - start)
         return(value, None)
     
 

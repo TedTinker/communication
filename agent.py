@@ -28,8 +28,9 @@ class Agent:
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         
         self.tasks = {
-            "1" : Task(actions = 5, objects = 2, shapes = 5, colors = 6, parent = True,  args = self.args),
-            "2" : Task(actions = 5, objects = 2, shapes = 5, colors = 6, parent = False, args = self.args)}
+            "1" : Task(actions = 1, objects = 2, shapes = 5, colors = 6, parent = True,  args = self.args),
+            "2" : Task(actions = 5, objects = 2, shapes = 5, colors = 6, parent = True,  args = self.args),
+            "3" : Task(actions = 5, objects = 2, shapes = 5, colors = 6, parent = False, args = self.args)}
         self.task_runners = {task_name : Task_Runner(task, GUI = GUI if i == 0 else False) for i, (task_name, task) in enumerate(self.tasks.items())}
         self.task_name = self.args.task_list[0]
         
@@ -59,7 +60,6 @@ class Agent:
             self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr=self.args.critic_lr))
         
         self.memory = RecurrentReplayBuffer(self.args)
-        self.train()
         
         self.plot_dict = {
             "args" : self.args,
@@ -141,6 +141,7 @@ class Agent:
                         prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1,
                         prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2):
         with torch.no_grad():
+            self.eval()
             parented = self.task.task.parent
             
             rgbd_1, parent_comm = self.task.obs()
@@ -231,6 +232,8 @@ class Agent:
         self.task = self.task_runners[self.task_name]
         self.task.begin()        
         
+        prev_time = duration()
+        
         for step in range(self.args.max_steps):
             self.steps += 1                                                                                             
             if(not done):
@@ -270,6 +273,11 @@ class Agent:
                         self.plot_dict["prediction_error"].append(prediction_error)
                         for layer, f in enumerate(hidden_state):
                             self.plot_dict["hidden_state"][layer].append(f)    
+                            
+            time = duration()
+            #print("\nSTEP:", time - prev_time)
+            prev_time = time
+                        
         self.task.done()
         self.plot_dict["steps"].append(steps)
         self.plot_dict["rewards"].append(total_reward)
@@ -494,6 +502,7 @@ class Agent:
     
     
     def epoch(self, batch_size):
+        self.train()
         parented = self.task.task.parent
                                 
         batch = self.memory.sample(batch_size)
@@ -546,7 +555,7 @@ class Agent:
         accuracy_for_prediction_error = \
             rgbd_loss + \
             comm_loss
-        accuracy           = accuracy_for_prediction_error.mean()
+        accuracy = accuracy_for_prediction_error.mean()
         
         complexity_for_hidden_state = [dkl(zq_mu[:,:,layer], zq_std[:,:,layer], zp_mu[:,:,layer], zp_std[:,:,layer]).mean(-1).unsqueeze(-1) * all_masks for layer in range(self.args.layers)] 
         complexity          = sum([self.args.beta[layer] * complexity_for_hidden_state[layer].mean() for layer in range(self.args.layers)])       

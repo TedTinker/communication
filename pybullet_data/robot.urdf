@@ -74,11 +74,12 @@
     </link>
 
     <!-- Joint: base, shoulder -->
-    <joint name="body_shoulder_joint" type="continuous">
+    <joint name="body_shoulder_joint" type="revolute">
         <parent link="body_link"/>
         <child link="shoulder_link"/>
         <origin xyz="0 .5 0" rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
+        <limit lower="-1.57" upper="1.57" effort="99999" velocity="99999"/>
     </joint>
 
     <!-- Robot's arm -->
