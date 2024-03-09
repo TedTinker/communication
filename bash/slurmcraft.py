@@ -37,11 +37,17 @@ def expand_args(name, args):
             for v in value:
                 temp_combos = deepcopy(combos)
                 for combo in temp_combos: 
-                    combo[key] = v        
+                    combo[key] = v 
                     new_combos.append(combo)   
             combos = new_combos  
     if(complex and name[-1] != "_"): name += "_"
     return(name, combos)
+
+def convert_list(input_list):
+    converted = ['\[' + ','.join(map(str, sub_list)) + '\]' for sub_list in input_list]
+    return(converted)
+
+
 
 slurm_dict = {"d" : {}}
 
@@ -70,7 +76,7 @@ def add_this(name, args):
 
 add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
 add_this("n",   {"curiosity" : "prediction_error"})
-add_this("f",   {"curiosity" : "hidden_state"})
+add_this("f",   {"curiosity" : "hidden_state", "hidden_state_eta" : convert_list([ [0], [1] ])})
 add_this("i",   {"delta" : 1})
 
 
@@ -104,7 +110,7 @@ if(__name__ == "__main__" and args.arg_list == []):
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
 
-max_cpus = 36
+max_cpus = 30
 if(__name__ == "__main__" and args.arg_list != []):
     
     if(args.comp == "deigo"):
@@ -116,7 +122,7 @@ if(__name__ == "__main__" and args.arg_list != []):
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time 24:00:00
+#SBATCH --time 06:00:00
 #SBATCH --mem=100G"""
 
     if(args.comp == "saion"):

@@ -32,11 +32,15 @@ class RecurrentReplayBuffer:
         self.num_episodes = 0
 
         self.rgbds = VariableBuffer(
-            shape = (self.args.image_size, self.args.image_size * 4, 4), 
+            shape = (self.args.image_size, self.args.image_size, 4), 
             before_and_after = True, 
             args = self.args)
         self.communications_in = VariableBuffer(
             shape = (self.args.max_comm_len, self.args.comm_shape,), 
+            before_and_after = True, 
+            args = self.args)
+        self.others = VariableBuffer(
+            shape = (self.args.other_shape,), 
             before_and_after = True, 
             args = self.args)
         self.actions = VariableBuffer(
@@ -59,18 +63,21 @@ class RecurrentReplayBuffer:
             self, 
             rgbd,
             communication_in, 
+            other,
             action, 
             communication_out, 
             recommended_action,
             reward, 
             next_rgbd,
             next_communication_in, 
+            next_other,
             done):
-        
+                
         if self.time_ptr == 0:
             for buffer in [
                     self.rgbds,
                     self.communications_in, 
+                    self.others,
                     self.actions, 
                     self.communications_out, 
                     self.recommended_actions,
@@ -83,6 +90,7 @@ class RecurrentReplayBuffer:
         next_communication_in = pad_zeros(next_communication_in, self.args.max_comm_len)
         self.rgbds.push(self.episode_ptr, self.time_ptr, rgbd)
         self.communications_in.push(self.episode_ptr, self.time_ptr, communication_in)
+        self.others.push(self.episode_ptr, self.time_ptr, other)
         self.actions.push(self.episode_ptr, self.time_ptr, action)
         self.communications_out.push(self.episode_ptr, self.time_ptr, communication_out)
         self.recommended_actions.push(self.episode_ptr, self.time_ptr, recommended_action)
@@ -94,6 +102,7 @@ class RecurrentReplayBuffer:
         if done or self.time_ptr >= self.max_episode_len:
             self.rgbds.push(self.episode_ptr, self.time_ptr, next_rgbd)
             self.communications_in.push(self.episode_ptr, self.time_ptr, next_communication_in)
+            self.others.push(self.episode_ptr, self.time_ptr, next_other)
             self.episode_ptr = (self.episode_ptr + 1) % self.capacity
             self.time_ptr = 0
             self.num_episodes = min(self.num_episodes + 1, self.capacity)
@@ -105,6 +114,7 @@ class RecurrentReplayBuffer:
             batch = (
                 self.rgbds.sample(indices),
                 self.communications_in.sample(indices),
+                self.others.sample(indices),
                 self.actions.sample(indices),
                 self.communications_out.sample(indices),
                 self.recommended_actions.sample(indices),
@@ -116,6 +126,7 @@ class RecurrentReplayBuffer:
             batch = (
                 self.rgbds.sample(indices),
                 self.communications_in.sample(indices),
+                self.others.sample(indices),
                 self.actions.sample(indices),
                 self.communications_out.sample(indices),
                 self.recommended_actions.sample(indices),

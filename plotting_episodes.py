@@ -4,6 +4,7 @@ import matplotlib.gridspec as gridspec
 import os
 import re
 import imageio
+import numpy as np
 
 from utils import print, args, duration, load_dicts
 print("name:\n{}".format(args.arg_name))
@@ -65,6 +66,10 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
     text_list.append(comms_in)
     label_list.append(f"Comms In ({agent_num}):")
     
+    other = episode_dict[f"others_{agent_num}"][step]
+    text_list.append(str(other.tolist()))
+    label_list.append(f"Other ({agent_num}):")
+    
     if not last_step:
         
         recommended_actions = episode_dict[f"recommended_{agent_num}"][step]
@@ -100,6 +105,10 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         comms_in_p = episode_dict[f"prior_predicted_comms_in_{agent_num}"][step-1]
         text_list.append(comms_in_p)
         label_list.append(f"Predicted Comms (Prior) ({agent_num}):")
+        
+        other_p = episode_dict[f"prior_predicted_others_{agent_num}"][step-1]
+        text_list.append(str(other_p.tolist()))
+        label_list.append(f"Predicted Other (Prior) ({agent_num}):")
 
         rgbd_q = episode_dict[f"posterior_predicted_rgbds_{agent_num}"][step-1]
         text_list.append(None)
@@ -109,6 +118,10 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         comms_in_q = episode_dict[f"posterior_predicted_comms_in_{agent_num}"][step-1]
         text_list.append(comms_in_q)
         label_list.append(f"Predicted Comms (Posterior) ({agent_num}):")
+        
+        other_q = episode_dict[f"posterior_predicted_others_{agent_num}"][step-1]
+        text_list.append(str(other_q.tolist()))
+        label_list.append(f"Predicted Other (Posterior) ({agent_num}):")
         
     fig = plt.figure(figsize=(15, 20 if last_step else 20))
     gs = gridspec.GridSpec(len(label_list), 2, height_ratios=[20 if text == None else 1 if text.startswith("Yaw:") else 1 for text in text_list], width_ratios=[1, 4])
@@ -200,10 +213,38 @@ def animate_step(step, episode_dict, agent_1 = True, last_step = False):
     label_list.append(f"Comms In ({agent_num}):")
     
     if step == 0:
+        rgbd_q_shape = episode_dict[f"posterior_predicted_rgbds_{agent_num}"][step-1].shape
+        rgbd_q = np.ones(rgbd_q_shape)
+        text_list.append(None)
+        image_list.append(rgbd_q)
+        label_list.append(f"Predicted RGBD (Posterior) ({agent_num}):")
+
+        comms_in_q = ""
+        text_list.append(comms_in_q)
+        label_list.append(f"Predicted Comms (Posterior) ({agent_num}):")
+        
+        other_q_shape = episode_dict[f"posterior_predicted_others_{agent_num}"][step-1].shape
+        other_q = np.ones(other_q_shape)
+        text_list.append(str(other_q.tolist()))
+        label_list.append(f"Predicted Other (Posterior) ({agent_num}):")
+        
         comms_out = ""
         text_list.append(comms_out)
         label_list.append(f"Comms Out ({agent_num}):")
     else:
+        rgbd_q = episode_dict[f"posterior_predicted_rgbds_{agent_num}"][step-1]
+        text_list.append(None)
+        image_list.append(rgbd_q)
+        label_list.append(f"Predicted RGBD (Posterior) ({agent_num}):")
+
+        comms_in_q = episode_dict[f"posterior_predicted_comms_in_{agent_num}"][step-1]
+        text_list.append(comms_in_q)
+        label_list.append(f"Predicted Comms (Posterior) ({agent_num}):")
+        
+        other_q = episode_dict[f"posterior_predicted_others_{agent_num}"][step-1]
+        text_list.append(str(other_q.tolist()))
+        label_list.append(f"Predicted Other (Posterior) ({agent_num}):")
+        
         comms_out = episode_dict[f"comms_out_{agent_num}"][step-1]
         text_list.append(comms_out)
         label_list.append(f"Comms Out ({agent_num}):")

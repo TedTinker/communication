@@ -34,7 +34,7 @@ class Task:
         self.goal = []
         self.current_objects_1 = []
             
-        action_str, self.current_objects_1, self.current_objects_2 = make_objects_and_action(num_objects = self.objects, allowed_goals = self.actions, test = test)
+        action_str, self.current_objects_1, self.current_objects_2 = make_objects_and_action(num_objects = self.objects, allowed_shapes = self.shapes, allowed_colors = self.colors, allowed_goals = self.actions, test = test)
         goal_shape, goal_color = self.current_objects_1[0]
         
         self.goal = (action_str.upper() if goal_action == None else goal_action.upper(), (goal_shape, goal_color))
@@ -51,6 +51,8 @@ class Task:
             to_return += "\nSHAPE-COLORS (2):\t{}".format(["{} {}".format(list(color_map)[color], list(shape_map)[shape]) for shape, color in self.current_objects_2])
         to_return += "\nGOAL:\t{}".format(onehots_to_string(self.goal_comm))
         return(to_return)
+    
+
 
 
 
@@ -73,48 +75,43 @@ class Task_Runner:
         if(agent_1): arena = self.arena_1
         else:        
             if(self.parenting):
-                return(
-                    torch.zeros((1, self.args.image_size, self.args.image_size, 4)),
-                    None)
+                return(torch.zeros((1, self.args.image_size, self.args.image_size, 4)), None, None)
             else:
                 arena = self.arena_2
+                
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
-        return(rgbd, self.task.goal_comm)
-    
-    def change_velocity(self, speed, yaw, shoulder, agent_1 = True, verbose = False):
-        if(agent_1): arena = self.arena_1
-        else:        arena = self.arena_2
-        pos, old_yaw, spe = arena.get_pos_yaw_spe()
         
-        arena.set_pos((pos[0], pos[1], 1))
-        arena.set_speed_and_yaw_speed(speed, yaw)
-        arena.set_shoulder_speed(shoulder)
+        touching = arena.touching_anything()
+        touching = [int(t) for t in touching]
+        #_, _, speed = arena.get_pos_yaw_spe()
+        #speed = opposite_relative_to(speed, self.args.min_speed, self.args.max_speed)
+        other = torch.tensor([touching]).float()
+                
+        return(rgbd, self.task.goal_comm.unsqueeze(0), other)
             
-    def step(self, action, agent_1 = True, verbose = False):
+    def act(self, action, agent_1 = True, verbose = False):
         if(agent_1): arena = self.arena_1
         else:        arena = self.arena_2
-        speed, yaw, shoulder = \
+        left_wheel, right_wheel, shoulder = \
             action[0].item(), action[1].item(), action[2].item()
       
         if(verbose): 
             print("\n\nStep {}:".format(self.steps))
-            print("Speed: {}. Yaw: {}. Shoulders: {}.".format(
-            round(speed, 2), round(yaw, 2), round(shoulder, 2)))
+            print("Left Wheel: {}. Right Wheel: {}. Shoulders: {}.".format(
+            round(left_wheel, 2), round(right_wheel, 2), round(shoulder, 2)))
             
-        self.change_velocity(speed, yaw, shoulder, agent_1, verbose = verbose)
-        for step in range(self.args.steps_per_step):
-            arena.step()
+        arena.step(left_wheel, right_wheel, shoulder, verbose = verbose)
         reward, win = arena.rewards()
         return(reward, win)
         
-    def action(self, action_1, action_2 = None, verbose = False):
+    def step(self, action_1, action_2 = None, verbose = False):
         self.steps += 1
         done = False
         
-        reward, win = self.step(action_1, verbose = verbose)
+        reward, win = self.act(action_1, verbose = verbose)
         if(not self.parenting): 
-            reward_2, win_2 = self.step(action_2, agent_1 = False, verbose = verbose)
+            reward_2, win_2 = self.act(action_2, agent_1 = False, verbose = verbose)
             reward = max([reward, reward_2])
             win = win or win_2
                     
@@ -155,9 +152,9 @@ class Task_Runner:
         angles = []
         shapes = []
         colors = []
-        for i, ((shape, color, old_pos), object_num) in enumerate(arena.objects_in_play.items()):
-            object_pos, _ = p.getBasePositionAndOrientation(object_num, physicsClientId=arena.physicsClient)
-            agent_pos, agent_ori = p.getBasePositionAndOrientation(arena.body_num)
+        for i, ((shape, color, old_pos), object_index) in enumerate(arena.objects_in_play.items()):
+            object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=arena.physicsClient)
+            agent_pos, agent_ori = p.getBasePositionAndOrientation(arena.robot_index)
             distance_vector = np.subtract(object_pos, agent_pos)
             distance = np.linalg.norm(distance_vector)
             normalized_distance_vector = distance_vector / distance
@@ -179,25 +176,25 @@ class Task_Runner:
         shoulder_before = arena.get_joint_angles()[0]
         shoulder_before = -opposite_relative_to(shoulder_before, -1.57, 1.57)
         
-        yaw = 0 # uniform(-.2, .2)
-        shoulder = 0 # uniform(-1, 1)
-        speed = 0 # uniform(-1, 1)
+        left_wheel = uniform(-1, 1)
+        right_wheel = uniform(-1, 1)
+        shoulder = uniform(-1, 1)
         
-        if(goal_action.upper() == "TOP"):
+        if(goal_action.upper() == "PUSH"):
             pass
                 
-        if(goal_action.upper() == "BOTTOM"):
+        if(goal_action.upper() == "PULL"):
             pass
                 
-        if(goal_action.upper() == "PORT"):
+        if(goal_action.upper() == "LEFT"):
             pass
                 
-        if(goal_action.upper() == "STAR"):
+        if(goal_action.upper() == "RIGHT"):
             pass
                 
         return(torch.tensor([
-            speed,
-            yaw,
+            left_wheel,
+            right_wheel,
             shoulder]).float())
     
     
@@ -208,11 +205,11 @@ if __name__ == "__main__":
 
     args = default_args
     
-    task_runner = Task_Runner(Task(actions = 5, objects = 2, shapes = 5, colors = 6), GUI = True)
+    task_runner = Task_Runner(Task(actions = 5, objects = 2, shapes = 1, colors = 6), GUI = True)
     
     def get_images():
         rgba = task_runner.arena_1.photo_from_above()
-        rgbd, _ = task_runner.obs()
+        rgbd, _, _ = task_runner.obs()
         rgb = rgbd[0,:,:,0:3]
         return(rgba, rgb)
         
@@ -240,6 +237,7 @@ if __name__ == "__main__":
     i = 0
     while(True):
         i += 1
+        
         print("episode", i)
         images = []
         task_runner.begin(goal_action = "WATCH", verbose = True)
@@ -251,7 +249,7 @@ if __name__ == "__main__":
             images.append(get_images())
             recommendation = task_runner.get_recommended_action(verbose = False)#True)
             print("Got recommendation:", recommendation)
-            reward, done, win = task_runner.action(recommendation, verbose = False)#True)
+            reward, done, win = task_runner.step(recommendation, verbose = True)
             print("Done:", done)
             sleep(.1)
         images.append(get_images())

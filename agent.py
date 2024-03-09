@@ -14,6 +14,7 @@ import torch.optim as optim
 from utils import default_args, duration, dkl, print, calculate_similarity, onehots_to_string, action_to_string, cpu_memory_usage, action_map, action_name_list
 from task import Task, Task_Runner
 from buffer import RecurrentReplayBuffer
+from submodules import Discriminator
 from pvrnn import PVRNN
 from models import Actor, Critic
 
@@ -28,8 +29,8 @@ class Agent:
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         
         self.tasks = {
-            "1" : Task(actions = 1, objects = 2, shapes = 5, colors = 6, parent = True,  args = self.args),
-            "2" : Task(actions = 5, objects = 2, shapes = 5, colors = 6, parent = True,  args = self.args),
+            "1" : Task(actions = 1, objects = 2, shapes = 1, colors = 6, parent = True,  args = self.args),
+            "2" : Task(actions = 2, objects = 2, shapes = 5, colors = 6, parent = True,  args = self.args),
             "3" : Task(actions = 5, objects = 2, shapes = 5, colors = 6, parent = False, args = self.args)}
         self.task_runners = {task_name : Task_Runner(task, GUI = GUI if i == 0 else False) for i, (task_name, task) in enumerate(self.tasks.items())}
         self.task_name = self.args.task_list[0]
@@ -37,18 +38,21 @@ class Agent:
         self.target_entropy = self.args.target_entropy
         self.alpha = 1
         self.log_alpha = torch.tensor([0.0], requires_grad=True)
-        self.alpha_opt = optim.Adam(params=[self.log_alpha], lr=self.args.alpha_lr) 
+        self.alpha_opt = optim.Adam(params=[self.log_alpha], lr=self.args.alpha_lr, weight_decay = .00001) 
         
         self.target_entropy_text = self.args.target_entropy_text
         self.alpha_text = 1
         self.log_alpha_text = torch.tensor([0.0], requires_grad=True)
-        self.alpha_text_opt = optim.Adam(params=[self.log_alpha_text], lr=self.args.alpha_text_lr) 
+        self.alpha_text_opt = optim.Adam(params=[self.log_alpha_text], lr=self.args.alpha_text_lr, weight_decay = .00001) 
 
         self.forward = PVRNN(self.args)
-        self.forward_opt = optim.Adam(self.forward.parameters(), lr=self.args.forward_lr)
+        self.forward_opt = optim.Adam(self.forward.parameters(), lr=self.args.forward_lr, weight_decay = .00001)
+        
+        self.discriminator = Discriminator(self.args)
+        self.discriminator_obt = optim.Adam(self.discriminator.parameters(), lr=self.args.discriminator_lr, weight_decay = .00001)
                            
         self.actor = Actor(self.args)
-        self.actor_opt = optim.Adam(self.actor.parameters(), lr=self.args.actor_lr) 
+        self.actor_opt = optim.Adam(self.actor.parameters(), lr=self.args.actor_lr, weight_decay = .00001) 
         
         self.critics = []
         self.critic_targets = []
@@ -57,7 +61,7 @@ class Agent:
             self.critics.append(Critic(self.args))
             self.critic_targets.append(Critic(self.args))
             self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
-            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr=self.args.critic_lr))
+            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr=self.args.critic_lr, weight_decay = .00001))
         
         self.memory = RecurrentReplayBuffer(self.args)
         
@@ -68,16 +72,17 @@ class Agent:
             "episode_dicts" : {}, 
             "agent_lists" : {"forward" : PVRNN, "actor" : Actor, "critic" : Critic},
             "wins_watch" : [], 
-            "wins_top" : [], 
-            "wins_bottom" : [], 
-            "wins_port" : [], 
-            "wins_star" : [], 
+            "wins_push" : [], 
+            "wins_pull" : [], 
+            "wins_left" : [], 
+            "wins_right" : [], 
             "rewards" : [], 
             "gen_rewards" : [], 
             "steps" : [],
             "accuracy" : [], 
             "rgbd_loss" : [], 
             "comm_loss" : [], 
+            "other_loss" : [], 
             "complexity" : [],
             "alpha" : [], 
             "alpha_text" : [],
@@ -144,10 +149,11 @@ class Agent:
             self.eval()
             parented = self.task.task.parent
             
-            rgbd_1, parent_comm = self.task.obs()
-            rgbd_2, _ = self.task.obs(agent_1 = False)
+            rgbd_1, parent_comm, other_1 = self.task.obs()
+            rgbd_2, _, other_2 = self.task.obs(agent_1 = False)
             recommended_action_1 = self.task.get_recommended_action()
-            (_, _, hp_1), (_, _, hq_1) = self.forward.bottom_to_top_step(hq_1, rgbd_1, parent_comm if parented else prev_comm_out_2, prev_action_1, prev_comm_out_1) 
+            comm = parent_comm.unsqueeze(0) if parented else prev_comm_out_2
+            (_, _, hp_1), (_, _, hq_1) = self.forward.bottom_to_top_step(hq_1, self.forward.obs_in(rgbd_1, comm, other_1), self.forward.action_in(prev_action_1), self.forward.comm_in(prev_comm_out_1)) 
             action_1, comm_out_1, _, _, ha_1 = self.actor(rgbd_1, parent_comm if parented else prev_comm_out_2, prev_action_1, prev_comm_out_1, hq_1[:,:,0].detach(), ha_1, parented) 
             values_1 = []
             new_hcs_1 = []
@@ -165,7 +171,7 @@ class Agent:
                 new_hcs_2 = None
             else:
                 recommended_action_2 = self.task.get_recommended_action(agent_1 = False)
-                (_, _, hp_2), (_, _, hq_2) = self.forward.bottom_to_top_step(hq_2, rgbd_2, prev_comm_out_1, prev_action_2, prev_comm_out_2) 
+                (_, _, hp_2), (_, _, hq_2), _ = self.forward(hq_2, self.forward.obs_in(rgbd_2, prev_comm_out_1, other_2), self.forward.action_in(prev_action_2), self.forward.comm_in(prev_comm_out_2))
                 action_2, comm_out_2, _, _, ha_2 = self.actor(rgbd_2, prev_comm_out_1, prev_action_2, prev_comm_out_2, hq_2[:,:,0].detach(), ha_2, parented) 
                 values_2 = []
                 new_hcs_2 = []
@@ -174,19 +180,21 @@ class Agent:
                     values_2.append(round(value.item(), 3))
                     new_hcs_2.append(hc)
                 
-            reward, done, win = self.task.action(action_1[0,0].clone(), action_2[0,0].clone())
-            next_rgbd_1, next_parent_comm = self.task.obs()
-            next_rgbd_2, _ = self.task.obs(agent_1 = False)
+            reward, done, win = self.task.step(action_1[0,0].clone(), action_2[0,0].clone())
+            next_rgbd_1, next_parent_comm, next_other_1 = self.task.obs()
+            next_rgbd_2, _, next_other_2 = self.task.obs(agent_1 = False)
             
             to_push_1 = [
                 rgbd_1,
                 parent_comm if parented else prev_comm_out_2,
+                other_1,
                 action_1,
                 comm_out_1,
                 recommended_action_1,
                 reward,
                 next_rgbd_1,
                 next_parent_comm if parented else comm_out_2,
+                next_other_1,
                 done]
             
             if(self.task.task.parent): 
@@ -195,12 +203,14 @@ class Agent:
                 to_push_2 = [
                     rgbd_2,
                     prev_comm_out_1,
+                    other_2,
                     action_2,
                     comm_out_2,
                     recommended_action_2,
                     reward,
                     next_rgbd_2,
                     comm_out_1,
+                    next_other_2,
                     done]
         torch.cuda.empty_cache()
         
@@ -251,13 +261,14 @@ class Agent:
                 plot_data = self.epoch(self.args.batch_size)
                 if(plot_data == False): pass
                 else:
-                    accuracy, rgbd_loss, comm_loss, complexity, \
+                    accuracy, rgbd_loss, comm_loss, other_loss, complexity, \
                         alpha_loss, alpha_text_loss, actor_loss, critic_losses, \
                             e, q, ic, ie, ii, prediction_error, hidden_state = plot_data
                     if(self.epochs == 1 or self.epochs >= sum(self.args.epochs) or self.epochs % self.args.keep_data == 0):
                         self.plot_dict["accuracy"].append(accuracy)
                         self.plot_dict["rgbd_loss"].append(rgbd_loss)
                         self.plot_dict["comm_loss"].append(comm_loss)
+                        self.plot_dict["other_loss"].append(other_loss)
                         self.plot_dict["complexity"].append(complexity)                                                                             
                         self.plot_dict["alpha"].append(alpha_loss)
                         self.plot_dict["alpha_text"].append(alpha_text_loss)
@@ -289,30 +300,34 @@ class Agent:
                 else:               win_dict.append(None)
                              
         for to_push in to_push_list_1:
-            rgbd, comm_in, action, comm_out, recommended_action, reward, next_rgbd, next_comm_in, done = to_push
+            rgbd, comm_in, other, action, comm_out, recommended_action, reward, next_rgbd, next_comm_in, next_other, done = to_push
             self.memory.push(
                 rgbd,
                 comm_in, 
+                other,
                 action, 
                 comm_out,
                 recommended_action,
                 reward, 
                 next_rgbd,
                 next_comm_in, 
+                next_other,
                 done)
             
         for to_push in to_push_list_2:
             if(to_push != None):
-                rgbd, comm_in, action, comm_out, recommended_action, reward, next_rgbd, next_comm_in, done = to_push
+                rgbd, comm_in, other, action, comm_out, recommended_action, reward, next_rgbd, next_comm_in, next_other, done = to_push
                 self.memory.push(
                     rgbd,
                     comm_in, 
+                    other,
                     action, 
                     comm_out,
                     recommended_action,
                     reward, 
                     next_rgbd,
                     next_comm_in, 
+                    next_other,
                     done)
                 
         self.episodes += 1
@@ -363,6 +378,8 @@ class Agent:
                     "rgbds_2" : [],
                     "comms_in_1" : [],
                     "comms_in_2" : [],
+                    "others_1" : [],
+                    "others_2" : [],
                     "recommended_1" : [],
                     "recommended_2" : [],
                     "actions_1" : [],
@@ -376,12 +393,16 @@ class Agent:
                     "critic_predictions_2" : [],
                     "prior_predicted_rgbds_1" : [],
                     "prior_predicted_comms_in_1" : [],
+                    "prior_predicted_others_1" : [],
                     "posterior_predicted_rgbds_1" : [],
                     "posterior_predicted_comms_in_1" : [],
+                    "posterior_predicted_others_1" : [],
                     "prior_predicted_rgbds_2" : [],
                     "prior_predicted_comms_in_2" : [],
+                    "prior_predicted_others_2" : [],
                     "posterior_predicted_rgbds_2" : [],
-                    "posterior_predicted_comms_in_2" : []}
+                    "posterior_predicted_comms_in_2" : [],
+                    "posterior_predicted_others_1" : [],}
                 done = False
                 
                 hps_1 = []
@@ -402,15 +423,18 @@ class Agent:
                 
                 self.task = self.task_runners[self.task_name]
                 self.task.begin()        
-                episode_dict["task"] = self.task.task # For some reason, this gives the wrong goal-text.
-                rgbd_1, parent_comm = self.task.obs()
-                rgbd_2, _ = self.task.obs(agent_1 = False)
+                episode_dict["task"] = deepcopy(self.task.task) # For some reason, this gives the wrong goal-text.
+                rgbd_1, parent_comm, other_1 = self.task.obs()
+                rgbd_2, _, other_2 = self.task.obs(agent_1 = False)
                 birds_eye_1 = self.task.arena_1.photo_from_above()
                 birds_eye_2 = None if comm_from_parent else self.task.arena_2.photo_from_above()
                 episode_dict["rgbds_1"].append(rgbd_1[0,:,:,0:3])
                 episode_dict["rgbds_2"].append(rgbd_2[0,:,:,0:3])
+                # For some reason, this only saves one letter?
                 episode_dict["comms_in_1"].append(onehots_to_string(parent_comm if comm_from_parent else prev_comm_out_2))
                 episode_dict["comms_in_2"].append(onehots_to_string(prev_comm_out_1)) 
+                episode_dict["others_1"].append(other_1)
+                episode_dict["others_2"].append(other_2)
                 episode_dict["birds_eye_1"].append(birds_eye_1[:,:,0:3])
                 episode_dict["birds_eye_2"].append(None if birds_eye_2 == None else birds_eye_2[:,:,0:3])
                 
@@ -432,14 +456,16 @@ class Agent:
                         episode_dict["rewards"].append(str(reward))
                         episode_dict["critic_predictions_1"].append(values_1)
                         episode_dict["critic_predictions_2"].append(values_2)
-                        rgbd_1, parent_comm = self.task.obs()
-                        rgbd_2, _ = self.task.obs(agent_1 = False)
+                        rgbd_1, parent_comm, other_1 = self.task.obs()
+                        rgbd_2, _, other_2 = self.task.obs(agent_1 = False)
                         birds_eye_1 = self.task.arena_1.photo_from_above()
                         birds_eye_2 = None if comm_from_parent else self.task.arena_2.photo_from_above()
                         episode_dict["rgbds_1"].append(rgbd_1[0,:,:,0:3])
                         episode_dict["rgbds_2"].append(rgbd_2[0,:,:,0:3])
                         episode_dict["comms_in_1"].append(onehots_to_string(parent_comm if comm_from_parent else prev_comm_out_2[0,0]))
                         episode_dict["comms_in_2"].append(onehots_to_string(prev_comm_out_1[0,0])) 
+                        episode_dict["others_1"].append(other_1)
+                        episode_dict["others_2"].append(other_2)
                         episode_dict["birds_eye_1"].append(birds_eye_1[:,:,0:3])
                         episode_dict["birds_eye_2"].append(None if birds_eye_2 == None else birds_eye_2[:,:,0:3])
                         hps_1.append(hp_1[:,0].unsqueeze(0))
@@ -454,13 +480,15 @@ class Agent:
                 comms_out_1 = torch.cat(episode_dict["comms_out_1"], dim = 1)
                 episode_dict["comms_out_1"] = [onehots_to_string(comms_out[0,0]) for comms_out in episode_dict["comms_out_1"]]
                 episode_dict["actions_1"] = [action_to_string(action) for action in episode_dict["actions_1"]]
-                pred_rgbds_p, pred_comm_in_p = self.forward.predict(hp_1, actions_1) 
-                pred_rgbds_q, pred_comm_in_q = self.forward.predict(hq_1, actions_1)
+                pred_rgbds_p, pred_comm_in_p, pred_other_p = self.forward.predict(hp_1, self.forward.action_in(actions_1)) 
+                pred_rgbds_q, pred_comm_in_q, pred_other_q = self.forward.predict(hq_1, self.forward.action_in(actions_1))
                 for step in range(pred_rgbds_p.shape[1]):
                     episode_dict["prior_predicted_rgbds_1"].append(torch.sigmoid(pred_rgbds_p[0,step][:,:,0:3]))
                     episode_dict["prior_predicted_comms_in_1"].append(onehots_to_string(pred_comm_in_p[0,step]))
+                    episode_dict["prior_predicted_others_1"].append(torch.sigmoid(pred_other_p[0,step]))
                     episode_dict["posterior_predicted_rgbds_1"].append(torch.sigmoid(pred_rgbds_q[0,step][:,:,0:3]))
                     episode_dict["posterior_predicted_comms_in_1"].append(onehots_to_string(pred_comm_in_q[0,step]))
+                    episode_dict["posterior_predicted_others_1"].append(torch.sigmoid(pred_other_q[0,step]))
                 #if(self.agent_num == 1):
                 #    for step in range(hp_1.shape[1]):
                 #        print("\nIn Saving Episode:")
@@ -476,13 +504,15 @@ class Agent:
                     comms_out_2 = torch.cat(episode_dict["comms_out_2"], dim = 1)
                     episode_dict["comms_out_2"] = [onehots_to_string(comms_out[0,0]) for comms_out in episode_dict["comms_out_2"]]
                     episode_dict["actions_2"] = [action_to_string(action) for action in episode_dict["actions_2"]]
-                    pred_rgbds_p, pred_comm_in_p = self.forward.predict(hp_2, actions_2) 
-                    pred_rgbds_q, pred_comm_in_q = self.forward.predict(hq_2, actions_2)
+                    pred_rgbds_p, pred_comm_in_p, pred_other_p = self.forward.predict(hp_2, self.forward.action_in(actions_2))
+                    pred_rgbds_q, pred_comm_in_q, pred_other_q = self.forward.predict(hq_2, self.forward.action_in(actions_2))
                     for step in range(pred_rgbds_p.shape[1]):
                         episode_dict["prior_predicted_rgbds_2"].append(torch.sigmoid(pred_rgbds_p[0,step][:,:,0:3]))
                         episode_dict["prior_predicted_comms_in_2"].append(onehots_to_string(pred_comm_in_p[0,step]))
+                        episode_dict["prior_predicted_others_2"].append(torch.sigmoid(pred_other_p[0,step]))
                         episode_dict["posterior_predicted_rgbds_2"].append(torch.sigmoid(pred_rgbds_q[0,step][:,:,0:3]))
                         episode_dict["posterior_predicted_comms_in_2"].append(onehots_to_string(pred_comm_in_q[0,step]))
+                        episode_dict["prior_predicted_others_2"].append(torch.sigmoid(pred_other_q[0,step]))
                     #if(self.agent_num == 1):
                     #    for step in range(hp_2.shape[1]):
                     #        print("\nIn Saving Episode:")
@@ -512,9 +542,10 @@ class Agent:
                         
         self.epochs += 1
 
-        rgbds, comms_in, actions, comms_out, recommended_actions, rewards, dones, masks = batch
+        rgbds, comms_in, others, actions, comms_out, recommended_actions, rewards, dones, masks = batch
         rgbds = torch.from_numpy(rgbds)
         comms_in = torch.from_numpy(comms_in)
+        others = torch.from_numpy(others)
         actions = torch.from_numpy(actions)
         comms_out = torch.from_numpy(comms_out)
         recommended_actions = torch.from_numpy(recommended_actions)
@@ -539,7 +570,7 @@ class Agent:
                 
         
         # Train forward
-        (zp_mu, zp_std, hps), (zq_mu, zq_std, hqs), (pred_rgbds, pred_comms) = self.forward(torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), rgbds, comms_in, actions, comms_out)
+        (zp_mu, zp_std, hps), (zq_mu, zq_std, hqs), (pred_rgbds, pred_comms, pred_others) = self.forward(torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), rgbds, comms_in, others, actions, comms_out)
         hqs = hqs[:,:,0]
         
         rgbd_loss = F.binary_cross_entropy_with_logits(pred_rgbds, rgbds[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * masks * self.args.rgbd_scaler
@@ -552,9 +583,10 @@ class Agent:
         comm_loss = comm_loss.reshape((episodes, steps, self.args.max_comm_len))
         comm_loss = comm_loss.mean(-1).unsqueeze(-1) * masks * self.args.comm_scaler
         
-        accuracy_for_prediction_error = \
-            rgbd_loss + \
-            comm_loss
+        other_loss = F.binary_cross_entropy(pred_others, others[:,1:], reduction = "none")
+        other_loss = other_loss.mean(-1).unsqueeze(-1) * masks * self.args.other_scaler
+        
+        accuracy_for_prediction_error = rgbd_loss + comm_loss + other_loss
         accuracy = accuracy_for_prediction_error.mean()
         
         complexity_for_hidden_state = [dkl(zq_mu[:,:,layer], zq_std[:,:,layer], zp_mu[:,:,layer], zp_std[:,:,layer]).mean(-1).unsqueeze(-1) * all_masks for layer in range(self.args.layers)] 
@@ -727,6 +759,7 @@ class Agent:
         if(accuracy != None):   accuracy = accuracy.item()
         if(rgbd_loss != None):   rgbd_loss = rgbd_loss.mean().item()
         if(comm_loss != None):   comm_loss = comm_loss.mean().item()
+        if(other_loss != None):   other_loss = other_loss.mean().item()
         if(complexity != None): complexity = complexity.item()
         if(alpha_loss != None): alpha_loss = alpha_loss.item()
         if(alpha_text_loss != None): alpha_text_loss = alpha_text_loss.item()
@@ -741,7 +774,7 @@ class Agent:
         hidden_state_curiosities = [hidden_state_curiosity.mean().item() for hidden_state_curiosity in hidden_state_curiosities]
         hidden_state_curiosities = [hidden_state_curiosity for hidden_state_curiosity in hidden_state_curiosities]
                 
-        return(accuracy, rgbd_loss, comm_loss, complexity, alpha_loss, alpha_text_loss, actor_loss, critic_losses, 
+        return(accuracy, rgbd_loss, comm_loss, other_loss, complexity, alpha_loss, alpha_text_loss, actor_loss, critic_losses, 
                extrinsic, Q, intrinsic_curiosity, intrinsic_entropy, intrinsic_imitation, prediction_error_curiosity, hidden_state_curiosities)
     
     
@@ -762,7 +795,7 @@ class Agent:
         self.actor.load_state_dict(state_dict[1])
         for i in range(self.args.critics):
             self.critics[i].load_state_dict(state_dict[2+2*i])
-            self.critic_target[i].load_state_dict(state_dict[3+2*i])
+            self.critic_targets[i].load_state_dict(state_dict[3+2*i])
         self.memory = RecurrentReplayBuffer(self.args)
 
     def eval(self):

@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.profiler import profile, record_function, ProfilerActivity
 import torch.optim as optim
+from pytorch_msssim import ssim
 from torchinfo import summary as torch_summary
 
 from utils import print, default_args, init_weights, attach_list, detach_list, \
@@ -52,7 +53,8 @@ class In_And_Out(nn.Module):
 
 
 in_and_out = In_And_Out(args = args)
-opt = optim.Adam(params=in_and_out.parameters(), lr=.01) 
+in_and_out.train()
+opt = optim.Adam(params=in_and_out.parameters(), lr=.01, weight_decay = .00001) 
 task_runner = Task_Runner(Task(actions = 1, objects = 2, shapes = 5, colors = 6), GUI = False)
 
 
@@ -100,19 +102,19 @@ def plot_losses(losses):
     
     
 
-def make_batch(batch_size = 128):
+def make_batch(batch_size = args.batch_size):
     batch_inputs = []
     actions = []
     batch_outputs = []
     while(True):
         task_runner.begin(goal_action = "WATCH")
         done = False
-        rgbd, _ = task_runner.obs()
+        rgbd, _, _ = task_runner.obs()
         batch_inputs.append(rgbd)
         recommendation = task_runner.get_recommended_action(verbose = False)#True)
         actions.append(recommendation)
-        reward, done, win = task_runner.action(recommendation, verbose = False)#True)
-        rgbd, _ = task_runner.obs()
+        reward, done, win = task_runner.step(recommendation, verbose = False)#True)
+        rgbd, _, _ = task_runner.obs()
         batch_outputs.append(rgbd)
         task_runner.done()
         if(len(batch_inputs) == batch_size):
@@ -127,10 +129,13 @@ def make_batch(batch_size = 128):
 def epoch(e):
     batch_inputs, actions, batch_outputs = make_batch()
     guesses = in_and_out(batch_inputs, actions)
-    rgbd_loss = F.binary_cross_entropy_with_logits(guesses.squeeze(1), batch_outputs)
+    
+    rgbd_loss = F.binary_cross_entropy_with_logits(guesses.squeeze(1), batch_outputs, reduction = "none")
+    rgbd_loss = rgbd_loss.mean()
     opt.zero_grad()
     rgbd_loss.backward()
     opt.step()
+    
     guesses = torch.sigmoid(guesses)
     batch_inputs = batch_inputs[0,:,:,0:3].detach()
     actions = actions[0].detach()

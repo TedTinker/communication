@@ -221,8 +221,8 @@ class Arena():
         success = False
         failure = False
         goal_action = self.goal[0]
-        goal_shape = list(shape_map)[self.goal[1][0]]
-        goal_color = list(color_map.values())[self.goal[1][1]]
+        goal_shape = list(shape_map)[self.goal[1][0][0]]
+        goal_color = list(color_map.values())[self.goal[1][0][1]]
         for (shape, color, old_pos), object_index in self.objects_in_play.items():
             performing_something = None
             touching = self.touching_object(object_index)
@@ -257,18 +257,11 @@ class Arena():
     def photo_from_above(self):
         pos, _, _ = self.get_pos_yaw_spe()
         view_matrix = p.computeViewMatrix(
-            cameraEyePosition = [pos[0] + 4, pos[1] + 4, 8], 
+            cameraEyePosition = [pos[0], pos[1], 8], 
             cameraTargetPosition = [pos[0], pos[1], -1],    # Camera / target position very important
             cameraUpVector = [-1, 0, 0], physicsClientId = self.physicsClient)
         proj_matrix = p.computeProjectionMatrixFOV(
             fov = 90, aspect = 1, nearVal = .01, 
-            
-            
-            
-            
-            
-            
-            
             farVal = 10, physicsClientId = self.physicsClient)
         _, _, rgba, _, _ = p.getCameraImage(
             width=256, height=256,
@@ -276,25 +269,14 @@ class Arena():
             physicsClientId = self.physicsClient)
         return(rgba)
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     def photo_for_agent(self):
         pos, yaw, _ = self.get_pos_yaw_spe()
         
         def get_photo(pos, yaw):
             x, y = cos(yaw), sin(yaw)
             view_matrix = p.computeViewMatrix(
-                cameraEyePosition = [pos[0], pos[1], 2], 
-                cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    # Camera / target position very important
+                cameraEyePosition = [pos[0], pos[1], 1.1], 
+                cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 1.1],    # Camera / target position very important
                 cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
             proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far, physicsClientId = self.physicsClient)
             _, _, rgba, depth, _ = p.getCameraImage(
@@ -318,8 +300,8 @@ class Arena():
 if __name__ == "__main__":
     args = default_args
     arena = Arena(GUI = True, args = args)
-    action, shape_colors_1, shape_colors_2 = make_objects_and_action(args.objects, args.shapes, args.colors, 5)
-    goal = [choices(action_map)[0], shape_colors_1[0]]
+    action, shape_colors_1, shape_colors_2 = make_objects_and_action(args.objects, 5)
+    goal = [choices(action_map)[0], shape_colors_1]
     
     objectStartPosition = [5, 5, 1.5]  # Ensure object starts clearly above the floor
     objectStartOrientation = p.getQuaternionFromEuler([0, 0, 0])
@@ -327,7 +309,6 @@ if __name__ == "__main__":
     
     print("\nSPIN")
     arena.begin(objects = shape_colors_1, goal = goal, parented = False)
-    print(arena.rewards())
     for step in range(50):
         arena.step(-1, 1, -1, verbose = True)
         rgba = arena.photo_from_above()

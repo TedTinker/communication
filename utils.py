@@ -1,11 +1,15 @@
 #%% 
 
 # To do: 
-#   Image prediction collapsing?
-#   Make the agent move around (also change object positioning).
+#   Objects fall through floor and flop, so remake arena from ground up
+#   Finish making all the action-reward checkers
+#   Try making recommended actions just to see if the action-reward checkers work 
+#   Issue with plotting other_loss when adding it to other losses
+#   Add prior, posterior, and hidden to animation
 
 import os
 import pickle
+import pybullet as p
 from math import pi
 from time import sleep
 import builtins
@@ -48,22 +52,24 @@ max_len_color_name = len(max(color_map, key=len))
 
 action_map = {
     0: "WATCH",  
-    1: "TOP", 
-    2: "BOTTOM", 
-    3: "PORT", 
-    4: "STAR"}
+    1: "PUSH", 
+    2: "PULL", 
+    3: "LEFT", 
+    4: "RIGHT"}
 max_len_action_name = len(max(action_map.values(), key=len))
 action_name_list = list(action_map.values())
 
 all_combos = list(product(range(len(shape_map)), range(len(color_map)), range(len(action_map))))
 
 training_combos = [(s, c, a) for (s, c, a) in all_combos if 
-                   (s in [0,1] and c in [0,1]) or 
-                   ((s + c) % 2 == 0 and (s + a) % 2 == 0)]
+                   (s in [0,1] and c in [0,1]) or
+                   (s == 0 or c == 0) or  
+                   ((s + c) % 2 == 0 and a % 2 == 0) or 
+                   ((s + c) % 2 == 1 and a % 2 == 1)]
 
 testing_combos = [combo for combo in all_combos if not combo in training_combos]
 
-def valid_shape_color(action_num, other_shape_colors, goal = False, test = False):
+def valid_shape_color(action_num, other_shape_colors, allowed_shapes, allowed_colors, goal = False, test = False):
     if(not goal):
         these_combos = all_combos 
     else:
@@ -72,21 +78,21 @@ def valid_shape_color(action_num, other_shape_colors, goal = False, test = False
         else:
             these_combos = training_combos
         these_combos = [combo for combo in these_combos if combo[2] == action_num]
-    these_combos = [(combo[0], combo[1]) for combo in these_combos]
+    these_combos = [(combo[0], combo[1]) for combo in these_combos if combo[0] < allowed_shapes and combo[1] < allowed_colors]
     these_combos = [combo for combo in these_combos if not combo in other_shape_colors]
     shape_num, color_num = choice(these_combos)
     return(shape_num, color_num)
 
-def make_objects_and_action(num_objects, allowed_goals, test = False):
+def make_objects_and_action(num_objects, allowed_shapes, allowed_colors, allowed_goals, test = False):
     action_num = randint(0, allowed_goals - 1) 
     action = action_map[action_num].upper()
-    goal_object = valid_shape_color(action_num, [], goal = True, test = test)
+    goal_object = valid_shape_color(action_num, [], allowed_shapes, allowed_colors, goal = True, test = test)
     shape_colors_1 = [goal_object]
     shape_colors_2 = [goal_object]
     for n in range(num_objects-1):
-        shape_colors_1.append(valid_shape_color(action_num, shape_colors_1 + shape_colors_2, goal = False, test = test))
+        shape_colors_1.append(valid_shape_color(action_num, shape_colors_1 + shape_colors_2, allowed_shapes, allowed_colors, goal = False, test = test))
     for n in range(num_objects-1):
-        shape_colors_2.append(valid_shape_color(action_num, shape_colors_1 + shape_colors_2, goal = False, test = test))
+        shape_colors_2.append(valid_shape_color(action_num, shape_colors_1 + shape_colors_2, allowed_shapes, allowed_colors, goal = False, test = test))
     return(action, shape_colors_1, shape_colors_2)
 
 if(__name__ == "__main__"):
@@ -163,7 +169,21 @@ def cpu_memory_usage():
     mem_usage_bytes = process.memory_info().rss  # rss is the Resident Set Size
     mem_usage_gb = mem_usage_bytes / (1024 ** 3)  # Convert bytes to gigabytes
     print('memory use:', mem_usage_gb, "gigabytes")
+    
+# Checking robot parts.
 
+physicsClient = p.connect(p.DIRECT)
+default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
+robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
+sensor_num = 0
+for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
+    joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
+    link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
+    if("sensor" in link_name):
+        sensor_num += 1
+p.disconnect(physicsClientId = physicsClient)
+
+sensor_num = 3
 
 
 # Arguments to parse. 
@@ -209,38 +229,48 @@ parser.add_argument('--colors',             type=int,        default = 6,
                     help='Maximum count of colors in one episode.')
 parser.add_argument('--max_comm_len',       type=int,        default = 20,
                     help='Maximum length of communication.')
+parser.add_argument('--watch_distance',     type=float,      default = 4,
+                    help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--watch_duration',     type=int,        default = 3,
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--push_speed',         type=float,      default = 1,
                     help='Needed speed of an object for push/pull/left/right.')
 
     # Simulation details
-parser.add_argument('--object_distance',    type=float,      default = 3,
-                    help='How far objects are from the agent.')
-parser.add_argument('--object_size',        type=float,      default = 4,
+parser.add_argument('--max_object_distance',type=float,      default = 4,
+                    help='How far objects can start from the agent.')
+parser.add_argument('--min_object_separation',type=float,    default = 3,
+                    help='How far objects must start from each other.')
+parser.add_argument('--object_size',        type=float,      default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--image_size',         type=int,        default = 8,
                     help='Dimensions of the images observed.')
-parser.add_argument('--max_speed',          type=float,      default = 100,
-                    help='Max agent speed.')
-parser.add_argument('--max_yaw_speed',      type=float,      default = 100,
-                    help='Max speed agent can change angle')
-parser.add_argument('--max_shoulder_speed', type=float,      default = 100,
+parser.add_argument('--min_speed',          type=float,      default = -50,
+                    help='Min wheel speed.')
+parser.add_argument('--max_speed',          type=float,      default = 50,
+                    help='Max wheel speed.')
+parser.add_argument('--angular_scaler',     type=float,      default = 5,
+                    help='How to scale angular velocity vs linear velocity.')
+parser.add_argument('--min_shoulder_angle', type=float,      default = pi/2,
+                    help='Agent\'s maximum shoulder velocity.')
+parser.add_argument('--max_shoulder_angle', type=float,      default = 0,
                     help='Agent\'s maximum shoulder velocity.')
 parser.add_argument('--steps_per_step',     type=int,        default = 10,
                     help='To avoid intersections, simulation makes each episode step multiple simulation steps.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [2000],#, 1000],
+parser.add_argument('--epochs',             type=literal,    default = [3000],#, 1000],
                     help='List of how many epochs to train in each task.')
-parser.add_argument('--batch_size',         type=int,        default = 128, 
+parser.add_argument('--batch_size',         type=int,        default = 32, 
                     help='How many episodes are sampled for each epoch.')      
 parser.add_argument('--rgbd_scaler',        type=float,      default = 100, 
-                    help='How much to consider rgbd prediction in accuracy compared to comm.')  
+                    help='How much to consider rgbd prediction in accuracy compared to comm and other.')  
 parser.add_argument('--comm_scaler',        type=float,      default = 1, 
-                    help='How much to consider comm prediction in accuracy compared to rgbd.')       
+                    help='How much to consider comm prediction in accuracy compared to rgbd and other.')       
+parser.add_argument('--other_scaler',       type=float,      default = 1, 
+                    help='How much to consider other prediction in accuracy compared to rgbd and comm.')       
 
     # Memory buffer
 parser.add_argument('--capacity',           type=int,        default = 256,
@@ -253,12 +283,14 @@ parser.add_argument('--hidden_size',        type=int,        default = 32,
                     help='Parameters in hidden layers.')   
 parser.add_argument('--encode_size',        type=int,        default = 8,
                     help='Parameters in encoding.')   
-parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 64,
+parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 128,
                     help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
-parser.add_argument('--encode_rgbd_size',   type=int,        default = 64,
+parser.add_argument('--encode_rgbd_size',   type=int,        default = 128,
                     help='Parameters in encoding image.')   
 parser.add_argument('--encode_comm_size',   type=int,        default = 32,
                     help='Parameters in encoding communicaiton.')   
+parser.add_argument('--encode_other_size',  type=int,        default = 16,
+                    help='Parameters in encoding sensors, angles, speed.')   
 parser.add_argument('--encode_action_size', type=int,        default = 16,
                     help='Parameters in encoding action.')   
 parser.add_argument('--state_size',         type=int,        default = 64,
@@ -267,6 +299,8 @@ parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
 parser.add_argument('--forward_lr',         type=float,      default = .01,
                     help='Learning rate for forward model.')
+parser.add_argument('--discriminator_lr',   type=float,      default = .01,
+                    help='Learning rate for discriminator model.')
 parser.add_argument('--actor_lr',           type=float,      default = .01,
                     help='Learning rate for actor model.')
 parser.add_argument('--critic_lr',          type=float,      default = .01,
@@ -309,9 +343,9 @@ parser.add_argument("--curiosity",          type=str,        default = "none",
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
 parser.add_argument("--dkl_max",            type=float,      default = 1,
                     help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')        
-parser.add_argument("--prediction_error_eta", type=float,    default = .1,
+parser.add_argument("--prediction_error_eta", type=float,    default = .001,
                     help='Nonnegative value, how much to consider prediction_error curiosity.')    
-parser.add_argument("--hidden_state_eta",   type=literal,    default = [.1],
+parser.add_argument("--hidden_state_eta",   type=literal,    default = [.001],
                     help='Nonnegative valued, how much to consider hidden_state curiosity in each layer.')       
 
     # Imitation
@@ -356,8 +390,9 @@ for arg_set in [default_args, args]:
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.object_shape = arg_set.shapes + arg_set.colors
     arg_set.comm_shape = len(comm_map)
+    arg_set.other_shape = sensor_num
     arg_set.action_shape = 3
-    arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size
+    arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size + arg_set.encode_other_size
     arg_set.max_comm_len = max([arg_set.max_comm_len, max_len_action_name + max_len_color_name + max_len_shape_name + 3])
     max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
     arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)
@@ -439,8 +474,9 @@ def onehots_to_string(onehots):
 def action_to_string(action):
     while(len(action.shape) > 1):
         action = action.squeeze(0)
-    string = "Yaw: {} ".format(round(action[0].item(),2))
-    string += "Shoulder: {} ".format(round(action[1].item(),2))
+    string = "Left Wheel: {} ".format(round(action[0].item(),2))
+    string += "Right Wheel: {} ".format(round(action[1].item(),2))
+    string += "Shoulder: {} ".format(round(action[2].item(),2))
     return(string)
 
 
@@ -584,7 +620,7 @@ class ConstrainedConv1d(nn.Conv1d):
         
 class Ted_Conv1d(nn.Module):
     
-    def __init__(self, in_channels, out_channels, kernels = [1,2,3]):
+    def __init__(self, in_channels, out_channels, kernels = [1,2,3], stride = 1):
         super(Ted_Conv1d, self).__init__()
         
         self.Conv1ds = nn.ModuleList()
@@ -596,7 +632,8 @@ class Ted_Conv1d(nn.Module):
                     out_channels = out_channel,
                     kernel_size = kernel,
                     padding = padding,
-                    padding_mode = "reflect"))
+                    padding_mode = "reflect",
+                    stride = stride))
             self.Conv1ds.append(layer)
                 
     def forward(self, x):
@@ -611,7 +648,7 @@ class ConstrainedConv2d(nn.Conv2d):
         
 class Ted_Conv2d(nn.Module):
     
-    def __init__(self, in_channels, out_channels, kernels = [(1,1),(3,3),(5,5)]):
+    def __init__(self, in_channels, out_channels, kernels = [(1,1),(3,3),(5,5)], stride = 1):
         super(Ted_Conv2d, self).__init__()
         
         self.Conv2ds = nn.ModuleList()
@@ -625,7 +662,8 @@ class Ted_Conv2d(nn.Module):
                     out_channels = out_channel,
                     kernel_size = kernel,
                     padding = padding,
-                    padding_mode = "reflect"))
+                    padding_mode = "reflect",
+                    stride = stride))
             self.Conv2ds.append(layer)
                 
     def forward(self, x):
