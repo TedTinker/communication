@@ -1,11 +1,10 @@
 #%% 
 
 # To do: 
-#   Objects fall through floor and flop, so remake arena from ground up
-#   Finish making all the action-reward checkers
-#   Try making recommended actions just to see if the action-reward checkers work 
-#   Issue with plotting other_loss when adding it to other losses
-#   Add prior, posterior, and hidden to animation
+#   Make it work.
+#   Make it work FASTER.
+#   Fix weird plotted episode titles.
+#   For some reason it seems to only use one task? watch red pole
 
 import os
 import pickle
@@ -34,34 +33,66 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("DEVICE:", device)
 device = "cpu"
 
+action_map = {
+    0: ["A", "WATCH"],
+    1: ["B", "PUSH"],     
+    2: ["C", "PULL"],   
+    3: ["D", "LEFT"],   
+    4: ["E", "RIGHT"]}    
+max_len_action_name = max([len(a[1]) for a in action_map.values()])
+action_name_list = [action[1] for action in action_map.values()]
+
+color_map = {
+    0: ["F", "RED",     (1,0,0,1)], 
+    1: ["G", "GREEN",   (0,1,0,1)],
+    2: ["H", "BLUE",    (0,0,1,1)],
+    3: ["I", "CYAN",    (0,1,1,1)], 
+    4: ["J", "PINK",    (1,0,1,1)], 
+    5: ["K", "YELLOW",  (1,1,0,1)]} 
+max_len_color_name = max([len(c[2]) for c in color_map.values()])
+color_name_list = [c[2] for c in color_map.values()]
+
 data_path = "pybullet_data"
 robot_file = data_path + "/robot"
 shape_files = [f.name for f in os.scandir(data_path + "/shapes") if f.name.endswith("urdf")] ; shape_files.sort()
+shape_num_letter_name_file = [[f.split("_")[0], f.split("_")[1], f.split("_")[2][:-5], f] for f in shape_files]
+shape_map = {int(num) : [l, n, f] for num, l, n, f in shape_num_letter_name_file} 
+max_len_shape_name = max([len(s[1]) for s in shape_map.values()])
+shape_name_list = [s[1] for s in shape_map.values()]
 
-shape_map = {shape_file[2:-5] : shape_file for shape_file in shape_files} 
-max_len_shape_name = len(max(shape_map, key=len))
+def agent_to_english(agent_string):
+    if(agent_string == "NONE"):
+        return("NONE")
+    english_string = ""
+    for char in agent_string:
+        translated = False
+        for d in [action_map, color_map, shape_map]:
+            for val in d.values():
+                c = val[0]
+                n = val[1]
+                if(char == c):
+                    english_string += n + " "
+                    translated = True
+        if(not translated):
+            if(char == " "):
+                english_string += " "
+            else:
+                english_string += "???" + " "
+    english_string = english_string.strip()
+    return(english_string)
 
-color_map = {
-    "RED" : (1,0,0,1), 
-    "GREEN" : (0,1,0,1), 
-    "BLUE" : (0,0,1,1), 
-    "CYAN" : (0,1,1,1), 
-    "PINK" : (1,0,1,1),
-    "YELLOW" : (1,1,0,1)}
-max_len_color_name = len(max(color_map, key=len))
 
-action_map = {
-    0: "WATCH",  
-    1: "PUSH", 
-    2: "PULL", 
-    3: "LEFT", 
-    4: "RIGHT"}
-max_len_action_name = len(max(action_map.values(), key=len))
-action_name_list = list(action_map.values())
 
-all_combos = list(product(range(len(shape_map)), range(len(color_map)), range(len(action_map))))
+comm_map = {
+    0: ' ', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G',
+    8: 'H', 9: 'I', 10: 'J', 11: 'K', 12: 'L', 13: 'M', 14: 'N',
+    15: 'O', 16: 'P', 17: 'Q', 18: 'R', 19: 'S', 20: 'T', 21: 'U',
+    22: 'V', 23: 'W', 24: 'X', 25: 'Y', 26: 'Z'}
 
-training_combos = [(s, c, a) for (s, c, a) in all_combos if 
+char_to_index = {v: k for k, v in comm_map.items()}
+
+all_combos = list(product(range(len(action_map)), range(len(color_map)), range(len(shape_map))))
+training_combos = [(a, c, s) for (a, c, s) in all_combos if 
                    (s in [0,1] and c in [0,1]) or
                    (s == 0 or c == 0) or  
                    ((s + c) % 2 == 0 and a % 2 == 0) or 
@@ -69,7 +100,7 @@ training_combos = [(s, c, a) for (s, c, a) in all_combos if
 
 testing_combos = [combo for combo in all_combos if not combo in training_combos]
 
-def valid_shape_color(action_num, other_shape_colors, allowed_shapes, allowed_colors, goal = False, test = False):
+def valid_color_shape(action_num, other_shape_colors, allowed_colors, allowed_shapes, goal = False, test = False):
     if(not goal):
         these_combos = all_combos 
     else:
@@ -77,33 +108,33 @@ def valid_shape_color(action_num, other_shape_colors, allowed_shapes, allowed_co
             these_combos = testing_combos
         else:
             these_combos = training_combos
-        these_combos = [combo for combo in these_combos if combo[2] == action_num]
-    these_combos = [(combo[0], combo[1]) for combo in these_combos if combo[0] < allowed_shapes and combo[1] < allowed_colors]
+        these_combos = [combo for combo in these_combos if combo[0] == action_num]
+    these_combos = [(combo[1], combo[2]) for combo in these_combos if combo[1] < allowed_colors and combo[2] < allowed_shapes]
     these_combos = [combo for combo in these_combos if not combo in other_shape_colors]
-    shape_num, color_num = choice(these_combos)
-    return(shape_num, color_num)
+    color_num, shape_num = choice(these_combos)
+    return(color_num, shape_num)
 
-def make_objects_and_action(num_objects, allowed_shapes, allowed_colors, allowed_goals, test = False):
+def make_objects_and_action(num_objects, allowed_goals, allowed_colors, allowed_shapes, test = False):
     action_num = randint(0, allowed_goals - 1) 
-    action = action_map[action_num].upper()
-    goal_object = valid_shape_color(action_num, [], allowed_shapes, allowed_colors, goal = True, test = test)
-    shape_colors_1 = [goal_object]
-    shape_colors_2 = [goal_object]
+
+    goal_object = valid_color_shape(action_num, [], allowed_colors, allowed_shapes, goal = True, test = test)
+    colors_shapes_1 = [goal_object]
+    colors_shapes_2 = [goal_object]
     for n in range(num_objects-1):
-        shape_colors_1.append(valid_shape_color(action_num, shape_colors_1 + shape_colors_2, allowed_shapes, allowed_colors, goal = False, test = test))
+        colors_shapes_1.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, goal = False, test = test))
     for n in range(num_objects-1):
-        shape_colors_2.append(valid_shape_color(action_num, shape_colors_1 + shape_colors_2, allowed_shapes, allowed_colors, goal = False, test = test))
-    return(action, shape_colors_1, shape_colors_2)
+        colors_shapes_2.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, goal = False, test = test))
+    return(action_num, colors_shapes_1, colors_shapes_2)
+
+
 
 if(__name__ == "__main__"):
-    for combo in all_combos:
-        print(combo, "TRAINING" if combo in training_combos else "TESTING")
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
     import matplotlib.patches as patches
     for a, action in action_map.items():
         fig = plt.figure(figsize=(15, 15))
-        fig.suptitle(action)
+        fig.suptitle(action[1])
         gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
         axs = []
         for s in range(len(shape_map)):
@@ -111,11 +142,11 @@ if(__name__ == "__main__"):
             for c in range(len(color_map)):
                 ax = fig.add_subplot(gs[s, c])
                 ax.axis('off')
-                if((s,c,a) in training_combos):
+                if((a,c,s) in training_combos):
                     rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
                     ax.add_patch(rect)
-                shape = list(shape_map)[s]
-                color = list(color_map)[c]
+                color = list(color_map.values())[c][1]
+                shape = list(shape_map.values())[s][1]
                 ax.text(.5, .5, f"{color}\n{shape}", va='center', ha='center', fontsize=20)
                 row.append(ax)
             axs.append(row)
@@ -127,14 +158,6 @@ if(__name__ == "__main__"):
             fig.add_artist(rect)
         plt.show()
         plt.close()
-
-comm_map = {
-    0: ' ', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G',
-    8: 'H', 9: 'I', 10: 'J', 11: 'K', 12: 'L', 13: 'M', 14: 'N',
-    15: 'O', 16: 'P', 17: 'Q', 18: 'R', 19: 'S', 20: 'T', 21: 'U',
-    22: 'V', 23: 'W', 24: 'X', 25: 'Y', 26: 'Z', 27: '.'}
-
-char_to_index = {v: k for k, v in comm_map.items()}
 
 # Adjusting printing for computer-cluster.
 def print(*args, **kwargs):
@@ -183,9 +206,6 @@ for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsCli
         sensor_num += 1
 p.disconnect(physicsClientId = physicsClient)
 
-sensor_num = 3
-
-
 # Arguments to parse. 
 def literal(arg_string): return(ast.literal_eval(arg_string))
 parser = argparse.ArgumentParser()
@@ -205,9 +225,11 @@ parser.add_argument('--comp',               type=str,        default = "deigo",
                     help='Cluster name (deigo or saion).')
 parser.add_argument('--device',             type=str,        default = device,
                     help='Which device to use for Torch.')
+parser.add_argument('--show_duration',      type=bool,       default = False,
+                    help='Should durations be printed?')
 
     # Task details
-parser.add_argument('--task_list',          type=literal,    default = ["1"],#, "2"],
+parser.add_argument('--task_list',          type=literal,    default = ["2"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
 parser.add_argument('--max_steps',          type=int,        default = 10,
                     help='How many steps the agent can make in one episode.')
@@ -215,7 +237,7 @@ parser.add_argument('--step_lim_punishment',type=float,      default = -1,
                     help='Extrinsic punishment for taking max_steps steps.')
 parser.add_argument('--step_cost',          type=float,      default = .975,
                     help='How much extrinsic rewards for exiting are reduced per step.')
-parser.add_argument('--reward',             type=float,      default = 5,
+parser.add_argument('--reward',             type=float,      default = 10,
                     help='Extrinsic reward for choosing correct action, shape, and color.') 
 parser.add_argument('--punishment',         type=float,      default = 0,
                     help='Extrinsic punishment for choosing incorrect action, shape, or color.') 
@@ -227,14 +249,14 @@ parser.add_argument('--shapes',             type=int,        default = 5,
                     help='Maximum count of shapes in one episode.')
 parser.add_argument('--colors',             type=int,        default = 6,
                     help='Maximum count of colors in one episode.')
-parser.add_argument('--max_comm_len',       type=int,        default = 20,
+parser.add_argument('--max_comm_len',       type=int,        default = 6,
                     help='Maximum length of communication.')
-parser.add_argument('--watch_distance',     type=float,      default = 4,
+parser.add_argument('--watch_distance',     type=float,      default = 5,
                     help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--watch_duration',     type=int,        default = 3,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--push_speed',         type=float,      default = 1,
-                    help='Needed speed of an object for push/pull/left/right.')
+parser.add_argument('--push_amount',        type=float,      default = 1,
+                    help='Needed distance of an object for push/pull/left/right.')
 
     # Simulation details
 parser.add_argument('--max_object_distance',type=float,      default = 4,
@@ -247,21 +269,21 @@ parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--image_size',         type=int,        default = 8,
                     help='Dimensions of the images observed.')
-parser.add_argument('--min_speed',          type=float,      default = -50,
+parser.add_argument('--min_speed',          type=float,      default = -10,
                     help='Min wheel speed.')
-parser.add_argument('--max_speed',          type=float,      default = 50,
+parser.add_argument('--max_speed',          type=float,      default = 10,
                     help='Max wheel speed.')
-parser.add_argument('--angular_scaler',     type=float,      default = 5,
+parser.add_argument('--angular_scaler',     type=float,      default = .6,
                     help='How to scale angular velocity vs linear velocity.')
 parser.add_argument('--min_shoulder_angle', type=float,      default = pi/2,
                     help='Agent\'s maximum shoulder velocity.')
 parser.add_argument('--max_shoulder_angle', type=float,      default = 0,
                     help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--steps_per_step',     type=int,        default = 10,
+parser.add_argument('--steps_per_step',     type=int,        default = 30,
                     help='To avoid intersections, simulation makes each episode step multiple simulation steps.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [3000],#, 1000],
+parser.add_argument('--epochs',             type=literal,    default = [15000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--batch_size',         type=int,        default = 32, 
                     help='How many episodes are sampled for each epoch.')      
@@ -343,27 +365,27 @@ parser.add_argument("--curiosity",          type=str,        default = "none",
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
 parser.add_argument("--dkl_max",            type=float,      default = 1,
                     help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')        
-parser.add_argument("--prediction_error_eta", type=float,    default = .001,
+parser.add_argument("--prediction_error_eta", type=float,    default = 1,
                     help='Nonnegative value, how much to consider prediction_error curiosity.')    
-parser.add_argument("--hidden_state_eta",   type=literal,    default = [.001],
+parser.add_argument("--hidden_state_eta",   type=literal,    default = [1],
                     help='Nonnegative valued, how much to consider hidden_state curiosity in each layer.')       
 
     # Imitation
-parser.add_argument("--delta",              type=float,     default = 0,
+parser.add_argument("--delta",              type=float,      default = 0,
                     help='How much to consider action\'s similarity to recommended action.')  
 
     # Saving data
-parser.add_argument('--keep_data',           type=int,        default = 10,
+parser.add_argument('--keep_data',           type=int,       default = 10,
                     help='How many epochs should pass before saving data.')
 
-parser.add_argument('--epochs_per_gen_test', type=int,        default = 10,
+parser.add_argument('--epochs_per_gen_test', type=int,       default = 10,
                     help='How many epochs should pass before trying generalization test.')
 
-parser.add_argument('--epochs_per_episode_dict',type=int,        default = 1000,
+parser.add_argument('--epochs_per_episode_dict',type=int,    default = 1000,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_episode_dict',type=int,        default = 3,
+parser.add_argument('--agents_per_episode_dict',type=int,    default = 3,
                     help='How many agents to save episodes.')
-parser.add_argument('--episodes_in_episode_dict',type=int,       default = 1,
+parser.add_argument('--episodes_in_episode_dict',type=int,   default = 1,
                     help='How many episodes to save per agent.')
 
 parser.add_argument('--epochs_per_agent_list',type=int,       default = 100000,
@@ -393,7 +415,6 @@ for arg_set in [default_args, args]:
     arg_set.other_shape = sensor_num
     arg_set.action_shape = 3
     arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size + arg_set.encode_other_size
-    arg_set.max_comm_len = max([arg_set.max_comm_len, max_len_action_name + max_len_color_name + max_len_shape_name + 3])
     max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
     arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)
     arg_set.beta = extend_list_to_match_length(arg_set.beta, max_length, 0)
@@ -465,11 +486,21 @@ def string_to_onehots(s):
     return onehots
 
 def onehots_to_string(onehots):
+    if(onehots == None):
+        return("NONE")
     string = ''
     for tensor in onehots:
         index = torch.argmax(tensor).item()
         string += comm_map[index]
     return string
+
+def many_onehots_to_strings(onehots):
+    if(onehots == None):
+        return("NONE")
+    if onehots.dim() == 2: 
+        return onehots_to_string(onehots)
+    else:  
+        return [many_onehots_to_strings(sub_tensor) for sub_tensor in onehots]
 
 def action_to_string(action):
     while(len(action.shape) > 1):
@@ -502,6 +533,16 @@ def init_weights(m):
 
 def episodes_steps(this):
     return(this.shape[0], this.shape[1])
+
+def pad_zeros(value, length):
+    rows_to_add = length - value.size(-2)
+    padding_shape = list(value.shape)
+    padding_shape[-2] = rows_to_add
+    padding = torch.zeros(padding_shape)
+    padding
+    padding[..., 0] = 1
+    value = torch.cat([value, padding], dim=-2)
+    return value
 
 def var(x, mu_func, std_func, args):
     mu = mu_func(x)
@@ -550,58 +591,8 @@ def detach_list(l):
     
 def memory_usage(device):
     print(device, ":", platform.node(), torch.cuda.memory_allocated(device), "out of", torch.cuda.max_memory_allocated(device))
-
-def pad_zeros(value, length):
-    rows_to_add = length - value.size(-2)
-    padding_shape = list(value.shape)
-    padding_shape[-2] = rows_to_add
-    padding = torch.zeros(padding_shape)
-    padding
-    padding[..., 0] = 1
-    value = torch.cat([value, padding], dim=-2)
-    return value
-
-def create_comm_mask(comm):
-    period_index = char_to_index["."]  # Index for the period character in the one-hot encoding
-    mask = torch.ones_like(comm[..., 0], dtype=torch.float32)  # Create a mask with the same shape except for the last dimension
-    max_indices = comm.argmax(dim=-1)
-    period_mask = torch.where(max_indices == period_index, 1, 0)
-
-    def apply_mask(mask, period_mask):
-        if period_mask.any():
-            first_period_index = period_mask.argmax()
-            mask[first_period_index+1:] = 0
-            return mask, first_period_index
-        else:
-            return mask, mask.size(0) - 1  # Return the last index if no period
-
-    if len(comm.shape) == 2:  # Handling (sequence_length, len(comm_map))
-        mask, last_index = apply_mask(mask, period_mask)
-        last_indices = last_index.expand_as(mask)
-    elif len(comm.shape) == 3:  # Handling (steps, sequence_length, len(comm_map))
-        last_indices = torch.empty(comm.shape[0], dtype=torch.long)
-        for step in range(comm.shape[0]):
-            mask[step], last_indices[step] = apply_mask(mask[step], period_mask[step])
-    elif len(comm.shape) == 4:  # Handling (episodes, steps, sequence_length, len(comm_map))
-        last_indices = torch.empty((comm.shape[0], comm.shape[1]), dtype=torch.long)
-        for episode in range(comm.shape[0]):
-            for step in range(comm.shape[1]):
-                mask[episode, step], last_indices[episode, step] = apply_mask(mask[episode, step], period_mask[episode, step])
-
-    return mask, last_indices
-
-if __name__ == "__main__":
-    example_comm = torch.stack([
-        pad_zeros(string_to_onehots("HELLO WORLD."), args.max_comm_len),
-        pad_zeros(string_to_onehots("GOODBYE WORLD."), args.max_comm_len),
-        pad_zeros(string_to_onehots("YOWSERS. HI.. ."), args.max_comm_len),
-        pad_zeros(string_to_onehots("YOWSERS"), args.max_comm_len),
-        pad_zeros(string_to_onehots("."), args.max_comm_len),
-        pad_zeros(string_to_onehots("ABCDEF."), args.max_comm_len)],
-        dim = 0)
-    example_comm = example_comm.reshape((2,3,args.max_comm_len, args.comm_shape))
-    mask, last_indices = create_comm_mask(example_comm)
-    print(mask, last_indices)
+    
+    
 
 def dkl(mu_1, std_1, mu_2, std_2):
     std_1 = std_1**2
@@ -612,6 +603,8 @@ def dkl(mu_1, std_1, mu_2, std_2):
     out = (.5 * (term_1 + term_2 - term_3 - 1))
     out = torch.nan_to_num(out)
     return(out)
+
+
 
 class ConstrainedConv1d(nn.Conv1d):
     def forward(self, input):
@@ -640,6 +633,8 @@ class Ted_Conv1d(nn.Module):
         y = []
         for Conv1d in self.Conv1ds: y.append(Conv1d(x)) 
         return(torch.cat(y, dim = -2))
+    
+    
     
 class ConstrainedConv2d(nn.Conv2d):
     def forward(self, input):
@@ -670,6 +665,120 @@ class Ted_Conv2d(nn.Module):
         y = []
         for Conv2d in self.Conv2ds: y.append(Conv2d(x)) 
         return(torch.cat(y, dim = -3))
+    
+    
+
+class ResidualBlock(nn.Module):
+    def __init__(self, channels, kernel_sizes, strides, paddings, padding_modes, activations, dropouts):
+        super(ResidualBlock, self).__init__()
+        
+        # Ensure all parameter lists have compatible lengths
+        assert len(channels) - 1 == len(kernel_sizes) == len(strides) == len(paddings) == \
+               len(padding_modes) == len(activations) == len(dropouts) - 1, "All parameter lists must have compatible lengths."
+        
+        self.layers = nn.ModuleList()
+        self.adjust_channels = channels[0] != channels[-1] or strides[0] != 1
+        self.final_activation = activations[-1] is not None
+        
+        # Add the convolutional layers, batch normalization, activation functions, and dropout based on the parameters
+        for i in range(len(channels) - 1):
+            self.layers.append(
+                nn.Conv2d(
+                    in_channels=channels[i],
+                    out_channels=channels[i+1],
+                    kernel_size=kernel_sizes[i],
+                    stride=strides[i],
+                    padding=paddings[i],
+                    padding_mode=padding_modes[i]))
+            self.layers.append(nn.BatchNorm2d(channels[i+1]))
+            
+            if activations[i] is not None:  # Check if the activation is specified
+                self.layers.append(activations[i]())
+            
+            if dropouts[i] > 0:  # Add dropout layer if dropout rate is greater than 0
+                self.layers.append(nn.Dropout2d(dropouts[i]))
+                
+        self.final_layer = nn.ModuleList()
+        if self.final_activation:
+            self.final_layer.append(activations[-1]())
+        if dropouts[-1] > 0:
+            self.final_layer.append(nn.Dropout2d(dropouts[-1]))
+        self.final_layer.append(nn.BatchNorm2d(channels[-1]))
+        
+        # Add an adjustment layer to match the shortcut connection, if necessary
+        if self.adjust_channels:
+            self.adjustment_layer = nn.Sequential(
+                nn.Conv2d(
+                    in_channels=channels[0],
+                    out_channels=channels[-1],
+                    kernel_size=1,
+                    stride=strides[0],  # Adjust based on the first stride value if needed
+                    padding=0),
+                nn.BatchNorm2d(channels[-1]))
+        
+    def forward(self, x):
+        identity = x
+        for layer in self.layers:
+            x = layer(x)
+        if self.adjust_channels:
+            identity = self.adjustment_layer(identity)
+        x += identity
+        for layer in self.final_layer:
+            x = layer(x)
+        return x
+    
+    
+    
+class DenseBlock(nn.Module):
+    def __init__(self, input_channels, growth_rates, kernel_sizes, paddings, padding_modes, activations, dropouts):
+        super(DenseBlock, self).__init__()
+        
+        assert len(growth_rates) == len(kernel_sizes) == len(activations) == len(dropouts)
+        
+        self.layers = nn.ModuleList()
+        for i in range(len(growth_rates)):
+            layer_channels = input_channels + sum(growth_rates[:i])
+            self.layers.append(nn.Sequential(
+                nn.BatchNorm2d(layer_channels),
+                activations[i](),
+                nn.Conv2d(
+                    in_channels = layer_channels, 
+                    out_channels = growth_rates[i], 
+                    kernel_size = kernel_sizes[i], 
+                    padding = paddings[i],
+                    padding_mode = padding_modes[i]),
+                nn.Dropout2d(dropouts[i])))
+        
+    def forward(self, x):
+        features = [x]
+        for layer in self.layers:
+            these_features = torch.cat(features, 1)
+            new_features = layer(these_features)
+            features.append(new_features)
+        return torch.cat(features, 1)
+    
+    
+
+def custom_loss(guess, target, max_shift=1):
+    losses = []
+    for shift in range(-max_shift, max_shift + 1):
+        if shift == 0:
+            shifted_guess = guess
+        elif shift < 0:
+            shifted_guess = guess[:, :, -shift:] 
+            zeros = torch.zeros_like(guess[:, :, :-shift])
+            shifted_guess = torch.cat((shifted_guess, zeros), dim=-1)
+        else:
+            shifted_guess = guess[:, :, :-shift] 
+            zeros = torch.zeros_like(guess[:, :, -shift:])
+            shifted_guess = torch.cat((zeros, shifted_guess), dim=-1)
+        loss = F.cross_entropy(shifted_guess, target, reduction="none") + (1.1 * abs(shift))
+        losses.append(loss)  
+    min_loss = torch.stack(losses, dim=-1)
+    min_loss = min_loss.min(dim=-1)[0]
+    return min_loss
+    
+    
     
 def calculate_similarity(recommended_actions, actor_actions):
     similarities = -F.mse_loss(recommended_actions, actor_actions, reduction='none').mean(-1)

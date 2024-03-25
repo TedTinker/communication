@@ -1,14 +1,12 @@
 #%%
-from random import randint, choice, randrange, uniform
-from math import cos, sin, pi, degrees
 import torch
 import pybullet as p
 import numpy as np
 from time import sleep
 
-from utils import default_args, shape_map, color_map, action_map, make_objects_and_action, pad_zeros,\
-    string_to_onehots, onehots_to_string, print, relative_to, opposite_relative_to
-from arena import Arena
+from utils import default_args, action_map, shape_map, color_map, make_objects_and_action,\
+    string_to_onehots, onehots_to_string, pad_zeros, print, agent_to_english
+from arena import Arena, get_physics
 
 
 
@@ -18,8 +16,8 @@ class Task:
             self, 
             actions = 1, 
             objects = 1, 
-            shapes = 1, 
             colors = 1, 
+            shapes = 1, 
             parent = True, 
             args = default_args):
         self.actions = actions
@@ -29,41 +27,46 @@ class Task:
         self.parent = parent
         self.args = args
         
+        self.agent_to_english = agent_to_english
+        
     def begin(self, goal_action = None, test = False, verbose = False):
         self.solved = False
         self.goal = []
         self.current_objects_1 = []
             
-        action_str, self.current_objects_1, self.current_objects_2 = make_objects_and_action(num_objects = self.objects, allowed_shapes = self.shapes, allowed_colors = self.colors, allowed_goals = self.actions, test = test)
-        goal_shape, goal_color = self.current_objects_1[0]
+        action_num, self.current_objects_1, self.current_objects_2 = make_objects_and_action(
+            num_objects = self.objects, allowed_goals = self.actions, allowed_colors = self.colors, allowed_shapes = self.shapes, test = test)
+        goal_color, goal_shape = self.current_objects_1[0]
         
-        self.goal = (action_str.upper() if goal_action == None else goal_action.upper(), (goal_shape, goal_color))
-        self.goal_text = "{} {} {}.".format(self.goal[0], list(color_map)[goal_color], list(shape_map)[goal_shape])
+        self.goal = (action_num, goal_color, goal_shape)
+        self.goal_text = "{}{}{}".format(action_map[action_num][0], color_map[goal_color][0], shape_map[goal_shape][0])
+        self.goal_human_text = self.agent_to_english(self.goal_text)
         self.goal_comm = string_to_onehots(self.goal_text)
         self.goal_comm = pad_zeros(self.goal_comm, self.args.max_comm_len)
-                        
+                                
         if(verbose):
             print(self)
     
     def __str__(self):
-        to_return = "\n\nSHAPE-COLORS (1):\t{}".format(["{} {}".format(list(color_map)[color], list(shape_map)[shape]) for shape, color in self.current_objects_1])
+        to_return = "\n\nSHAPE-COLORS (1):\t{}".format(["{} {}".format(list(color_map)[color], list(shape_map)[shape]) for color, shape in self.current_objects_1])
         if(not self.parent):
-            to_return += "\nSHAPE-COLORS (2):\t{}".format(["{} {}".format(list(color_map)[color], list(shape_map)[shape]) for shape, color in self.current_objects_2])
-        to_return += "\nGOAL:\t{}".format(onehots_to_string(self.goal_comm))
+            to_return += "\nSHAPE-COLORS (2):\t{}".format(["{} {}".format(list(color_map)[color], list(shape_map)[shape]) for color, shape in self.current_objects_2])
+        to_return += "\nGOAL:\t{} ({})".format(onehots_to_string(self.goal_comm), self.goal_human_text)
         return(to_return)
     
 
 
-
+# If we give this physicsClient, it's be reconstructing the arena every time!
+# Give it arenas instead.
 
 class Task_Runner:
     
-    def __init__(self, task, GUI = False, args = default_args):
+    def __init__(self, task, arena_1, arena_2, args = default_args):
         self.args = args
         self.task = task
         self.parenting = self.task.parent
-        self.arena_1 = Arena(GUI = GUI, args = args)
-        if(not self.parenting): self.arena_2 = Arena(args = args)
+        self.arena_1 = arena_1 
+        self.arena_2 = arena_2
         
     def begin(self, goal_action = None, test = False, verbose = False):
         self.steps = 0 
@@ -82,15 +85,22 @@ class Task_Runner:
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
         
-        touching = arena.touching_anything()
-        touching = [int(t) for t in touching]
+        touching = list(arena.touching_anything().values())
+        touched = [False] * len(touching[0])
+        for i in range(len(touched)):
+            for touch in touching:
+                if(touch[i]):
+                    touched[i] = True
+        touching = [int(t) for t in touched]
+        
+        
         #_, _, speed = arena.get_pos_yaw_spe()
         #speed = opposite_relative_to(speed, self.args.min_speed, self.args.max_speed)
         other = torch.tensor([touching]).float()
                 
         return(rgbd, self.task.goal_comm.unsqueeze(0), other)
             
-    def act(self, action, agent_1 = True, verbose = False):
+    def act(self, action, agent_1 = True, verbose = False, sleep_time = None):
         if(agent_1): arena = self.arena_1
         else:        arena = self.arena_2
         left_wheel, right_wheel, shoulder = \
@@ -101,17 +111,17 @@ class Task_Runner:
             print("Left Wheel: {}. Right Wheel: {}. Shoulders: {}.".format(
             round(left_wheel, 2), round(right_wheel, 2), round(shoulder, 2)))
             
-        arena.step(left_wheel, right_wheel, shoulder, verbose = verbose)
+        arena.step(left_wheel, right_wheel, shoulder, verbose = verbose, sleep_time = sleep_time)
         reward, win = arena.rewards()
         return(reward, win)
         
-    def step(self, action_1, action_2 = None, verbose = False):
+    def step(self, action_1, action_2 = None, verbose = False, sleep_time = None):
         self.steps += 1
         done = False
         
-        reward, win = self.act(action_1, verbose = verbose)
+        reward, win = self.act(action_1, verbose = verbose, sleep_time = sleep_time)
         if(not self.parenting): 
-            reward_2, win_2 = self.act(action_2, agent_1 = False, verbose = verbose)
+            reward_2, win_2 = self.act(action_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
             reward = max([reward, reward_2])
             win = win or win_2
                     
@@ -145,8 +155,8 @@ class Task_Runner:
                 arena = self.arena_2
         goal = arena.goal
         goal_action = goal[0]
-        goal_shape = list(shape_map)[goal[1][0]]
-        goal_color = list(color_map.values())[goal[1][1]]
+        goal_color = goal[1]
+        goal_shape = goal[2]
                 
         distances = []
         angles = []
@@ -171,25 +181,23 @@ class Task_Runner:
             shapes.append(shape)
             colors.append(color)
         
-        relevant_distances_and_angles = [(distances[i], angles[i]) for i in range(len(distances)) if shapes[i] == goal_shape and colors[i] == goal_color]
-        relevant_distance, relevant_angle = min(relevant_distances_and_angles, key=lambda t: abs(t[1]))
-        shoulder_before = arena.get_joint_angles()[0]
-        shoulder_before = -opposite_relative_to(shoulder_before, -1.57, 1.57)
+        relevant_distances_and_angles = [(distances[i], angles[i]) for i in range(len(distances)) if colors[i] == goal_color and shapes[i] == goal_shape]
+        #relevant_distance, relevant_angle = min(relevant_distances_and_angles, key=lambda t: abs(t[1]))
         
-        left_wheel = uniform(-1, 1)
-        right_wheel = uniform(-1, 1)
-        shoulder = uniform(-1, 1)
+        left_wheel = 0 # uniform(-.25, .25)
+        right_wheel = 0 # uniform(-.25, .25)
+        shoulder = -1 # uniform(-.1, .1)
         
-        if(goal_action.upper() == "PUSH"):
+        if(action_map[goal_action][1].upper() == "PUSH"):
             pass
                 
-        if(goal_action.upper() == "PULL"):
+        if(action_map[goal_action][1].upper() == "PULL"):
             pass
                 
-        if(goal_action.upper() == "LEFT"):
+        if(action_map[goal_action][1].upper()== "LEFT"):
             pass
                 
-        if(goal_action.upper() == "RIGHT"):
+        if(action_map[goal_action][1].upper() == "RIGHT"):
             pass
                 
         return(torch.tensor([
@@ -205,7 +213,10 @@ if __name__ == "__main__":
 
     args = default_args
     
-    task_runner = Task_Runner(Task(actions = 5, objects = 2, shapes = 1, colors = 6), GUI = True)
+    physicsClient = get_physics(GUI = True)
+    arena_1 = Arena(physicsClient)
+    arena_2 = None
+    task_runner = Task_Runner(Task(actions = 1, objects = 2, colors = 6, shapes = 1), arena_1, arena_2)
     
     def get_images():
         rgba = task_runner.arena_1.photo_from_above()
@@ -240,7 +251,7 @@ if __name__ == "__main__":
         
         print("episode", i)
         images = []
-        task_runner.begin(goal_action = "WATCH", verbose = True)
+        task_runner.begin(goal_action = None, verbose = True)
         done = False
         j = 0
         while(done == False):
@@ -251,6 +262,12 @@ if __name__ == "__main__":
             print("Got recommendation:", recommendation)
             reward, done, win = task_runner.step(recommendation, verbose = True)
             print("Done:", done)
+            rgbd, _, _ = task_runner.obs()
+            rgb = rgbd[0,:,:,0:3]
+            plt.imshow(rgb)
+            plt.axis('off') 
+            plt.show()
+            plt.close()
             sleep(.1)
         images.append(get_images())
         print("Win:", win)

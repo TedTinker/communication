@@ -4,7 +4,7 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, init_weights, var, sample, attach_list, detach_list, episodes_steps, pad_zeros
+from utils import default_args, init_weights, var, sample, attach_list, detach_list, episodes_steps, pad_zeros, dkl
 from mtrnn import MTRNN
 from submodules import Obs_IN, Obs_OUT, Action_IN, Comm_IN
 
@@ -78,6 +78,7 @@ class PVRNN_LAYER(nn.Module):
         zp = sample(zp_mu, zp_std, self.args.device)
         zq_mu, zq_std = var(zq_inputs, self.zq_mu, self.zq_std, self.args)
         zq = sample(zq_mu, zq_std, self.args.device)
+        kullback_leibler = dkl(zp_mu, zp_std, zq_mu, zq_std)
             
         if(self.top):
             mtrnn_inputs_p = zp
@@ -94,7 +95,8 @@ class PVRNN_LAYER(nn.Module):
                 
         return(
             (zp_mu, zp_std, new_hidden_states_p),
-            (zq_mu, zq_std, new_hidden_states_q))        
+            (zq_mu, zq_std, new_hidden_states_q),
+            kullback_leibler)        
         
     
 if __name__ == "__main__":
@@ -200,16 +202,17 @@ class PVRNN(nn.Module):
             prev_actions = prev_actions.unsqueeze(1)
         if(prev_comms_out != None and len(prev_comms_out.shape) == 2): 
             prev_comms_out = prev_comms_out.unsqueeze(1)
-                    
+                                
         zp_mu_list = []
         zp_std_list = []
         zq_mu_list = []
         zq_std_list = []
         new_hidden_states_list_p = []
         new_hidden_states_list_q = []
+        dkls = []
                         
         for layer in range(self.args.layers):
-            (zp_mu, zp_std, new_hidden_states_p), (zq_mu, zq_std, new_hidden_states_q) = \
+            (zp_mu, zp_std, new_hidden_states_p), (zq_mu, zq_std, new_hidden_states_q), dkl = \
                 self.pvrnn_layers[layer](
                     prev_hidden_states[:,layer].unsqueeze(1), 
                     obs, prev_actions, prev_comms_out,
@@ -217,18 +220,19 @@ class PVRNN(nn.Module):
                     prev_hidden_states[:,layer+1].unsqueeze(1) if layer + 1 < self.args.layers else None)
     
             for l, o in zip(
-                [zp_mu_list, zp_std_list, zq_mu_list, zq_std_list, new_hidden_states_list_p, new_hidden_states_list_q],
-                [zp_mu, zp_std, zq_mu, zq_std, new_hidden_states_p,  new_hidden_states_q]):            
+                [zp_mu_list, zp_std_list, zq_mu_list, zq_std_list, new_hidden_states_list_p, new_hidden_states_list_q, dkls],
+                [zp_mu, zp_std, zq_mu, zq_std, new_hidden_states_p, new_hidden_states_q, dkl]):            
                 l.append(o)
                 
-        lists = [zp_mu_list, zp_std_list, zq_mu_list, zq_std_list, new_hidden_states_list_p, new_hidden_states_list_q]
+        lists = [zp_mu_list, zp_std_list, zq_mu_list, zq_std_list, new_hidden_states_list_p, new_hidden_states_list_q, dkls]
         for i in range(len(lists)):
             lists[i] = torch.cat(lists[i], dim=1)
-        zp_mu, zp_std, zq_mu, zq_std, new_hidden_states_p, new_hidden_states_q = lists
+        zp_mu, zp_std, zq_mu, zq_std, new_hidden_states_p, new_hidden_states_q, dkl = lists
                                 
         return(
             (zp_mu.unsqueeze(1), zp_std.unsqueeze(1), new_hidden_states_p.unsqueeze(1)),
-            (zq_mu.unsqueeze(1), zq_std.unsqueeze(1), new_hidden_states_q.unsqueeze(1)))
+            (zq_mu.unsqueeze(1), zq_std.unsqueeze(1), new_hidden_states_q.unsqueeze(1)),
+            dkls)
     
     def forward(self, prev_hidden_states, rgbd, comms_in, other, prev_actions, prev_comms_out):
         zp_mu_list = []
@@ -244,7 +248,7 @@ class PVRNN(nn.Module):
         prev_comms_out = self.comm_in(prev_comms_out)
                         
         for step in range(steps):
-            (zp_mu, zp_std, new_hidden_states_p), (zq_mu, zq_std, new_hidden_states_q) = \
+            (zp_mu, zp_std, new_hidden_states_p), (zq_mu, zq_std, new_hidden_states_q), dkls = \
                 self.bottom_to_top_step(prev_hidden_states, obs[:,step], prev_actions[:,step], prev_comms_out[:,step])
             
             for l, o in zip(
@@ -264,7 +268,8 @@ class PVRNN(nn.Module):
         return(
             (zp_mu, zp_std, new_hidden_states_p),
             (zq_mu, zq_std, new_hidden_states_q),
-            (pred_rgbd, pred_comms, pred_others))
+            (pred_rgbd, pred_comms, pred_others),
+            dkls)
         
         
         

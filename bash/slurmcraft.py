@@ -53,7 +53,6 @@ slurm_dict = {"d" : {}}
 
 
 
-
 def add_this(name, args):
     keys, values = [], []
     for key, value in slurm_dict.items(): keys.append(key) ; values.append(value)
@@ -74,9 +73,9 @@ def add_this(name, args):
 
 
 
-add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
-add_this("n",   {"curiosity" : "prediction_error"})
-add_this("f",   {"curiosity" : "hidden_state", "hidden_state_eta" : convert_list([ [0], [1] ])})
+add_this("e",   {"alpha" : "None"})
+add_this("n",   {"curiosity" : "prediction_error"}) #, "prediciton_error_eta" : [.01, .03, .1, .3, 1, 3, 10]})
+add_this("f",   {"curiosity" : "hidden_state"}) #, "hidden_state_eta" : convert_list( [ [.01], [.03], [.1], [.3], [1], [3], [10] ])})
 add_this("i",   {"delta" : 1})
 
 
@@ -103,14 +102,14 @@ def all_like_this(this):
             
 
 
-        
+max_cpus = 30
+ 
 if(__name__ == "__main__" and args.arg_list == []):
     for key, value in slurm_dict.items(): print(key, ":", value,"\n")
     interesting = ["f_15", "f_18"]
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
 
-max_cpus = 30
 if(__name__ == "__main__" and args.arg_list != []):
     
     if(args.comp == "deigo"):
@@ -122,7 +121,7 @@ if(__name__ == "__main__" and args.arg_list != []):
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time 06:00:00
+#SBATCH --time 24:00:00
 #SBATCH --mem=100G"""
 
     if(args.comp == "saion"):

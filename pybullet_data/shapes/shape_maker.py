@@ -26,7 +26,7 @@ base = \
     </collision>
     <inertial>
         <mass value="10"/>
-        <inertia ixx="100" ixy=".1" ixz=".1" iyy="100" iyz=".1" izz="0"/>
+        <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
     </inertial>
   </link>
 """.format(max_radius, max_radius)
@@ -56,7 +56,7 @@ def innards(lengths, radia):
       </geometry>
     </collision>
     <inertial>
-        <mass value="1"/>
+        <mass value=".1"/>
         <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
     </inertial>
   </link>
@@ -77,12 +77,12 @@ def innards(lengths, radia):
     text += "\n</robot>"
     return(text)
 
-whole = innards([1], [max_radius])
+pole = innards([1], [max_radius])
 bottom = innards([1], [.1])
 both = innards([.9, .1], [.1, max_radius])
 middle = innards([.45, .1, .45], [.1, max_radius, .1])
 delta = innards([.1] * 10, [max_radius - i/16 for i in range(10)])
 
-for name, shape in [("1_WHOLE", whole), ("2_BOTTOM", bottom), ("3_BOTH", both), ("4_MIDDLE", middle), ("5_DELTA", delta)]:
+for name, shape in [("0_L_POLE", pole), ("1_M_BOTTOM", bottom), ("2_N_BOTH", both), ("3_O_MIDDLE", middle), ("4_P_DELTA", delta)]:
     with open(name + ".urdf", 'w') as file:
         file.write(base + shape)

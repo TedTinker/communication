@@ -26,8 +26,10 @@ for folder in folders:
             else:  d[key].append(saved_d[key])
             
     episode_dicts = {}
-    for d in plot_dict["episode_dicts"]: episode_dicts.update(d)
+    for d in plot_dict["episode_dicts"]: 
+        episode_dicts.update(d)
     plot_dict["episode_dicts"] = episode_dicts
+    print("episode_dicts:", episode_dicts if episode_dicts == {} else "looks good")
     
     agent_lists = {}
     for d in plot_dict["agent_lists"]: agent_lists.update(d)

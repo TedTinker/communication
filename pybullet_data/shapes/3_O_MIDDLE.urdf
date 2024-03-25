@@ -19,7 +19,7 @@
     </collision>
     <inertial>
         <mass value="10"/>
-        <inertia ixx="100" ixy=".1" ixz=".1" iyy="100" iyz=".1" izz="0"/>
+        <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
     </inertial>
   </link>
 <!-- Definition of the shape -->
@@ -28,7 +28,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <cylinder length="0.9" radius="0.1"/>
+        <cylinder length="0.45" radius="0.1"/>
       </geometry>
       <material name="red">
         <color rgba="1 1 1 1"/>
@@ -36,11 +36,11 @@
     </visual>
     <collision>
       <geometry>
-          <cylinder length="0.9" radius="0.1"/>
+          <cylinder length="0.45" radius="0.1"/>
       </geometry>
     </collision>
     <inertial>
-        <mass value="1"/>
+        <mass value=".1"/>
         <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
     </inertial>
   </link>
@@ -48,7 +48,7 @@
   <joint name="0_joint" type="fixed">
     <parent link="base"/>
     <child link="0"/>
-    <origin xyz="0 0 0.5" rpy="0 0 0"/>
+    <origin xyz="0 0 0.275" rpy="0 0 0"/>
   </joint>
  
   <link name="1">
@@ -67,7 +67,7 @@
       </geometry>
     </collision>
     <inertial>
-        <mass value="1"/>
+        <mass value=".1"/>
         <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
     </inertial>
   </link>
@@ -75,7 +75,34 @@
   <joint name="1_joint" type="fixed">
     <parent link="base"/>
     <child link="1"/>
-    <origin xyz="0 0 1.0" rpy="0 0 0"/>
+    <origin xyz="0 0 0.55" rpy="0 0 0"/>
+  </joint>
+ 
+  <link name="2">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.45" radius="0.1"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+          <cylinder length="0.45" radius="0.1"/>
+      </geometry>
+    </collision>
+    <inertial>
+        <mass value=".1"/>
+        <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
+    </inertial>
+  </link>
+
+  <joint name="2_joint" type="fixed">
+    <parent link="base"/>
+    <child link="2"/>
+    <origin xyz="0 0 0.825" rpy="0 0 0"/>
   </joint>
 
 </robot>

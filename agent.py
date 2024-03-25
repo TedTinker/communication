@@ -1,5 +1,6 @@
 #%%
 
+from time import sleep
 import numpy as np
 from math import log
 from itertools import accumulate
@@ -11,7 +12,8 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import default_args, duration, dkl, print, calculate_similarity, onehots_to_string, action_to_string, cpu_memory_usage, action_map, action_name_list
+from utils import default_args, duration, dkl, calculate_similarity, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, action_map, action_name_list, custom_loss, print
+from arena import Arena, get_physics
 from task import Task, Task_Runner
 from buffer import RecurrentReplayBuffer
 from submodules import Discriminator
@@ -29,10 +31,14 @@ class Agent:
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         
         self.tasks = {
-            "1" : Task(actions = 1, objects = 2, shapes = 1, colors = 6, parent = True,  args = self.args),
-            "2" : Task(actions = 2, objects = 2, shapes = 5, colors = 6, parent = True,  args = self.args),
-            "3" : Task(actions = 5, objects = 2, shapes = 5, colors = 6, parent = False, args = self.args)}
-        self.task_runners = {task_name : Task_Runner(task, GUI = GUI if i == 0 else False) for i, (task_name, task) in enumerate(self.tasks.items())}
+            "1" : Task(actions = 1, objects = 1, colors = 6, shapes = 1, parent = True,  args = self.args),
+            "2" : Task(actions = 1, objects = 2, colors = 6, shapes = 1, parent = True,  args = self.args),
+            "3" : Task(actions = 5, objects = 2, colors = 6, shapes = 5, parent = False, args = self.args)}
+        physicsClient_1 = get_physics(GUI = GUI)
+        arena_1 = Arena(physicsClient_1)
+        physicsClient_2 = get_physics(GUI = False)
+        arena_2 = Arena(physicsClient_2)
+        self.task_runners = {task_name : Task_Runner(task, arena_1, arena_2, self.args) for i, (task_name, task) in enumerate(self.tasks.items())}
         self.task_name = self.args.task_list[0]
         
         self.target_entropy = self.args.target_entropy
@@ -71,11 +77,6 @@ class Agent:
             "arg_name" : args.arg_name,
             "episode_dicts" : {}, 
             "agent_lists" : {"forward" : PVRNN, "actor" : Actor, "critic" : Critic},
-            "wins_watch" : [], 
-            "wins_push" : [], 
-            "wins_pull" : [], 
-            "wins_left" : [], 
-            "wins_right" : [], 
             "rewards" : [], 
             "gen_rewards" : [], 
             "steps" : [],
@@ -95,10 +96,15 @@ class Agent:
             "intrinsic_imitation" : [],
             "prediction_error" : [], 
             "hidden_state" : [[] for _ in range(self.args.layers)]}
-        
+        for a in action_map.values():
+            self.plot_dict[f"wins_{a[1].lower()}"] = []
+            
         
         
     def training(self, q = None):      
+        start_time = duration()
+        prev_time = duration()
+        
         self.gen_test()  
         self.save_episodes()
         self.save_agent()
@@ -111,21 +117,58 @@ class Agent:
                     self.task_name = self.args.task_list[i] 
                     break
             if(prev_task_name != self.task_name): 
+                
+                prev_time = duration()
+                
                 self.gen_test()  
                 self.save_episodes(swapping = True)
+                self.save_agent()
+                
+                time = duration()
+                if(self.args.show_duration): print("AFTER GEN, SAVE (1):", time - prev_time)
+                prev_time = time
+                
+            prev_time = duration()
+                
             self.training_episode()
+            
+            time = duration()
+            if(self.args.show_duration): print("\nTRAINING EPISODE:", time - prev_time)
+            if(self.args.show_duration): print(f"{self.epochs} Epochs:", time - start_time)
+            prev_time = time
+            
             percent_done = str(self.epochs / sum(self.args.epochs))
             if(q != None):
                 q.put((self.agent_num, percent_done))
-            if(self.epochs >= sum(self.args.epochs)): break
-            if(self.epochs % self.args.epochs_per_gen_test == 0): self.gen_test()
-            if(self.epochs % self.args.epochs_per_episode_dict == 0): self.save_episodes()
-            if(self.epochs % self.args.epochs_per_agent_list == 0): self.save_agent()
+            if(self.epochs >= sum(self.args.epochs)): 
+                break
+            
+            prev_time = duration()
+            
+            if(self.epochs % self.args.epochs_per_gen_test == 0):
+                self.gen_test()  
+            if(self.epochs % self.args.epochs_per_episode_dict == 0):
+                self.save_episodes(swapping = False)
+            if(self.epochs % self.args.epochs_per_agent_list == 0):
+                self.save_agent()
+            
+            time = duration()
+            if(self.args.show_duration): print("AFTER GEN, SAVE (2):", time - prev_time)
+            prev_time = time
+            
         self.plot_dict["rewards"] = list(accumulate(self.plot_dict["rewards"]))
         self.plot_dict["gen_rewards"] = list(accumulate(self.plot_dict["gen_rewards"]))
+        
+        prev_time = duration()
+        
         self.gen_test()  
-        self.save_episodes()
+        self.save_episodes(swapping = False)
         self.save_agent()
+        
+        time = duration()
+        if(self.args.show_duration): print("AFTER GEN, SAVE (3):", time - prev_time)
+        prev_time = time
+        
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
             if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps"]):
@@ -144,16 +187,19 @@ class Agent:
     
     def step_in_episode(self, 
                         prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1,
-                        prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2):
+                        prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, sleep_time = None):
+        start_time = duration()
+        prev_time = duration()
         with torch.no_grad():
             self.eval()
             parented = self.task.task.parent
-            
             rgbd_1, parent_comm, other_1 = self.task.obs()
             rgbd_2, _, other_2 = self.task.obs(agent_1 = False)
             recommended_action_1 = self.task.get_recommended_action()
             comm = parent_comm.unsqueeze(0) if parented else prev_comm_out_2
-            (_, _, hp_1), (_, _, hq_1) = self.forward.bottom_to_top_step(hq_1, self.forward.obs_in(rgbd_1, comm, other_1), self.forward.action_in(prev_action_1), self.forward.comm_in(prev_comm_out_1)) 
+            #print(1)
+            (_, _, hp_1), (_, _, hq_1), dkls_1 = self.forward.bottom_to_top_step(hq_1, self.forward.obs_in(rgbd_1, comm, other_1), self.forward.action_in(prev_action_1), self.forward.comm_in(prev_comm_out_1)) 
+            #print(2)
             action_1, comm_out_1, _, _, ha_1 = self.actor(rgbd_1, parent_comm if parented else prev_comm_out_2, prev_action_1, prev_comm_out_1, hq_1[:,:,0].detach(), ha_1, parented) 
             values_1 = []
             new_hcs_1 = []
@@ -169,9 +215,10 @@ class Agent:
                 hq_2 = None
                 values_2 = None
                 new_hcs_2 = None
+                dkls_2 = None
             else:
                 recommended_action_2 = self.task.get_recommended_action(agent_1 = False)
-                (_, _, hp_2), (_, _, hq_2), _ = self.forward(hq_2, self.forward.obs_in(rgbd_2, prev_comm_out_1, other_2), self.forward.action_in(prev_action_2), self.forward.comm_in(prev_comm_out_2))
+                (_, _, hp_2), (_, _, hq_2), _, dkls_2 = self.forward.bottom_to_top(hq_2, self.forward.obs_in(rgbd_2, prev_comm_out_1, other_2), self.forward.action_in(prev_action_2), self.forward.comm_in(prev_comm_out_2))
                 action_2, comm_out_2, _, _, ha_2 = self.actor(rgbd_2, prev_comm_out_1, prev_action_2, prev_comm_out_2, hq_2[:,:,0].detach(), ha_2, parented) 
                 values_2 = []
                 new_hcs_2 = []
@@ -179,8 +226,8 @@ class Agent:
                     value, hc = self.critics[i](rgbd_2, parent_comm if parented else prev_comm_out_1, action_2, comm_out_2, hq_2[:,:,0].detach(), hcs_2[i]) 
                     values_2.append(round(value.item(), 3))
                     new_hcs_2.append(hc)
-                
-            reward, done, win = self.task.step(action_1[0,0].clone(), action_2[0,0].clone())
+                                    
+            reward, done, win = self.task.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
             next_rgbd_1, next_parent_comm, next_other_1 = self.task.obs()
             next_rgbd_2, _, next_other_2 = self.task.obs(agent_1 = False)
             
@@ -214,13 +261,18 @@ class Agent:
                     done]
         torch.cuda.empty_cache()
         
-        return(action_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), ha_1, new_hcs_1,
-               action_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), ha_2, new_hcs_2,
+        time = duration()
+        
+        return(action_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), ha_1, new_hcs_1, dkls_1,
+               action_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), ha_2, new_hcs_2, dkls_2,
                reward, done, win, to_push_1, to_push_2)
             
            
     
     def training_episode(self):
+        start_time = duration()
+        prev_time = duration()
+        
         done = False
         total_reward = 0
         steps = 0
@@ -241,15 +293,13 @@ class Agent:
             
         self.task = self.task_runners[self.task_name]
         self.task.begin()        
-        
-        prev_time = duration()
-        
+                
         for step in range(self.args.max_steps):
             self.steps += 1                                                                                             
             if(not done):
                 steps += 1
-                prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, \
-                    prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, \
+                prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, dkls_1, \
+                    prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, dkls_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1,
                             prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2)
@@ -258,7 +308,11 @@ class Agent:
                 to_push_list_2.append(to_push_2)
                 total_reward += reward
             if(self.steps % self.args.steps_per_epoch == 0):
+                prev_time = duration()
                 plot_data = self.epoch(self.args.batch_size)
+                time = duration()
+                if(self.args.show_duration): print("EPOCH:", time - prev_time)
+                prev_time = time
                 if(plot_data == False): pass
                 else:
                     accuracy, rgbd_loss, comm_loss, other_loss, complexity, \
@@ -286,18 +340,16 @@ class Agent:
                             self.plot_dict["hidden_state"][layer].append(f)    
                             
             time = duration()
-            #print("\nSTEP:", time - prev_time)
             prev_time = time
                         
         self.task.done()
         self.plot_dict["steps"].append(steps)
         self.plot_dict["rewards"].append(total_reward)
         goal_action = self.task.task.goal[0]
-        win_index = action_name_list.index(goal_action.upper())
         win_dict_list = [self.plot_dict["wins_" + action_name.lower()] for action_name in action_name_list]
         for i, win_dict in enumerate(win_dict_list):
-                if(i == win_index): win_dict.append(win)
-                else:               win_dict.append(None)
+                if(i == goal_action): win_dict.append(win)
+                else:                 win_dict.append(None)
                              
         for to_push in to_push_list_1:
             rgbd, comm_in, other, action, comm_out, recommended_action, reward, next_rgbd, next_comm_in, next_other, done = to_push
@@ -334,10 +386,9 @@ class Agent:
         
         
         
-    def gen_test(self):
+    def gen_test(self, sleep_time = None):
         done = False
         total_reward = 0
-        steps = 0
         
         prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
         prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
@@ -351,27 +402,34 @@ class Agent:
         ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
         
-        self.task = self.task_runners[self.task_name]
-        self.task.begin(test = True)        
-        for step in range(self.args.max_steps):
-            self.steps += 1 
-            if(not done):
-                steps += 1
-                prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, \
-                    prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, \
-                        reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                            prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1,
-                            prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2)
-                total_reward += reward
-        self.task.done()
+        try:
+            self.task = self.task_runners[self.task_name]
+            self.task.begin(test = True)        
+            for step in range(self.args.max_steps):
+                #print("Step", step)
+                if(not done):
+                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, dkls_1, \
+                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, dkls_2,\
+                            reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                                prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1,
+                                prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, sleep_time)
+                    total_reward += reward
+                #print("DONE")
+            self.task.done()
+        except:
+            total_reward = 0
+            self.task.done()
         self.plot_dict["gen_rewards"].append(total_reward)
         
         
         
     def save_episodes(self, swapping = False):
         with torch.no_grad():
+            self.task = self.task_runners[self.task_name]
+            self.task.begin()       
             comm_from_parent = self.task.task.parent
-            if(self.args.agents_per_episode_dict != -1 and self.agent_num > self.args.agents_per_episode_dict): return
+            if(self.args.agents_per_episode_dict != -1 and self.agent_num > self.args.agents_per_episode_dict): 
+                return
             for episode_num in range(self.args.episodes_in_episode_dict):
                 episode_dict = {
                     "rgbds_1" : [],
@@ -402,7 +460,9 @@ class Agent:
                     "prior_predicted_others_2" : [],
                     "posterior_predicted_rgbds_2" : [],
                     "posterior_predicted_comms_in_2" : [],
-                    "posterior_predicted_others_1" : [],}
+                    "posterior_predicted_others_1" : [],
+                    "dkls_1" : [],
+                    "dkls_2" : []}
                 done = False
                 
                 hps_1 = []
@@ -420,21 +480,23 @@ class Agent:
                 hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
                 ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
                 hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-                
-                self.task = self.task_runners[self.task_name]
-                self.task.begin()        
-                episode_dict["task"] = deepcopy(self.task.task) # For some reason, this gives the wrong goal-text.
+                 
+                episode_dict["task"] = self.task.task
+                episode_dict["goal"] = "{} ({})".format(self.task.task.goal_text, self.task.task.goal_human_text)
                 rgbd_1, parent_comm, other_1 = self.task.obs()
                 rgbd_2, _, other_2 = self.task.obs(agent_1 = False)
                 birds_eye_1 = self.task.arena_1.photo_from_above()
                 birds_eye_2 = None if comm_from_parent else self.task.arena_2.photo_from_above()
                 episode_dict["rgbds_1"].append(rgbd_1[0,:,:,0:3])
-                episode_dict["rgbds_2"].append(rgbd_2[0,:,:,0:3])
-                # For some reason, this only saves one letter?
-                episode_dict["comms_in_1"].append(onehots_to_string(parent_comm if comm_from_parent else prev_comm_out_2))
-                episode_dict["comms_in_2"].append(onehots_to_string(prev_comm_out_1)) 
-                episode_dict["others_1"].append(other_1)
-                episode_dict["others_2"].append(other_2)
+                episode_dict["rgbds_2"].append(rgbd_2[0,:,:,0:3])        
+                
+                comm_in_1 = onehots_to_string(parent_comm[0] if comm_from_parent else prev_comm_out_2[0,0])
+                episode_dict["comms_in_1"].append("{} ({})".format(comm_in_1, self.task.task.agent_to_english(comm_in_1)))
+                comm_in_2 = onehots_to_string(prev_comm_out_1[0,0])
+                episode_dict["comms_in_2"].append("{} ({})".format(comm_in_2, self.task.task.agent_to_english(comm_in_2)))
+                
+                episode_dict["others_1"].append(other_1.tolist())
+                episode_dict["others_2"].append(None if other_2 == None else other_2.tolist())
                 episode_dict["birds_eye_1"].append(birds_eye_1[:,:,0:3])
                 episode_dict["birds_eye_2"].append(None if birds_eye_2 == None else birds_eye_2[:,:,0:3])
                 
@@ -444,28 +506,38 @@ class Agent:
                         recommended_2 = self.task.get_recommended_action(agent_1 = False)
                         episode_dict["recommended_1"].append(action_to_string(recommended_1))
                         episode_dict["recommended_2"].append(None if recommended_2 == None else action_to_string(recommended_2))
-                        prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1,  \
-                            prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, \
+                        prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, dkls_1, \
+                            prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, dkls_2, \
                                 reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                     prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1,
                                     prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2)
                         episode_dict["actions_1"].append(prev_action_1)
                         episode_dict["actions_2"].append(prev_action_2)
-                        episode_dict["comms_out_1"].append(prev_comm_out_1)
-                        episode_dict["comms_out_2"].append(prev_comm_out_2)
+                        
+                        comm_out_1 = onehots_to_string(prev_comm_out_1)
+                        episode_dict["comms_out_1"].append("{} ({})".format(comm_out_1, self.task.task.agent_to_english(comm_out_1)))
+                        comm_out_2 = onehots_to_string(prev_comm_out_2)
+                        episode_dict["comms_out_2"].append("{} ({})".format(comm_out_2, self.task.task.agent_to_english(comm_out_2)))
+                        
                         episode_dict["rewards"].append(str(reward))
                         episode_dict["critic_predictions_1"].append(values_1)
                         episode_dict["critic_predictions_2"].append(values_2)
+                        episode_dict["dkls_1"].append([dkl.sum().item() for dkl in dkls_1])
+                        episode_dict["dkls_2"].append(dkls_2 if dkls_2 == None else [dkl.sum().item() for dkl in dkls_2])
                         rgbd_1, parent_comm, other_1 = self.task.obs()
                         rgbd_2, _, other_2 = self.task.obs(agent_1 = False)
                         birds_eye_1 = self.task.arena_1.photo_from_above()
                         birds_eye_2 = None if comm_from_parent else self.task.arena_2.photo_from_above()
                         episode_dict["rgbds_1"].append(rgbd_1[0,:,:,0:3])
                         episode_dict["rgbds_2"].append(rgbd_2[0,:,:,0:3])
-                        episode_dict["comms_in_1"].append(onehots_to_string(parent_comm if comm_from_parent else prev_comm_out_2[0,0]))
-                        episode_dict["comms_in_2"].append(onehots_to_string(prev_comm_out_1[0,0])) 
-                        episode_dict["others_1"].append(other_1)
-                        episode_dict["others_2"].append(other_2)
+                        
+                        comm_in_1 = onehots_to_string(parent_comm[0] if comm_from_parent else prev_comm_out_2[0,0])
+                        episode_dict["comms_in_1"].append("{} ({})".format(comm_in_1, self.task.task.agent_to_english(comm_in_1)))
+                        comm_in_2 = onehots_to_string(prev_comm_out_1[0,0])
+                        episode_dict["comms_in_2"].append("{} ({})".format(comm_in_2, self.task.task.agent_to_english(comm_in_2)))
+                        
+                        episode_dict["others_1"].append(other_1.tolist())
+                        episode_dict["others_2"].append(None if other_2 == None else other_2.tolist())
                         episode_dict["birds_eye_1"].append(birds_eye_1[:,:,0:3])
                         episode_dict["birds_eye_2"].append(None if birds_eye_2 == None else birds_eye_2[:,:,0:3])
                         hps_1.append(hp_1[:,0].unsqueeze(0))
@@ -477,18 +549,26 @@ class Agent:
                 hp_1 = torch.cat(hps_1, dim = 1)
                 hq_1 = torch.cat(hqs_1, dim = 1)
                 actions_1 = torch.cat(episode_dict["actions_1"], dim = 1)
-                comms_out_1 = torch.cat(episode_dict["comms_out_1"], dim = 1)
-                episode_dict["comms_out_1"] = [onehots_to_string(comms_out[0,0]) for comms_out in episode_dict["comms_out_1"]]
+                
+                comm_out_1 = onehots_to_string(prev_comm_out_1)
+                episode_dict["comms_out_1"].append("{} ({})".format(comm_out_1, self.task.task.agent_to_english(comm_out_1)))
+                
                 episode_dict["actions_1"] = [action_to_string(action) for action in episode_dict["actions_1"]]
                 pred_rgbds_p, pred_comm_in_p, pred_other_p = self.forward.predict(hp_1, self.forward.action_in(actions_1)) 
                 pred_rgbds_q, pred_comm_in_q, pred_other_q = self.forward.predict(hq_1, self.forward.action_in(actions_1))
                 for step in range(pred_rgbds_p.shape[1]):
-                    episode_dict["prior_predicted_rgbds_1"].append(torch.sigmoid(pred_rgbds_p[0,step][:,:,0:3]))
-                    episode_dict["prior_predicted_comms_in_1"].append(onehots_to_string(pred_comm_in_p[0,step]))
-                    episode_dict["prior_predicted_others_1"].append(torch.sigmoid(pred_other_p[0,step]))
-                    episode_dict["posterior_predicted_rgbds_1"].append(torch.sigmoid(pred_rgbds_q[0,step][:,:,0:3]))
-                    episode_dict["posterior_predicted_comms_in_1"].append(onehots_to_string(pred_comm_in_q[0,step]))
-                    episode_dict["posterior_predicted_others_1"].append(torch.sigmoid(pred_other_q[0,step]))
+                    episode_dict["prior_predicted_rgbds_1"].append(pred_rgbds_p[0,step][:,:,0:3])
+                    
+                    prior_predicted_comms_in_1 = onehots_to_string(pred_comm_in_p[0,step])
+                    episode_dict["prior_predicted_comms_in_1"].append("{} ({})".format(prior_predicted_comms_in_1, self.task.task.agent_to_english(prior_predicted_comms_in_1)))
+                    
+                    episode_dict["prior_predicted_others_1"].append([round(o.item(), 2) for o in pred_other_p[0,step]])
+                    episode_dict["posterior_predicted_rgbds_1"].append(pred_rgbds_q[0,step][:,:,0:3])
+                    
+                    posterior_predicted_comms_in_1 = onehots_to_string(pred_comm_in_q[0,step])
+                    episode_dict["posterior_predicted_comms_in_1"].append("{} ({})".format(posterior_predicted_comms_in_1, self.task.task.agent_to_english(posterior_predicted_comms_in_1)))
+                    
+                    episode_dict["posterior_predicted_others_1"].append([round(o.item(), 2) for o in pred_other_q[0,step]])
                 #if(self.agent_num == 1):
                 #    for step in range(hp_1.shape[1]):
                 #        print("\nIn Saving Episode:")
@@ -501,18 +581,26 @@ class Agent:
                     hp_2 = torch.cat(hps_2, dim = 1)
                     hq_2 = torch.cat(hqs_2, dim = 1)
                     actions_2 = torch.cat(episode_dict["actions_2"], dim = 1)
-                    comms_out_2 = torch.cat(episode_dict["comms_out_2"], dim = 1)
-                    episode_dict["comms_out_2"] = [onehots_to_string(comms_out[0,0]) for comms_out in episode_dict["comms_out_2"]]
+                    
+                    comm_out_2 = onehots_to_string(prev_comm_out_1)
+                    episode_dict["comms_out_2"].append("{} ({})".format(comm_out_2, self.task.task.agent_to_english(comm_out_2)))
+                    
                     episode_dict["actions_2"] = [action_to_string(action) for action in episode_dict["actions_2"]]
                     pred_rgbds_p, pred_comm_in_p, pred_other_p = self.forward.predict(hp_2, self.forward.action_in(actions_2))
                     pred_rgbds_q, pred_comm_in_q, pred_other_q = self.forward.predict(hq_2, self.forward.action_in(actions_2))
                     for step in range(pred_rgbds_p.shape[1]):
-                        episode_dict["prior_predicted_rgbds_2"].append(torch.sigmoid(pred_rgbds_p[0,step][:,:,0:3]))
-                        episode_dict["prior_predicted_comms_in_2"].append(onehots_to_string(pred_comm_in_p[0,step]))
-                        episode_dict["prior_predicted_others_2"].append(torch.sigmoid(pred_other_p[0,step]))
-                        episode_dict["posterior_predicted_rgbds_2"].append(torch.sigmoid(pred_rgbds_q[0,step][:,:,0:3]))
-                        episode_dict["posterior_predicted_comms_in_2"].append(onehots_to_string(pred_comm_in_q[0,step]))
-                        episode_dict["prior_predicted_others_2"].append(torch.sigmoid(pred_other_q[0,step]))
+                        episode_dict["prior_predicted_rgbds_2"].append(pred_rgbds_p[0,step][:,:,0:3])
+
+                        prior_predicted_comms_in_2 = onehots_to_string(pred_comm_in_p[0,step])
+                        episode_dict["prior_predicted_comms_in_2"].append("{} ({})".format(prior_predicted_comms_in_2, self.task.task.agent_to_english(prior_predicted_comms_in_2)))
+                        
+                        episode_dict["prior_predicted_others_2"].append([round(o.item(), 2) for o in pred_other_p[0,step]])
+                        episode_dict["posterior_predicted_rgbds_2"].append(pred_rgbds_q[0,step][:,:,0:3])
+                        
+                        posterior_predicted_comms_in_2 = onehots_to_string(pred_comm_in_q[0,step])
+                        episode_dict["posterior_predicted_comms_in_2"].append("{} ({})".format(posterior_predicted_comms_in_2, self.task.task.agent_to_english(posterior_predicted_comms_in_2)))
+                        
+                        episode_dict["posterior_predicted_others_2"].append([round(o.item(), 2) for o in pred_other_q[0,step]])
                     #if(self.agent_num == 1):
                     #    for step in range(hp_2.shape[1]):
                     #        print("\nIn Saving Episode:")
@@ -559,7 +647,7 @@ class Agent:
         steps = rewards.shape[1]
         
         time = duration()
-        #print("\nGOT BATCH:", time - prev_time)
+        start_time = duration()
         prev_time = time
         
         #print("\n\n")
@@ -570,18 +658,20 @@ class Agent:
                 
         
         # Train forward
-        (zp_mu, zp_std, hps), (zq_mu, zq_std, hqs), (pred_rgbds, pred_comms, pred_others) = self.forward(torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), rgbds, comms_in, others, actions, comms_out)
+        (zp_mu, zp_std, hps), (zq_mu, zq_std, hqs), (pred_rgbds, pred_comms, pred_others), dkls = self.forward(torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), rgbds, comms_in, others, actions, comms_out)
         hqs = hqs[:,:,0]
         
-        rgbd_loss = F.binary_cross_entropy_with_logits(pred_rgbds, rgbds[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * masks * self.args.rgbd_scaler
+        rgbd_loss = F.binary_cross_entropy(pred_rgbds, rgbds[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * masks * self.args.rgbd_scaler
                         
-        real_comms = comms_in[:,1:].reshape((episodes * steps * self.args.max_comm_len, self.args.comm_shape))
+        real_comms = comms_in[:,1:].reshape((episodes * steps, self.args.max_comm_len, self.args.comm_shape))
         real_comms = torch.argmax(real_comms, dim = -1)
-        pred_comms = pred_comms.reshape((episodes * steps * self.args.max_comm_len, self.args.comm_shape))
+        pred_comms = pred_comms.reshape((pred_comms.shape[0] * pred_comms.shape[1], self.args.max_comm_len, self.args.comm_shape))
+        pred_comms = pred_comms.transpose(1,2)
     
-        comm_loss = F.cross_entropy(pred_comms, real_comms, reduction = "none")
-        comm_loss = comm_loss.reshape((episodes, steps, self.args.max_comm_len))
-        comm_loss = comm_loss.mean(-1).unsqueeze(-1) * masks * self.args.comm_scaler
+        comm_loss = custom_loss(pred_comms, real_comms, max_shift = 0)    
+        #comm_loss = F.cross_entropy(pred_comms, real_comms, reduction = "none")
+        comm_loss = comm_loss.reshape(episodes, steps, self.args.max_comm_len)
+        comm_loss = comm_loss.mean(dim=2).unsqueeze(-1) * masks * self.args.comm_scaler
         
         other_loss = F.binary_cross_entropy(pred_others, others[:,1:], reduction = "none")
         other_loss = other_loss.mean(-1).unsqueeze(-1) * masks * self.args.other_scaler
@@ -594,7 +684,7 @@ class Agent:
         complexity_for_hidden_state = [layer[:,1:] for layer in complexity_for_hidden_state] 
                                 
         time = duration()
-        #print("USED FORWARD:", time - prev_time)
+        #if(self.args.show_duration): print("USED FORWARD:", time - prev_time)
         prev_time = time
                                 
         self.forward_opt.zero_grad()
@@ -605,7 +695,7 @@ class Agent:
         torch.cuda.empty_cache()
         
         time = duration()
-        #print("TRAINED FORWARD:", time - prev_time)
+        #if(self.args.show_duration): print("TRAINED FORWARD:", time - prev_time)
         prev_time = time
                         
                         
@@ -624,7 +714,7 @@ class Agent:
         rewards += curiosity
         
         time = duration()
-        #print("CURIOSITY:", time - prev_time)
+        #if(self.args.show_duration): print("CURIOSITY:", time - prev_time)
         prev_time = time
                         
         
@@ -650,7 +740,7 @@ class Agent:
             Q_targets = rewards + (self.args.GAMMA * (1 - dones) * (Q_target_next - (alpha * log_pis_next) - (alpha_text * log_pis_next_text) + (self.args.delta * recommendation_value)))
             
         time = duration()
-        #print("USED TARGET CRITICS:", time - prev_time)
+        #if(self.args.show_duration): print("USED TARGET CRITICS:", time - prev_time)
         prev_time = time
         
         critic_losses = []
@@ -669,7 +759,7 @@ class Agent:
         torch.cuda.empty_cache()
         
         time = duration()
-        #print("TRAINED CRITICS:", time - prev_time)
+        #if(self.args.show_duration): print("TRAINED CRITICS:", time - prev_time)
         prev_time = time
                                 
         
@@ -700,7 +790,7 @@ class Agent:
             alpha_text_loss = None
             
         time = duration()
-        #print("TRAINED ALPHA:", time - prev_time)
+        #if(self.args.show_duration): print("TRAINED ALPHA:", time - prev_time)
         prev_time = time
                                     
             
@@ -737,7 +827,7 @@ class Agent:
             actor_loss = actor_loss.mean() / masks.mean()
             
             time = duration()
-            #print("USED ACTOR:", time - prev_time)
+            #if(self.args.show_duration): print("USED ACTOR:", time - prev_time)
             prev_time = time
 
             self.actor_opt.zero_grad()
@@ -745,7 +835,7 @@ class Agent:
             self.actor_opt.step()
             
             time = duration()
-            #print("TRAINED ACTOR:", time - prev_time)
+            #if(self.args.show_duration): print("TRAINED ACTOR:", time - prev_time)
             prev_time = time
             
         else:
@@ -773,6 +863,9 @@ class Agent:
         prediction_error_curiosity = prediction_error_curiosity.mean().item()
         hidden_state_curiosities = [hidden_state_curiosity.mean().item() for hidden_state_curiosity in hidden_state_curiosities]
         hidden_state_curiosities = [hidden_state_curiosity for hidden_state_curiosity in hidden_state_curiosities]
+        
+        time = duration()
+        #if(self.args.show_duration): print(f"WHOLE EPOCH {self.epochs}:", time - start_time)
                 
         return(accuracy, rgbd_loss, comm_loss, other_loss, complexity, alpha_loss, alpha_text_loss, actor_loss, critic_losses, 
                extrinsic, Q, intrinsic_curiosity, intrinsic_entropy, intrinsic_imitation, prediction_error_curiosity, hidden_state_curiosities)
@@ -816,4 +909,5 @@ class Agent:
         
 if __name__ == "__main__":
     agent = Agent(args = default_args)
+    agent.save_episodes()
 # %%

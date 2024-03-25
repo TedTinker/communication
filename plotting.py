@@ -6,7 +6,7 @@ import numpy as np
 from math import log
 from itertools import accumulate
 
-from utils import args, duration, load_dicts, print, real_names, action_name_list
+from utils import args, duration, load_dicts, print, real_names
 
 print("name:\n{}\n".format(args.arg_name),)
 
@@ -62,7 +62,6 @@ def get_quantiles(plot_dict, name, adjust_xs=True):
     quantile_dict["q80"] = np.nanquantile(lists, 0.8, axis=0)
     quantile_dict["q90"] = np.nanquantile(lists, 0.9, axis=0)
     quantile_dict["max"] = np.nanmax(lists, axis=0)
-
     return quantile_dict
 
 def get_list_quantiles(list_of_lists, plot_dict):
@@ -155,8 +154,11 @@ def plots(plot_dicts, min_max_dict):
             for x in xs: here.axvline(x=x, color = (0,0,0,.2))
     
         # Rolling win-rate
+        action_name_list = []
+        for key in plot_dict.keys():
+            if(key.startswith("wins_")):
+                action_name_list.append(key[5:])
         for action_name in action_name_list:
-            # Difficulty: Comparing things which may or may not be None. I've been assuming same Nones every time!
             win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), adjust_xs = False)
             win_dict = get_rolling_average(win_dict)
                 
@@ -165,7 +167,7 @@ def plots(plot_dicts, min_max_dict):
                 here.set_ylabel("Rolling-Average Win-Rate")
                 here.set_xlabel("Epochs")
                 here.set_title(plot_dict["arg_title"] + f"\nRolling-Average Win-Rate ({action_name})")
-                #divide_arenas(win_dict, here)
+                divide_arenas([x for x in range(sum(epochs))], here)
             
             if(not too_many_plot_dicts): 
                 ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1

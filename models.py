@@ -7,7 +7,7 @@ from torch.distributions import Normal
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, detach_list, attach_list, print, init_weights, episodes_steps, var, sample, create_comm_mask, duration
+from utils import default_args, detach_list, attach_list, print, init_weights, episodes_steps, var, sample, duration
 from mtrnn import MTRNN
 from submodules import Obs_IN, Action_IN, Comm_IN, Comm_OUT
 
@@ -34,6 +34,10 @@ class Actor(nn.Module):
         self.lin = nn.Sequential(
             nn.Linear(
                 in_features = self.args.pvrnn_mtrnn_size, # + 4 * args.hidden_size, 
+                out_features = args.hidden_size),
+            nn.PReLU(),
+            nn.Linear(
+                in_features = args.hidden_size, # + 4 * args.hidden_size, 
                 out_features = args.hidden_size),
             nn.PReLU())
         
@@ -65,11 +69,6 @@ class Actor(nn.Module):
         #if(len(comm_in.shape) == 3):  comm_in = comm_in.unsqueeze(1)
         #if(len(prev_comm_out.shape) == 2):  prev_comm_out = prev_comm_out.unsqueeze(0)
         #if(len(prev_comm_out.shape) == 3):  prev_comm_out = prev_comm_out.unsqueeze(1)
-        
-        #mask, last_indexes = create_comm_mask(comm_in)
-        #comm_in *= mask.unsqueeze(-1).tile((1,1,1,self.args.comm_shape))
-        #mask, last_indexes = create_comm_mask(prev_comm_out)
-        #prev_comm_out *= mask.unsqueeze(-1).tile((1,1,1,self.args.comm_shape))
         
         #obs = self.obs_in(rgbd, comm_in)
         #prev_action = self.action_in(prev_action)
@@ -158,10 +157,6 @@ class Critic(nn.Module):
         #if(len(comm_in.shape) == 3):  comm_in = comm_in.unsqueeze(1)
         #if(len(comm_out.shape) == 2):  comm_out = comm_out.unsqueeze(0)
         #if(len(comm_out.shape) == 3):  comm_out = comm_out.unsqueeze(1)
-        
-        #mask, last_indexes = create_comm_mask(comm_in)
-        #comm_in = comm_in * mask.unsqueeze(-1).tile((1,1,1,self.args.comm_shape))
-        # Can't mask comm_out, or else actor loses backprop!
         
         #obs = self.obs_in(rgbd, comm_in)
         action = self.action_in(action)
