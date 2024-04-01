@@ -9,17 +9,14 @@ from agent import Agent
 
 args = default_args
 
-agent = Agent(GUI = False, args = args)
+agent = Agent(GUI = True, args = args)
 
 agent.tasks = {
-    "1" : Task(actions = 2, objects = 2, shapes = 5, colors = 6, parent = True,  args = args),
-    "2" : Task(actions = 2, objects = 2, shapes = 5, colors = 6, parent = True,  args = args),
-    "3" : Task(actions = 5, objects = 2, shapes = 5, colors = 6, parent = False, args = args)}
-physicsClient_1 = get_physics(GUI = True)
-arena_1 = Arena(physicsClient_1)
-physicsClient_2 = get_physics(GUI = False)
-arena_2 = Arena(physicsClient_2)
-agent.task_runners = {task_name : Task_Runner(task, arena_1, arena_2) for i, (task_name, task) in enumerate(agent.tasks.items())}
+            "0" : Task(actions = -1, objects = 4, colors = 6, shapes = 5, parent = True, args = agent.args),
+            "1" : Task(actions = 1, objects = 1, colors = 6, shapes = 5, parent = True, args = agent.args),
+            "2" : Task(actions = 1, objects = 2, colors = 6, shapes = 1, parent = True, args = agent.args),
+            "3" : Task(actions = 5, objects = 2, colors = 6, shapes = 5, parent = True, args = agent.args)}
+agent.task_runners = {task_name : Task_Runner(task, agent.arena_1, agent.arena_2) for i, (task_name, task) in enumerate(agent.tasks.items())}
 agent.task_name = "1"
 agent.task = agent.task_runners[agent.task_name]
 
@@ -37,14 +34,14 @@ def load_nested_dictionaries(parent_directory):
 
 master_dict = load_nested_dictionaries('saved')
 
-example_agent_state_dict = master_dict["ef"]["1_3000"]
+example_agent_state_dict = master_dict["ef"]["1_250"]
 
-print("Loading...")
+print("\n\nLoading...", end = " ")
 agent.load_state_dict(example_agent_state_dict)
 print("Loaded!")
 
 i = 1
 while(True):
     print("Test {}".format(i))
-    agent.gen_test(sleep_time = 1)
+    agent.gen_test(sleep_time = .001)
     i += 1

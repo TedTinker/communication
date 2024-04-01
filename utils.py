@@ -3,8 +3,8 @@
 # To do: 
 #   Make it work.
 #   Make it work FASTER.
-#   Fix weird plotted episode titles.
-#   For some reason it seems to only use one task? watch red pole
+#   Not correctly plotting win-rates. 
+#   Add out_comm to actions for h_w_action
 
 import os
 import pickle
@@ -15,13 +15,14 @@ import builtins
 import datetime 
 import matplotlib
 import argparse, ast
-from math import exp
+from math import exp, sqrt, log
 from random import choice, randint
 import torch
 from torch import nn 
 import platform
 from torch.distributions import Normal
 import torch.nn.functional as F
+from torchvision.transforms import Resize
 import psutil
 from itertools import product
 
@@ -34,6 +35,7 @@ print("DEVICE:", device)
 device = "cpu"
 
 action_map = {
+    -1: [" ", "NONE"],
     0: ["A", "WATCH"],
     1: ["B", "PUSH"],     
     2: ["C", "PULL"],   
@@ -70,14 +72,14 @@ def agent_to_english(agent_string):
             for val in d.values():
                 c = val[0]
                 n = val[1]
-                if(char == c):
+                if(char == c and char != " "):
                     english_string += n + " "
                     translated = True
         if(not translated):
             if(char == " "):
-                english_string += " "
+                english_string += "___ "
             else:
-                english_string += "???" + " "
+                english_string += char + "??? "
     english_string = english_string.strip()
     return(english_string)
 
@@ -91,8 +93,9 @@ comm_map = {
 
 char_to_index = {v: k for k, v in comm_map.items()}
 
-all_combos = list(product(range(len(action_map)), range(len(color_map)), range(len(shape_map))))
+all_combos = list(product(action_map.keys(), color_map.keys(), shape_map.keys()))
 training_combos = [(a, c, s) for (a, c, s) in all_combos if 
+                   a == -1 or
                    (s in [0,1] and c in [0,1]) or
                    (s == 0 or c == 0) or  
                    ((s + c) % 2 == 0 and a % 2 == 0) or 
@@ -115,8 +118,10 @@ def valid_color_shape(action_num, other_shape_colors, allowed_colors, allowed_sh
     return(color_num, shape_num)
 
 def make_objects_and_action(num_objects, allowed_goals, allowed_colors, allowed_shapes, test = False):
-    action_num = randint(0, allowed_goals - 1) 
-
+    if(allowed_goals == -1):
+        action_num = -1
+    else:
+        action_num = randint(0, allowed_goals - 1) 
     goal_object = valid_color_shape(action_num, [], allowed_colors, allowed_shapes, goal = True, test = test)
     colors_shapes_1 = [goal_object]
     colors_shapes_2 = [goal_object]
@@ -125,8 +130,6 @@ def make_objects_and_action(num_objects, allowed_goals, allowed_colors, allowed_
     for n in range(num_objects-1):
         colors_shapes_2.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, goal = False, test = test))
     return(action_num, colors_shapes_1, colors_shapes_2)
-
-
 
 if(__name__ == "__main__"):
     import matplotlib.pyplot as plt
@@ -229,11 +232,11 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
                     help='Should durations be printed?')
 
     # Task details
-parser.add_argument('--task_list',          type=literal,    default = ["2"],
+parser.add_argument('--task_list',          type=literal,    default = ["1"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
 parser.add_argument('--max_steps',          type=int,        default = 10,
                     help='How many steps the agent can make in one episode.')
-parser.add_argument('--step_lim_punishment',type=float,      default = -1,
+parser.add_argument('--step_lim_punishment',type=float,      default = -10,
                     help='Extrinsic punishment for taking max_steps steps.')
 parser.add_argument('--step_cost',          type=float,      default = .975,
                     help='How much extrinsic rewards for exiting are reduced per step.')
@@ -243,7 +246,7 @@ parser.add_argument('--punishment',         type=float,      default = 0,
                     help='Extrinsic punishment for choosing incorrect action, shape, or color.') 
 parser.add_argument('--actions',            type=int,        default = 5,
                     help='Maximum count of actions in one episode.')
-parser.add_argument('--objects',            type=int,        default = 2,
+parser.add_argument('--objects',            type=int,        default = 4,
                     help='Maximum count of objects in one episode.')
 parser.add_argument('--shapes',             type=int,        default = 5,
                     help='Maximum count of shapes in one episode.')
@@ -255,7 +258,7 @@ parser.add_argument('--watch_distance',     type=float,      default = 5,
                     help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--watch_duration',     type=int,        default = 3,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--push_amount',        type=float,      default = 1,
+parser.add_argument('--push_amount',        type=float,      default = .75,
                     help='Needed distance of an object for push/pull/left/right.')
 
     # Simulation details
@@ -269,25 +272,29 @@ parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--image_size',         type=int,        default = 8,
                     help='Dimensions of the images observed.')
-parser.add_argument('--min_speed',          type=float,      default = -10,
+parser.add_argument('--min_speed',          type=float,      default = -400,
                     help='Min wheel speed.')
-parser.add_argument('--max_speed',          type=float,      default = 10,
+parser.add_argument('--max_speed',          type=float,      default = 400,
                     help='Max wheel speed.')
-parser.add_argument('--angular_scaler',     type=float,      default = .6,
+parser.add_argument('--max_speed_with_arm', type=float,      default = .5,
+                    help='Max wheel speed when arm is pointing forward.')
+parser.add_argument('--angular_scaler',     type=float,      default = .1,
                     help='How to scale angular velocity vs linear velocity.')
 parser.add_argument('--min_shoulder_angle', type=float,      default = pi/2,
                     help='Agent\'s maximum shoulder velocity.')
 parser.add_argument('--max_shoulder_angle', type=float,      default = 0,
                     help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--steps_per_step',     type=int,        default = 30,
-                    help='To avoid intersections, simulation makes each episode step multiple simulation steps.')
+parser.add_argument('--time_step',          type=float,      default = .02,
+                    help='numSubSteps in pybullet environment.')
+parser.add_argument('--steps_per_step',    type=float,      default = 15,
+                    help='numSubSteps in pybullet environment.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [15000],
+parser.add_argument('--epochs',             type=literal,    default = [100],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--batch_size',         type=int,        default = 32, 
                     help='How many episodes are sampled for each epoch.')      
-parser.add_argument('--rgbd_scaler',        type=float,      default = 100, 
+parser.add_argument('--rgbd_scaler',        type=float,      default = 1, 
                     help='How much to consider rgbd prediction in accuracy compared to comm and other.')  
 parser.add_argument('--comm_scaler',        type=float,      default = 1, 
                     help='How much to consider comm prediction in accuracy compared to rgbd and other.')       
@@ -301,22 +308,22 @@ parser.add_argument('--capacity',           type=int,        default = 256,
     # Module 
 parser.add_argument('--critics',            type=int,        default = 2,
                     help='How many critics?')   
-parser.add_argument('--hidden_size',        type=int,        default = 32,
+parser.add_argument('--hidden_size',        type=int,        default = 64,
                     help='Parameters in hidden layers.')   
-parser.add_argument('--encode_size',        type=int,        default = 8,
-                    help='Parameters in encoding.')   
 parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 128,
                     help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
-parser.add_argument('--encode_rgbd_size',   type=int,        default = 128,
-                    help='Parameters in encoding image.')   
-parser.add_argument('--encode_comm_size',   type=int,        default = 32,
-                    help='Parameters in encoding communicaiton.')   
-parser.add_argument('--encode_other_size',  type=int,        default = 16,
-                    help='Parameters in encoding sensors, angles, speed.')   
-parser.add_argument('--encode_action_size', type=int,        default = 16,
-                    help='Parameters in encoding action.')   
-parser.add_argument('--state_size',         type=int,        default = 64,
+parser.add_argument('--state_size',         type=int,        default = 128,
                     help='Parameters in prior and posterior inner-states.')
+parser.add_argument('--encode_char_size',   type=int,        default = 8,
+                    help='Parameters in encoding.')   
+parser.add_argument('--encode_rgbd_size',   type=int,        default = 64,
+                    help='Parameters in encoding image.')   
+parser.add_argument('--encode_comm_size',   type=int,        default = 64,
+                    help='Parameters in encoding communicaiton.')   
+parser.add_argument('--encode_other_size',  type=int,        default = 8,
+                    help='Parameters in encoding sensors, angles, speed.')   
+parser.add_argument('--encode_action_size', type=int,        default = 8,
+                    help='Parameters in encoding action.')   
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
 parser.add_argument('--forward_lr',         type=float,      default = .01,
@@ -349,7 +356,7 @@ parser.add_argument("--beta",               type=literal,    default = [1],
     # Entropy
 parser.add_argument("--alpha",              type=literal,    default = 0,
                     help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
-parser.add_argument("--target_entropy",     type=float,      default = -1,
+parser.add_argument("--target_entropy",     type=float,      default = 0,
                     help='Target for choosing alpha if alpha set to None. Recommended: negative size of action-space.')      
 parser.add_argument("--alpha_text",         type=literal,    default = 0,
                     help='Nonnegative value, how much to consider entropy regarding communication. Set to None to use target_entropy_text.')        
@@ -613,11 +620,11 @@ class ConstrainedConv1d(nn.Conv1d):
         
 class Ted_Conv1d(nn.Module):
     
-    def __init__(self, in_channels, out_channels, kernels = [1,2,3], stride = 1):
+    def __init__(self, in_channels, out_channels, kernel_sizes = [1,2,3], stride = 1):
         super(Ted_Conv1d, self).__init__()
         
         self.Conv1ds = nn.ModuleList()
-        for kernel, out_channel in zip(kernels, out_channels):
+        for kernel, out_channel in zip(kernel_sizes, out_channels):
             padding = (kernel-1)//2
             layer = nn.Sequential(
                 ConstrainedConv1d(
@@ -643,11 +650,11 @@ class ConstrainedConv2d(nn.Conv2d):
         
 class Ted_Conv2d(nn.Module):
     
-    def __init__(self, in_channels, out_channels, kernels = [(1,1),(3,3),(5,5)], stride = 1):
+    def __init__(self, in_channels, out_channels, kernel_sizes = [(1,1),(3,3),(5,5)], stride = 1):
         super(Ted_Conv2d, self).__init__()
         
         self.Conv2ds = nn.ModuleList()
-        for kernel, out_channel in zip(kernels, out_channels):
+        for kernel, out_channel in zip(kernel_sizes, out_channels):
             if(type(kernel) == int): 
                 kernel = (kernel, kernel)
             padding = ((kernel[0]-1)//2, (kernel[1]-1)//2)
@@ -758,6 +765,86 @@ class DenseBlock(nn.Module):
         return torch.cat(features, 1)
     
     
+    
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, dropout=0.1, max_len=5000):
+        super(PositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        # Create a long enough 'position encoding' matrix in advance
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        # Register 'pe' as a constant buffer that does not require gradients
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        """
+        Args:
+            x: Tensor, shape [seq_len, batch_size, embedding_dim]
+        """
+        # Add position encoding to input tensor
+        x = x + self.pe[:x.size(0), :]
+        return self.dropout(x)
+    
+    
+    
+class TransformerModel(nn.Module):
+    def __init__(self, ntoken, ninp, nhead, nhid, nlayers, dropout=0.5):
+        super(TransformerModel, self).__init__()
+        self.model_type = 'Transformer'
+        self.pos_encoder = PositionalEncoding(ninp, dropout)
+        encoder_layers = nn.TransformerEncoderLayer(ninp, nhead, nhid, dropout)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, nlayers)
+        self.encoder = nn.Embedding(ntoken, ninp)
+        self.ninp = ninp
+        self.decoder = nn.Linear(ninp, ntoken)
+
+        self.init_weights()
+
+    def generate_square_subsequent_mask(self, sz):
+        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+        return mask
+
+    def init_weights(self):
+        initrange = 0.1
+        self.encoder.weight.data.uniform_(-initrange, initrange)
+        self.decoder.weight.data.uniform_(-initrange, initrange)
+        self.decoder.bias.data.zero_()
+
+    def forward(self, src, src_mask = None):
+        src = self.encoder(src) * sqrt(self.ninp)
+        src = self.pos_encoder(src)
+        output = self.transformer_encoder(src, src_mask)
+        output = self.decoder(output)
+        return output
+    
+    
+    
+class ImageTransformer(nn.Module):
+    def __init__(self, in_channels, ntoken, ninp, nhead, nhid, nlayers, dropout=0.5):
+        super(ImageTransformer, self).__init__()
+        self.transformer = TransformerModel(ntoken, ninp, nhead, nhid, nlayers, dropout)
+        
+        # Resize and flatten image to fit transformer input
+        self.resize = Resize((ninp, ninp))  # Assuming square images for simplicity
+        self.flatten = nn.Flatten()
+        self.linear = nn.Linear(in_channels * ninp * ninp, ninp)  # Adapt to transformer input dimension
+        
+    def forward(self, img, src_mask = None):
+        # img shape: [batch_size, in_channels, H, W]
+        img = self.resize(img)
+        img = self.flatten(img)
+        img = self.linear(img)
+        img = img.unsqueeze(0)  # Add sequence dimension
+        output = self.transformer(img, src_mask)
+        return output
+    
+    
 
 def custom_loss(guess, target, max_shift=1):
     losses = []
@@ -849,14 +936,26 @@ def load_dicts(args):
     min_max_dict = {}
     for key in plot_dicts[0].keys():
         if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
-            minimum = None ; maximum = None
-            for mm_dict in min_max_dicts:
-                if(mm_dict[key] != (None, None)):
-                    if(minimum == None):             minimum = mm_dict[key][0]
-                    elif(minimum > mm_dict[key][0]): minimum = mm_dict[key][0]
-                    if(maximum == None):             maximum = mm_dict[key][1]
-                    elif(maximum < mm_dict[key][1]): maximum = mm_dict[key][1]
-            min_max_dict[key] = (minimum, maximum)
+            if(key == "hidden_state"):
+                min_maxes = []
+                for layer in range(len(min_max_dicts[0][key])):
+                    minimum = None ; maximum = None
+                    for mm_dict in min_max_dicts:
+                        if(  minimum == None):                  minimum = mm_dict[key][layer][0]
+                        elif(minimum > mm_dict[key][layer][0]): minimum = mm_dict[key][layer][0]
+                        if(  maximum == None):                  maximum = mm_dict[key][layer][1]
+                        elif(maximum < mm_dict[key][layer][1]): maximum = mm_dict[key][layer][1]
+                    min_maxes.append((minimum, maximum))
+                min_max_dict[key] = min_maxes
+            else:
+                minimum = None ; maximum = None
+                for mm_dict in min_max_dicts:
+                    if(mm_dict[key] != (None, None)):
+                        if(  minimum == None):           minimum = mm_dict[key][0]
+                        elif(minimum > mm_dict[key][0]): minimum = mm_dict[key][0]
+                        if(  maximum == None):           maximum = mm_dict[key][1]
+                        elif(maximum < mm_dict[key][1]): maximum = mm_dict[key][1]
+                min_max_dict[key] = (minimum, maximum)
             
     final_complete_order = [] ; final_plot_dicts = []
 

@@ -73,9 +73,9 @@ def add_this(name, args):
 
 
 
-add_this("e",   {"alpha" : "None"})
+add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
 add_this("n",   {"curiosity" : "prediction_error"}) #, "prediciton_error_eta" : [.01, .03, .1, .3, 1, 3, 10]})
-add_this("f",   {"curiosity" : "hidden_state"}) #, "hidden_state_eta" : convert_list( [ [.01], [.03], [.1], [.3], [1], [3], [10] ])})
+add_this("f",   {"curiosity" : "hidden_state"})#, "beta" : convert_list( [ [.3], [1], [3], [10] ] ), "hidden_state_eta" : convert_list( [ [.3], [1], [3], [10] ])})
 add_this("i",   {"delta" : 1})
 
 

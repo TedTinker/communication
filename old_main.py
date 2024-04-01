@@ -9,7 +9,7 @@ args.delta = 10
 args.show_duration = True
 
 def run():
-    agent = Agent(1, GUI = False, args = args)
+    agent = Agent(1, GUI = True, args = args)
     agent.training()
     
 run()

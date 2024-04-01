@@ -3,9 +3,10 @@ import torch
 import pybullet as p
 import numpy as np
 from time import sleep
+from random import uniform, choice
 
 from utils import default_args, action_map, shape_map, color_map, make_objects_and_action,\
-    string_to_onehots, onehots_to_string, pad_zeros, print, agent_to_english
+    string_to_onehots, onehots_to_string, pad_zeros, print, agent_to_english, comm_map
 from arena import Arena, get_physics
 
 
@@ -37,9 +38,14 @@ class Task:
         action_num, self.current_objects_1, self.current_objects_2 = make_objects_and_action(
             num_objects = self.objects, allowed_goals = self.actions, allowed_colors = self.colors, allowed_shapes = self.shapes, test = test)
         goal_color, goal_shape = self.current_objects_1[0]
-        
         self.goal = (action_num, goal_color, goal_shape)
-        self.goal_text = "{}{}{}".format(action_map[action_num][0], color_map[goal_color][0], shape_map[goal_shape][0])
+        
+        if(action_num == -1):
+            self.goal_text = ""
+            for _ in range(self.args.max_comm_len):
+                self.goal_text += choice(list(comm_map.values()))
+        else:
+            self.goal_text = "{}{}{}".format(action_map[action_num][0], color_map[goal_color][0], shape_map[goal_shape][0])
         self.goal_human_text = self.agent_to_english(self.goal_text)
         self.goal_comm = string_to_onehots(self.goal_text)
         self.goal_comm = pad_zeros(self.goal_comm, self.args.max_comm_len)
@@ -69,7 +75,7 @@ class Task_Runner:
         self.arena_2 = arena_2
         
     def begin(self, goal_action = None, test = False, verbose = False):
-        self.steps = 0 
+        self.steps = 0
         self.task.begin(goal_action, test, verbose)
         self.arena_1.begin(self.task.current_objects_1, self.task.goal, self.parenting)
         if(not self.parenting): self.arena_2.begin(self.task.current_objects_2, self.task.goal, self.parenting)
@@ -85,7 +91,7 @@ class Task_Runner:
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
         
-        touching = list(arena.touching_anything().values())
+        touching = list(arena.touching_any_object().values())
         touched = [False] * len(touching[0])
         for i in range(len(touched)):
             for touch in touching:
@@ -128,9 +134,10 @@ class Task_Runner:
         if(reward > 0): 
             reward *= self.args.step_cost ** (self.steps-1)
         end = self.steps >= self.args.max_steps
-        if(end and not win): 
-            reward += self.args.step_lim_punishment
+        if(end and not win and self.task.goal[0] != -1): 
             done = True
+            if(self.task.goal[0] != -1):
+                reward += self.args.step_lim_punishment
         if(win):
             done = True
             if(verbose):
@@ -184,8 +191,8 @@ class Task_Runner:
         relevant_distances_and_angles = [(distances[i], angles[i]) for i in range(len(distances)) if colors[i] == goal_color and shapes[i] == goal_shape]
         #relevant_distance, relevant_angle = min(relevant_distances_and_angles, key=lambda t: abs(t[1]))
         
-        left_wheel = 0 # uniform(-.25, .25)
-        right_wheel = 0 # uniform(-.25, .25)
+        left_wheel = 0 #uniform(-.25, .25)
+        right_wheel = 0 #uniform(-.25, .25)
         shoulder = -1 # uniform(-.1, .1)
         
         if(action_map[goal_action][1].upper() == "PUSH"):

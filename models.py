@@ -28,7 +28,7 @@ class Actor(nn.Module):
         self.args = args
         
         #self.obs_in = Obs_IN(args)
-        #self.action_in = Action_IN(self.args)
+        self.action_in = Action_IN(self.args)
         #self.comm_in = Comm_IN(self.args)
 
         self.lin = nn.Sequential(
@@ -89,7 +89,7 @@ class Actor(nn.Module):
             comm_out = torch.zeros_like(prev_comm_out)
             comm_log_prob = torch.zeros_like(log_prob)
         else:
-            comm_out, comm_log_prob = self.comm_out(forward_hidden)
+            comm_out, comm_log_prob = self.comm_out(torch.cat([forward_hidden, self.action_in(action)], dim = -1))
         #print("ACTOR:", duration() - start)
         return action, comm_out, log_prob, comm_log_prob, action_hidden
     
@@ -126,11 +126,11 @@ class Critic(nn.Module):
         
         #self.obs_in = Obs_IN(self.args)
         self.action_in = Action_IN(self.args)
-        #self.comm_in = Comm_IN(self.args)
+        self.comm_in = Comm_IN(self.args)
         
         self.lin = nn.Sequential(
             nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size,
+                in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size,
                 out_features = self.args.hidden_size),
             nn.PReLU())
         
@@ -160,8 +160,8 @@ class Critic(nn.Module):
         
         #obs = self.obs_in(rgbd, comm_in)
         action = self.action_in(action)
-        #comm_out = self.comm_in(comm_out)
-        x = torch.cat([forward_hidden, action], dim=-1)
+        comm_out = self.comm_in(comm_out)
+        x = torch.cat([forward_hidden, action, comm_out], dim=-1)
         x = self.lin(x)
         #value = self.mtrnn(x, critic_hidden)
         #critic_hidden = value[:,-1].unsqueeze(1)

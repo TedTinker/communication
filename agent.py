@@ -31,14 +31,15 @@ class Agent:
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         
         self.tasks = {
-            "1" : Task(actions = 1, objects = 1, colors = 6, shapes = 1, parent = True,  args = self.args),
-            "2" : Task(actions = 1, objects = 2, colors = 6, shapes = 1, parent = True,  args = self.args),
-            "3" : Task(actions = 5, objects = 2, colors = 6, shapes = 5, parent = False, args = self.args)}
-        physicsClient_1 = get_physics(GUI = GUI)
-        arena_1 = Arena(physicsClient_1)
-        physicsClient_2 = get_physics(GUI = False)
-        arena_2 = Arena(physicsClient_2)
-        self.task_runners = {task_name : Task_Runner(task, arena_1, arena_2, self.args) for i, (task_name, task) in enumerate(self.tasks.items())}
+            "0" : Task(actions = -1, objects = 4, colors = 6, shapes = 5, parent = True,  args = self.args),
+            "1" : Task(actions = 1, objects = 1, colors = 6, shapes = 1, parent = True, args = self.args),
+            "2" : Task(actions = 1, objects = 2, colors = 6, shapes = 1, parent = True, args = self.args),
+            "3" : Task(actions = 5, objects = 2, colors = 6, shapes = 5, parent = True, args = self.args)}
+        physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
+        self.arena_1 = Arena(physicsClient_1, args = self.args)
+        physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
+        self.arena_2 = Arena(physicsClient_2, args = self.args)
+        self.task_runners = {task_name : Task_Runner(task, self.arena_1, self.arena_2, self.args) for i, (task_name, task) in enumerate(self.tasks.items())}
         self.task_name = self.args.task_list[0]
         
         self.target_entropy = self.args.target_entropy
@@ -113,20 +114,24 @@ class Agent:
             prev_task_name = self.task_name
             for i, epochs in enumerate(self.args.epochs): 
                 cumulative_epochs += epochs
-                if(self.epochs < cumulative_epochs): 
-                    self.task_name = self.args.task_list[i] 
+                if(self.epochs == cumulative_epochs): 
+                    
+                    prev_time = duration()
+                    
+                    self.gen_test()  
+                    self.save_episodes(swapping = False)
+                    self.save_agent()
+                    
+                    self.task_name = self.args.task_list[i+1] 
+                    
+                    self.gen_test()  
+                    self.save_episodes(swapping = True)
+                    self.save_agent()
+                    
+                    time = duration()
+                    if(self.args.show_duration): print("AFTER GEN, SAVE (1):", time - prev_time)
+                    prev_time = time
                     break
-            if(prev_task_name != self.task_name): 
-                
-                prev_time = duration()
-                
-                self.gen_test()  
-                self.save_episodes(swapping = True)
-                self.save_agent()
-                
-                time = duration()
-                if(self.args.show_duration): print("AFTER GEN, SAVE (1):", time - prev_time)
-                prev_time = time
                 
             prev_time = duration()
                 
@@ -172,16 +177,30 @@ class Agent:
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
             if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps"]):
-                minimum = None ; maximum = None 
-                l = self.plot_dict[key]
-                l = deepcopy(l)
-                l = [_ for _ in l if _ != None]
-                if(l != []):
-                    if(  minimum == None):  minimum = min(l)
-                    elif(minimum > min(l)): minimum = min(l)
-                    if(  maximum == None):  maximum = max(l) 
-                    elif(maximum < max(l)): maximum = max(l)
-                self.min_max_dict[key] = (minimum, maximum)
+                if(key == "hidden_state"):
+                    min_maxes = []
+                    hidden_state = deepcopy(self.plot_dict[key])
+                    for l in hidden_state:
+                        minimum = None ; maximum = None 
+                        l = [_ for _ in l if _ != None]
+                        if(l != []):
+                            if(  minimum == None):  minimum = min(l)
+                            elif(minimum > min(l)): minimum = min(l)
+                            if(  maximum == None):  maximum = max(l) 
+                            elif(maximum < max(l)): maximum = max(l)
+                        min_maxes.append((minimum, maximum))
+                    self.min_max_dict[key] = min_maxes
+                else:
+                    minimum = None ; maximum = None 
+                    l = self.plot_dict[key]
+                    l = deepcopy(l)
+                    l = [_ for _ in l if _ != None]
+                    if(l != []):
+                        if(  minimum == None):  minimum = min(l)
+                        elif(minimum > min(l)): minimum = min(l)
+                        if(  maximum == None):  maximum = max(l) 
+                        elif(maximum < max(l)): maximum = max(l)
+                    self.min_max_dict[key] = (minimum, maximum)
                 
     
     
@@ -290,10 +309,10 @@ class Agent:
         hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
         ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-            
+                    
         self.task = self.task_runners[self.task_name]
-        self.task.begin()        
-                
+        self.task.begin()    
+                        
         for step in range(self.args.max_steps):
             self.steps += 1                                                                                             
             if(not done):
@@ -348,8 +367,8 @@ class Agent:
         goal_action = self.task.task.goal[0]
         win_dict_list = [self.plot_dict["wins_" + action_name.lower()] for action_name in action_name_list]
         for i, win_dict in enumerate(win_dict_list):
-                if(i == goal_action): win_dict.append(win)
-                else:                 win_dict.append(None)
+            if(i-1 == goal_action): win_dict.append(win)
+            else:                   win_dict.append(None)
                              
         for to_push in to_push_list_1:
             rgbd, comm_in, other, action, comm_out, recommended_action, reward, next_rgbd, next_comm_in, next_other, done = to_push
@@ -401,7 +420,7 @@ class Agent:
         hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
         ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-        
+                
         try:
             self.task = self.task_runners[self.task_name]
             self.task.begin(test = True)        
@@ -668,8 +687,8 @@ class Agent:
         pred_comms = pred_comms.reshape((pred_comms.shape[0] * pred_comms.shape[1], self.args.max_comm_len, self.args.comm_shape))
         pred_comms = pred_comms.transpose(1,2)
     
-        comm_loss = custom_loss(pred_comms, real_comms, max_shift = 0)    
-        #comm_loss = F.cross_entropy(pred_comms, real_comms, reduction = "none")
+        #comm_loss = custom_loss(pred_comms, real_comms, max_shift = 0)    
+        comm_loss = F.cross_entropy(pred_comms, real_comms, reduction = "none")
         comm_loss = comm_loss.reshape(episodes, steps, self.args.max_comm_len)
         comm_loss = comm_loss.mean(dim=2).unsqueeze(-1) * masks * self.args.comm_scaler
         
@@ -862,7 +881,7 @@ class Agent:
         
         prediction_error_curiosity = prediction_error_curiosity.mean().item()
         hidden_state_curiosities = [hidden_state_curiosity.mean().item() for hidden_state_curiosity in hidden_state_curiosities]
-        hidden_state_curiosities = [hidden_state_curiosity for hidden_state_curiosity in hidden_state_curiosities]
+        #hidden_state_curiosities = [hidden_state_curiosity for hidden_state_curiosity in hidden_state_curiosities]
         
         time = duration()
         #if(self.args.show_duration): print(f"WHOLE EPOCH {self.epochs}:", time - start_time)

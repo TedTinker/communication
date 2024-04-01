@@ -29,7 +29,6 @@ for folder in folders:
     for d in plot_dict["episode_dicts"]: 
         episode_dicts.update(d)
     plot_dict["episode_dicts"] = episode_dicts
-    print("episode_dicts:", episode_dicts if episode_dicts == {} else "looks good")
     
     agent_lists = {}
     for d in plot_dict["agent_lists"]: agent_lists.update(d)
@@ -37,17 +36,22 @@ for folder in folders:
         
     for key in min_max_dict.keys():
         if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
+            print("\n", key)
+            print(min_max_dict[key])
             if(key == "hidden_state"):
                 min_maxes = []
-                for layer in min_max_dict[key]:
+                for layer in range(len(min_max_dict[key][0])):
+                    print("LAYER", layer)
+                    print([mm[layer] for mm in min_max_dict[key]])
                     minimum = None ; maximum = None
-                    for min_max in layer:
+                    for min_max in [mm[layer] for mm in min_max_dict[key]]:
                         if(  minimum == None):      minimum = min_max[0]
                         elif(minimum > min_max[0]): minimum = min_max[0]
                         if(  maximum == None):      maximum = min_max[1]
                         elif(maximum < min_max[1]): maximum = min_max[1]
                     min_maxes.append((minimum, maximum))
                 min_max_dict[key] = min_maxes
+                print(min_maxes)
             else:
                 minimum = None ; maximum = None
                 for min_max in min_max_dict[key]:

@@ -10,16 +10,16 @@ from skimage.transform import resize
 
 from utils import default_args, shape_map, color_map, action_map, relative_to, opposite_relative_to, make_objects_and_action#, print
 
-def get_physics(GUI, w = 10, h = 10):
+def get_physics(GUI, time_step, steps_per_step, w = 10, h = 10):
     if(GUI):
         physicsClient = p.connect(p.GUI)
         p.resetDebugVisualizerCamera(1,90,-89,(w/2,h/2,w), physicsClientId = physicsClient)
     else:   
         physicsClient = p.connect(p.DIRECT)
     p.setAdditionalSearchPath("pybullet_data")
-    p.setGravity(0, 0, -10, physicsClientId = physicsClient)
-    p.setTimeStep(.005, physicsClientId=physicsClient)  # More accurate time step
-    p.setPhysicsEngineParameter(numSolverIterations=10, physicsClientId=physicsClient)  # Increased solver iterations for potentially better stability
+    p.setGravity(0, 0, -30, physicsClientId = physicsClient)
+    p.setTimeStep(time_step / steps_per_step, physicsClientId=physicsClient)  # More accurate time step
+    p.setPhysicsEngineParameter(numSolverIterations=1, numSubSteps=1, physicsClientId=physicsClient)  # Increased solver iterations for potentially better stability
     return(physicsClient)
     
 def get_joint_index(body_id, joint_name, physicsClient):
@@ -30,10 +30,16 @@ def get_joint_index(body_id, joint_name, physicsClient):
             return i
     return -1  # Return -1 if no joint with the given name is found
 
+def adjust_sign(number1, number2):
+    sign_of_first_number = -1 if number1 < 0 else 1
+    min_abs_value = min(abs(number1), abs(number2))
+    result = sign_of_first_number * min_abs_value
+    return result
+
 # FOV of agent vision.
 fov_x_deg = 90
 fov_y_deg = 90
-near = 1.1
+near = .11
 far = 8
 fov_x_rad = radians(fov_x_deg)
 fov_y_rad = radians(fov_y_deg)
@@ -41,6 +47,15 @@ right = near * tan(fov_x_rad / 2)
 left = -right
 top = near * tan(fov_y_rad / 2)
 bottom = -top
+
+agent_upper_starting_pos = 2.02
+object_upper_starting_pos = 1.12
+object_lower_start_pos = -8.85
+
+if(__name__ == "__main__"):
+    sensor_alpha = .5
+else:
+    sensor_alpha = 0
 
 
 
@@ -64,7 +79,7 @@ class Arena():
             
         # Place robot. 
         self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = self.physicsClient)
-        self.robot_index = p.loadURDF("robot.urdf", (0, 0, 2.01), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
+        self.robot_index = p.loadURDF("robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
         
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
         self.sensors = []
@@ -78,7 +93,7 @@ class Arena():
                 self.right_wheel = link_index
             if("sensor" in link_name):
                 self.sensors.append((link_index, link_name))
-                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 0, 0, 0), physicsClientId = self.physicsClient)
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 0, 0, sensor_alpha), physicsClientId = self.physicsClient)
             else:
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
         
@@ -87,11 +102,18 @@ class Arena():
         self.object_indexs = []
         for i, (shape, shape_name, shape_file) in shape_map.items():
             for j in range(self.args.objects):
-                pos = (5*i, 5*j, -8.9)
+                pos = (5*i, 5*j, object_lower_start_pos)
                 object_index = p.loadURDF("pybullet_data/shapes/{}".format(shape_file), pos, p.getQuaternionFromEuler([0, 0, pi/2]), 
                                           useFixedBase=False, globalScaling = self.args.object_size, physicsClientId=self.physicsClient)
-                self.loaded[i].append((object_index, (pos[0], pos[1], -8.9)))
+                self.loaded[i].append((object_index, (pos[0], pos[1], object_lower_start_pos)))
                 self.object_indexs.append(object_index)
+                
+    def end(self):
+        for (_, _, old_pos), object_index in self.objects_in_play.items():
+            p.resetBasePositionAndOrientation(object_index, old_pos, self.default_orn, physicsClientId = self.physicsClient)
+            
+    def stop(self):
+        p.disconnect(physicsClientId = self.physicsClient)
                                 
     def begin(self, objects, goal, parented, set_positions = None):
         self.set_pos()
@@ -113,7 +135,7 @@ class Arena():
             object_index, old_pos = self.loaded[shape_index][already_in_play[shape_index]]
             already_in_play[shape_index] += 1
             x, y = random_positions[i]
-            p.resetBasePositionAndOrientation(object_index, (x, y, 1.1), (0, 0, 0, 1), physicsClientId = self.physicsClient)
+            p.resetBasePositionAndOrientation(object_index, (x, y, object_upper_starting_pos), (0, 0, 0, 1), physicsClientId = self.physicsClient)
             self.object_faces_up(object_index)
             p.changeVisualShape(object_index, -1, rgbaColor = rgba, physicsClientId = self.physicsClient)
             for i in range(p.getNumJoints(object_index)):
@@ -122,30 +144,42 @@ class Arena():
             self.watching[object_index] = 0
         
     def step(self, left_wheel, right_wheel, shoulder, verbose = False, sleep_time = None):
+        time_scaler = 100
+        if(sleep_time != None):
+            p.setTimeStep(self.args.time_step / (self.args.steps_per_step ** 2 * time_scaler), physicsClientId=self.physicsClient)  # More accurate time step
+            
         self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
         self.objects_start = []
         for object_index in self.objects_in_play.values():
             pos, _, _ = self.get_pos_yaw_spe(object_index)
             self.objects_start.append(pos)
-        if(shoulder < 0): 
-            shoulder = -1
-        else:
-            shoulder = 1
-        shoulder_start = opposite_relative_to(self.get_shoulder_angle(), self.args.min_shoulder_angle, self.args.max_shoulder_angle)
-        shoulder_step = (shoulder - shoulder_start) / (self.args.steps_per_step - 1)
-        self.set_speeds(left_wheel, right_wheel)
+            starting_shoulder = opposite_relative_to(self.get_shoulder_angle(), self.args.min_shoulder_angle, self.args.max_shoulder_angle)
+            current_shoulder = starting_shoulder
+            final_shoulder = -1 if shoulder < 0 else 1
+            shoulder_step = (final_shoulder - starting_shoulder) / self.args.steps_per_step
+ 
+        if(verbose): 
+            WAITING = input("WAITING")
         for step in range(self.args.steps_per_step):
-            if(verbose): 
-                if(step == 0):
-                    WAITING = input("WAITING")
+            current_shoulder += shoulder_step
+            self.set_shoulder_angle(current_shoulder) 
+            self.set_speeds(left_wheel, right_wheel)
+            
             if(sleep_time != None):
-                sleep(sleep_time/self.args.steps_per_step)
-            self.set_shoulder_angle(shoulder_start + step * shoulder_step)
-            p.stepSimulation(physicsClientId = self.physicsClient)
+                for i in range(self.args.steps_per_step * time_scaler):
+                    sleep(sleep_time / (self.args.steps_per_step ** 2 * time_scaler))
+                    p.stepSimulation(physicsClientId = self.physicsClient)
+            else:
+                p.stepSimulation(physicsClientId = self.physicsClient)
+                
         self.objects_end = []
         for object_index in self.objects_in_play.values():
             pos, _, _ = self.get_pos_yaw_spe(object_index)
             self.objects_end.append(pos)
+            
+        if(sleep_time != None):
+            p.setTimeStep(self.args.time_step / self.args.steps_per_step, physicsClientId=self.physicsClient)  # More accurate time step
+            p.setPhysicsEngineParameter(numSolverIterations=1, numSubSteps=1, physicsClientId=self.physicsClient)
             
     def set_speeds(self, left_wheel = 0, right_wheel = 0):
         left_wheel = relative_to(left_wheel, self.args.min_speed, self.args.max_speed)
@@ -157,17 +191,35 @@ class Arena():
         angular_velocity = (right_wheel - left_wheel) * self.args.angular_scaler
         p.resetBaseVelocity(self.robot_index, linearVelocity=[x, y, 0], angularVelocity=[0, 0, angular_velocity], physicsClientId = self.physicsClient)
         
+    def get_pos_yaw_spe(self, index):
+        pos, ors = p.getBasePositionAndOrientation(index, physicsClientId = self.physicsClient)
+        yaw = p.getEulerFromQuaternion(ors, physicsClientId = self.physicsClient)[-1]
+        forward_dir = np.array([np.cos(yaw), np.sin(yaw)])
+        (vx, vy, _), _ = p.getBaseVelocity(index, physicsClientId=self.physicsClient)
+        velocity_vec = np.array([vx, vy])
+        spe = float(np.dot(velocity_vec, forward_dir))
+        return(pos, yaw, spe)
+    
+    def set_pos(self, pos = (0, 0)):
+        pos = (pos[0], pos[1], agent_upper_starting_pos)
+        _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        orn = p.getQuaternionFromEuler([0, 0, yaw])
+        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
+        
+    def set_yaw(self, yaw = 0):
+        orn = p.getQuaternionFromEuler([0, 0, yaw], physicsClientId = self.physicsClient)
+        pos, _, _ = self.get_pos_yaw_spe(self.robot_index)
+        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
+        
     def set_shoulder_angle(self, shoulder = -1):
         shoulder = relative_to(shoulder, self.args.min_shoulder_angle, self.args.max_shoulder_angle)
-        limb_index = get_joint_index(self.robot_index, 'body_shoulder_joint', physicsClient = self.physicsClient)
+        limb_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
         p.resetJointState(self.robot_index, limb_index, shoulder, physicsClientId=self.physicsClient)
-                        
-    def end(self):
-        for (_, _, old_pos), object_index in self.objects_in_play.items():
-            p.resetBasePositionAndOrientation(object_index, old_pos, self.default_orn, physicsClientId = self.physicsClient)
-            
-    def stop(self):
-        p.disconnect(physicsClientId = self.physicsClient)
+        
+    def get_shoulder_angle(self):
+        joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
+        joint_state = p.getJointState(self.robot_index, joint_index, physicsClientId=self.physicsClient)
+        return joint_state[0]
         
     def generate_positions(self, n):
         positions = [(0, 0)]
@@ -186,32 +238,7 @@ class Arena():
         y = pos[1]
         (a, b, c) = p.getEulerFromQuaternion(orn, physicsClientId = self.physicsClient)
         orn = p.getQuaternionFromEuler([0, 0, c if not isnan(c) else 0])
-        p.resetBasePositionAndOrientation(object_index, (x, y, 1.1), orn, physicsClientId = self.physicsClient)
-        
-    def get_pos_yaw_spe(self, index):
-        pos, ors = p.getBasePositionAndOrientation(index, physicsClientId = self.physicsClient)
-        yaw = p.getEulerFromQuaternion(ors, physicsClientId = self.physicsClient)[-1]
-        forward_dir = np.array([np.cos(yaw), np.sin(yaw)])
-        (vx, vy, _), _ = p.getBaseVelocity(index, physicsClientId=self.physicsClient)
-        velocity_vec = np.array([vx, vy])
-        spe = float(np.dot(velocity_vec, forward_dir))
-        return(pos, yaw, spe)
-    
-    def get_shoulder_angle(self):
-        joint_index = get_joint_index(self.robot_index, 'body_shoulder_joint', physicsClient = self.physicsClient)
-        joint_state = p.getJointState(self.robot_index, joint_index, physicsClientId=self.physicsClient)
-        return joint_state[0]
-    
-    def set_pos(self, pos = (0, 0)):
-        pos = (pos[0], pos[1], 2.01)
-        _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
-        orn = p.getQuaternionFromEuler([0, 0, yaw])
-        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
-        
-    def set_yaw(self, yaw = 0):
-        orn = p.getQuaternionFromEuler([0, 0, yaw], physicsClientId = self.physicsClient)
-        pos, _, _ = self.get_pos_yaw_spe(self.robot_index)
-        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
+        p.resetBasePositionAndOrientation(object_index, (x, y, object_upper_starting_pos), orn, physicsClientId = self.physicsClient)
             
     def touching_object(self, object_index):
         touching = []
@@ -219,7 +246,7 @@ class Arena():
             touching.append(bool(p.getContactPoints(bodyA=self.robot_index, bodyB=object_index, linkIndexA=sensor_index, physicsClientId = self.physicsClient)))
         return(touching)
     
-    def touching_anything(self):
+    def touching_any_object(self):
         touching = {}
         for object_index in self.objects_in_play.values():
             touching_this_object = self.touching_object(object_index)
@@ -227,8 +254,8 @@ class Arena():
         return(touching)
         
     def rewards(self, verbose = False):
-        success = False
-        failure = False
+        win = False
+        fail = False
         goal_action = self.goal[0]
         goal_shape = self.goal[1]
         goal_color = self.goal[2]
@@ -313,11 +340,14 @@ class Arena():
             
             if(performing_something != None):
                 if(shape_index == goal_shape and color_index == goal_color and performing_something == action_map[goal_action][1]): 
-                    success = True
+                    win = True
                 else:
-                    failure = True                
-        reward = self.args.reward if success else self.args.punishment if (failure and self.parented) else 0
-        return(reward, success)
+                    fail = True                
+        reward = self.args.reward if win else self.args.punishment if (fail and self.parented) else 0
+        if(goal_action == -1):
+            reward = 0
+            win = False
+        return(reward, win)
     
     def photo_from_above(self):
         pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
@@ -336,9 +366,13 @@ class Arena():
                 projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
                 physicsClientId = self.physicsClient)
             return(rgba)
-        temp_yaws = [yaw + pi, yaw + -pi/2, yaw , yaw + pi/2, ]
+        temp_yaws = [yaw + i*pi/4 for i in [4, 5, 6, 7, 0, 1, 2, 3]]
         rgbas = [get_photo(temp_yaw) for temp_yaw in temp_yaws]
         black_separator = np.zeros((rgbas[0].shape[0], 10, 4), dtype=np.uint8)
+        rgbas.insert(7, black_separator)
+        rgbas.insert(6, black_separator)
+        rgbas.insert(5, black_separator)
+        rgbas.insert(4, black_separator)
         rgbas.insert(3, black_separator)
         rgbas.insert(2, black_separator)
         rgbas.insert(1, black_separator)
@@ -354,7 +388,9 @@ class Arena():
                 cameraEyePosition = [pos[0], pos[1], 2], 
                 cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    
                 cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
-            proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far, physicsClientId = self.physicsClient)
+            proj_matrix = p.computeProjectionMatrixFOV(
+                fov = 90, aspect = 1, nearVal = 1, 
+                farVal = 10, physicsClientId = self.physicsClient)
             _, _, rgba, depth, _ = p.getCameraImage(
                 width=self.args.image_size * 2, height=self.args.image_size * 2,
                 projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
@@ -376,57 +412,21 @@ class Arena():
     
 if __name__ == "__main__":
     args = default_args
-    physicsClient = get_physics(GUI = True)
+    physicsClient = get_physics(GUI = True, time_step = args.time_step, steps_per_step = args.steps_per_step)
     arena = Arena(physicsClient, args = args)
-    sleep_time = 3
+    sleep_time = 1
     
     action, colors_shapes_1, colors_shapes_2 = make_objects_and_action(1, 1, 1, 1)
     
-    
     """
-    print("\nPUSHING WITH BODY")
-    goal = [1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
-    for step in range(3):
-        arena.step(1, 1, -1, verbose = True, sleep_time = sleep_time)
-        above_rgba = arena.photo_from_above()
-        agent_rgba = arena.photo_for_agent()
-        plt.imshow(above_rgba)
-        plt.show()
-        plt.close()
-        plt.imshow(agent_rgba)
-        plt.show()
-        plt.close()
-        print(arena.rewards(verbose = True)[0])
-    arena.end()
-    """
-    
-    """
-    print("\nPUSHING WITH HAND")
-    goal = [1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(8,0)])
-    arena.step(0, 0, 1, verbose = True, sleep_time = sleep_time)
-    for step in range(3):
-        arena.step(1, 1, 1, verbose = True, sleep_time = sleep_time)
-        above_rgba = arena.photo_from_above()
-        agent_rgba = arena.photo_for_agent()
-        plt.imshow(above_rgba)
-        plt.show()
-        plt.close()
-        plt.imshow(agent_rgba)
-        plt.show()
-        plt.close()
-        print(arena.rewards(verbose = True)[0])
-    arena.end()
-    """
-    
-    """
-    print("\nSPIN")
+    print("\nNO GOAL")
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,3)])
-    arena.step(0, 0, 1, verbose = True, sleep_time = sleep_time)
-    for step in range(5):
-        arena.step(1, -1, 1, verbose = True, sleep_time = sleep_time)
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(8,0)])
+    i = 5
+    arena.step(1, -1, i, verbose = True, sleep_time = sleep_time)
+    for step in range(4):
+        i *= -1
+        arena.step(1, -1, i, verbose = True, sleep_time = sleep_time)
         above_rgba = arena.photo_from_above()
         agent_rgba = arena.photo_for_agent()
         plt.imshow(above_rgba)
@@ -457,14 +457,31 @@ if __name__ == "__main__":
     arena.end()
     #"""
     
+    #"""
+    print("\nPUSHING WITH BODY")
+    goal = [1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
+    for step in range(3):
+        arena.step(1, 1, -1, verbose = True, sleep_time = sleep_time)
+        above_rgba = arena.photo_from_above()
+        agent_rgba = arena.photo_for_agent()
+        plt.imshow(above_rgba)
+        plt.show()
+        plt.close()
+        plt.imshow(agent_rgba)
+        plt.show()
+        plt.close()
+        print(arena.rewards(verbose = True)[0])
+    arena.end()
+    #"""
     
     """
-    print("\nPULLING WITH HAND")
-    goal = [2, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
+    print("\nPUSHING WITH HAND")
+    goal = [1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(8,0)])
     arena.step(0, 0, 1, verbose = True, sleep_time = sleep_time)
     for step in range(3):
-        arena.step(-1, -1, 1, verbose = True, sleep_time = sleep_time)
+        arena.step(1, 1, 1, verbose = True, sleep_time = sleep_time)
         above_rgba = arena.photo_from_above()
         agent_rgba = arena.photo_for_agent()
         plt.imshow(above_rgba)
@@ -477,14 +494,13 @@ if __name__ == "__main__":
     arena.end()
     """
     
-    """   
+    #"""   
     print("\nPUSHING LEFT")
     goal = [3, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
-    arena.step(1, -1, -1, verbose = True, sleep_time = sleep_time)
     arena.step(0, 0, 1, verbose = True, sleep_time = sleep_time)
     for step in range(3):
-        arena.step(-.5, .5, 1, verbose = True, sleep_time = sleep_time)
+        arena.step(-1, 1, 1, verbose = True, sleep_time = sleep_time)
         above_rgba = arena.photo_from_above()
         agent_rgba = arena.photo_for_agent()
         plt.imshow(above_rgba)
@@ -495,16 +511,15 @@ if __name__ == "__main__":
         plt.close()
         print(arena.rewards(verbose = True)[0])
     arena.end()
-    """
+    #"""
     
-    """
+    #"""
     print("\nPUSHING RIGHT")
     goal = [4, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
-    arena.step(-1, 1, -1, verbose = True, sleep_time = sleep_time)
     arena.step(0, 0, 1, verbose = True, sleep_time = sleep_time)
     for step in range(3):
-        arena.step(.5, -.5, 1, verbose = True, sleep_time = sleep_time)
+        arena.step(1, -1, 1, verbose = True, sleep_time = sleep_time)
         above_rgba = arena.photo_from_above()
         agent_rgba = arena.photo_for_agent()
         plt.imshow(above_rgba)
@@ -515,4 +530,4 @@ if __name__ == "__main__":
         plt.close()
         print(arena.rewards(verbose = True)[0])
     arena.end()
-    """
+    #"""

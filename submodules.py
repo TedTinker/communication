@@ -1,5 +1,6 @@
 #%%
 import numpy as np
+from math import log
 
 import torch
 from torch import nn
@@ -12,7 +13,8 @@ from torchinfo import summary as torch_summary
 
 from utils import print, default_args, init_weights, \
     episodes_steps, pad_zeros, Ted_Conv1d, Ted_Conv2d, var, \
-    sample, duration, ConstrainedConv1d, ConstrainedConv2d, ResidualBlock, DenseBlock
+    sample, duration, ConstrainedConv1d, ConstrainedConv2d, ResidualBlock, DenseBlock, \
+    TransformerModel, ImageTransformer
 from mtrnn import MTRNN
 
 d = .01
@@ -36,29 +38,25 @@ class RGBD_IN(nn.Module):
         
         self.rgbd_in = nn.Sequential(
             nn.BatchNorm2d(4),
-            Ted_Conv2d(
-                in_channels = 4,
-                out_channels = [self.args.hidden_size//4] * 4,
-                kernels = [1, 3, 3, 5]),
-            #nn.Conv2d(
-            #    in_channels = 4, 
-            #    out_channels = self.args.hidden_size, 
-            #    kernel_size = 3,
-            #    padding = 1,
-            #    padding_mode = "reflect"),
+            nn.Conv2d(
+                in_channels = 4, 
+                out_channels = self.args.hidden_size, 
+                kernel_size = 3,
+                padding = 1,
+                padding_mode = "reflect"),
             nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(d),
-
-            #ResidualBlock(
-            #    channels = [self.args.hidden_size] * 2, 
-            #    kernel_sizes = [3] * 1, 
-            #    strides = [1] * 1, 
-            #    paddings = [1] * 1, 
-            #    padding_modes = ["reflect"] * 1, 
-            #    activations = [nn.PReLU] * 1,
-            #    dropouts = [d] * 2)
-            )
+            
+            nn.Conv2d(
+                in_channels = self.args.hidden_size, 
+                out_channels = self.args.hidden_size, 
+                kernel_size = 3,
+                padding = 1,
+                padding_mode = "reflect"),
+            nn.BatchNorm2d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(d))
         
         example = self.rgbd_in(example)
         rgbd_latent_size = example.flatten(1).shape[1]
@@ -100,6 +98,8 @@ if __name__ == "__main__":
                                 (episodes, steps, args.image_size, args.image_size, 4)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
+    
+    
 #%%
     
     
@@ -120,19 +120,21 @@ class RGBD_OUT(nn.Module):
             nn.Dropout(d))
         
         self.rgbd_out = nn.Sequential(
-            #ResidualBlock(
-            #    channels = [self.args.hidden_size] * 2, 
-            #    kernel_sizes = [3] * 1, 
-            #    strides = [1] * 1, 
-            #    paddings = [1] * 1, 
-            #    padding_modes = ["reflect"] * 1, 
-            #    activations = [nn.PReLU] * 1,
-            #    dropouts = [d] * 2),
-            
-            Ted_Conv2d(
+            nn.Conv2d(
                 in_channels = self.args.hidden_size,
-                out_channels = [self.args.hidden_size//4] * 4,
-                kernels = [1, 3, 3, 5]),
+                out_channels = self.args.hidden_size,
+                kernel_size = 3,
+                padding = 1,
+                padding_mode = "reflect"),
+            nn.BatchNorm2d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(d),
+            nn.Conv2d(
+                in_channels = self.args.hidden_size,
+                out_channels = self.args.hidden_size,
+                kernel_size = 3,
+                padding = 1,
+                padding_mode = "reflect"),
             nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(d),
@@ -188,18 +190,14 @@ class Comm_IN(nn.Module):
         self.comm_embedding = nn.Sequential(
             nn.Embedding(
                 num_embeddings = self.args.comm_shape,
-                embedding_dim = self.args.encode_size),
+                embedding_dim = self.args.encode_char_size),
             nn.PReLU(),
             nn.Dropout(d))
         
         self.comm_cnn = nn.Sequential(
-            nn.BatchNorm1d(self.args.encode_size),
-            #Ted_Conv1d(
-            #    in_channels = self.args.encode_size,
-            #    out_channels = [self.args.hidden_size//4] * 4,
-            #    kernels = [1, 3, 3, 5]),
+            nn.BatchNorm1d(self.args.encode_char_size),
             nn.Conv1d(
-                in_channels = self.args.encode_size, 
+                in_channels = self.args.encode_char_size, 
                 out_channels = self.args.hidden_size, 
                 kernel_size = 1),
             nn.BatchNorm1d(self.args.hidden_size),
@@ -291,17 +289,12 @@ class Comm_OUT(nn.Module):
             nn.BatchNorm1d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(d),
-            #Ted_Conv1d(
-            #    in_channels = self.args.hidden_size,
-            #    out_channels = [self.args.hidden_size//4] * 4,
-            #    kernels = [1, 3, 3, 5]),
             nn.Conv1d(
                 in_channels = self.args.hidden_size, 
                 out_channels = self.args.hidden_size,
                 kernel_size = 1),
             nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU()
-            )
+            nn.PReLU())
         
         self.comm_out_mu = nn.Sequential(
             nn.Linear(
@@ -364,14 +357,14 @@ if __name__ == "__main__":
                                 (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
-    comm_out = Comm_OUT(actor = True, args = args)
+    """comm_out = Comm_OUT(actor = True, args = args)
     
     print("\n\n")
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(comm_out, 
                                 (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))"""
     
 #%%
 

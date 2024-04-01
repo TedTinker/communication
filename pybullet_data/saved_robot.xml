@@ -1,13 +1,11 @@
-<?xml version="1.0"?>
-<robot name="robot">
-
-
-    <!-- body -->
+robot += \
+"""\n\n
+    <!-- Robot's body -->
     <link name="body">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <mass value="100"/>
-            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
+            <inertia ixx=".1" ixy="0" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -22,30 +20,57 @@
             </geometry>
         </collision>
     </link>
+	
+    <!-- Robot's nose -->
+    <link name="nose">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value=".1"/>
+            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size=".001 .2 .2"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size=".05 .2 .2"/>
+            </geometry>
+        </collision>
+    </link>
+	
+    <!-- Joint: base, nose -->
+    <joint name="body_nose_joint" type="fixed">
+        <parent link="body"/>
+        <child link="nose"/>
+        <origin xyz=".50005 0 0" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+    </joint>
 
-
-    <!-- body_sensor -->
+    <!-- Robot's body_sensor -->
     <link name="body_sensor">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
+            <mass value=".1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1.02 1.02 1.02"/>
+                <box size="1.01 1.01 1.01"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1.02 1.02 1.02"/>
+                <box size="1.01 1.01 1.01"/>
             </geometry>
         </collision>
     </link>
-    
-    
+
 	<!-- Joint: body, body_sensor -->
     <joint name="body_body_sensor_joint" type="fixed"> 
         <parent link="body"/> 
@@ -55,112 +80,88 @@
     </joint>
 
 
-    <!-- nose -->
-    <link name="nose">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.001 0.2 0.2"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.001 0.2 0.2"/>
-            </geometry>
-        </collision>
-    </link>
 
-
-    <!-- Joint: body, nose -->
-    <joint name="body_nose_joint" type="fixed"> 
-        <parent link="body"/> 
-        <child link="nose"/> 
-        <origin xyz="0.50005 0 0" rpy="0 0 0"/> 
-        <axis xyz="0 1 0"/> 
-    </joint>
-
-
-    <!-- left_shoulder -->
+    <!-- Robot's left_shoulder -->
     <link name="left_shoulder">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value=".1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.1 0.5 0.8"/>
+                <box size=".1 .5 .6"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.1 0.5 0.8"/>
+                <box size=".1 .5 .6"/>
             </geometry>
         </collision>
     </link>
 
-
     <!-- Joint: body, left_shoulder -->
-    <joint name="body_left_shoulder_joint" type="continuous"> 
-        <parent link="body"/> 
-        <child link="left_shoulder"/> 
-        <origin xyz="0 0.75 0" rpy="0 0 0"/> 
-        <axis xyz="0 -1 0"/> 
+    <joint name="body_left_shoulder_joint" type="continuous">
+        <parent link="body"/>
+        <child link="left_shoulder"/>
+        <origin xyz="0 .75 0" rpy="0 0 0"/>
+        <axis xyz="0 -1 0"/>
     </joint>
 
 
-    <!-- left_arm -->
+
+    <!-- Robot's left_arm -->
     <link name="left_arm">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value=".1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="3 0.1 0.8"/>
+                <box size="3 .1 .6"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="3 0.1 0.8"/>
+                <box size="3 .1 .6"/>
             </geometry>
         </collision>
     </link>
 
+	<!-- Joint: left_shoulder, left_arm -->
+    <joint name="left_shoulder_left_arm_joint" type="fixed"> 
+        <parent link="left_shoulder"/> 
+        <child link="left_arm"/> 
+        <origin xyz="1.45 .25 0" rpy="0 0 0"/> 
+        <axis xyz="1 0 0"/> 
+    </joint>
 
-    <!-- left_arm_sensor -->
+    <!-- Robot's left_arm-sensor -->
     <link name="left_arm_sensor">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
+            <mass value=".1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="3.02 0.12000000000000001 0.8200000000000001"/>
+                <box size="3.01 .11 .61"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="3.02 0.12000000000000001 0.8200000000000001"/>
+                <box size="3.01 .11 .61"/>
             </geometry>
         </collision>
     </link>
-    
-    
+
 	<!-- Joint: left_arm, left_arm_sensor -->
     <joint name="left_arm_left_arm_sensor_joint" type="fixed"> 
         <parent link="left_arm"/> 
@@ -170,59 +171,57 @@
     </joint>
 
 
-    <!-- Joint: left_shoulder, left_arm -->
-    <joint name="left_shoulder_left_arm_joint" type="fixed"> 
-        <parent link="left_shoulder"/> 
-        <child link="left_arm"/> 
-        <origin xyz="1.45 0.25 0" rpy="0 0 0"/> 
-        <axis xyz="1 0 0"/> 
-    </joint>
 
-
-    <!-- hand -->
+    <!-- Robot's hand -->
     <link name="hand">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value=".1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.1 2 0.8"/>
+                <box size=".1 2 .6"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.1 2 0.8"/>
+                <box size=".1 2 .6"/>
             </geometry>
         </collision>
     </link>
 
+	<!-- Joint: left_arm, hand -->
+    <joint name="left_arm_hand_joint" type="fixed"> 
+        <parent link="left_arm"/> 
+        <child link="hand"/> 
+        <origin xyz="1.5 -1 0" rpy="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
+    </joint>
 
-    <!-- hand_sensor -->
+    <!-- Robot's hand-sensor -->
     <link name="hand_sensor">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
+            <mass value=".1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.12000000000000001 2.02 0.8200000000000001"/>
+                <box size=".11 2.1 .61"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.12000000000000001 2.02 0.8200000000000001"/>
+                <box size=".11 2.1 .61"/>
             </geometry>
         </collision>
     </link>
-    
-    
+
 	<!-- Joint: hand, hand_sensor -->
     <joint name="hand_hand_sensor_joint" type="fixed"> 
         <parent link="hand"/> 
@@ -232,59 +231,57 @@
     </joint>
 
 
-    <!-- Joint: left_arm, hand -->
-    <joint name="left_arm_hand_joint" type="fixed"> 
-        <parent link="left_arm"/> 
-        <child link="hand"/> 
-        <origin xyz="1.5 -1 0" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
-    </joint>
 
-
-    <!-- right_arm -->
+    <!-- Robot's right_arm -->
     <link name="right_arm">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value=".1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="3 0.1 0.8"/>
+                <box size="3 .1 .6"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="3 0.1 0.8"/>
+                <box size="3 .1 .6"/>
             </geometry>
         </collision>
     </link>
 
+	<!-- Joint: right_arm, hand -->
+    <joint name="right_arm_hand_joint" type="fixed"> 
+        <parent link="hand"/> 
+        <child link="right_arm"/> 
+        <origin xyz="-1.5 -1 0" rpy="0 0 0"/> 
+        <axis xyz="1 0 0"/> 
+    </joint>
 
-    <!-- right_arm_sensor -->
+    <!-- Robot's right_arm-sensor -->
     <link name="right_arm_sensor">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
+            <mass value=".1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="3.02 0.12000000000000001 0.8200000000000001"/>
+                <box size="3.01 .11 .61"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="3.02 0.12000000000000001 0.8200000000000001"/>
+                <box size="3.01 .11 .61"/>
             </geometry>
         </collision>
     </link>
-    
-    
+
 	<!-- Joint: right_arm, right_arm_sensor -->
     <joint name="right_arm_right_arm_sensor_joint" type="fixed"> 
         <parent link="right_arm"/> 
@@ -294,43 +291,32 @@
     </joint>
 
 
-    <!-- Joint: hand, right_arm -->
-    <joint name="hand_right_arm_joint" type="fixed"> 
-        <parent link="hand"/> 
-        <child link="right_arm"/> 
-        <origin xyz="-1.5 -1 0" rpy="0 0 0"/> 
-        <axis xyz="1 0 0"/> 
-    </joint>
 
-
-    <!-- right_shoulder -->
+    <!-- Robot's right_shoulder -->
     <link name="right_shoulder">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value=".1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.1 0.5 0.8"/>
+                <box size=".1 .5 .6"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.1 0.5 0.8"/>
+                <box size=".1 .5 .6"/>
             </geometry>
         </collision>
     </link>
 
-
     <!-- Joint: right_arm, right_shoulder -->
-    <joint name="right_arm_right_shoulder_joint" type="fixed"> 
-        <parent link="right_arm"/> 
-        <child link="right_shoulder"/> 
-        <origin xyz="-1.45 0.25 0" rpy="0 0 0"/> 
-        <axis xyz="0 -1 0"/> 
-    </joint>
-
-</robot>
+    <joint name="right_arm_right_shoulder_joint" type="continuous">
+        <parent link="right_arm"/>
+        <child link="right_shoulder"/>
+        <origin xyz="-1.45 .25 0" rpy="0 0 0"/>
+        <axis xyz="0 -1 0"/>
+    </joint>"""

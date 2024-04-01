@@ -31,10 +31,18 @@ class PVRNN_LAYER(nn.Module):
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
                     out_features = self.args.state_size), 
+                nn.PReLU(),
+                nn.Linear(
+                    in_features = self.args.state_size, 
+                    out_features = self.args.state_size), 
                 nn.Tanh())
         self.zp_std = nn.Sequential(
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
+                    out_features = self.args.state_size), 
+                nn.PReLU(),
+                nn.Linear(
+                    in_features = self.args.state_size, 
                     out_features = self.args.state_size), 
                 nn.Softplus())
                             
@@ -43,10 +51,18 @@ class PVRNN_LAYER(nn.Module):
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
                     out_features = self.args.state_size), 
+                nn.PReLU(),
+                nn.Linear(
+                    in_features = self.args.state_size, 
+                    out_features = self.args.state_size), 
                 nn.Tanh())
         self.zq_std = nn.Sequential(
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
+                    out_features = self.args.state_size), 
+                nn.PReLU(),
+                nn.Linear(
+                    in_features = self.args.state_size, 
                     out_features = self.args.state_size), 
                 nn.Softplus())
                             
@@ -243,6 +259,8 @@ class PVRNN(nn.Module):
         new_hidden_states_list_q = []
                 
         episodes, steps = episodes_steps(rgbd)
+        if(prev_hidden_states == None):
+            prev_hidden_states = torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size))
         obs = self.obs_in(rgbd, comms_in, other)
         prev_actions = self.action_in(prev_actions)
         prev_comms_out = self.comm_in(prev_comms_out)
