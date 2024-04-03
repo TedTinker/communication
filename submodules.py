@@ -13,7 +13,7 @@ from torchinfo import summary as torch_summary
 
 from utils import print, default_args, init_weights, \
     episodes_steps, pad_zeros, Ted_Conv1d, Ted_Conv2d, var, \
-    sample, duration, ConstrainedConv1d, ConstrainedConv2d, ResidualBlock, DenseBlock, \
+    sample, duration, ConstrainedConv1d, ConstrainedConv2d, ResidualBlock2d, ResidualBlock1d, DenseBlock, \
     TransformerModel, ImageTransformer
 from mtrnn import MTRNN
 
@@ -37,14 +37,12 @@ class RGBD_IN(nn.Module):
         example = torch.zeros(rgbd_size)
         
         self.rgbd_in = nn.Sequential(
-            nn.BatchNorm2d(4),
+            #nn.BatchNorm2d(4),
             nn.Conv2d(
                 in_channels = 4, 
                 out_channels = self.args.hidden_size, 
-                kernel_size = 3,
-                padding = 1,
-                padding_mode = "reflect"),
-            nn.BatchNorm2d(self.args.hidden_size),
+                kernel_size = 1),
+            #nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(d),
             
@@ -54,9 +52,11 @@ class RGBD_IN(nn.Module):
                 kernel_size = 3,
                 padding = 1,
                 padding_mode = "reflect"),
-            nn.BatchNorm2d(self.args.hidden_size),
+            #nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
-            nn.Dropout(d))
+            nn.Dropout(d)
+            
+            )
         
         example = self.rgbd_in(example)
         rgbd_latent_size = example.flatten(1).shape[1]
@@ -123,19 +123,18 @@ class RGBD_OUT(nn.Module):
             nn.Conv2d(
                 in_channels = self.args.hidden_size,
                 out_channels = self.args.hidden_size,
-                kernel_size = 3,
-                padding = 1,
-                padding_mode = "reflect"),
-            nn.BatchNorm2d(self.args.hidden_size),
+                kernel_size = 1),
+            #nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(d),
+            
             nn.Conv2d(
                 in_channels = self.args.hidden_size,
                 out_channels = self.args.hidden_size,
                 kernel_size = 3,
                 padding = 1,
                 padding_mode = "reflect"),
-            nn.BatchNorm2d(self.args.hidden_size),
+            #nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(d),
             
@@ -195,31 +194,35 @@ class Comm_IN(nn.Module):
             nn.Dropout(d))
         
         self.comm_cnn = nn.Sequential(
-            nn.BatchNorm1d(self.args.encode_char_size),
+            #nn.BatchNorm1d(self.args.encode_char_size),
             nn.Conv1d(
                 in_channels = self.args.encode_char_size, 
                 out_channels = self.args.hidden_size, 
                 kernel_size = 1),
             nn.BatchNorm1d(self.args.hidden_size),
             nn.PReLU(),
+            nn.Dropout(d),
+            
+            nn.Conv1d(
+                in_channels = self.args.hidden_size, 
+                out_channels = self.args.hidden_size, 
+                kernel_size = 3,
+                padding = 1,
+                padding_mode = "reflect"),
+            nn.BatchNorm1d(self.args.hidden_size),
+            nn.PReLU(),
             nn.Dropout(d))
         
-        self.comm_rnn = nn.GRU(
-            input_size = self.args.hidden_size,
-            hidden_size = self.args.hidden_size,
-            batch_first = True)
-        
-        self.batchnorm_1 = nn.BatchNorm1d(self.args.hidden_size)
-        
+        #self.comm_rnn = nn.GRU(
+        #    input_size = self.args.hidden_size,
+        #    hidden_size = self.args.hidden_size,
+        #    batch_first = True)
+                
         self.comm_lin = nn.Sequential(
             nn.PReLU(),
             nn.Linear(
-                in_features = self.args.hidden_size, 
+                in_features = self.args.hidden_size * self.args.max_comm_len, 
                 out_features = self.args.encode_comm_size))
-        
-        self.batchnorm_2 = nn.Sequential(
-            nn.BatchNorm1d(self.args.encode_comm_size),
-            nn.PReLU())
                 
         self.apply(init_weights)
         self.to(self.args.device)
@@ -234,12 +237,10 @@ class Comm_IN(nn.Module):
         comm = torch.argmax(comm, dim = -1).int()
         comm = self.comm_embedding(comm)
         comm = self.comm_cnn(comm.permute((0, 2, 1))).permute((0, 2, 1))
-        comm, _ = self.comm_rnn(comm)
-        comm = self.batchnorm_1(comm.permute((0, 2, 1))).permute((0, 2, 1))      
-        comm = comm.reshape((episodes, steps, self.args.max_comm_len, self.args.hidden_size))
+        #comm, _ = self.comm_rnn(comm)    
+        comm = comm.reshape(episodes, steps, self.args.hidden_size * self.args.max_comm_len)
         comm = self.comm_lin(comm)
-        comm = comm[:,:,-1]
-        comm = self.batchnorm_2(comm.permute((0, 2, 1))).permute((0, 2, 1))
+        
         #print("COMM_IN:", duration() - start)
         return(comm)
 
@@ -273,20 +274,14 @@ class Comm_OUT(nn.Module):
         self.comm_lin = nn.Sequential(
             nn.Linear(
                 in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size, 
-                out_features = self.args.hidden_size))
-        
-        self.batchnorm = nn.Sequential(
-            nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(d))
+                out_features = self.args.hidden_size * self.args.max_comm_len))
             
-        self.comm_rnn = nn.GRU(
-            input_size = self.args.hidden_size,
-            hidden_size = self.args.hidden_size,
-            batch_first = True)
+        #self.comm_rnn = nn.GRU(
+        #    input_size = self.args.hidden_size,
+        #    hidden_size = self.args.hidden_size,
+        #    batch_first = True)
         
         self.comm_cnn = nn.Sequential(
-            nn.BatchNorm1d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(d),
             nn.Conv1d(
@@ -294,7 +289,17 @@ class Comm_OUT(nn.Module):
                 out_channels = self.args.hidden_size,
                 kernel_size = 1),
             nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU())
+            nn.PReLU(),
+            
+            nn.Conv1d(
+                in_channels = self.args.hidden_size, 
+                out_channels = self.args.hidden_size, 
+                kernel_size = 3,
+                padding = 1,
+                padding_mode = "reflect"),
+            nn.BatchNorm1d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(d))
         
         self.comm_out_mu = nn.Sequential(
             nn.Linear(
@@ -315,16 +320,17 @@ class Comm_OUT(nn.Module):
         if(len(h_w_action.shape) == 2):   h_w_action = h_w_action.unsqueeze(1)
         #[h_w_action] = attach_list([h_w_action], self.args.device)
         episodes, steps = episodes_steps(h_w_action)
-        h_w_action = h_w_action.reshape(episodes * steps, 1, self.args.pvrnn_mtrnn_size + self.args.encode_action_size)
+        h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.encode_action_size)
         h_w_action = self.comm_lin(h_w_action)
-        h_w_action = self.batchnorm(h_w_action.permute((0, 2, 1))).permute((0, 2, 1))
-        comm_h = None
-        comm_hs = []
-        for i in range(self.args.max_comm_len):
-            comm_h, _ = self.comm_rnn(h_w_action, comm_h if comm_h == None else comm_h.permute(1, 0, 2))
-            comm_hs.append(comm_h)
-        comm_h = torch.cat(comm_hs, dim = -2)
-        comm_h = self.comm_cnn(comm_h.permute((0, 2, 1))).permute((0, 2, 1))
+        h_w_action = h_w_action.reshape(episodes * steps, self.args.max_comm_len, self.args.hidden_size)
+        h_w_action = self.comm_cnn(h_w_action.permute((0, 2, 1))).permute((0, 2, 1))
+        #comm_h = None
+        #comm_hs = []
+        #for i in range(self.args.max_comm_len):
+        #    comm_h, _ = self.comm_rnn(h_w_action, comm_h if comm_h == None else comm_h.permute(1, 0, 2))
+        #    comm_hs.append(comm_h)
+        #comm_h = torch.cat(comm_hs, dim = -2)
+        comm_h = h_w_action
         if(self.actor):
             mu, std = var(comm_h, self.comm_out_mu, self.comm_out_std, self.args)
             comm = sample(mu, std, self.args.device)
@@ -347,7 +353,7 @@ class Comm_OUT(nn.Module):
 if __name__ == "__main__":
     
     comm_out = Comm_OUT(actor = False, args = args)
-    
+        
     print("\n\n")
     print(comm_out)
     print()
@@ -381,7 +387,7 @@ class Other_IN(nn.Module):
             nn.Linear(
                 in_features = self.args.other_shape,
                 out_features = self.args.encode_other_size),
-            nn.BatchNorm1d(self.args.encode_other_size),
+            #nn.BatchNorm1d(self.args.encode_other_size),
             nn.PReLU())
         
         self.apply(init_weights)
@@ -542,7 +548,7 @@ class Action_IN(nn.Module):
             nn.Linear(
                 in_features = self.args.action_shape, 
                 out_features = self.args.encode_action_size),
-            nn.BatchNorm1d(self.args.encode_action_size),
+            #nn.BatchNorm1d(self.args.encode_action_size),
             nn.PReLU())
         
         self.apply(init_weights)

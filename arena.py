@@ -17,7 +17,7 @@ def get_physics(GUI, time_step, steps_per_step, w = 10, h = 10):
     else:   
         physicsClient = p.connect(p.DIRECT)
     p.setAdditionalSearchPath("pybullet_data")
-    p.setGravity(0, 0, -30, physicsClientId = physicsClient)
+    p.setGravity(0, 0, -100, physicsClientId = physicsClient)
     p.setTimeStep(time_step / steps_per_step, physicsClientId=physicsClient)  # More accurate time step
     p.setPhysicsEngineParameter(numSolverIterations=1, numSubSteps=1, physicsClientId=physicsClient)  # Increased solver iterations for potentially better stability
     return(physicsClient)
@@ -39,7 +39,7 @@ def adjust_sign(number1, number2):
 # FOV of agent vision.
 fov_x_deg = 90
 fov_y_deg = 90
-near = .11
+near = 1
 far = 8
 fov_x_rad = radians(fov_x_deg)
 fov_y_rad = radians(fov_y_deg)
@@ -144,9 +144,8 @@ class Arena():
             self.watching[object_index] = 0
         
     def step(self, left_wheel, right_wheel, shoulder, verbose = False, sleep_time = None):
-        time_scaler = 100
         if(sleep_time != None):
-            p.setTimeStep(self.args.time_step / (self.args.steps_per_step ** 2 * time_scaler), physicsClientId=self.physicsClient)  # More accurate time step
+            p.setTimeStep(self.args.time_step / self.args.steps_per_step, physicsClientId=self.physicsClient)  # More accurate time step
             
         self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
         self.objects_start = []
@@ -164,13 +163,9 @@ class Arena():
             current_shoulder += shoulder_step
             self.set_shoulder_angle(current_shoulder) 
             self.set_speeds(left_wheel, right_wheel)
-            
             if(sleep_time != None):
-                for i in range(self.args.steps_per_step * time_scaler):
-                    sleep(sleep_time / (self.args.steps_per_step ** 2 * time_scaler))
-                    p.stepSimulation(physicsClientId = self.physicsClient)
-            else:
-                p.stepSimulation(physicsClientId = self.physicsClient)
+                sleep(sleep_time / self.args.steps_per_step)
+            p.stepSimulation(physicsClientId = self.physicsClient)
                 
         self.objects_end = []
         for object_index in self.objects_in_play.values():
@@ -299,8 +294,8 @@ class Arena():
             delta_x = x_after - x_before
             delta_y = y_after - y_before
             if(verbose):
-                print("\nChange:", delta_x, delta_y)
-                print("Angle:", v_rx, v_ry)
+                print("\nChange:", round(delta_x, 2), round(delta_y, 2))
+                print("Angle:", round(v_rx, 2), round(v_ry, 2))
             
             # Is the object pushed/pulled away from its starting position, relative to the agent's starting position and angle?
             movement_forward = delta_x * v_rx + delta_y * v_ry
@@ -323,11 +318,11 @@ class Arena():
                 "RIGHT": righting}
             
             if(verbose):
-                print("WATCH:", watching)
-                print("PUSH:", pushing)
-                print("PULL:", pulling)
-                print("LEFT:", lefting)
-                print("RIGHT:", righting)
+                print("WATCH:", round(watching, 2))
+                print("PUSH:", round(pushing, 2))
+                print("PULL:", round(pulling, 2))
+                print("LEFT:", round(lefting, 2))
+                print("RIGHT:", round(righting, 2))
 
             # Find the action with the largest value
             largest_action = max(action_values, key=action_values.get)
@@ -388,9 +383,7 @@ class Arena():
                 cameraEyePosition = [pos[0], pos[1], 2], 
                 cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    
                 cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
-            proj_matrix = p.computeProjectionMatrixFOV(
-                fov = 90, aspect = 1, nearVal = 1, 
-                farVal = 10, physicsClientId = self.physicsClient)
+            proj_matrix = proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far)
             _, _, rgba, depth, _ = p.getCameraImage(
                 width=self.args.image_size * 2, height=self.args.image_size * 2,
                 projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
@@ -439,7 +432,7 @@ if __name__ == "__main__":
     arena.end()
     """
     
-    #"""
+    """
     print("\nWATCH")
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
@@ -455,10 +448,10 @@ if __name__ == "__main__":
         plt.close()
         print(arena.rewards(verbose = True)[0])
     arena.end()
-    #"""
+    """
     
     #"""
-    print("\nPUSHING WITH BODY")
+    print("\nPUSHING")
     goal = [1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
     for step in range(3):
@@ -475,13 +468,13 @@ if __name__ == "__main__":
     arena.end()
     #"""
     
-    """
-    print("\nPUSHING WITH HAND")
-    goal = [1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(8,0)])
+    #"""
+    print("\nPULLING")
+    goal = [2, colors_shapes_1[0][0], colors_shapes_1[0][1]]
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
     arena.step(0, 0, 1, verbose = True, sleep_time = sleep_time)
     for step in range(3):
-        arena.step(1, 1, 1, verbose = True, sleep_time = sleep_time)
+        arena.step(-1, -1, 1, verbose = True, sleep_time = sleep_time)
         above_rgba = arena.photo_from_above()
         agent_rgba = arena.photo_for_agent()
         plt.imshow(above_rgba)
@@ -492,7 +485,7 @@ if __name__ == "__main__":
         plt.close()
         print(arena.rewards(verbose = True)[0])
     arena.end()
-    """
+    #"""
     
     #"""   
     print("\nPUSHING LEFT")

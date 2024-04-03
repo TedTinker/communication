@@ -37,7 +37,10 @@ task_runner = Task_Runner(Task(actions = -1, objects = 4, shapes = 5, colors = 6
 
 forward = PVRNN(args = args)
 forward.train()
-opt = optim.Adam(params=forward.parameters(), lr=args.forward_lr, weight_decay = .00001) 
+opt = optim.Adam(
+    params=forward.parameters(), 
+    lr=.0003,#args.forward_lr, 
+    weight_decay = .00001) 
 
 
 
@@ -162,7 +165,7 @@ def epoch(e):
     guess_rgbdhsv = add_hsv(guess_rgbd)
         
     rgbd_loss = F.binary_cross_entropy(guess_rgbd, next_rgbd, reduction = "none")
-    rgbd_loss = rgbd_loss.mean()
+    rgbd_loss = rgbd_loss.mean() * args.rgbd_scaler
     
     next_comm_temp = next_comm.reshape((next_comm.shape[0] * next_comm.shape[1], args.max_comm_len, args.comm_shape))
     next_comm_temp = torch.argmax(next_comm_temp, dim = -1)
@@ -171,12 +174,12 @@ def epoch(e):
      
     #comm_loss = custom_loss(guess_comm_temp, next_comm_temp, max_shift = 0)    
     comm_loss = F.cross_entropy(guess_comm_temp, next_comm_temp, reduction = "none")
-    comm_loss = comm_loss.mean()
+    comm_loss = comm_loss.mean() * args.comm_scaler
     
     other_loss = F.binary_cross_entropy(guess_other, next_other, reduction = "none")
-    other_loss = other_loss.mean()
+    other_loss = other_loss.mean() * args.other_scaler
     
-    loss = args.rgbd_scaler * rgbd_loss + args.comm_scaler * comm_loss + args.other_scaler * other_loss
+    loss = rgbd_loss + comm_loss + other_loss
     
     opt.zero_grad()
     loss.backward()
@@ -212,7 +215,7 @@ def epoch(e):
     
 
 losses = []
-for e in range(1000):
+for e in range(2000):
     loss, real, actions, next, guess = epoch(e)
     losses.append(loss)
     if(e % 10 == 0):

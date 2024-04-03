@@ -157,9 +157,9 @@ def plots(plot_dicts, min_max_dict):
                 action_name_list.append(key[5:])
         for action_name in action_name_list:
             win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), adjust_xs = False, remove_none = False)
-            print("\n\nBEFORE:", win_dict)
+            #print("\n\nBEFORE:", win_dict)
             win_dict = get_rolling_average(win_dict)
-            print("AFTER:", win_dict)
+            #print("AFTER:", win_dict)
                 
             def plot_rolling_average_wins_shared_min_max(here):
                 awesome_plot(here, win_dict, "turquoise", "WinRate", (0,1))

@@ -31,7 +31,7 @@ class Agent:
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         
         self.tasks = {
-            "0" : Task(actions = -1, objects = 4, colors = 6, shapes = 5, parent = True,  args = self.args),
+            "0" : Task(actions = -1, objects = 4, colors = 6, shapes = 5, parent = True, args = self.args),
             "1" : Task(actions = 1, objects = 1, colors = 6, shapes = 1, parent = True, args = self.args),
             "2" : Task(actions = 1, objects = 2, colors = 6, shapes = 1, parent = True, args = self.args),
             "3" : Task(actions = 5, objects = 2, colors = 6, shapes = 5, parent = True, args = self.args)}

@@ -1,10 +1,14 @@
 #%% 
 
 # To do: 
+#   Make the arena work well.
+#   Remake action selection etc so specific goals can be allowed instead of a list starting from WATCH.
+#   Add goals like Get Close To, or Touch.
+#   Make goals reward agents bit by bit on the way to success.
 #   Make it work.
 #   Make it work FASTER.
 #   Not correctly plotting win-rates. 
-#   Add out_comm to actions for h_w_action
+#   Add out_comm to actions for h_w_action.
 
 import os
 import pickle
@@ -272,13 +276,13 @@ parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--image_size',         type=int,        default = 8,
                     help='Dimensions of the images observed.')
-parser.add_argument('--min_speed',          type=float,      default = -400,
+parser.add_argument('--min_speed',          type=float,      default = -100,
                     help='Min wheel speed.')
-parser.add_argument('--max_speed',          type=float,      default = 400,
+parser.add_argument('--max_speed',          type=float,      default = 100,
                     help='Max wheel speed.')
 parser.add_argument('--max_speed_with_arm', type=float,      default = .5,
                     help='Max wheel speed when arm is pointing forward.')
-parser.add_argument('--angular_scaler',     type=float,      default = .1,
+parser.add_argument('--angular_scaler',     type=float,      default = .5,
                     help='How to scale angular velocity vs linear velocity.')
 parser.add_argument('--min_shoulder_angle', type=float,      default = pi/2,
                     help='Agent\'s maximum shoulder velocity.')
@@ -290,11 +294,11 @@ parser.add_argument('--steps_per_step',    type=float,      default = 15,
                     help='numSubSteps in pybullet environment.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [100],
+parser.add_argument('--epochs',             type=literal,    default = [2000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--batch_size',         type=int,        default = 32, 
                     help='How many episodes are sampled for each epoch.')      
-parser.add_argument('--rgbd_scaler',        type=float,      default = 1, 
+parser.add_argument('--rgbd_scaler',        type=float,      default = 5, 
                     help='How much to consider rgbd prediction in accuracy compared to comm and other.')  
 parser.add_argument('--comm_scaler',        type=float,      default = 1, 
                     help='How much to consider comm prediction in accuracy compared to rgbd and other.')       
@@ -308,17 +312,17 @@ parser.add_argument('--capacity',           type=int,        default = 256,
     # Module 
 parser.add_argument('--critics',            type=int,        default = 2,
                     help='How many critics?')   
-parser.add_argument('--hidden_size',        type=int,        default = 64,
+parser.add_argument('--hidden_size',        type=int,        default = 128,
                     help='Parameters in hidden layers.')   
-parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 128,
+parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 256,
                     help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
-parser.add_argument('--state_size',         type=int,        default = 128,
+parser.add_argument('--state_size',         type=int,        default = 256,
                     help='Parameters in prior and posterior inner-states.')
 parser.add_argument('--encode_char_size',   type=int,        default = 8,
                     help='Parameters in encoding.')   
-parser.add_argument('--encode_rgbd_size',   type=int,        default = 64,
+parser.add_argument('--encode_rgbd_size',   type=int,        default = 128,
                     help='Parameters in encoding image.')   
-parser.add_argument('--encode_comm_size',   type=int,        default = 64,
+parser.add_argument('--encode_comm_size',   type=int,        default = 128,
                     help='Parameters in encoding communicaiton.')   
 parser.add_argument('--encode_other_size',  type=int,        default = 8,
                     help='Parameters in encoding sensors, angles, speed.')   
@@ -326,17 +330,17 @@ parser.add_argument('--encode_action_size', type=int,        default = 8,
                     help='Parameters in encoding action.')   
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
-parser.add_argument('--forward_lr',         type=float,      default = .01,
+parser.add_argument('--forward_lr',         type=float,      default = .0003,
                     help='Learning rate for forward model.')
-parser.add_argument('--discriminator_lr',   type=float,      default = .01,
+parser.add_argument('--discriminator_lr',   type=float,      default = .0003,
                     help='Learning rate for discriminator model.')
-parser.add_argument('--actor_lr',           type=float,      default = .01,
+parser.add_argument('--actor_lr',           type=float,      default = .0003,
                     help='Learning rate for actor model.')
-parser.add_argument('--critic_lr',          type=float,      default = .01,
+parser.add_argument('--critic_lr',          type=float,      default = .0003,
                     help='Learning rate for critic model.')
-parser.add_argument('--alpha_lr',           type=float,      default = .01,
+parser.add_argument('--alpha_lr',           type=float,      default = .0003,
                     help='Learning rate for alpha value.') 
-parser.add_argument('--alpha_text_lr',      type=float,      default = .01,
+parser.add_argument('--alpha_text_lr',      type=float,      default = .0003,
                     help='Learning rate for alpha value.') 
 parser.add_argument("--tau",                type=float,      default = .1,
                     help='Rate at which target-critics approach critics.')      
@@ -675,9 +679,9 @@ class Ted_Conv2d(nn.Module):
     
     
 
-class ResidualBlock(nn.Module):
+class ResidualBlock2d(nn.Module):
     def __init__(self, channels, kernel_sizes, strides, paddings, padding_modes, activations, dropouts):
-        super(ResidualBlock, self).__init__()
+        super(ResidualBlock2d, self).__init__()
         
         # Ensure all parameter lists have compatible lengths
         assert len(channels) - 1 == len(kernel_sizes) == len(strides) == len(paddings) == \
@@ -722,6 +726,67 @@ class ResidualBlock(nn.Module):
                     stride=strides[0],  # Adjust based on the first stride value if needed
                     padding=0),
                 nn.BatchNorm2d(channels[-1]))
+        
+    def forward(self, x):
+        identity = x
+        for layer in self.layers:
+            x = layer(x)
+        if self.adjust_channels:
+            identity = self.adjustment_layer(identity)
+        x += identity
+        for layer in self.final_layer:
+            x = layer(x)
+        return x
+    
+
+
+class ResidualBlock1d(nn.Module):
+    def __init__(self, channels, kernel_sizes, strides, paddings, padding_modes, activations, dropouts):
+        super(ResidualBlock1d, self).__init__()
+        
+        # Ensure all parameter lists have compatible lengths
+        assert len(channels) - 1 == len(kernel_sizes) == len(strides) == len(paddings) == \
+               len(padding_modes) == len(activations) == len(dropouts) - 1, "All parameter lists must have compatible lengths."
+        
+        self.layers = nn.ModuleList()
+        self.adjust_channels = channels[0] != channels[-1] or strides[0] != 1
+        self.final_activation = activations[-1] is not None
+        
+        # Add the convolutional layers, batch normalization, activation functions, and dropout based on the parameters
+        for i in range(len(channels) - 1):
+            self.layers.append(
+                nn.Conv1d(
+                    in_channels=channels[i],
+                    out_channels=channels[i+1],
+                    kernel_size=kernel_sizes[i],
+                    stride=strides[i],
+                    padding=paddings[i],
+                    padding_mode=padding_modes[i]))
+            self.layers.append(nn.BatchNorm1d(channels[i+1]))
+            
+            if activations[i] is not None:  # Check if the activation is specified
+                self.layers.append(activations[i]())
+            
+            if dropouts[i] > 0:  # Add dropout layer if dropout rate is greater than 0
+                self.layers.append(nn.Dropout1d(dropouts[i]))
+                
+        self.final_layer = nn.ModuleList()
+        if self.final_activation:
+            self.final_layer.append(activations[-1]())
+        if dropouts[-1] > 0:
+            self.final_layer.append(nn.Dropout1d(dropouts[-1]))
+        self.final_layer.append(nn.BatchNorm1d(channels[-1]))
+        
+        # Add an adjustment layer to match the shortcut connection, if necessary
+        if self.adjust_channels:
+            self.adjustment_layer = nn.Sequential(
+                nn.Conv1d(
+                    in_channels=channels[0],
+                    out_channels=channels[-1],
+                    kernel_size=1,
+                    stride=strides[0],  # Adjust based on the first stride value if needed
+                    padding=0),
+                nn.BatchNorm1d(channels[-1]))
         
     def forward(self, x):
         identity = x

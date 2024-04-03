@@ -6,7 +6,7 @@ from torchinfo import summary as torch_summary
 
 from utils import default_args, init_weights, var, sample, attach_list, detach_list, episodes_steps, pad_zeros, dkl
 from mtrnn import MTRNN
-from submodules import Obs_IN, Obs_OUT, Action_IN, Comm_IN
+from submodules import Obs_IN, Obs_OUT, Action_IN, Comm_IN, d
 
 
 
@@ -31,7 +31,9 @@ class PVRNN_LAYER(nn.Module):
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
                     out_features = self.args.state_size), 
+                #nn.BatchNorm1d(self.args.state_size),
                 nn.PReLU(),
+                nn.Dropout(d),
                 nn.Linear(
                     in_features = self.args.state_size, 
                     out_features = self.args.state_size), 
@@ -40,7 +42,9 @@ class PVRNN_LAYER(nn.Module):
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
                     out_features = self.args.state_size), 
+                #nn.BatchNorm1d(self.args.state_size),
                 nn.PReLU(),
+                nn.Dropout(d),
                 nn.Linear(
                     in_features = self.args.state_size, 
                     out_features = self.args.state_size), 
@@ -51,7 +55,9 @@ class PVRNN_LAYER(nn.Module):
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
                     out_features = self.args.state_size), 
+                #nn.BatchNorm1d(self.args.state_size),
                 nn.PReLU(),
+                nn.Dropout(d),
                 nn.Linear(
                     in_features = self.args.state_size, 
                     out_features = self.args.state_size), 
@@ -60,7 +66,9 @@ class PVRNN_LAYER(nn.Module):
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
                     out_features = self.args.state_size), 
+                #nn.BatchNorm1d(self.args.state_size),
                 nn.PReLU(),
+                nn.Dropout(d),
                 nn.Linear(
                     in_features = self.args.state_size, 
                     out_features = self.args.state_size), 
@@ -90,6 +98,12 @@ class PVRNN_LAYER(nn.Module):
             zp_inputs = prev_hidden_states 
             zq_inputs = torch.cat([prev_hidden_states, hidden_states_below], dim = -1)
             
+        episodes, steps = episodes_steps(zp_inputs)
+        zp_inputs = zp_inputs.reshape(episodes * steps, zp_inputs.shape[2])
+        zq_inputs = zq_inputs.reshape(episodes * steps, zq_inputs.shape[2])
+        if(prev_hidden_states_above != None):
+            prev_hidden_states_above = prev_hidden_states_above.reshape(episodes * steps, prev_hidden_states_above.shape[2])
+            
         zp_mu, zp_std = var(zp_inputs, self.zp_mu, self.zp_std, self.args)
         zp = sample(zp_mu, zp_std, self.args.device)
         zq_mu, zq_std = var(zq_inputs, self.zq_mu, self.zq_std, self.args)
@@ -105,10 +119,19 @@ class PVRNN_LAYER(nn.Module):
             mtrnn_inputs_q = zq 
         else:
             mtrnn_inputs_q = torch.cat([zq, prev_hidden_states_above], dim = -1)
+                    
+        mtrnn_inputs_p = mtrnn_inputs_p.reshape((episodes, steps, mtrnn_inputs_p.shape[1]))
+        mtrnn_inputs_q = mtrnn_inputs_q.reshape((episodes, steps, mtrnn_inputs_q.shape[1]))
             
         new_hidden_states_p = self.mtrnn(mtrnn_inputs_p, prev_hidden_states)
         new_hidden_states_q = self.mtrnn(mtrnn_inputs_q, prev_hidden_states)
-                
+        
+        zp_mu = zp_mu.reshape((episodes, steps, zp_mu.shape[1]))
+        zp_std = zp_std.reshape((episodes, steps, zp_std.shape[1]))
+        zq_mu = zq_mu.reshape((episodes, steps, zq_mu.shape[1]))
+        zq_std = zq_std.reshape((episodes, steps, zq_std.shape[1]))
+        kullback_leibler = kullback_leibler.reshape((episodes, steps, kullback_leibler.shape[1]))
+                        
         return(
             (zp_mu, zp_std, new_hidden_states_p),
             (zq_mu, zq_std, new_hidden_states_q),
