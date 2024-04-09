@@ -15,10 +15,10 @@ class Task:
     
     def __init__(
             self, 
-            actions = 1, 
+            actions = [0], 
             objects = 1, 
-            colors = 1, 
-            shapes = 1, 
+            colors = [0], 
+            shapes = [0], 
             parent = True, 
             args = default_args):
         self.actions = actions
@@ -36,7 +36,7 @@ class Task:
         self.current_objects_1 = []
             
         action_num, self.current_objects_1, self.current_objects_2 = make_objects_and_action(
-            num_objects = self.objects, allowed_goals = self.actions, allowed_colors = self.colors, allowed_shapes = self.shapes, test = test)
+            num_objects = self.objects, allowed_actions = self.actions, allowed_colors = self.colors, allowed_shapes = self.shapes, test = test)
         goal_color, goal_shape = self.current_objects_1[0]
         self.goal = (action_num, goal_color, goal_shape)
         
@@ -118,35 +118,40 @@ class Task_Runner:
             round(left_wheel, 2), round(right_wheel, 2), round(shoulder, 2)))
             
         arena.step(left_wheel, right_wheel, shoulder, verbose = verbose, sleep_time = sleep_time)
-        reward, win = arena.rewards()
-        return(reward, win)
+        raw_reward, distance_reward, angle_reward, win = arena.rewards()
+        return(raw_reward, distance_reward, angle_reward, win)
         
     def step(self, action_1, action_2 = None, verbose = False, sleep_time = None):
         self.steps += 1
         done = False
         
-        reward, win = self.act(action_1, verbose = verbose, sleep_time = sleep_time)
+        raw_reward, distance_reward, angle_reward, win = self.act(action_1, verbose = verbose, sleep_time = sleep_time)
         if(not self.parenting): 
-            reward_2, win_2 = self.act(action_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
-            reward = max([reward, reward_2])
+            raw_reward_2, distance_reward_2, angle_reward_2, win_2 = self.act(action_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
+            raw_reward = max([raw_reward, raw_reward_2])
             win = win or win_2
+        else:
+            distance_reward_2 = 0
+            angle_reward_2 = 0
                     
-        if(reward > 0): 
-            reward *= self.args.step_cost ** (self.steps-1)
+        if(raw_reward > 0): 
+            raw_reward *= self.args.step_cost ** (self.steps-1)
         end = self.steps >= self.args.max_steps
         if(end and not win and self.task.goal[0] != -1): 
             done = True
             if(self.task.goal[0] != -1):
-                reward += self.args.step_lim_punishment
+                raw_reward += self.args.step_lim_punishment
         if(win):
             done = True
             if(verbose):
                 print("Correct!", end = " ")
         if(verbose):
-            print("Reward:", reward)
+            print("Raw reward:", raw_reward)
+            print("Distance reward:", distance_reward)
+            print("Angle reward:", angle_reward)
             if(done): 
                 print("Done.")
-        return(reward, done, win)
+        return(raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win)
     
     def done(self):
         self.arena_1.end()
@@ -191,9 +196,9 @@ class Task_Runner:
         relevant_distances_and_angles = [(distances[i], angles[i]) for i in range(len(distances)) if colors[i] == goal_color and shapes[i] == goal_shape]
         #relevant_distance, relevant_angle = min(relevant_distances_and_angles, key=lambda t: abs(t[1]))
         
-        left_wheel = 0 #uniform(-.25, .25)
-        right_wheel = 0 #uniform(-.25, .25)
-        shoulder = -1 # uniform(-.1, .1)
+        left_wheel = -.5 #uniform(-.25, .25)
+        right_wheel = .5 #uniform(-.25, .25)
+        shoulder = 1 # uniform(-.1, .1)
         
         if(action_map[goal_action][1].upper() == "PUSH"):
             pass
@@ -220,10 +225,10 @@ if __name__ == "__main__":
 
     args = default_args
     
-    physicsClient = get_physics(GUI = True)
+    physicsClient = get_physics(GUI = True, time_step = args.time_step, steps_per_step = args.steps_per_step)
     arena_1 = Arena(physicsClient)
     arena_2 = None
-    task_runner = Task_Runner(Task(actions = 1, objects = 2, colors = 6, shapes = 1), arena_1, arena_2)
+    task_runner = Task_Runner(Task(actions = [0], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0]), arena_1, arena_2)
     
     def get_images():
         rgba = task_runner.arena_1.photo_from_above()
@@ -267,7 +272,7 @@ if __name__ == "__main__":
             images.append(get_images())
             recommendation = task_runner.get_recommended_action(verbose = False)#True)
             print("Got recommendation:", recommendation)
-            reward, done, win = task_runner.step(recommendation, verbose = True)
+            raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win = task_runner.step(recommendation, verbose = True)
             print("Done:", done)
             rgbd, _, _ = task_runner.obs()
             rgb = rgbd[0,:,:,0:3]

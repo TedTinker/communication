@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 from random import uniform
 import numpy as np
 import pybullet as p
-from math import pi, sin, cos, tan, radians, sqrt, isnan
+from math import pi, sin, cos, tan, radians, degrees, sqrt, isnan
 from time import sleep
 from skimage.transform import resize
 
-from utils import default_args, shape_map, color_map, action_map, relative_to, opposite_relative_to, make_objects_and_action#, print
+from utils import default_args, shape_map, color_map, action_map, relative_to, opposite_relative_to, make_objects_and_action, duration#, print
 
 def get_physics(GUI, time_step, steps_per_step, w = 10, h = 10):
     if(GUI):
@@ -82,10 +82,12 @@ class Arena():
         self.robot_index = p.loadURDF("robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
         
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
+        p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
         self.sensors = []
         for link_index in range(p.getNumJoints(self.robot_index, physicsClientId = self.physicsClient)):
             joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
             link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
+            p.changeDynamics(self.robot_index, link_index, maxJointVelocity = 10000)
             
             if(link_name == "left_wheel"):
                 self.left_wheel = link_index 
@@ -105,6 +107,10 @@ class Arena():
                 pos = (5*i, 5*j, object_lower_start_pos)
                 object_index = p.loadURDF("pybullet_data/shapes/{}".format(shape_file), pos, p.getQuaternionFromEuler([0, 0, pi/2]), 
                                           useFixedBase=False, globalScaling = self.args.object_size, physicsClientId=self.physicsClient)
+                p.changeDynamics(object_index, -1, maxJointVelocity = 10000)
+                for link_index in range(p.getNumJoints(object_index, physicsClientId = self.physicsClient)):
+                    joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
+                    p.changeDynamics(object_index, link_index, maxJointVelocity = 10000)
                 self.loaded[i].append((object_index, (pos[0], pos[1], object_lower_start_pos)))
                 self.object_indexs.append(object_index)
                 
@@ -118,8 +124,9 @@ class Arena():
     def begin(self, objects, goal, parented, set_positions = None):
         self.set_pos()
         self.set_yaw()
-        self.set_speeds()
+        self.set_wheel_speeds()
         self.set_shoulder_angle()
+        self.set_shoulder_speed()
         self.goal = goal
         self.parented = parented
         
@@ -142,43 +149,60 @@ class Arena():
                 p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId = self.physicsClient)
             self.objects_in_play[(color_index, shape_index, old_pos)] = object_index
             self.watching[object_index] = 0
+            
+        self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
+        self.objects_start = self.object_positions()
+        self.objects_end = self.object_positions()
         
     def step(self, left_wheel, right_wheel, shoulder, verbose = False, sleep_time = None):
+        
         if(sleep_time != None):
             p.setTimeStep(self.args.time_step / self.args.steps_per_step, physicsClientId=self.physicsClient)  # More accurate time step
             
         self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
-        self.objects_start = []
+        self.objects_start = self.object_positions()
         for object_index in self.objects_in_play.values():
             pos, _, _ = self.get_pos_yaw_spe(object_index)
-            self.objects_start.append(pos)
-            starting_shoulder = opposite_relative_to(self.get_shoulder_angle(), self.args.min_shoulder_angle, self.args.max_shoulder_angle)
-            current_shoulder = starting_shoulder
-            final_shoulder = -1 if shoulder < 0 else 1
-            shoulder_step = (final_shoulder - starting_shoulder) / self.args.steps_per_step
  
+        if(shoulder < 0): 
+            shoulder = -self.args.max_shoulder_speed
+        else:
+            shoulder = self.args.max_shoulder_speed
         if(verbose): 
             WAITING = input("WAITING")
         for step in range(self.args.steps_per_step):
-            current_shoulder += shoulder_step
-            self.set_shoulder_angle(current_shoulder) 
-            self.set_speeds(left_wheel, right_wheel)
+            self.set_shoulder_speed(shoulder) 
+            self.set_wheel_speeds(left_wheel, right_wheel)
             if(sleep_time != None):
                 sleep(sleep_time / self.args.steps_per_step)
             p.stepSimulation(physicsClientId = self.physicsClient)
+            if(self.get_shoulder_angle() > self.args.max_shoulder_angle):
+                self.set_shoulder_angle(shoulder = self.args.max_shoulder_angle)
+                shoulder = 0
+            if(self.get_shoulder_angle() < self.args.min_shoulder_angle):
+                self.set_shoulder_angle(shoulder = self.args.min_shoulder_angle)
+                shoulder = 0
                 
-        self.objects_end = []
-        for object_index in self.objects_in_play.values():
-            pos, _, _ = self.get_pos_yaw_spe(object_index)
-            self.objects_end.append(pos)
+        self.objects_end = self.object_positions()
             
         if(sleep_time != None):
             p.setTimeStep(self.args.time_step / self.args.steps_per_step, physicsClientId=self.physicsClient)  # More accurate time step
             p.setPhysicsEngineParameter(numSolverIterations=1, numSubSteps=1, physicsClientId=self.physicsClient)
             
-    def set_speeds(self, left_wheel = 0, right_wheel = 0):
-        left_wheel = relative_to(left_wheel, self.args.min_speed, self.args.max_speed)
-        right_wheel = relative_to(right_wheel, self.args.min_speed, self.args.max_speed)
+    def set_pos(self, pos = (0, 0)):
+        pos = (pos[0], pos[1], agent_upper_starting_pos)
+        _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        orn = p.getQuaternionFromEuler([0, 0, yaw])
+        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
+        
+    def set_yaw(self, yaw = 0):
+        orn = p.getQuaternionFromEuler([0, 0, yaw], physicsClientId = self.physicsClient)
+        pos, _, _ = self.get_pos_yaw_spe(self.robot_index)
+        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
+            
+    def set_wheel_speeds(self, left_wheel = 0, right_wheel = 0):
+        left_wheel = relative_to(left_wheel, -self.args.max_speed, self.args.max_speed)
+        right_wheel = relative_to(right_wheel, -self.args.max_speed, self.args.max_speed)
         linear_velocity = (left_wheel + right_wheel) / 2
         _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
         x = linear_velocity * cos(yaw)
@@ -195,19 +219,14 @@ class Arena():
         spe = float(np.dot(velocity_vec, forward_dir))
         return(pos, yaw, spe)
     
-    def set_pos(self, pos = (0, 0)):
-        pos = (pos[0], pos[1], agent_upper_starting_pos)
-        _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
-        orn = p.getQuaternionFromEuler([0, 0, yaw])
-        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
+    def set_shoulder_speed(self, shoulder = 0):
+        joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
+        shoulder = relative_to(shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
+        p.setJointMotorControl2(self.robot_index, joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = shoulder, physicsClientId=self.physicsClient)
         
-    def set_yaw(self, yaw = 0):
-        orn = p.getQuaternionFromEuler([0, 0, yaw], physicsClientId = self.physicsClient)
-        pos, _, _ = self.get_pos_yaw_spe(self.robot_index)
-        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
-        
-    def set_shoulder_angle(self, shoulder = -1):
-        shoulder = relative_to(shoulder, self.args.min_shoulder_angle, self.args.max_shoulder_angle)
+    def set_shoulder_angle(self, shoulder = None):
+        if(shoulder == None):
+            shoulder = self.args.max_shoulder_angle
         limb_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
         p.resetJointState(self.robot_index, limb_index, shoulder, physicsClientId=self.physicsClient)
         
@@ -247,102 +266,136 @@ class Arena():
             touching_this_object = self.touching_object(object_index)
             touching[object_index] = touching_this_object
         return(touching)
+    
+    def object_positions(self):
+        object_positions = []
+        for object_index in self.objects_in_play.values():
+            pos, _, _ = self.get_pos_yaw_spe(object_index)
+            object_positions.append(pos)
+        return(object_positions)
         
     def rewards(self, verbose = False):
         win = False
-        fail = False
+        reward = 0
         goal_action = self.goal[0]
-        goal_shape = self.goal[1]
-        goal_color = self.goal[2]
+        goal_color = self.goal[1]
+        goal_shape = self.goal[2]
         v_rx = cos(self.robot_start_yaw)
         v_ry = sin(self.robot_start_yaw)
-        
+                
         for i, ((color_index, shape_index, _), object_index) in enumerate(self.objects_in_play.items()):
-            watching = 0
-            pushing = 0
-            pulling = 0
-            lefting = 0
-            righting = 0
-            
-            # Is the agent watching an object?
-            touching = self.touching_object(object_index)
-            object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
-            agent_pos, agent_ori = p.getBasePositionAndOrientation(self.robot_index, physicsClientId = self.physicsClient)
-            distance_vector = np.subtract(object_pos, agent_pos)
-            distance = np.linalg.norm(distance_vector)
-            normalized_distance_vector = distance_vector / distance
-            rotation_matrix = p.getMatrixFromQuaternion(agent_ori, physicsClientId = self.physicsClient)
-            forward_vector = np.array([rotation_matrix[0], rotation_matrix[3], rotation_matrix[6]])
-            forward_vector /= np.linalg.norm(forward_vector)
-            dot_product = np.dot(forward_vector, normalized_distance_vector)
-            angle_radians = np.arccos(np.clip(dot_product, -1.0, 1.0))  
-            cross_product = np.cross(forward_vector, normalized_distance_vector)
-            if cross_product[2] < 0:  
-                angle_radians = -angle_radians
-            watching_now = abs(angle_radians) < pi/6 and not any(touching) and distance <= self.args.watch_distance
-            if watching_now: self.watching[object_index] += 1
-            else:        self.watching[object_index] = 0 
-            if(self.watching[object_index] >= self.args.watch_duration):
-                watching = self.watching[object_index]
+            if(color_index == goal_color and shape_index == goal_shape):
+                # Is the agent touching the object?
+                touching = self.touching_object(object_index)
                 
-            if(verbose):
-                print(self.watching)
-            
-            # How is the object moving? 
-            (x_before, y_before, z_before) = self.objects_start[i]
-            (x_after, y_after, z_after) = self.objects_end[i]
-            delta_x = x_after - x_before
-            delta_y = y_after - y_before
-            if(verbose):
-                print("\nChange:", round(delta_x, 2), round(delta_y, 2))
-                print("Angle:", round(v_rx, 2), round(v_ry, 2))
-            
-            # Is the object pushed/pulled away from its starting position, relative to the agent's starting position and angle?
-            movement_forward = delta_x * v_rx + delta_y * v_ry
-            if(movement_forward >= self.args.push_amount and any(touching)):
-                pushing = movement_forward
-            if(movement_forward <= -self.args.push_amount and any(touching)):
-                pulling = -movement_forward
-            # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
-            movement_left = delta_x * (-v_ry) + delta_y * v_rx
-            if(movement_left >= self.args.push_amount and any(touching)):
-                lefting = movement_left
-            if(movement_left <= self.args.push_amount and any(touching)):
-                righting = -movement_left
+                # Distance and angle from agent to object.
+                object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
+                agent_pos, agent_ori = p.getBasePositionAndOrientation(self.robot_index, physicsClientId = self.physicsClient)
+                distance_vector = np.subtract(object_pos[:2], agent_pos[:2])
+                distance = np.linalg.norm(distance_vector)
+                normalized_distance_vector = distance_vector / distance
+                rotation_matrix = p.getMatrixFromQuaternion(agent_ori, physicsClientId = self.physicsClient)
+                forward_vector = np.array([rotation_matrix[0], rotation_matrix[3]])
+                forward_vector /= np.linalg.norm(forward_vector)
+                dot_product = np.dot(forward_vector, normalized_distance_vector)
+                angle_radians = np.arccos(np.clip(dot_product, -1.0, 1.0))  
+                angle_degrees = degrees(angle_radians)
+                cross_product = np.cross(np.append(forward_vector, 0), np.append(normalized_distance_vector, 0))
+                if cross_product[2] < 0:  
+                    angle_radians = -angle_radians
+                    
+                # How is the object moving in relation to the agent?
+                (x_before, y_before, z_before) = self.objects_start[i]
+                (x_after, y_after, z_after) = self.objects_end[i]
+                delta_x = x_after - x_before
+                delta_y = y_after - y_before
+                movement_forward = delta_x * v_rx + delta_y * v_ry
+                movement_left = delta_x * (-v_ry) + delta_y * v_rx
+                if(verbose):
+                    print("Distance from agent to object:", round(distance, 2))
+                    print("Angle of agent to object:", round(angle_degrees, 2))
+                    print("Object movement (forward):", round(movement_forward, 2))
+                    print("Object movement (left):", round(movement_left, 2))
+                    print("Angle of object movement:", round(v_rx, 2), round(v_ry, 2))
                 
-            action_values = {
-                "WATCH": watching,
-                "PUSH": pushing,
-                "PULL": pulling,
-                "LEFT": lefting,
-                "RIGHT": righting}
-            
-            if(verbose):
-                print("WATCH:", round(watching, 2))
-                print("PUSH:", round(pushing, 2))
-                print("PULL:", round(pulling, 2))
-                print("LEFT:", round(lefting, 2))
-                print("RIGHT:", round(righting, 2))
-
-            # Find the action with the largest value
-            largest_action = max(action_values, key=action_values.get)
-
-            # Check if the largest value is greater than 0 (or another threshold if needed)
-            if action_values[largest_action] > 0:
-                performing_something = largest_action
-            else:
-                performing_something = None
-            
-            if(performing_something != None):
-                if(shape_index == goal_shape and color_index == goal_color and performing_something == action_map[goal_action][1]): 
-                    win = True
+                if(action_map[goal_action][1] == "WATCH"):   
+                    # Is the agent watching an object?
+                    watching_now = abs(angle_radians) < pi/6 and not any(touching) and distance <= self.args.watch_distance
+                    if watching_now: self.watching[object_index] += 1
+                    else:        self.watching[object_index] = 0 
+                    reward = self.args.reward * self.watching[object_index] / self.args.watch_duration
+                    if(self.watching[object_index] == self.args.watch_duration):
+                        win = True
+                
                 else:
-                    fail = True                
-        reward = self.args.reward if win else self.args.punishment if (fail and self.parented) else 0
-        if(goal_action == -1):
-            reward = 0
-            win = False
-        return(reward, win)
+                    
+                    # Is the object pushed/pulled away from its starting position, relative to the agent's starting position and angle?
+                    if(action_map[goal_action][1] == "PUSH"):
+                        if(movement_forward > 0 and any(touching)):
+                            reward = min([self.args.reward, self.args.reward * movement_forward / self.args.push_amount])
+                        if(movement_forward >= self.args.push_amount and any(touching)):
+                            win = True
+                    if(action_map[goal_action][1] == "PULL"):
+                        if(movement_forward < 0 and any(touching)):
+                            reward = min([self.args.reward, self.args.reward * -movement_forward / self.args.push_amount])
+                        if(movement_forward <= -self.args.push_amount and any(touching)):
+                            win = True
+                                
+                    # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
+                    if(action_map[goal_action][1] == "LEFT"):
+                        if(movement_left > 0 and any(touching)):
+                            reward = min([self.args.reward, self.args.reward * movement_left / self.args.push_amount])
+                        if(movement_left >= self.args.push_amount and any(touching)):
+                            win = True
+                    if(action_map[goal_action][1] == "RIGHT"):
+                        if(movement_forward < 0 and any(touching)):
+                            reward = min([self.args.reward, self.args.reward * -movement_forward / self.args.push_amount])
+                        if(movement_left <= -self.args.push_amount and any(touching)):
+                            win = True
+                    
+                # Also add reward for mere distance.
+                midpoint = (self.args.dist_reward_min + self.args.dist_reward_max) / 2
+                if distance <= self.args.dist_reward_min:
+                    distance_reward = 1
+                elif distance <= midpoint:
+                    proportion = (distance - self.args.dist_reward_min) / (midpoint - self.args.dist_reward_min)
+                    distance_reward = (1 - proportion)
+                elif(distance >= midpoint and distance <= self.args.dist_reward_max):
+                    proportion = (distance - midpoint) / (self.args.dist_reward_max - midpoint)
+                    distance_reward = -proportion
+                else:
+                    distance_reward = -1
+                distance_reward *= self.args.dist_reward
+                    
+                # Also add reward for mere angle.
+                abs_angle = abs(angle_degrees)
+                midpoint = (self.args.angle_reward_min + self.args.angle_reward_max) / 2
+                if abs_angle <= self.args.angle_reward_min:
+                    angle_reward = 1
+                elif abs_angle <= midpoint:
+                    proportion = (abs_angle - self.args.angle_reward_min) / (midpoint - self.args.angle_reward_min)
+                    angle_reward = (1 - proportion)
+                elif(abs_angle >= midpoint and abs_angle <= self.args.angle_reward_max):
+                    proportion = (abs_angle - midpoint) / (self.args.angle_reward_max - midpoint)
+                    angle_reward = -proportion
+                else:
+                    angle_reward = -1
+                if(distance_reward < 0 and angle_reward > 0):
+                    angle_reward *= 0
+                angle_reward *= self.args.angle_reward
+                
+                if(verbose):
+                    print("Raw reward:", round(reward, 2))
+                    print("DISTANCE:", round(distance, 2))
+                    print("Distance reward:", round(distance_reward, 2))
+                    print("ANGLE:", round(angle_degrees, 2))
+                    print("Angle reward:", round(angle_reward, 2))
+                    
+        if(verbose):
+            print("Reward:", reward)
+            print("Win:", win)
+
+        return(reward, distance_reward, angle_reward, win)
     
     def photo_from_above(self):
         pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
@@ -409,17 +462,13 @@ if __name__ == "__main__":
     arena = Arena(physicsClient, args = args)
     sleep_time = 1
     
-    action, colors_shapes_1, colors_shapes_2 = make_objects_and_action(1, 1, 1, 1)
+    action, colors_shapes_1, colors_shapes_2 = make_objects_and_action(
+        num_objects = 1,
+        allowed_actions = [0],
+        allowed_colors = [0],
+        allowed_shapes = [4])
     
-    """
-    print("\nNO GOAL")
-    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(8,0)])
-    i = 5
-    arena.step(1, -1, i, verbose = True, sleep_time = sleep_time)
-    for step in range(4):
-        i *= -1
-        arena.step(1, -1, i, verbose = True, sleep_time = sleep_time)
+    def show_them():
         above_rgba = arena.photo_from_above()
         agent_rgba = arena.photo_for_agent()
         plt.imshow(above_rgba)
@@ -428,99 +477,156 @@ if __name__ == "__main__":
         plt.imshow(agent_rgba)
         plt.show()
         plt.close()
-        print(arena.rewards(verbose = True)[0])
+        
+        
+    """print("\nFREE PLAY")
+    goal = [-1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(4.5,0)])
+    steps = 0
+    while(True):
+        steps += 1
+        p.stepSimulation(physicsClientId = arena.physicsClient)
+        if(steps % 50 == 0): 
+            print("\n\n")
+            arena.rewards(verbose = True)
+        sleep(.05)
+    arena.end()
+    """
+    
+    #"""    
+    print("\nHIT")
+    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(4.5,0)])
+    show_them()
+    arena.rewards(verbose = True)
+    for j in range(3):
+        arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
+        show_them()
+        arena.rewards(verbose = True)
+    arena.end()
+    #"""
+        
+        
+        
+    """    
+    print("\nAPPROACH")
+    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(15,0)])
+    show_them()
+    arena.rewards(verbose = True)
+    for j in range(15):
+        arena.step(1, 1, 1, verbose = True, sleep_time = sleep_time)
+        show_them()
+        arena.rewards(verbose = True)
+    arena.end()
+    """
+    
+    """
+    print("\nAIM")
+    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(8,0)])
+    show_them()
+    arena.rewards(verbose = True)
+    for j in range(15):
+        arena.step(-.1, .1, 1, verbose = True, sleep_time = sleep_time)
+        show_them()
+        arena.rewards(verbose = True)
+    arena.end()
+    """
+    
+    """
+    print("\nNO GOAL")
+    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(8,0)])
+    show_them()
+    arena.rewards(verbose = True)
+    i = 1
+    show_them()
+    arena.rewards(verbose = True)
+    for j in range(5):
+        i *= -1
+        arena.step(1, -1, i, verbose = True, sleep_time = sleep_time)
+        show_them()
+        arena.rewards(verbose = True)
     arena.end()
     """
     
     """
     print("\nWATCH")
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
-    for step in range(5):
-        arena.step(0, 0, -1, verbose = True, sleep_time = .1)
-        above_rgba = arena.photo_from_above()
-        agent_rgba = arena.photo_for_agent()
-        plt.imshow(above_rgba)
-        plt.show()
-        plt.close()
-        plt.imshow(agent_rgba)
-        plt.show()
-        plt.close()
-        print(arena.rewards(verbose = True)[0])
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(6,0)])
+    show_them()
+    arena.rewards(verbose = True)
+    while(True):
+        arena.step(0, 0, 1, verbose = True, sleep_time = .1)
+        show_them()
+        if(arena.rewards(verbose = True)[-1]):
+            break
+    arena.end()
+    """
+    
+    """
+    print("\nPUSH")
+    goal = [1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(5,0)])
+    show_them()
+    arena.rewards(verbose = True)
+    while(True):
+        arena.step(1, 1, 1, verbose = True, sleep_time = sleep_time)
+        show_them()
+        if(arena.rewards(verbose = True)[-1]):
+            break
     arena.end()
     """
     
     #"""
-    print("\nPUSHING")
-    goal = [1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
-    for step in range(3):
-        arena.step(1, 1, -1, verbose = True, sleep_time = sleep_time)
-        above_rgba = arena.photo_from_above()
-        agent_rgba = arena.photo_for_agent()
-        plt.imshow(above_rgba)
-        plt.show()
-        plt.close()
-        plt.imshow(agent_rgba)
-        plt.show()
-        plt.close()
-        print(arena.rewards(verbose = True)[0])
-    arena.end()
-    #"""
-    
-    #"""
-    print("\nPULLING")
+    print("\nPULL")
     goal = [2, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
-    arena.step(0, 0, 1, verbose = True, sleep_time = sleep_time)
-    for step in range(3):
-        arena.step(-1, -1, 1, verbose = True, sleep_time = sleep_time)
-        above_rgba = arena.photo_from_above()
-        agent_rgba = arena.photo_for_agent()
-        plt.imshow(above_rgba)
-        plt.show()
-        plt.close()
-        plt.imshow(agent_rgba)
-        plt.show()
-        plt.close()
-        print(arena.rewards(verbose = True)[0])
+    show_them()
+    arena.rewards(verbose = True)
+    arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
+    show_them()
+    arena.rewards(verbose = True)
+    while(True):
+        arena.step(-1, -1, -1, verbose = True, sleep_time = sleep_time)
+        show_them()
+        if(arena.rewards(verbose = True)[-1]):
+            break
     arena.end()
     #"""
     
     #"""   
-    print("\nPUSHING LEFT")
+    print("\nLEFT")
     goal = [3, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
-    arena.step(0, 0, 1, verbose = True, sleep_time = sleep_time)
-    for step in range(3):
-        arena.step(-1, 1, 1, verbose = True, sleep_time = sleep_time)
-        above_rgba = arena.photo_from_above()
-        agent_rgba = arena.photo_for_agent()
-        plt.imshow(above_rgba)
-        plt.show()
-        plt.close()
-        plt.imshow(agent_rgba)
-        plt.show()
-        plt.close()
-        print(arena.rewards(verbose = True)[0])
+    show_them()
+    arena.rewards(verbose = True)
+    arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
+    show_them()
+    arena.rewards(verbose = True)
+    while(True):
+        arena.step(-1, 1, -1, verbose = True, sleep_time = sleep_time)
+        show_them()
+        if(arena.rewards(verbose = True)[-1]):
+            break
     arena.end()
     #"""
     
     #"""
-    print("\nPUSHING RIGHT")
+    print("\nRIGHT")
     goal = [4, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
-    arena.step(0, 0, 1, verbose = True, sleep_time = sleep_time)
-    for step in range(3):
-        arena.step(1, -1, 1, verbose = True, sleep_time = sleep_time)
-        above_rgba = arena.photo_from_above()
-        agent_rgba = arena.photo_for_agent()
-        plt.imshow(above_rgba)
-        plt.show()
-        plt.close()
-        plt.imshow(agent_rgba)
-        plt.show()
-        plt.close()
-        print(arena.rewards(verbose = True)[0])
+    show_them()
+    arena.rewards(verbose = True)
+    arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
+    show_them()
+    arena.rewards(verbose = True)
+    while(True):
+        arena.step(1, -1, -1, verbose = True, sleep_time = sleep_time)
+        show_them()
+        if(arena.rewards(verbose = True)[-1]):
+            break
     arena.end()
     #"""
+# %%

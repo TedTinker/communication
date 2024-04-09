@@ -22,18 +22,18 @@ from torchinfo import summary as torch_summary
 
 from utils import print, default_args, init_weights, attach_list, detach_list, many_onehots_to_strings, \
     episodes_steps, pad_zeros, Ted_Conv1d, Ted_Conv2d, var, sample, rnn_cnn, duration, ConstrainedConv1d, ConstrainedConv2d
+from buffer import RecurrentReplayBuffer
 from mtrnn import MTRNN
 from arena import Arena, get_physics
 
 args = default_args
-args.objects = 4
 
-
+memory = RecurrentReplayBuffer(args)
 
 physicsClient = get_physics(GUI = False, time_step = args.time_step, steps_per_step = args.steps_per_step)
 arena_1 = Arena(physicsClient)
 arena_2 = None
-task_runner = Task_Runner(Task(actions = -1, objects = 4, shapes = 5, colors = 6), arena_1, arena_2)
+task_runner = Task_Runner(Task(actions = [-1], objects = 4, shapes = [0, 1, 2, 3, 4], colors = [0, 1, 2, 3, 4, 5]), arena_1, arena_2)
 
 forward = PVRNN(args = args)
 forward.train()
@@ -94,76 +94,80 @@ def plot_losses(losses):
     plt.close()
     
     
-
-def make_batch(batch_size = args.batch_size):
-    real_rgbd = []
-    real_comm = []
-    real_other = []
+    
+def add_episode():
+    task_runner.begin()
+    rgbds = []
+    comms = []
+    others = []
     actions = []
-    for episode in range(batch_size):
-        task_runner.begin()
-        rgbds = []
-        comms = []
-        others = []
-        acts = []
-        for step in range(args.max_steps):
-            rgbd, comm, other = task_runner.obs()
-            rgbds.append(rgbd)
-            comms.append(comm)
-            others.append(other)
-            recommendation = task_runner.get_recommended_action(verbose = False)#True)
-            acts.append(recommendation.unsqueeze(0))
-            reward, done, win = task_runner.step(recommendation, verbose = False)#True)
+    rewards = []
+    dones = []
+    for step in range(args.max_steps):
         rgbd, comm, other = task_runner.obs()
+        action = task_runner.get_recommended_action(verbose = False)#True)
+        reward, done, win = task_runner.step(action, verbose = False)#True)
         rgbds.append(rgbd)
         comms.append(comm)
         others.append(other)
-        rgbds = torch.cat(rgbds, dim = 0).unsqueeze(0)
-        comms = torch.cat(comms, dim = 0).unsqueeze(0)
-        others = torch.cat(others, dim = 0).unsqueeze(0)
-        acts = torch.cat(acts, dim = 0)
-        real_rgbd.append(rgbds)
-        real_comm.append(comms)
-        real_other.append(others)
-        actions.append(acts)
-        task_runner.done()
-    real_rgbd = torch.cat(real_rgbd, dim = 0)
-    real_comm = torch.cat(real_comm, dim = 0)
-    real_other = torch.cat(real_other, dim = 0)
-    actions = torch.stack(actions, dim = 0)
-    actions = torch.cat([actions, torch.zeros(actions[:,0].unsqueeze(1).shape).to(args.device)], dim = 1)
-    next_rgbd = real_rgbd[:,1:]
-    next_comm = real_comm[:,1:]
-    next_other = real_other[:,1:]
-    return(real_rgbd, real_comm, real_other, actions, next_rgbd, next_comm, next_other)
-
-
-
-def add_hsv(rgbd):
-    episodes, steps = episodes_steps(rgbd)
-    rgbd = rgbd.reshape(episodes * steps, rgbd.shape[2], rgbd.shape[3], rgbd.shape[4]).permute(0, -1, 1, 2)
-    rgb = rgbd[:,:-1]
-    hsv = rgb_to_hsv(rgb)
-    hues = hsv[:,1]
-    hue_sin = torch.sin(hues).unsqueeze(1)
-    hue_cos = torch.cos(hues).unsqueeze(1)
-    hsv = hsv[:,1:]
-    hsv = torch.cat((hue_sin, hue_cos, hsv), dim=1)
-    rgbdhsv = torch.cat((rgbd, hsv), dim=1)
-    rgbdhsv = rgbdhsv.reshape(episodes, steps, rgbdhsv.shape[1], rgbdhsv.shape[2], rgbdhsv.shape[3]).permute(0, 1, 3, 4, 2)
-    return(rgbdhsv)
+        actions.append(action.unsqueeze(0))
+        rewards.append(reward)
+        dones.append(done)
+    rgbd, comm, other = task_runner.obs()
+    rgbds.append(rgbd)
+    comms.append(comm)
+    others.append(other)
+    task_runner.done()
+    for i in range(len(rewards)):
+        memory.push(
+            rgbd = rgbds[i], 
+            communication_in = comms[i], 
+            other = others[i], 
+            action = actions[i], 
+            recommended_action = actions[i], 
+            communication_out = comms[i], 
+            reward = rewards[i], 
+            next_rgbd = rgbds[i+1], 
+            next_communication_in = comms[i+1], 
+            next_other = others[i+1], 
+            done = dones[i])
 
 
 
 def epoch(e):
     print(e, end = "... ")
-    real_rgbd, real_comm, real_other, actions, next_rgbd, next_comm, next_other = make_batch()
-        
-    _, _, (guess_rgbd, guess_comm, guess_other), _ = forward(None, real_rgbd, real_comm, real_other, actions, torch.zeros_like(real_comm))
-        
-    next_rgbdhsv = add_hsv(next_rgbd)
-    guess_rgbdhsv = add_hsv(guess_rgbd)
-        
+    add_episode()
+    rgbds, comms_in, others, actions, comms_out, recommended_actions, rewards, dones, masks = memory.sample(args.batch_size)
+    
+    rgbds = torch.from_numpy(rgbds)
+    comms_in = torch.from_numpy(comms_in)
+    others = torch.from_numpy(others)
+    actions = torch.from_numpy(actions)
+    comms_out = torch.from_numpy(comms_out)
+    recommended_actions = torch.from_numpy(recommended_actions)
+    rewards = torch.from_numpy(rewards)
+    dones = torch.from_numpy(dones)
+    masks = torch.from_numpy(masks)
+    actions = torch.cat([torch.zeros(actions[:,0].unsqueeze(1).shape).to(args.device), actions], dim = 1)
+    comms_out = torch.cat([torch.zeros(comms_out[:,0].unsqueeze(1).shape).to(args.device), comms_out], dim = 1)
+    all_masks = torch.cat([torch.ones(masks.shape[0], 1, 1).to(args.device), masks], dim = 1)   
+    episodes = rewards.shape[0]
+    steps = rewards.shape[1]
+    
+    _, _, (guess_rgbd, guess_comm, guess_other), _ = forward(torch.zeros((episodes, args.layers, args.pvrnn_mtrnn_size)), rgbds, comms_in, others, actions, comms_out)
+    
+    real_rgbd = rgbds
+    real_comm = comms_in
+    real_other = others
+    
+    next_rgbd = real_rgbd[:,1:]
+    next_comm = real_comm[:,1:]
+    next_other = real_other[:,1:]
+    
+    real_rgbd = real_rgbd[:,:-1]
+    real_comm = real_comm[:,:-1]
+    real_other = real_other[:,:-1]
+                        
     rgbd_loss = F.binary_cross_entropy(guess_rgbd, next_rgbd, reduction = "none")
     rgbd_loss = rgbd_loss.mean() * args.rgbd_scaler
     
@@ -213,6 +217,8 @@ def epoch(e):
         (guess_rgbd, guess_comm, guess_other))
 
     
+for i in range(args.batch_size):
+    add_episode()
 
 losses = []
 for e in range(2000):

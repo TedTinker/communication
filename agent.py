@@ -31,10 +31,10 @@ class Agent:
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         
         self.tasks = {
-            "0" : Task(actions = -1, objects = 4, colors = 6, shapes = 5, parent = True, args = self.args),
-            "1" : Task(actions = 1, objects = 1, colors = 6, shapes = 1, parent = True, args = self.args),
-            "2" : Task(actions = 1, objects = 2, colors = 6, shapes = 1, parent = True, args = self.args),
-            "3" : Task(actions = 5, objects = 2, colors = 6, shapes = 5, parent = True, args = self.args)}
+            "0" : Task(actions = [-1],              objects = 4, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args),
+            "1" : Task(actions = [1, 2],               objects = 1, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args),
+            "2" : Task(actions = [0],               objects = 1, colors = [0, 1, 2, 3, 4, 5],   shapes = [0],               parent = True, args = self.args),
+            "3" : Task(actions = [0, 1, 2, 3, 4],   objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args)}
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
         physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
@@ -129,7 +129,7 @@ class Agent:
                     self.save_agent()
                     
                     time = duration()
-                    if(self.args.show_duration): print("AFTER GEN, SAVE (1):", time - prev_time)
+                    if(self.args.show_duration): print("AFTER GEN, SAVE EPISODE, SAVE AGENT (START):", time - prev_time)
                     prev_time = time
                     break
                 
@@ -138,7 +138,7 @@ class Agent:
             self.training_episode()
             
             time = duration()
-            if(self.args.show_duration): print("\nTRAINING EPISODE:", time - prev_time)
+            if(self.args.show_duration): print("\n\nTRAINING EPISODE:", time - prev_time)
             if(self.args.show_duration): print(f"{self.epochs} Epochs:", time - start_time)
             prev_time = time
             
@@ -152,14 +152,16 @@ class Agent:
             
             if(self.epochs % self.args.epochs_per_gen_test == 0):
                 self.gen_test()  
+                time = duration()
+                if(self.args.show_duration): print("AFTER GEN:", time - prev_time)
             if(self.epochs % self.args.epochs_per_episode_dict == 0):
                 self.save_episodes(swapping = False)
+                time = duration()
+                if(self.args.show_duration): print("AFTER SAVE EPISODE:", time - prev_time)
             if(self.epochs % self.args.epochs_per_agent_list == 0):
                 self.save_agent()
-            
-            time = duration()
-            if(self.args.show_duration): print("AFTER GEN, SAVE (2):", time - prev_time)
-            prev_time = time
+                time = duration()
+                if(self.args.show_duration): print("AFTER SAVE AGENT:", time - prev_time)
             
         self.plot_dict["rewards"] = list(accumulate(self.plot_dict["rewards"]))
         self.plot_dict["gen_rewards"] = list(accumulate(self.plot_dict["gen_rewards"]))
@@ -171,7 +173,7 @@ class Agent:
         self.save_agent()
         
         time = duration()
-        if(self.args.show_duration): print("AFTER GEN, SAVE (3):", time - prev_time)
+        if(self.args.show_duration): print("AFTER GEN, SAVE EPISODE, SAVE AGENT (END):", time - prev_time)
         prev_time = time
         
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
@@ -246,7 +248,9 @@ class Agent:
                     values_2.append(round(value.item(), 3))
                     new_hcs_2.append(hc)
                                     
-            reward, done, win = self.task.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
+            raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win = self.task.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
+            total_reward = raw_reward + distance_reward + angle_reward 
+            total_reward_2 = raw_reward + distance_reward_2 + angle_reward_2
             next_rgbd_1, next_parent_comm, next_other_1 = self.task.obs()
             next_rgbd_2, _, next_other_2 = self.task.obs(agent_1 = False)
             
@@ -257,7 +261,7 @@ class Agent:
                 action_1,
                 comm_out_1,
                 recommended_action_1,
-                reward,
+                total_reward,
                 next_rgbd_1,
                 next_parent_comm if parented else comm_out_2,
                 next_other_1,
@@ -273,7 +277,7 @@ class Agent:
                     action_2,
                     comm_out_2,
                     recommended_action_2,
-                    reward,
+                    total_reward,
                     next_rgbd_2,
                     comm_out_1,
                     next_other_2,
@@ -284,7 +288,7 @@ class Agent:
         
         return(action_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), ha_1, new_hcs_1, dkls_1,
                action_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), ha_2, new_hcs_2, dkls_2,
-               reward, done, win, to_push_1, to_push_2)
+               raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2)
             
            
     
@@ -293,7 +297,7 @@ class Agent:
         prev_time = duration()
         
         done = False
-        total_reward = 0
+        complete_reward = 0
         steps = 0
                 
         to_push_list_1 = []
@@ -319,13 +323,13 @@ class Agent:
                 steps += 1
                 prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, dkls_1, \
                     prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, dkls_2, \
-                        reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                        raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1,
                             prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2)
                         
                 to_push_list_1.append(to_push_1)
                 to_push_list_2.append(to_push_2)
-                total_reward += reward
+                complete_reward += total_reward
             if(self.steps % self.args.steps_per_epoch == 0):
                 prev_time = duration()
                 plot_data = self.epoch(self.args.batch_size)
@@ -363,7 +367,7 @@ class Agent:
                         
         self.task.done()
         self.plot_dict["steps"].append(steps)
-        self.plot_dict["rewards"].append(total_reward)
+        self.plot_dict["rewards"].append(complete_reward)
         goal_action = self.task.task.goal[0]
         win_dict_list = [self.plot_dict["wins_" + action_name.lower()] for action_name in action_name_list]
         for i, win_dict in enumerate(win_dict_list):
@@ -371,7 +375,7 @@ class Agent:
             else:                   win_dict.append(None)
                              
         for to_push in to_push_list_1:
-            rgbd, comm_in, other, action, comm_out, recommended_action, reward, next_rgbd, next_comm_in, next_other, done = to_push
+            rgbd, comm_in, other, action, comm_out, recommended_action, total_reward, next_rgbd, next_comm_in, next_other, done = to_push
             self.memory.push(
                 rgbd,
                 comm_in, 
@@ -379,7 +383,7 @@ class Agent:
                 action, 
                 comm_out,
                 recommended_action,
-                reward, 
+                total_reward, 
                 next_rgbd,
                 next_comm_in, 
                 next_other,
@@ -387,7 +391,7 @@ class Agent:
             
         for to_push in to_push_list_2:
             if(to_push != None):
-                rgbd, comm_in, other, action, comm_out, recommended_action, reward, next_rgbd, next_comm_in, next_other, done = to_push
+                rgbd, comm_in, other, action, comm_out, recommended_action, total_reward, next_rgbd, next_comm_in, next_other, done = to_push
                 self.memory.push(
                     rgbd,
                     comm_in, 
@@ -395,7 +399,7 @@ class Agent:
                     action, 
                     comm_out,
                     recommended_action,
-                    reward, 
+                    total_reward, 
                     next_rgbd,
                     next_comm_in, 
                     next_other,
@@ -407,7 +411,7 @@ class Agent:
         
     def gen_test(self, sleep_time = None):
         done = False
-        total_reward = 0
+        complete_reward = 0
         
         prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
         prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
@@ -429,16 +433,16 @@ class Agent:
                 if(not done):
                     prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, dkls_1, \
                         prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, dkls_2,\
-                            reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                            raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1,
                                 prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, sleep_time)
-                    total_reward += reward
+                    complete_reward += total_reward
                 #print("DONE")
             self.task.done()
         except:
-            total_reward = 0
+            complete_reward = 0
             self.task.done()
-        self.plot_dict["gen_rewards"].append(total_reward)
+        self.plot_dict["gen_rewards"].append(complete_reward)
         
         
         
@@ -465,7 +469,13 @@ class Agent:
                     "comms_out_2" : [],
                     "birds_eye_1" : [],
                     "birds_eye_2" : [],
-                    "rewards" : [],
+                    "raw_rewards" : [],
+                    "total_rewards_1" : [],
+                    "distance_rewards_1" : [],
+                    "angle_rewards_1" : [],
+                    "total_rewards_2" : [],
+                    "distance_rewards_2" : [],
+                    "angle_rewards_2" : [],
                     "critic_predictions_1" : [],
                     "critic_predictions_2" : [],
                     "prior_predicted_rgbds_1" : [],
@@ -527,7 +537,7 @@ class Agent:
                         episode_dict["recommended_2"].append(None if recommended_2 == None else action_to_string(recommended_2))
                         prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, dkls_1, \
                             prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, dkls_2, \
-                                reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                                raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                     prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1,
                                     prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2)
                         episode_dict["actions_1"].append(prev_action_1)
@@ -538,7 +548,13 @@ class Agent:
                         comm_out_2 = onehots_to_string(prev_comm_out_2)
                         episode_dict["comms_out_2"].append("{} ({})".format(comm_out_2, self.task.task.agent_to_english(comm_out_2)))
                         
-                        episode_dict["rewards"].append(str(reward))
+                        episode_dict["raw_rewards"].append(str(round(raw_reward, 3)))
+                        episode_dict["total_rewards_1"].append(str(round(total_reward, 3)))
+                        episode_dict["distance_rewards_1"].append(str(round(distance_reward, 3)))
+                        episode_dict["angle_rewards_1"].append(str(round(angle_reward, 3)))
+                        episode_dict["total_rewards_2"].append(str(round(total_reward_2, 3)))
+                        episode_dict["distance_rewards_2"].append(str(round(distance_reward_2, 3)))
+                        episode_dict["angle_rewards_2"].append(str(round(angle_reward_2, 3)))
                         episode_dict["critic_predictions_1"].append(values_1)
                         episode_dict["critic_predictions_2"].append(values_2)
                         episode_dict["dkls_1"].append([dkl.sum().item() for dkl in dkls_1])
@@ -703,7 +719,7 @@ class Agent:
         complexity_for_hidden_state = [layer[:,1:] for layer in complexity_for_hidden_state] 
                                 
         time = duration()
-        #if(self.args.show_duration): print("USED FORWARD:", time - prev_time)
+        if(self.args.show_duration): print("USED FORWARD:", time - prev_time)
         prev_time = time
                                 
         self.forward_opt.zero_grad()
@@ -714,7 +730,7 @@ class Agent:
         torch.cuda.empty_cache()
         
         time = duration()
-        #if(self.args.show_duration): print("TRAINED FORWARD:", time - prev_time)
+        if(self.args.show_duration): print("TRAINED FORWARD:", time - prev_time)
         prev_time = time
                         
                         
@@ -733,7 +749,7 @@ class Agent:
         rewards += curiosity
         
         time = duration()
-        #if(self.args.show_duration): print("CURIOSITY:", time - prev_time)
+        if(self.args.show_duration): print("CURIOSITY:", time - prev_time)
         prev_time = time
                         
         
@@ -778,7 +794,7 @@ class Agent:
         torch.cuda.empty_cache()
         
         time = duration()
-        #if(self.args.show_duration): print("TRAINED CRITICS:", time - prev_time)
+        if(self.args.show_duration): print("TRAINED CRITICS:", time - prev_time)
         prev_time = time
                                 
         
@@ -809,7 +825,7 @@ class Agent:
             alpha_text_loss = None
             
         time = duration()
-        #if(self.args.show_duration): print("TRAINED ALPHA:", time - prev_time)
+        if(self.args.show_duration): print("TRAINED ALPHA:", time - prev_time)
         prev_time = time
                                     
             
@@ -846,7 +862,7 @@ class Agent:
             actor_loss = actor_loss.mean() / masks.mean()
             
             time = duration()
-            #if(self.args.show_duration): print("USED ACTOR:", time - prev_time)
+            if(self.args.show_duration): print("USED ACTOR:", time - prev_time)
             prev_time = time
 
             self.actor_opt.zero_grad()
@@ -854,7 +870,7 @@ class Agent:
             self.actor_opt.step()
             
             time = duration()
-            #if(self.args.show_duration): print("TRAINED ACTOR:", time - prev_time)
+            if(self.args.show_duration): print("TRAINED ACTOR:", time - prev_time)
             prev_time = time
             
         else:

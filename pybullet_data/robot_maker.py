@@ -1,6 +1,9 @@
 #%% 
 
+import os
 import numpy as np
+import pybullet as p
+from math import pi
 
 
 
@@ -93,22 +96,45 @@ make_part(
           mass = 100,     
           shape = (1, 1, 1),          
           with_sensor = True)
+
+
+
+arrow_base_len = .4
+arrow_base_start = .15
+arrow_head_len = .4
+arrow_head_width = .5
+arrow_head_layers = 10
+arrow_head_part_len = arrow_head_width/arrow_head_layers
 make_part(  
-          name = "nose",          
+          name = "arrow_base",          
           mass = 0,       
-          shape = (.001, .2, .2),     
+          shape = (arrow_base_len, .2, .001),     
           with_sensor = False)
 make_joint( 
            parent = "body",        
-           child = "nose", 
-           origin = (.50005, 0, 0),    
-           axis = (0, 1, 0),   
+           child = "arrow_base", 
+           origin = (-.5 + arrow_base_len/2 + arrow_base_start, 0, .50000001),    
+           axis = (0, 0, 1),   
            type = "fixed")
+for i in range(arrow_head_layers):
+    make_part(  
+          name = f"arrow_{i}",          
+          mass = 0,       
+          shape = (arrow_head_part_len, arrow_head_width - (arrow_head_width/arrow_head_layers) * i, .001),     
+          with_sensor = False)
+    make_joint( 
+           parent = "arrow_base" if i == 0 else f"arrow_{i-1}",        
+           child = f"arrow_{i}", 
+           origin = (arrow_base_len/2 if i== 0 else arrow_head_part_len/2, 0, 0),    
+           axis = (0, 0, 1),   
+           type = "fixed")
+
+
 
 make_part(  
           name = "left_shoulder", 
           mass = .1,       
-          shape = (.1, .5, .8),       
+          shape = (.4, .5, .8),       
           with_sensor = False)
 make_joint( 
            parent = "body",        
@@ -117,51 +143,59 @@ make_joint(
            axis = (0, -1, 0),   
            type = "continuous")
 
+
+
 make_part(  
           name = "left_arm", 
           mass = .1,       
-          shape = (3, .1, .8),       
+          shape = (3, .4, .8),       
           with_sensor = True)
 make_joint( 
            parent = "left_shoulder",        
            child = "left_arm", 
-           origin = (1.45, .25, 0),    
+           origin = (1.3, .25, 0),    
            axis = (1, 0, 0),   
            type = "fixed")
+
+
 
 make_part(  
           name = "hand", 
           mass = .1,       
-          shape = (.1, 2, .8),       
+          shape = (.4, 1.6, .8),       
           with_sensor = True)
 make_joint( 
            parent = "left_arm",        
            child = "hand", 
-           origin = (1.5, -1, 0),    
+           origin = (1.3, -1, 0),    
            axis = (0, 0, 0),   
            type = "fixed")
+
+
 
 make_part(  
           name = "right_arm", 
           mass = .1,       
-          shape = (3, .1, .8),       
+          shape = (3, .4, .8),       
           with_sensor = True)
 make_joint( 
            parent = "hand",        
            child = "right_arm", 
-           origin = (-1.5, -1, 0),    
+           origin = (-1.3, -1, 0),    
            axis = (1, 0, 0),   
            type = "fixed")
+
+
 
 make_part(  
           name = "right_shoulder", 
           mass = .1,       
-          shape = (.1, .5, .8),       
+          shape = (.4, .5, .8),       
           with_sensor = False)
 make_joint( 
            parent = "right_arm",        
            child = "right_shoulder", 
-           origin = (-1.45, .25, 0),    
+           origin = (-1.3, .25, 0),    
            axis = (0, -1, 0),   
            type = "fixed")
 
@@ -170,6 +204,35 @@ make_joint(
 robot += \
 """\n\n</robot>"""
 
+
+
+current_dir = os.getcwd()
+last_folder = os.path.basename(current_dir)
+if last_folder == "shapes":
+    new_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
+    os.chdir(new_dir)
+    
+    
+
 with open("robot.urdf", 'w') as file:
     file.write(robot)
+    
+    
+    
+physicsClient = p.connect(p.GUI)
+p.setAdditionalSearchPath("pybullet_data")
+
+robot_index = p.loadURDF("{}".format("robot.urdf"), (-5, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+                                            useFixedBase=False, globalScaling = 2, physicsClientId=physicsClient)
+p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
+
+for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
+    joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
+    link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
+    p.changeDynamics(robot_index, link_index, maxJointVelocity = 10000)
+    
+    if("sensor" in link_name):
+        p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, .5), physicsClientId = physicsClient)
+    else:
+        p.changeVisualShape(robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = physicsClient)
 # %%

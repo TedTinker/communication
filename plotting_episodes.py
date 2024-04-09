@@ -104,9 +104,21 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         text_list.append(str(other_q))
         label_list.append(f"Predicted Other (Posterior) ({agent_num}):")
         
-        rewards = episode_dict["rewards"][step-1]
-        text_list.append(rewards)
-        label_list.append("Reward:")
+        raw_rewards = episode_dict["raw_rewards"][step-1]
+        text_list.append(raw_rewards)
+        label_list.append("Raw reward:")
+        
+        distance_rewards = episode_dict[f"distance_rewards_{agent_num}"][step-1]
+        text_list.append(distance_rewards)
+        label_list.append("Distance reward:")
+        
+        angle_rewards = episode_dict[f"angle_rewards_{agent_num}"][step-1]
+        text_list.append(angle_rewards)
+        label_list.append("Angle reward:")
+        
+        total_rewards = episode_dict[f"total_rewards_{agent_num}"][step-1]
+        text_list.append(total_rewards)
+        label_list.append("Total reward:")
         
         values = episode_dict[f"critic_predictions_{agent_num}"][step-1]
         values_text = ""

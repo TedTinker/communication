@@ -1,6 +1,9 @@
 #%% 
 
+import os
 import numpy as np
+import pybullet as p
+from math import pi
 
 max_radius = .6
 
@@ -25,7 +28,7 @@ base = \
       </geometry>
     </collision>
     <inertial>
-        <mass value="10"/>
+        <mass value="100"/>
         <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
     </inertial>
   </link>
@@ -83,6 +86,34 @@ both = innards([.9, .1], [.1, max_radius])
 middle = innards([.45, .1, .45], [.1, max_radius, .1])
 delta = innards([.1] * 10, [max_radius - i/16 for i in range(10)])
 
-for name, shape in [("0_L_POLE", pole), ("1_M_BOTTOM", bottom), ("2_N_BOTH", both), ("3_O_MIDDLE", middle), ("4_P_DELTA", delta)]:
-    with open(name + ".urdf", 'w') as file:
-        file.write(base + shape)
+
+
+current_dir = os.getcwd()
+last_folder = os.path.basename(os.getcwd())
+if last_folder == "pybullet_data":
+  new_dir = os.path.join(current_dir, "shapes")
+  os.chdir(new_dir)
+    
+    
+  
+shapes = [pole, bottom, both, middle, delta]
+names = ["POLE", "BOTTOM", "BOTH", "MIDDLE", "DELTA"]
+letters = ["L", "M", "N", "O", "P"]
+file_names = []
+
+for i in range(len(shapes)):
+  file_name = f"{i}_{letters[i]}_{names[i]}.urdf"
+  shape = shapes[i]
+  file_names.append(file_name)
+  with open(file_name, 'w') as file:
+    file.write(base + shape)
+        
+
+
+physicsClient = p.connect(p.GUI)
+p.setAdditionalSearchPath("pybullet_data")
+
+for i, file_name in zip([-2, -1, 0, 1, 2], file_names):
+  print(file_name)
+  object_index = p.loadURDF("{}".format(file_name), (-5, 3 * i, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+                                              useFixedBase=False, globalScaling = 2, physicsClientId=physicsClient)

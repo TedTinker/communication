@@ -1,10 +1,6 @@
 #%% 
 
 # To do: 
-#   Make the arena work well.
-#   Remake action selection etc so specific goals can be allowed instead of a list starting from WATCH.
-#   Add goals like Get Close To, or Touch.
-#   Make goals reward agents bit by bit on the way to success.
 #   Make it work.
 #   Make it work FASTER.
 #   Not correctly plotting win-rates. 
@@ -116,16 +112,13 @@ def valid_color_shape(action_num, other_shape_colors, allowed_colors, allowed_sh
         else:
             these_combos = training_combos
         these_combos = [combo for combo in these_combos if combo[0] == action_num]
-    these_combos = [(combo[1], combo[2]) for combo in these_combos if combo[1] < allowed_colors and combo[2] < allowed_shapes]
+    these_combos = [(combo[1], combo[2]) for combo in these_combos if combo[1] in allowed_colors and combo[2] in allowed_shapes]
     these_combos = [combo for combo in these_combos if not combo in other_shape_colors]
     color_num, shape_num = choice(these_combos)
     return(color_num, shape_num)
 
-def make_objects_and_action(num_objects, allowed_goals, allowed_colors, allowed_shapes, test = False):
-    if(allowed_goals == -1):
-        action_num = -1
-    else:
-        action_num = randint(0, allowed_goals - 1) 
+def make_objects_and_action(num_objects, allowed_actions, allowed_colors, allowed_shapes, test = False):
+    action_num = choice(allowed_actions)
     goal_object = valid_color_shape(action_num, [], allowed_colors, allowed_shapes, goal = True, test = test)
     colors_shapes_1 = [goal_object]
     colors_shapes_2 = [goal_object]
@@ -134,6 +127,8 @@ def make_objects_and_action(num_objects, allowed_goals, allowed_colors, allowed_
     for n in range(num_objects-1):
         colors_shapes_2.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, goal = False, test = test))
     return(action_num, colors_shapes_1, colors_shapes_2)
+
+
 
 if(__name__ == "__main__"):
     import matplotlib.pyplot as plt
@@ -235,19 +230,45 @@ parser.add_argument('--device',             type=str,        default = device,
 parser.add_argument('--show_duration',      type=bool,       default = False,
                     help='Should durations be printed?')
 
+    # Simulation details
+parser.add_argument('--max_object_distance',type=float,      default = 6,
+                    help='How far objects can start from the agent.')
+parser.add_argument('--min_object_separation',type=float,    default = 3,
+                    help='How far objects must start from each other.')
+parser.add_argument('--object_size',        type=float,      default = 2,
+                    help='How large is the agent\'s body?')    
+parser.add_argument('--body_size',          type=float,      default = 2,
+                    help='How large is the agent\'s body?')    
+parser.add_argument('--time_step',          type=float,      default = .2,
+                    help='numSubSteps in pybullet environment.')
+parser.add_argument('--steps_per_step',     type=int,        default = 30,
+                    help='numSubSteps in pybullet environment.')
+
+    # Agent details
+parser.add_argument('--image_size',         type=int,        default = 16,
+                    help='Dimensions of the images observed.')
+parser.add_argument('--max_speed',          type=float,      default = 10,
+                    help='Max wheel speed.')
+parser.add_argument('--angular_scaler',     type=float,      default = .4,
+                    help='How to scale angular velocity vs linear velocity.')
+parser.add_argument('--min_shoulder_angle', type=float,      default = 0,
+                    help='Agent\'s maximum shoulder velocity.')
+parser.add_argument('--max_shoulder_angle', type=float,      default = pi/2,
+                    help='Agent\'s maximum shoulder velocity.')
+parser.add_argument('--max_shoulder_speed', type=float,      default = 8,
+                    help='Max shoulder speed.')
+
     # Task details
 parser.add_argument('--task_list',          type=literal,    default = ["1"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
+parser.add_argument('--reward',             type=float,      default = 10,
+                    help='Extrinsic reward for choosing correct action, shape, and color.') 
 parser.add_argument('--max_steps',          type=int,        default = 10,
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',type=float,      default = -10,
                     help='Extrinsic punishment for taking max_steps steps.')
 parser.add_argument('--step_cost',          type=float,      default = .975,
                     help='How much extrinsic rewards for exiting are reduced per step.')
-parser.add_argument('--reward',             type=float,      default = 10,
-                    help='Extrinsic reward for choosing correct action, shape, and color.') 
-parser.add_argument('--punishment',         type=float,      default = 0,
-                    help='Extrinsic punishment for choosing incorrect action, shape, or color.') 
 parser.add_argument('--actions',            type=int,        default = 5,
                     help='Maximum count of actions in one episode.')
 parser.add_argument('--objects',            type=int,        default = 4,
@@ -258,43 +279,31 @@ parser.add_argument('--colors',             type=int,        default = 6,
                     help='Maximum count of colors in one episode.')
 parser.add_argument('--max_comm_len',       type=int,        default = 6,
                     help='Maximum length of communication.')
-parser.add_argument('--watch_distance',     type=float,      default = 5,
+parser.add_argument('--watch_distance',     type=float,      default = 8,
                     help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--watch_duration',     type=int,        default = 3,
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--push_amount',        type=float,      default = .75,
                     help='Needed distance of an object for push/pull/left/right.')
 
-    # Simulation details
-parser.add_argument('--max_object_distance',type=float,      default = 4,
-                    help='How far objects can start from the agent.')
-parser.add_argument('--min_object_separation',type=float,    default = 3,
-                    help='How far objects must start from each other.')
-parser.add_argument('--object_size',        type=float,      default = 2,
-                    help='How large is the agent\'s body?')    
-parser.add_argument('--body_size',          type=float,      default = 2,
-                    help='How large is the agent\'s body?')    
-parser.add_argument('--image_size',         type=int,        default = 8,
-                    help='Dimensions of the images observed.')
-parser.add_argument('--min_speed',          type=float,      default = -100,
-                    help='Min wheel speed.')
-parser.add_argument('--max_speed',          type=float,      default = 100,
-                    help='Max wheel speed.')
-parser.add_argument('--max_speed_with_arm', type=float,      default = .5,
-                    help='Max wheel speed when arm is pointing forward.')
-parser.add_argument('--angular_scaler',     type=float,      default = .5,
-                    help='How to scale angular velocity vs linear velocity.')
-parser.add_argument('--min_shoulder_angle', type=float,      default = pi/2,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_shoulder_angle', type=float,      default = 0,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--time_step',          type=float,      default = .02,
-                    help='numSubSteps in pybullet environment.')
-parser.add_argument('--steps_per_step',    type=float,      default = 15,
-                    help='numSubSteps in pybullet environment.')
+    # Rewards for distances
+parser.add_argument('--dist_reward',        type=float,      default = 3,
+                    help='Give agents a reward just for getting close to the correct object.')
+parser.add_argument('--dist_reward_min',    type=float,      default = 3.5,
+                    help='If agent closer to correct object that this, rewarded.')
+parser.add_argument('--dist_reward_max',    type=float,      default = 5,
+                    help='If agent farther to correct object that this, punished. If agent between min and max, agent relatively rewarded.')
+
+    # Rewards for angles
+parser.add_argument('--angle_reward',       type=float,      default = 3,
+                    help='Give agents a reward just for pointing at the right object.')
+parser.add_argument('--angle_reward_min',   type=float,      default = 30,
+                    help='If agent pointing at correct object that this, rewarded.')
+parser.add_argument('--angle_reward_max',   type=float,      default = 90,
+                    help='If agent pointing farther from correct object that this, punished. If angle between min and max, agent relatively rewarded.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [2000],
+parser.add_argument('--epochs',             type=literal,    default = [500],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--batch_size',         type=int,        default = 32, 
                     help='How many episodes are sampled for each epoch.')      
@@ -309,10 +318,8 @@ parser.add_argument('--other_scaler',       type=float,      default = 1,
 parser.add_argument('--capacity',           type=int,        default = 256,
                     help='How many episodes can the memory buffer contain.')
 
-    # Module 
-parser.add_argument('--critics',            type=int,        default = 2,
-                    help='How many critics?')   
-parser.add_argument('--hidden_size',        type=int,        default = 128,
+    # Module  
+parser.add_argument('--hidden_size',        type=int,        default = 64,
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 256,
                     help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
@@ -338,6 +345,8 @@ parser.add_argument('--actor_lr',           type=float,      default = .0003,
                     help='Learning rate for actor model.')
 parser.add_argument('--critic_lr',          type=float,      default = .0003,
                     help='Learning rate for critic model.')
+parser.add_argument('--critics',            type=int,        default = 2,
+                    help='How many critics?')  
 parser.add_argument('--alpha_lr',           type=float,      default = .0003,
                     help='Learning rate for alpha value.') 
 parser.add_argument('--alpha_text_lr',      type=float,      default = .0003,
@@ -354,7 +363,7 @@ parser.add_argument('--std_min',            type=int,        default = exp(-20),
                     help='Minimum value for standard deviation.')
 parser.add_argument('--std_max',            type=int,        default = exp(2),
                     help='Maximum value for standard deviation.')
-parser.add_argument("--beta",               type=literal,    default = [1],
+parser.add_argument("--beta",               type=literal,    default = [2],
                     help='Relative importance of complexity in each layer.')
 
     # Entropy
@@ -399,7 +408,7 @@ parser.add_argument('--agents_per_episode_dict',type=int,    default = 3,
 parser.add_argument('--episodes_in_episode_dict',type=int,   default = 1,
                     help='How many episodes to save per agent.')
 
-parser.add_argument('--epochs_per_agent_list',type=int,       default = 100000,
+parser.add_argument('--epochs_per_agent_list',type=int,       default = 500,
                     help='How many epochs should pass before saving agent model.')
 parser.add_argument('--agents_per_agent_list',type=int,       default = 1,
                     help='How many agents to save.') 

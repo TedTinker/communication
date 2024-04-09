@@ -23,6 +23,19 @@ if __name__ == "__main__":
     
     args = default_args
     episodes = args.batch_size ; steps = args.max_steps
+    
+    
+    
+def generate_1d_positional_layers(batch_size, length, device='cpu'):
+    x = torch.linspace(-1, 1, steps=length).view(1, 1, 1, length).repeat(batch_size, 1, length, 1)
+    x = x.to(device)
+    return x
+    
+def generate_2d_positional_layers(batch_size, image_size, device='cpu'):
+    x = torch.linspace(-1, 1, steps=image_size).view(1, 1, 1, image_size).repeat(batch_size, 1, image_size, 1)
+    y = torch.linspace(-1, 1, steps=image_size).view(1, 1, image_size, 1).repeat(batch_size, 1, 1, image_size)
+    x, y = x.to(device), y.to(device)
+    return torch.cat([x, y], dim=1)
 
 
 
@@ -33,32 +46,22 @@ class RGBD_IN(nn.Module):
         
         self.args = args 
         
-        rgbd_size = (1, 4, self.args.image_size, self.args.image_size)
+        rgbd_size = (1, 6, self.args.image_size, self.args.image_size)
         example = torch.zeros(rgbd_size)
         
-        self.rgbd_in = nn.Sequential(
+        self.rgbd_in_1 = nn.Sequential(
             #nn.BatchNorm2d(4),
             nn.Conv2d(
-                in_channels = 4, 
-                out_channels = self.args.hidden_size, 
-                kernel_size = 1),
-            #nn.BatchNorm2d(self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(d),
-            
-            nn.Conv2d(
-                in_channels = self.args.hidden_size, 
+                in_channels = 6, 
                 out_channels = self.args.hidden_size, 
                 kernel_size = 3,
                 padding = 1,
                 padding_mode = "reflect"),
             #nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
-            nn.Dropout(d)
-            
-            )
+            nn.Dropout(d))
         
-        example = self.rgbd_in(example)
+        example = self.rgbd_in_1(example)
         rgbd_latent_size = example.flatten(1).shape[1]
         
         self.rgbd_in_lin = nn.Sequential(
@@ -77,8 +80,12 @@ class RGBD_IN(nn.Module):
         episodes, steps = episodes_steps(rgbd)
         rgbd = rgbd.reshape(episodes * steps, rgbd.shape[2], rgbd.shape[3], rgbd.shape[4]).permute(0, -1, 1, 2)
         rgbd = (rgbd * 2) - 1
-        rgbd = self.rgbd_in(rgbd).flatten(1)
-        rgbd = self.rgbd_in_lin(rgbd)
+        
+        positional_layers = generate_2d_positional_layers(rgbd.shape[0], rgbd.shape[2], device=self.args.device)
+        rgbd = torch.cat([rgbd, positional_layers], dim = 1)
+        rgbd_1 = self.rgbd_in_1(rgbd).flatten(1)
+        
+        rgbd = self.rgbd_in_lin(rgbd_1)
         rgbd = rgbd.reshape(episodes, steps, rgbd.shape[1])
         #print("RGBD_IN:", duration() - start)
         return(rgbd)
@@ -104,6 +111,7 @@ if __name__ == "__main__":
     
     
 
+divide = 1
 class RGBD_OUT(nn.Module):
 
     def __init__(self, args = default_args):
@@ -114,23 +122,15 @@ class RGBD_OUT(nn.Module):
         self.rgbd_out_lin = nn.Sequential(
             nn.Linear(
                 in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size,
-                out_features = self.args.hidden_size * (self.args.image_size) * (self.args.image_size)),
-            nn.BatchNorm1d(self.args.hidden_size * (self.args.image_size) * (self.args.image_size)),
+                out_features = self.args.hidden_size * (self.args.image_size//divide) * (self.args.image_size//divide)),
+            nn.BatchNorm1d(self.args.hidden_size * (self.args.image_size//divide) * (self.args.image_size//divide)),
             nn.PReLU(),
             nn.Dropout(d))
         
         self.rgbd_out = nn.Sequential(
             nn.Conv2d(
-                in_channels = self.args.hidden_size,
-                out_channels = self.args.hidden_size,
-                kernel_size = 1),
-            #nn.BatchNorm2d(self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(d),
-            
-            nn.Conv2d(
-                in_channels = self.args.hidden_size,
-                out_channels = self.args.hidden_size,
+                in_channels = self.args.hidden_size + 2, 
+                out_channels = self.args.hidden_size, 
                 kernel_size = 3,
                 padding = 1,
                 padding_mode = "reflect"),
@@ -141,7 +141,9 @@ class RGBD_OUT(nn.Module):
             nn.Conv2d(
                 in_channels = self.args.hidden_size,
                 out_channels = 4,
-                kernel_size = 1),
+                kernel_size = 3,
+                padding = 1,
+                padding_mode = "reflect"),
             nn.Sigmoid())
         
         self.apply(init_weights)
@@ -152,9 +154,14 @@ class RGBD_OUT(nn.Module):
         if(len(h_w_action.shape) == 2): h_w_action = h_w_action.unsqueeze(1)
         episodes, steps = episodes_steps(h_w_action)
         h_w_action = h_w_action.reshape(episodes * steps, h_w_action.shape[2])
+        
         h_w_action = self.rgbd_out_lin(h_w_action)
-        rgbd = h_w_action.reshape(episodes * steps, self.args.hidden_size, self.args.image_size, self.args.image_size)
+        rgbd = h_w_action.reshape(episodes * steps, self.args.hidden_size, self.args.image_size//divide, self.args.image_size//divide)
+        
+        positional_layers = generate_2d_positional_layers(rgbd.shape[0], self.args.image_size//divide, device=self.args.device)
+        rgbd = torch.cat([rgbd, positional_layers], dim = 1)
         rgbd = self.rgbd_out(rgbd)
+        
         rgbd = rgbd.permute(0, 2, 3, 1)
         rgbd = rgbd.reshape(episodes, steps, rgbd.shape[1], rgbd.shape[2], rgbd.shape[3])
         #print("RGBD_OUT:", duration() - start)
@@ -198,17 +205,7 @@ class Comm_IN(nn.Module):
             nn.Conv1d(
                 in_channels = self.args.encode_char_size, 
                 out_channels = self.args.hidden_size, 
-                kernel_size = 1),
-            nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(d),
-            
-            nn.Conv1d(
-                in_channels = self.args.hidden_size, 
-                out_channels = self.args.hidden_size, 
-                kernel_size = 3,
-                padding = 1,
-                padding_mode = "reflect"),
+                kernel_size = 6),
             nn.BatchNorm1d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(d))
@@ -221,7 +218,7 @@ class Comm_IN(nn.Module):
         self.comm_lin = nn.Sequential(
             nn.PReLU(),
             nn.Linear(
-                in_features = self.args.hidden_size * self.args.max_comm_len, 
+                in_features = self.args.hidden_size, 
                 out_features = self.args.encode_comm_size))
                 
         self.apply(init_weights)
@@ -238,7 +235,7 @@ class Comm_IN(nn.Module):
         comm = self.comm_embedding(comm)
         comm = self.comm_cnn(comm.permute((0, 2, 1))).permute((0, 2, 1))
         #comm, _ = self.comm_rnn(comm)    
-        comm = comm.reshape(episodes, steps, self.args.hidden_size * self.args.max_comm_len)
+        comm = comm.reshape(episodes, steps, self.args.hidden_size)
         comm = self.comm_lin(comm)
         
         #print("COMM_IN:", duration() - start)
@@ -274,7 +271,9 @@ class Comm_OUT(nn.Module):
         self.comm_lin = nn.Sequential(
             nn.Linear(
                 in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size, 
-                out_features = self.args.hidden_size * self.args.max_comm_len))
+                out_features = self.args.hidden_size * self.args.max_comm_len),
+            nn.PReLU(),
+            nn.Dropout(d))
             
         #self.comm_rnn = nn.GRU(
         #    input_size = self.args.hidden_size,
@@ -282,17 +281,8 @@ class Comm_OUT(nn.Module):
         #    batch_first = True)
         
         self.comm_cnn = nn.Sequential(
-            nn.PReLU(),
-            nn.Dropout(d),
             nn.Conv1d(
-                in_channels = self.args.hidden_size, 
-                out_channels = self.args.hidden_size,
-                kernel_size = 1),
-            nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU(),
-            
-            nn.Conv1d(
-                in_channels = self.args.hidden_size, 
+                in_channels = self.args.hidden_size + self.args.max_comm_len, 
                 out_channels = self.args.hidden_size, 
                 kernel_size = 3,
                 padding = 1,
@@ -323,6 +313,8 @@ class Comm_OUT(nn.Module):
         h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.encode_action_size)
         h_w_action = self.comm_lin(h_w_action)
         h_w_action = h_w_action.reshape(episodes * steps, self.args.max_comm_len, self.args.hidden_size)
+        x = generate_1d_positional_layers(episodes * steps, self.args.max_comm_len, self.args.device)
+        h_w_action = torch.cat([h_w_action, x.squeeze(1)], dim = -1)
         h_w_action = self.comm_cnn(h_w_action.permute((0, 2, 1))).permute((0, 2, 1))
         #comm_h = None
         #comm_hs = []
