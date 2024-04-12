@@ -31,9 +31,9 @@ class Agent:
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         
         self.tasks = {
-            "0" : Task(actions = [-1],              objects = 4, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args),
-            "1" : Task(actions = [1, 2],               objects = 1, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args),
-            "2" : Task(actions = [0],               objects = 1, colors = [0, 1, 2, 3, 4, 5],   shapes = [0],               parent = True, args = self.args),
+            "0" : Task(actions = [-1],              objects = 3, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args),
+            "1" : Task(actions = [1],               objects = 1, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args),
+            "2" : Task(actions = [1],               objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args),
             "3" : Task(actions = [0, 1, 2, 3, 4],   objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args)}
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
@@ -247,6 +247,9 @@ class Agent:
                     value, hc = self.critics[i](rgbd_2, parent_comm if parented else prev_comm_out_1, action_2, comm_out_2, hq_2[:,:,0].detach(), hcs_2[i]) 
                     values_2.append(round(value.item(), 3))
                     new_hcs_2.append(hc)
+                    
+            """action_1 = torch.tensor([[[.5, -.5, 1]]])
+            action_2 = torch.tensor([[[.5, -.5, 1]]])"""
                                     
             raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win = self.task.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
             total_reward = raw_reward + distance_reward + angle_reward 
@@ -371,7 +374,8 @@ class Agent:
         goal_action = self.task.task.goal[0]
         win_dict_list = [self.plot_dict["wins_" + action_name.lower()] for action_name in action_name_list]
         for i, win_dict in enumerate(win_dict_list):
-            if(i-1 == goal_action): win_dict.append(win)
+            if(i-1 == goal_action): 
+                win_dict.append(win)
             else:                   win_dict.append(None)
                              
         for to_push in to_push_list_1:
@@ -409,7 +413,7 @@ class Agent:
         
         
         
-    def gen_test(self, sleep_time = None):
+    def gen_test(self, sleep_time = None, verbose = False):
         done = False
         complete_reward = 0
         
@@ -428,6 +432,8 @@ class Agent:
         try:
             self.task = self.task_runners[self.task_name]
             self.task.begin(test = True)        
+            if(verbose):
+                print(self.task.task.goal_human_text, end = " ")
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
@@ -439,10 +445,13 @@ class Agent:
                     complete_reward += total_reward
                 #print("DONE")
             self.task.done()
+            if(verbose):
+                print("\tWIN!" if win else "\tLOSE!")
         except:
             complete_reward = 0
-            self.task.done()
+            win = False
         self.plot_dict["gen_rewards"].append(complete_reward)
+        return(win)
         
         
         

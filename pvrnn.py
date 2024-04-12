@@ -6,7 +6,7 @@ from torchinfo import summary as torch_summary
 
 from utils import default_args, init_weights, var, sample, attach_list, detach_list, episodes_steps, pad_zeros, dkl
 from mtrnn import MTRNN
-from submodules import Obs_IN, Obs_OUT, Action_IN, Comm_IN, d
+from submodules import Obs_IN, Obs_OUT, Action_IN, Comm_IN
 
 
 
@@ -31,22 +31,10 @@ class PVRNN_LAYER(nn.Module):
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
                     out_features = self.args.state_size), 
-                #nn.BatchNorm1d(self.args.state_size),
-                nn.PReLU(),
-                nn.Dropout(d),
-                nn.Linear(
-                    in_features = self.args.state_size, 
-                    out_features = self.args.state_size), 
                 nn.Tanh())
         self.zp_std = nn.Sequential(
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
-                    out_features = self.args.state_size), 
-                #nn.BatchNorm1d(self.args.state_size),
-                nn.PReLU(),
-                nn.Dropout(d),
-                nn.Linear(
-                    in_features = self.args.state_size, 
                     out_features = self.args.state_size), 
                 nn.Softplus())
                             
@@ -55,22 +43,10 @@ class PVRNN_LAYER(nn.Module):
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
                     out_features = self.args.state_size), 
-                #nn.BatchNorm1d(self.args.state_size),
-                nn.PReLU(),
-                nn.Dropout(d),
-                nn.Linear(
-                    in_features = self.args.state_size, 
-                    out_features = self.args.state_size), 
                 nn.Tanh())
         self.zq_std = nn.Sequential(
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
-                    out_features = self.args.state_size), 
-                #nn.BatchNorm1d(self.args.state_size),
-                nn.PReLU(),
-                nn.Dropout(d),
-                nn.Linear(
-                    in_features = self.args.state_size, 
                     out_features = self.args.state_size), 
                 nn.Softplus())
                             

@@ -40,7 +40,7 @@ def adjust_sign(number1, number2):
 fov_x_deg = 90
 fov_y_deg = 90
 near = 1
-far = 8
+far = 9
 fov_x_rad = radians(fov_x_deg)
 fov_y_rad = radians(fov_y_deg)
 right = near * tan(fov_x_rad / 2)
@@ -323,7 +323,6 @@ class Arena():
                     watching_now = abs(angle_radians) < pi/6 and not any(touching) and distance <= self.args.watch_distance
                     if watching_now: self.watching[object_index] += 1
                     else:        self.watching[object_index] = 0 
-                    reward = self.args.reward * self.watching[object_index] / self.args.watch_duration
                     if(self.watching[object_index] == self.args.watch_duration):
                         win = True
                 
@@ -331,27 +330,22 @@ class Arena():
                     
                     # Is the object pushed/pulled away from its starting position, relative to the agent's starting position and angle?
                     if(action_map[goal_action][1] == "PUSH"):
-                        if(movement_forward > 0 and any(touching)):
-                            reward = min([self.args.reward, self.args.reward * movement_forward / self.args.push_amount])
                         if(movement_forward >= self.args.push_amount and any(touching)):
                             win = True
                     if(action_map[goal_action][1] == "PULL"):
-                        if(movement_forward < 0 and any(touching)):
-                            reward = min([self.args.reward, self.args.reward * -movement_forward / self.args.push_amount])
                         if(movement_forward <= -self.args.push_amount and any(touching)):
                             win = True
                                 
                     # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
                     if(action_map[goal_action][1] == "LEFT"):
-                        if(movement_left > 0 and any(touching)):
-                            reward = min([self.args.reward, self.args.reward * movement_left / self.args.push_amount])
                         if(movement_left >= self.args.push_amount and any(touching)):
                             win = True
                     if(action_map[goal_action][1] == "RIGHT"):
-                        if(movement_forward < 0 and any(touching)):
-                            reward = min([self.args.reward, self.args.reward * -movement_forward / self.args.push_amount])
                         if(movement_left <= -self.args.push_amount and any(touching)):
                             win = True
+                            
+                if(win):
+                    reward = self.args.reward
                     
                 # Also add reward for mere distance.
                 midpoint = (self.args.dist_reward_min + self.args.dist_reward_max) / 2
@@ -400,31 +394,19 @@ class Arena():
     def photo_from_above(self):
         pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
         
-        def get_photo(temp_yaw):
-            x, y = 4 * cos(temp_yaw), 4 * sin(temp_yaw)
-            view_matrix = p.computeViewMatrix(
-                cameraEyePosition = [pos[0] + x, pos[1] + y, 6], 
-                cameraTargetPosition = [pos[0], pos[1], 2],    # Camera / target position very important
-                cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
-            proj_matrix = p.computeProjectionMatrixFOV(
-                fov = 90, aspect = 1, nearVal = .01, 
-                farVal = 20, physicsClientId = self.physicsClient)
-            _, _, rgba, _, _ = p.getCameraImage(
-                width=256, height=256,
-                projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
-                physicsClientId = self.physicsClient)
-            return(rgba)
-        temp_yaws = [yaw + i*pi/4 for i in [4, 5, 6, 7, 0, 1, 2, 3]]
-        rgbas = [get_photo(temp_yaw) for temp_yaw in temp_yaws]
-        black_separator = np.zeros((rgbas[0].shape[0], 10, 4), dtype=np.uint8)
-        rgbas.insert(7, black_separator)
-        rgbas.insert(6, black_separator)
-        rgbas.insert(5, black_separator)
-        rgbas.insert(4, black_separator)
-        rgbas.insert(3, black_separator)
-        rgbas.insert(2, black_separator)
-        rgbas.insert(1, black_separator)
-        rgba = np.concatenate(rgbas, axis = 1)
+        x, y = 4 * cos(-3*pi/4), 4 * sin(-3*pi/4)
+        view_matrix = p.computeViewMatrix(
+            cameraEyePosition = [pos[0] + x, pos[1] + y, 10], 
+            cameraTargetPosition = [pos[0], pos[1], 2],    # Camera / target position very important
+            cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
+        proj_matrix = p.computeProjectionMatrixFOV(
+            fov = 90, aspect = 1, nearVal = .01, 
+            farVal = 20, physicsClientId = self.physicsClient)
+        _, _, rgba, _, _ = p.getCameraImage(
+            width=256, height=256,
+            projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
+            physicsClientId = self.physicsClient)
+
         return(rgba)
     
     def photo_for_agent(self):
@@ -466,7 +448,7 @@ if __name__ == "__main__":
         num_objects = 1,
         allowed_actions = [0],
         allowed_colors = [0],
-        allowed_shapes = [4])
+        allowed_shapes = [0])
     
     def show_them():
         above_rgba = arena.photo_from_above()
@@ -493,7 +475,7 @@ if __name__ == "__main__":
     arena.end()
     """
     
-    #"""    
+    """    
     print("\nHIT")
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(4.5,0)])
@@ -504,7 +486,7 @@ if __name__ == "__main__":
         show_them()
         arena.rewards(verbose = True)
     arena.end()
-    #"""
+    """
         
         
         
@@ -565,7 +547,7 @@ if __name__ == "__main__":
     arena.end()
     """
     
-    """
+    #"""
     print("\nPUSH")
     goal = [1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(5,0)])
@@ -577,7 +559,7 @@ if __name__ == "__main__":
         if(arena.rewards(verbose = True)[-1]):
             break
     arena.end()
-    """
+    #"""
     
     #"""
     print("\nPULL")

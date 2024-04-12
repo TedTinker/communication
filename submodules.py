@@ -17,8 +17,6 @@ from utils import print, default_args, init_weights, \
     TransformerModel, ImageTransformer
 from mtrnn import MTRNN
 
-d = .01
-
 if __name__ == "__main__":
     
     args = default_args
@@ -27,7 +25,7 @@ if __name__ == "__main__":
     
     
 def generate_1d_positional_layers(batch_size, length, device='cpu'):
-    x = torch.linspace(-1, 1, steps=length).view(1, 1, 1, length).repeat(batch_size, 1, length, 1)
+    x = torch.linspace(-1, 1, steps=length).view(1, length, 1).repeat(batch_size, 1, 1)
     x = x.to(device)
     return x
     
@@ -39,6 +37,16 @@ def generate_2d_positional_layers(batch_size, image_size, device='cpu'):
 
 
 
+class Lambda(nn.Module):
+    def __init__(self, func):
+        super().__init__()
+        self.func = func
+
+    def forward(self, x):
+        return self.func(x)
+
+
+
 class RGBD_IN(nn.Module):
 
     def __init__(self, args = default_args):
@@ -46,30 +54,55 @@ class RGBD_IN(nn.Module):
         
         self.args = args 
         
-        rgbd_size = (1, 6, self.args.image_size, self.args.image_size)
+        rgbd_size = (1, 4 + 2, self.args.image_size, self.args.image_size)
         example = torch.zeros(rgbd_size)
         
-        self.rgbd_in_1 = nn.Sequential(
-            #nn.BatchNorm2d(4),
-            nn.Conv2d(
-                in_channels = 6, 
-                out_channels = self.args.hidden_size, 
-                kernel_size = 3,
-                padding = 1,
-                padding_mode = "reflect"),
-            #nn.BatchNorm2d(self.args.hidden_size),
+        self.a = nn.Sequential(
+            nn.BatchNorm2d(4 + 2),
+            Ted_Conv2d(
+                in_channels = 4 + 2,
+                out_channels = [self.args.hidden_size // 4] * 4,
+                kernel_sizes = [3, 3, 5, 7],
+                stride = 2))
+        
+        self.b = nn.Sequential(
+            nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
-            nn.Dropout(d))
+            nn.Dropout(self.args.dropout),
+            
+            Ted_Conv2d(
+                in_channels = self.args.hidden_size,
+                out_channels = [self.args.hidden_size // 4] * 4,
+                kernel_sizes = [1, 3, 5, 7]),
+            nn.BatchNorm2d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(self.args.dropout))
         
-        example = self.rgbd_in_1(example)
+        self.c = nn.Sequential(
+            nn.BatchNorm2d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(self.args.dropout),
+            
+            Ted_Conv2d(
+                in_channels = self.args.hidden_size,
+                out_channels = [self.args.hidden_size // 4] * 4,
+                kernel_sizes = [1, 3, 5, 7]),
+            nn.BatchNorm2d(self.args.hidden_size),
+            nn.PReLU(),
+            nn.Dropout(self.args.dropout))
+        
+        example = self.a(example)
+        example = self.b(example)
+        example = self.c(example)
         rgbd_latent_size = example.flatten(1).shape[1]
-        
-        self.rgbd_in_lin = nn.Sequential(
+                
+        self.d = nn.Sequential(
             nn.Linear(
                 in_features = rgbd_latent_size, 
                 out_features = self.args.encode_rgbd_size),
             nn.BatchNorm1d(self.args.encode_rgbd_size),
-            nn.PReLU())
+            nn.PReLU(),
+            nn.Dropout(self.args.dropout),)
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -80,15 +113,18 @@ class RGBD_IN(nn.Module):
         episodes, steps = episodes_steps(rgbd)
         rgbd = rgbd.reshape(episodes * steps, rgbd.shape[2], rgbd.shape[3], rgbd.shape[4]).permute(0, -1, 1, 2)
         rgbd = (rgbd * 2) - 1
-        
         positional_layers = generate_2d_positional_layers(rgbd.shape[0], rgbd.shape[2], device=self.args.device)
         rgbd = torch.cat([rgbd, positional_layers], dim = 1)
-        rgbd_1 = self.rgbd_in_1(rgbd).flatten(1)
         
-        rgbd = self.rgbd_in_lin(rgbd_1)
-        rgbd = rgbd.reshape(episodes, steps, rgbd.shape[1])
+        a = self.a(rgbd)
+        b = self.b(a)
+        b = a + b
+        c = self.c(b).flatten(1)
+        encoding = self.d(c)
+        
+        encoding = encoding.reshape(episodes, steps, encoding.shape[1])
         #print("RGBD_IN:", duration() - start)
-        return(rgbd)
+        return(encoding)
     
     
     
@@ -119,27 +155,18 @@ class RGBD_OUT(nn.Module):
         
         self.args = args 
         
-        self.rgbd_out_lin = nn.Sequential(
+        self.a = nn.Sequential(
             nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size,
-                out_features = self.args.hidden_size * (self.args.image_size//divide) * (self.args.image_size//divide)),
-            nn.BatchNorm1d(self.args.hidden_size * (self.args.image_size//divide) * (self.args.image_size//divide)),
-            nn.PReLU(),
-            nn.Dropout(d))
+                in_features = self.args.h_w_action_size,
+                out_features = self.args.hidden_size * (self.args.image_size//divide) * (self.args.image_size//divide)))
         
-        self.rgbd_out = nn.Sequential(
-            nn.Conv2d(
-                in_channels = self.args.hidden_size + 2, 
-                out_channels = self.args.hidden_size, 
-                kernel_size = 3,
-                padding = 1,
-                padding_mode = "reflect"),
-            #nn.BatchNorm2d(self.args.hidden_size),
+        self.b = nn.Sequential(
+            nn.BatchNorm2d(self.args.hidden_size + 2),
             nn.PReLU(),
-            nn.Dropout(d),
+            nn.Dropout(self.args.dropout),
             
             nn.Conv2d(
-                in_channels = self.args.hidden_size,
+                in_channels = self.args.hidden_size + 2, 
                 out_channels = 4,
                 kernel_size = 3,
                 padding = 1,
@@ -155,13 +182,13 @@ class RGBD_OUT(nn.Module):
         episodes, steps = episodes_steps(h_w_action)
         h_w_action = h_w_action.reshape(episodes * steps, h_w_action.shape[2])
         
-        h_w_action = self.rgbd_out_lin(h_w_action)
-        rgbd = h_w_action.reshape(episodes * steps, self.args.hidden_size, self.args.image_size//divide, self.args.image_size//divide)
+        a = self.a(h_w_action)
+        a = a.reshape(episodes * steps, self.args.hidden_size, self.args.image_size//divide, self.args.image_size//divide)
+        positional_layers = generate_2d_positional_layers(a.shape[0], self.args.image_size//divide, device=self.args.device)
+        a_w_positions = torch.cat([a, positional_layers], dim = 1)
         
-        positional_layers = generate_2d_positional_layers(rgbd.shape[0], self.args.image_size//divide, device=self.args.device)
-        rgbd = torch.cat([rgbd, positional_layers], dim = 1)
-        rgbd = self.rgbd_out(rgbd)
-        
+        rgbd = self.b(a_w_positions)
+                
         rgbd = rgbd.permute(0, 2, 3, 1)
         rgbd = rgbd.reshape(episodes, steps, rgbd.shape[1], rgbd.shape[2], rgbd.shape[3])
         #print("RGBD_OUT:", duration() - start)
@@ -193,33 +220,28 @@ class Comm_IN(nn.Module):
         
         self.args = args
         
-        self.comm_embedding = nn.Sequential(
+        self.a = nn.Sequential(
             nn.Embedding(
                 num_embeddings = self.args.comm_shape,
                 embedding_dim = self.args.encode_char_size),
             nn.PReLU(),
-            nn.Dropout(d))
+            nn.Dropout(self.args.dropout))
         
-        self.comm_cnn = nn.Sequential(
-            #nn.BatchNorm1d(self.args.encode_char_size),
-            nn.Conv1d(
-                in_channels = self.args.encode_char_size, 
-                out_channels = self.args.hidden_size, 
-                kernel_size = 6),
-            nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(d))
-        
-        #self.comm_rnn = nn.GRU(
-        #    input_size = self.args.hidden_size,
-        #    hidden_size = self.args.hidden_size,
-        #    batch_first = True)
+        self.b = nn.GRU(
+            input_size = self.args.encode_char_size,
+            hidden_size = self.args.hidden_size,
+            batch_first = True)
                 
-        self.comm_lin = nn.Sequential(
+        self.c = nn.Sequential(
+            nn.BatchNorm1d(self.args.max_comm_len * self.args.hidden_size),
             nn.PReLU(),
+            nn.Dropout(self.args.dropout),
             nn.Linear(
-                in_features = self.args.hidden_size, 
-                out_features = self.args.encode_comm_size))
+                in_features = self.args.max_comm_len * self.args.hidden_size, 
+                out_features = self.args.encode_comm_size),
+            nn.BatchNorm1d(self.args.encode_comm_size),
+            nn.PReLU(),
+            nn.Dropout(self.args.dropout))
                 
         self.apply(init_weights)
         self.to(self.args.device)
@@ -232,14 +254,15 @@ class Comm_IN(nn.Module):
         comm = comm.reshape(episodes * steps, comm.shape[2], comm.shape[3])
         comm = pad_zeros(comm, self.args.max_comm_len)
         comm = torch.argmax(comm, dim = -1).int()
-        comm = self.comm_embedding(comm)
-        comm = self.comm_cnn(comm.permute((0, 2, 1))).permute((0, 2, 1))
-        #comm, _ = self.comm_rnn(comm)    
-        comm = comm.reshape(episodes, steps, self.args.hidden_size)
-        comm = self.comm_lin(comm)
-        
+                
+        a = self.a(comm).flatten(1)
+        a = a.reshape(episodes * steps, self.args.max_comm_len, self.args.encode_char_size)
+        b, _ = self.b(a) 
+        encoding = self.c(b.flatten(1))
+        encoding = encoding.reshape(episodes, steps, self.args.encode_comm_size)
+                
         #print("COMM_IN:", duration() - start)
-        return(comm)
+        return(encoding)
 
     
     
@@ -268,35 +291,39 @@ class Comm_OUT(nn.Module):
         self.args = args
         self.actor = actor
         
-        self.comm_lin = nn.Sequential(
+        self.a = nn.Sequential(
             nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size, 
+                in_features = self.args.h_w_action_size, 
                 out_features = self.args.hidden_size * self.args.max_comm_len),
+            nn.BatchNorm1d(self.args.hidden_size * self.args.max_comm_len),
             nn.PReLU(),
-            nn.Dropout(d))
+            nn.Dropout(self.args.dropout))
             
-        #self.comm_rnn = nn.GRU(
-        #    input_size = self.args.hidden_size,
-        #    hidden_size = self.args.hidden_size,
-        #    batch_first = True)
+        self.b = nn.GRU(
+            input_size = self.args.hidden_size,
+            hidden_size = self.args.hidden_size,
+            batch_first = True)
         
-        self.comm_cnn = nn.Sequential(
+        self.c = nn.Sequential(
+            nn.BatchNorm1d(self.args.hidden_size + 1),
+            nn.PReLU(),
+            nn.Dropout(self.args.dropout),
             nn.Conv1d(
-                in_channels = self.args.hidden_size + self.args.max_comm_len, 
+                in_channels = self.args.hidden_size + 1, 
                 out_channels = self.args.hidden_size, 
                 kernel_size = 3,
                 padding = 1,
                 padding_mode = "reflect"),
             nn.BatchNorm1d(self.args.hidden_size),
             nn.PReLU(),
-            nn.Dropout(d))
+            nn.Dropout(self.args.dropout))
         
-        self.comm_out_mu = nn.Sequential(
+        self.mu = nn.Sequential(
             nn.Linear(
                 in_features = self.args.hidden_size, 
                 out_features = self.args.comm_shape))
         
-        self.comm_out_std = nn.Sequential(
+        self.std = nn.Sequential(
             nn.Linear(
                 in_features = self.args.hidden_size, 
                 out_features = self.args.comm_shape),
@@ -310,21 +337,20 @@ class Comm_OUT(nn.Module):
         if(len(h_w_action.shape) == 2):   h_w_action = h_w_action.unsqueeze(1)
         #[h_w_action] = attach_list([h_w_action], self.args.device)
         episodes, steps = episodes_steps(h_w_action)
-        h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.encode_action_size)
-        h_w_action = self.comm_lin(h_w_action)
-        h_w_action = h_w_action.reshape(episodes * steps, self.args.max_comm_len, self.args.hidden_size)
+        h_w_action = h_w_action.reshape(episodes * steps, self.args.h_w_action_size)
+        
+        a = self.a(h_w_action)
+        a = a.reshape(episodes * steps, self.args.max_comm_len, a.shape[-1] // self.args.max_comm_len)
+        
+        h, _ = self.b(a, None)
+        
         x = generate_1d_positional_layers(episodes * steps, self.args.max_comm_len, self.args.device)
-        h_w_action = torch.cat([h_w_action, x.squeeze(1)], dim = -1)
-        h_w_action = self.comm_cnn(h_w_action.permute((0, 2, 1))).permute((0, 2, 1))
-        #comm_h = None
-        #comm_hs = []
-        #for i in range(self.args.max_comm_len):
-        #    comm_h, _ = self.comm_rnn(h_w_action, comm_h if comm_h == None else comm_h.permute(1, 0, 2))
-        #    comm_hs.append(comm_h)
-        #comm_h = torch.cat(comm_hs, dim = -2)
-        comm_h = h_w_action
+        h = torch.cat([h, x], dim = -1)
+        c = self.c(h.permute((0, 2, 1))).permute((0, 2, 1))
+        
+        
         if(self.actor):
-            mu, std = var(comm_h, self.comm_out_mu, self.comm_out_std, self.args)
+            mu, std = var(c, self.mu, self.std, self.args)
             comm = sample(mu, std, self.args.device)
             comm_out = torch.tanh(comm)
             log_prob = Normal(mu, std).log_prob(comm) - torch.log(1 - comm_out.pow(2) + 1e-6)
@@ -335,7 +361,7 @@ class Comm_OUT(nn.Module):
             #print("COMM_OUT:", duration() - start)
             return(comm_out, log_prob)
         else:
-            comm_pred = self.comm_out_mu(comm_h)
+            comm_pred = self.mu(c)
             comm_pred = comm_pred.reshape(episodes, steps, self.args.max_comm_len, self.args.comm_shape)
             #print("COMM_OUT:", duration() - start)
             return(comm_pred)
@@ -422,7 +448,7 @@ class Other_OUT(nn.Module):
         
         self.other_out_lin = nn.Sequential(
             nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size,
+                in_features = self.args.h_w_action_size,
                 out_features = self.args.other_shape),
             nn.Sigmoid())
         
@@ -433,7 +459,7 @@ class Other_OUT(nn.Module):
         start = duration()
         if(len(h_w_action.shape) == 2): h_w_action = h_w_action.unsqueeze(1)
         episodes, steps = episodes_steps(h_w_action)
-        h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.encode_action_size)
+        h_w_action = h_w_action.reshape(episodes * steps, self.args.h_w_action_size)
         other = self.other_out_lin(h_w_action)
         other = other.reshape(episodes, steps, other.shape[1])
         #print("RGBD_OUT:", duration() - start)
@@ -587,7 +613,7 @@ class Discriminator(nn.Module):
                 
         self.lin = nn.Sequential(
             nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_rgbd_size + self.stat_quantity, # + self.args.encode_obs_size + self.stat_quantity, 
+                in_features = self.args.h_w_action_size + self.args.encode_rgbd_size + self.stat_quantity, # + self.args.encode_obs_size + self.stat_quantity, 
                 out_features = self.args.hidden_size),
             nn.PReLU(),
             nn.Linear(

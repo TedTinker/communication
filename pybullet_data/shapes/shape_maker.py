@@ -81,10 +81,10 @@ def innards(lengths, radia):
     return(text)
 
 pole = innards([1], [max_radius])
-bottom = innards([1], [.1])
-both = innards([.9, .1], [.1, max_radius])
-middle = innards([.45, .1, .45], [.1, max_radius, .1])
 delta = innards([.1] * 10, [max_radius - i/16 for i in range(10)])
+bottom = innards([1], [.1])
+hourglass = innards([.1] * 10, [max_radius - i/8 for i in range(5)] + [.1 + i/8 for i in range(5)])
+dumbbell = innards([.9, .1], [.1, max_radius])
 
 
 
@@ -96,8 +96,8 @@ if last_folder == "pybullet_data":
     
     
   
-shapes = [pole, bottom, both, middle, delta]
-names = ["POLE", "BOTTOM", "BOTH", "MIDDLE", "DELTA"]
+shapes = [pole, delta, bottom, hourglass, dumbbell]
+names = ["POLE", "DELTA", "BOTTOM", "HOURGLASS", "DUMBBELL"]
 letters = ["L", "M", "N", "O", "P"]
 file_names = []
 

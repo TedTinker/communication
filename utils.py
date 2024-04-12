@@ -3,8 +3,10 @@
 # To do: 
 #   Make it work.
 #   Make it work FASTER.
+#   Make comm prediction testing more successful.
+#   Consider making winning wrong with more than one win is performed (using other objects or actions).
 #   Not correctly plotting win-rates. 
-#   Add out_comm to actions for h_w_action.
+#   Adjust gen test: ONLY use test objects.
 
 import os
 import pickle
@@ -79,7 +81,7 @@ def agent_to_english(agent_string):
             if(char == " "):
                 english_string += "___ "
             else:
-                english_string += char + "??? "
+                english_string += f"?{char}? "
     english_string = english_string.strip()
     return(english_string)
 
@@ -230,6 +232,18 @@ parser.add_argument('--device',             type=str,        default = device,
 parser.add_argument('--show_duration',      type=bool,       default = False,
                     help='Should durations be printed?')
 
+    # Things which have list-values.
+parser.add_argument('--task_list',          type=literal,    default = ["2"],
+                    help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
+parser.add_argument('--epochs',             type=literal,    default = [10000],
+                    help='List of how many epochs to train in each task.')
+parser.add_argument('--time_scales',        type=literal,    default = [1],
+                    help='Time-scales for MTRNN.')
+parser.add_argument("--beta",               type=literal,    default = [1],
+                    help='Relative importance of complexity in each layer.')
+parser.add_argument("--hidden_state_eta",   type=literal,    default = [1],
+                    help='Nonnegative valued, how much to consider hidden_state curiosity in each layer.') 
+
     # Simulation details
 parser.add_argument('--max_object_distance',type=float,      default = 6,
                     help='How far objects can start from the agent.')
@@ -241,7 +255,7 @@ parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--time_step',          type=float,      default = .2,
                     help='numSubSteps in pybullet environment.')
-parser.add_argument('--steps_per_step',     type=int,        default = 30,
+parser.add_argument('--steps_per_step',     type=int,        default = 50,
                     help='numSubSteps in pybullet environment.')
 
     # Agent details
@@ -259,8 +273,6 @@ parser.add_argument('--max_shoulder_speed', type=float,      default = 8,
                     help='Max shoulder speed.')
 
     # Task details
-parser.add_argument('--task_list',          type=literal,    default = ["1"],
-                    help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
 parser.add_argument('--reward',             type=float,      default = 10,
                     help='Extrinsic reward for choosing correct action, shape, and color.') 
 parser.add_argument('--max_steps',          type=int,        default = 10,
@@ -303,8 +315,6 @@ parser.add_argument('--angle_reward_max',   type=float,      default = 90,
                     help='If agent pointing farther from correct object that this, punished. If angle between min and max, agent relatively rewarded.')
 
     # Training
-parser.add_argument('--epochs',             type=literal,    default = [500],
-                    help='List of how many epochs to train in each task.')
 parser.add_argument('--batch_size',         type=int,        default = 32, 
                     help='How many episodes are sampled for each epoch.')      
 parser.add_argument('--rgbd_scaler',        type=float,      default = 5, 
@@ -327,6 +337,8 @@ parser.add_argument('--state_size',         type=int,        default = 256,
                     help='Parameters in prior and posterior inner-states.')
 parser.add_argument('--encode_char_size',   type=int,        default = 8,
                     help='Parameters in encoding.')   
+parser.add_argument('--encode_position_size',type=int,       default = 4,
+                    help='Parameters in encoding position.')   
 parser.add_argument('--encode_rgbd_size',   type=int,        default = 128,
                     help='Parameters in encoding image.')   
 parser.add_argument('--encode_comm_size',   type=int,        default = 128,
@@ -335,8 +347,8 @@ parser.add_argument('--encode_other_size',  type=int,        default = 8,
                     help='Parameters in encoding sensors, angles, speed.')   
 parser.add_argument('--encode_action_size', type=int,        default = 8,
                     help='Parameters in encoding action.')   
-parser.add_argument('--time_scales',        type=literal,    default = [1],
-                    help='Time-scales for MTRNN.')
+parser.add_argument('--dropout',            type=float,      default = .05,
+                    help='Dropout percentage.')   
 parser.add_argument('--forward_lr',         type=float,      default = .0003,
                     help='Learning rate for forward model.')
 parser.add_argument('--discriminator_lr',   type=float,      default = .0003,
@@ -363,8 +375,6 @@ parser.add_argument('--std_min',            type=int,        default = exp(-20),
                     help='Minimum value for standard deviation.')
 parser.add_argument('--std_max',            type=int,        default = exp(2),
                     help='Maximum value for standard deviation.')
-parser.add_argument("--beta",               type=literal,    default = [2],
-                    help='Relative importance of complexity in each layer.')
 
     # Entropy
 parser.add_argument("--alpha",              type=literal,    default = 0,
@@ -386,9 +396,7 @@ parser.add_argument("--curiosity",          type=str,        default = "none",
 parser.add_argument("--dkl_max",            type=float,      default = 1,
                     help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')        
 parser.add_argument("--prediction_error_eta", type=float,    default = 1,
-                    help='Nonnegative value, how much to consider prediction_error curiosity.')    
-parser.add_argument("--hidden_state_eta",   type=literal,    default = [1],
-                    help='Nonnegative valued, how much to consider hidden_state curiosity in each layer.')       
+                    help='Nonnegative value, how much to consider prediction_error curiosity.')          
 
     # Imitation
 parser.add_argument("--delta",              type=float,      default = 0,
@@ -408,7 +416,7 @@ parser.add_argument('--agents_per_episode_dict',type=int,    default = 3,
 parser.add_argument('--episodes_in_episode_dict',type=int,   default = 1,
                     help='How many episodes to save per agent.')
 
-parser.add_argument('--epochs_per_agent_list',type=int,       default = 500,
+parser.add_argument('--epochs_per_agent_list',type=int,       default = 1000,
                     help='How many epochs should pass before saving agent model.')
 parser.add_argument('--agents_per_agent_list',type=int,       default = 1,
                     help='How many agents to save.') 
@@ -435,6 +443,7 @@ for arg_set in [default_args, args]:
     arg_set.other_shape = sensor_num
     arg_set.action_shape = 3
     arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size + arg_set.encode_other_size
+    arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.encode_action_size
     max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
     arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)
     arg_set.beta = extend_list_to_match_length(arg_set.beta, max_length, 0)

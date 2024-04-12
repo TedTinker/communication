@@ -174,7 +174,7 @@ def plots(plot_dicts, min_max_dict):
             fig2, ax2 = plt.subplots(figsize = figsize)  
             plot_rolling_average_wins_shared_min_max(ax2)  
             ax2.set_title("Rolling-Average Win-Rate")
-            fig2.savefig("thesis_pics/wins_{}_{}.png".format(action_name.lower(), plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
+            fig2.savefig("thesis_pics/{}_wins_{}.png".format(action_name.lower(), plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
             plt.close(fig2)
     
         # Cumulative rewards
@@ -208,11 +208,12 @@ def plots(plot_dicts, min_max_dict):
         fig2, ax2 = plt.subplots(figsize = figsize)  
         plot_cumulative_rewards_shared_min_max(ax2)  
         ax2.set_title("Cumulative Rewards")
-        fig2.savefig("thesis_pics/rewards_{}.png".format(plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
+        fig2.savefig("thesis_pics/{}_rewards.png".format(plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
         plt.close(fig2)
         
         
         
+        print(plot_dict["gen_rewards"])
         # Cumulative generalization-test rewards
         gen_rew_dict = get_quantiles(plot_dict, "gen_rewards", adjust_xs = False)
         max_reward = args.reward

@@ -46,7 +46,19 @@ class Task:
                 self.goal_text += choice(list(comm_map.values()))
         else:
             self.goal_text = "{}{}{}".format(action_map[action_num][0], color_map[goal_color][0], shape_map[goal_shape][0])
-        self.goal_human_text = self.agent_to_english(self.goal_text)
+        self.goal_human_text = "Given "
+        for i, (c, s) in enumerate(self.current_objects_1):
+            self.goal_human_text += color_map[c][1] + " " + shape_map[s][1]
+            if i < len(self.current_objects_1) - 1:
+                if len(self.current_objects_1) > 2: 
+                    self.goal_human_text += ", "
+                else:
+                    self.goal_human_text += " "
+            if i == len(self.current_objects_1) - 2: 
+                self.goal_human_text += "and "
+            elif i == len(self.current_objects_1) - 1:
+                self.goal_human_text += ": "
+        self.goal_human_text += self.agent_to_english(self.goal_text) + "."
         self.goal_comm = string_to_onehots(self.goal_text)
         self.goal_comm = pad_zeros(self.goal_comm, self.args.max_comm_len)
                                 
@@ -133,6 +145,13 @@ class Task_Runner:
         else:
             distance_reward_2 = 0
             angle_reward_2 = 0
+            
+        if(self.task.goal[0] == -1):
+            raw_reward = 0
+            distance_reward = 0
+            angle_reward = 0
+            distance_reward_2 = 0
+            angle_reward_2 = 0
                     
         if(raw_reward > 0): 
             raw_reward *= self.args.step_cost ** (self.steps-1)
@@ -196,8 +215,8 @@ class Task_Runner:
         relevant_distances_and_angles = [(distances[i], angles[i]) for i in range(len(distances)) if colors[i] == goal_color and shapes[i] == goal_shape]
         #relevant_distance, relevant_angle = min(relevant_distances_and_angles, key=lambda t: abs(t[1]))
         
-        left_wheel = -.5 #uniform(-.25, .25)
-        right_wheel = .5 #uniform(-.25, .25)
+        left_wheel = uniform(-1, 1)
+        right_wheel = uniform(-1, 1)
         shoulder = 1 # uniform(-.1, .1)
         
         if(action_map[goal_action][1].upper() == "PUSH"):
@@ -228,7 +247,7 @@ if __name__ == "__main__":
     physicsClient = get_physics(GUI = True, time_step = args.time_step, steps_per_step = args.steps_per_step)
     arena_1 = Arena(physicsClient)
     arena_2 = None
-    task_runner = Task_Runner(Task(actions = [0], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0]), arena_1, arena_2)
+    task_runner = Task_Runner(Task(actions = [0], objects = 3, colors = [0, 1, 2, 3, 4, 5], shapes = [0]), arena_1, arena_2)
     
     def get_images():
         rgba = task_runner.arena_1.photo_from_above()
