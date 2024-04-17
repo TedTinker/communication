@@ -39,10 +39,10 @@ def adjust_sign(number1, number2):
 # FOV of agent vision.
 fov_x_deg = 90
 fov_y_deg = 90
-near = 1
-far = 9
 fov_x_rad = radians(fov_x_deg)
 fov_y_rad = radians(fov_y_deg)
+near = 1
+far = 9
 right = near * tan(fov_x_rad / 2)
 left = -right
 top = near * tan(fov_y_rad / 2)
@@ -255,9 +255,10 @@ class Arena():
         p.resetBasePositionAndOrientation(object_index, (x, y, object_upper_starting_pos), orn, physicsClientId = self.physicsClient)
             
     def touching_object(self, object_index):
-        touching = []
-        for sensor_index, _ in self.sensors:
-            touching.append(bool(p.getContactPoints(bodyA=self.robot_index, bodyB=object_index, linkIndexA=sensor_index, physicsClientId = self.physicsClient)))
+        touching = {}
+        for sensor_index, link_name in self.sensors:
+            touching[link_name] = bool(p.getContactPoints(
+                bodyA=self.robot_index, bodyB=object_index, linkIndexA=sensor_index, physicsClientId = self.physicsClient))
         return(touching)
     
     def touching_any_object(self):
@@ -282,11 +283,19 @@ class Arena():
         goal_shape = self.goal[2]
         v_rx = cos(self.robot_start_yaw)
         v_ry = sin(self.robot_start_yaw)
+        
+        if(verbose):
+            touchings = self.touching_any_object()
+            for object_key, object_dict in touchings.items():
+                for link_name, value in object_dict.items():
+                    if(value):
+                        print(f"Touching {object_key} with {link_name}.")
                 
         for i, ((color_index, shape_index, _), object_index) in enumerate(self.objects_in_play.items()):
             if(color_index == goal_color and shape_index == goal_shape):
                 # Is the agent touching the object?
                 touching = self.touching_object(object_index)
+                touching = any(touching.values())
                 
                 # Distance and angle from agent to object.
                 object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
@@ -320,7 +329,7 @@ class Arena():
                 
                 if(action_map[goal_action][1] == "WATCH"):   
                     # Is the agent watching an object?
-                    watching_now = abs(angle_radians) < pi/6 and not any(touching) and distance <= self.args.watch_distance
+                    watching_now = abs(angle_radians) < pi/6 and not touching and distance <= self.args.watch_distance
                     if watching_now: self.watching[object_index] += 1
                     else:        self.watching[object_index] = 0 
                     if(self.watching[object_index] == self.args.watch_duration):
@@ -330,18 +339,18 @@ class Arena():
                     
                     # Is the object pushed/pulled away from its starting position, relative to the agent's starting position and angle?
                     if(action_map[goal_action][1] == "PUSH"):
-                        if(movement_forward >= self.args.push_amount and any(touching)):
+                        if(movement_forward >= self.args.push_amount and touching):
                             win = True
                     if(action_map[goal_action][1] == "PULL"):
-                        if(movement_forward <= -self.args.push_amount and any(touching)):
+                        if(movement_forward <= -self.args.push_amount and touching):
                             win = True
                                 
                     # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
                     if(action_map[goal_action][1] == "LEFT"):
-                        if(movement_left >= self.args.push_amount and any(touching)):
+                        if(movement_left >= self.args.push_amount and touching):
                             win = True
                     if(action_map[goal_action][1] == "RIGHT"):
-                        if(movement_left <= -self.args.push_amount and any(touching)):
+                        if(movement_left <= -self.args.push_amount and touching):
                             win = True
                             
                 if(win):
@@ -393,7 +402,6 @@ class Arena():
     
     def photo_from_above(self):
         pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
-        
         x, y = 4 * cos(-3*pi/4), 4 * sin(-3*pi/4)
         view_matrix = p.computeViewMatrix(
             cameraEyePosition = [pos[0] + x, pos[1] + y, 10], 
@@ -406,34 +414,26 @@ class Arena():
             width=256, height=256,
             projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
             physicsClientId = self.physicsClient)
-
         return(rgba)
     
     def photo_for_agent(self):
         pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
-        
-        def get_photo(pos, yaw):
-            x, y = cos(yaw), sin(yaw)
-            view_matrix = p.computeViewMatrix(
-                cameraEyePosition = [pos[0], pos[1], 2], 
-                cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    
-                cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
-            proj_matrix = proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far)
-            _, _, rgba, depth, _ = p.getCameraImage(
-                width=self.args.image_size * 2, height=self.args.image_size * 2,
-                projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
-                physicsClientId = self.physicsClient)
-            rgb = np.divide(rgba[:,:,:-1], 255)
-            d = np.nan_to_num(np.expand_dims(depth, axis=-1), nan=1)
-            if(d.max() == d.min()): pass
-            else: d = (d - d.min())/(d.max()-d.min())
-            rgbd = np.concatenate([rgb, d], axis = -1)
-            
-            rgbd = resize(rgbd, (self.args.image_size, self.args.image_size, 4))
-            return(rgbd)
-  
-        rgbd = get_photo(pos, yaw)
-        
+        x, y = cos(yaw), sin(yaw)
+        view_matrix = p.computeViewMatrix(
+            cameraEyePosition = [pos[0], pos[1], 2], 
+            cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    
+            cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
+        proj_matrix = proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far)
+        _, _, rgba, depth, _ = p.getCameraImage(
+            width=self.args.image_size * 2, height=self.args.image_size * 2,
+            projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
+            physicsClientId = self.physicsClient)
+        rgb = np.divide(rgba[:,:,:-1], 255)
+        d = np.nan_to_num(np.expand_dims(depth, axis=-1), nan=1)
+        if(d.max() == d.min()): pass
+        else: d = (d - d.min())/(d.max()-d.min())
+        rgbd = np.concatenate([rgb, d], axis = -1)
+        rgbd = resize(rgbd, (self.args.image_size, self.args.image_size, 4))
         return(rgbd)
         
     
@@ -448,7 +448,7 @@ if __name__ == "__main__":
         num_objects = 1,
         allowed_actions = [0],
         allowed_colors = [0],
-        allowed_shapes = [0])
+        allowed_shapes = [3])
     
     def show_them():
         above_rgba = arena.photo_from_above()

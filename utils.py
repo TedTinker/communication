@@ -4,9 +4,10 @@
 #   Make it work.
 #   Make it work FASTER.
 #   Make comm prediction testing more successful.
-#   Consider making winning wrong with more than one win is performed (using other objects or actions).
 #   Not correctly plotting win-rates. 
-#   Adjust gen test: ONLY use test objects.
+#   Try making sensor-observation deeper, with speed or something. 
+#   Plot episodes use just activated sensors, not untouched ones.
+#   Plot success rates of generalization states.
 
 import os
 import pickle
@@ -37,7 +38,7 @@ print("DEVICE:", device)
 device = "cpu"
 
 action_map = {
-    -1: [" ", "NONE"],
+    -1: ["Z", "NONE"],
     0: ["A", "WATCH"],
     1: ["B", "PUSH"],     
     2: ["C", "PULL"],   
@@ -105,15 +106,12 @@ training_combos = [(a, c, s) for (a, c, s) in all_combos if
 
 testing_combos = [combo for combo in all_combos if not combo in training_combos]
 
-def valid_color_shape(action_num, other_shape_colors, allowed_colors, allowed_shapes, goal = False, test = False):
-    if(not goal):
-        these_combos = all_combos 
+def valid_color_shape(action_num, other_shape_colors, allowed_colors, allowed_shapes, test = False):
+    if(test):
+        these_combos = testing_combos
     else:
-        if(test):
-            these_combos = testing_combos
-        else:
-            these_combos = training_combos
-        these_combos = [combo for combo in these_combos if combo[0] == action_num]
+        these_combos = training_combos
+    these_combos = [combo for combo in these_combos if combo[0] == action_num]
     these_combos = [(combo[1], combo[2]) for combo in these_combos if combo[1] in allowed_colors and combo[2] in allowed_shapes]
     these_combos = [combo for combo in these_combos if not combo in other_shape_colors]
     color_num, shape_num = choice(these_combos)
@@ -121,13 +119,13 @@ def valid_color_shape(action_num, other_shape_colors, allowed_colors, allowed_sh
 
 def make_objects_and_action(num_objects, allowed_actions, allowed_colors, allowed_shapes, test = False):
     action_num = choice(allowed_actions)
-    goal_object = valid_color_shape(action_num, [], allowed_colors, allowed_shapes, goal = True, test = test)
+    goal_object = valid_color_shape(action_num, [], allowed_colors, allowed_shapes, test = test)
     colors_shapes_1 = [goal_object]
     colors_shapes_2 = [goal_object]
     for n in range(num_objects-1):
-        colors_shapes_1.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, goal = False, test = test))
+        colors_shapes_1.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
     for n in range(num_objects-1):
-        colors_shapes_2.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, goal = False, test = test))
+        colors_shapes_2.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
     return(action_num, colors_shapes_1, colors_shapes_2)
 
 
@@ -202,12 +200,12 @@ def cpu_memory_usage():
 physicsClient = p.connect(p.DIRECT)
 default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
 robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
-sensor_num = 0
+sensors = []
 for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
     joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
     link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
     if("sensor" in link_name):
-        sensor_num += 1
+        sensors.append(link_name)
 p.disconnect(physicsClientId = physicsClient)
 
 # Arguments to parse. 
@@ -233,9 +231,9 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
                     help='Should durations be printed?')
 
     # Things which have list-values.
-parser.add_argument('--task_list',          type=literal,    default = ["2"],
+parser.add_argument('--task_list',          type=literal,    default = ["1", "2"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [10000],
+parser.add_argument('--epochs',             type=literal,    default = [100, 100],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
@@ -255,7 +253,7 @@ parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--time_step',          type=float,      default = .2,
                     help='numSubSteps in pybullet environment.')
-parser.add_argument('--steps_per_step',     type=int,        default = 50,
+parser.add_argument('--steps_per_step',     type=int,        default = 15,
                     help='numSubSteps in pybullet environment.')
 
     # Agent details
@@ -318,11 +316,11 @@ parser.add_argument('--angle_reward_max',   type=float,      default = 90,
 parser.add_argument('--batch_size',         type=int,        default = 32, 
                     help='How many episodes are sampled for each epoch.')      
 parser.add_argument('--rgbd_scaler',        type=float,      default = 5, 
-                    help='How much to consider rgbd prediction in accuracy compared to comm and other.')  
+                    help='How much to consider rgbd prediction in accuracy compared to comm and sensors.')  
 parser.add_argument('--comm_scaler',        type=float,      default = 1, 
-                    help='How much to consider comm prediction in accuracy compared to rgbd and other.')       
-parser.add_argument('--other_scaler',       type=float,      default = 1, 
-                    help='How much to consider other prediction in accuracy compared to rgbd and comm.')       
+                    help='How much to consider comm prediction in accuracy compared to rgbd and sensors.')       
+parser.add_argument('--sensors_scaler',     type=float,      default = 1, 
+                    help='How much to consider sensors prediction in accuracy compared to rgbd and comm.')       
 
     # Memory buffer
 parser.add_argument('--capacity',           type=int,        default = 256,
@@ -337,17 +335,15 @@ parser.add_argument('--state_size',         type=int,        default = 256,
                     help='Parameters in prior and posterior inner-states.')
 parser.add_argument('--encode_char_size',   type=int,        default = 8,
                     help='Parameters in encoding.')   
-parser.add_argument('--encode_position_size',type=int,       default = 4,
-                    help='Parameters in encoding position.')   
 parser.add_argument('--encode_rgbd_size',   type=int,        default = 128,
                     help='Parameters in encoding image.')   
 parser.add_argument('--encode_comm_size',   type=int,        default = 128,
                     help='Parameters in encoding communicaiton.')   
-parser.add_argument('--encode_other_size',  type=int,        default = 8,
+parser.add_argument('--encode_sensors_size',  type=int,        default = 16,
                     help='Parameters in encoding sensors, angles, speed.')   
 parser.add_argument('--encode_action_size', type=int,        default = 8,
                     help='Parameters in encoding action.')   
-parser.add_argument('--dropout',            type=float,      default = .05,
+parser.add_argument('--dropout',            type=float,      default = .01,
                     help='Dropout percentage.')   
 parser.add_argument('--forward_lr',         type=float,      default = .0003,
                     help='Learning rate for forward model.')
@@ -418,7 +414,7 @@ parser.add_argument('--episodes_in_episode_dict',type=int,   default = 1,
 
 parser.add_argument('--epochs_per_agent_list',type=int,       default = 1000,
                     help='How many epochs should pass before saving agent model.')
-parser.add_argument('--agents_per_agent_list',type=int,       default = 1,
+parser.add_argument('--agents_per_agent_list',type=int,       default = 3,
                     help='How many agents to save.') 
 
 try:
@@ -440,9 +436,10 @@ for arg_set in [default_args, args]:
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.object_shape = arg_set.shapes + arg_set.colors
     arg_set.comm_shape = len(comm_map)
-    arg_set.other_shape = sensor_num
+    arg_set.sensors_shape = len(sensors)
+    arg_set.sensor_names = sensors
     arg_set.action_shape = 3
-    arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size + arg_set.encode_other_size
+    arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size + arg_set.encode_sensors_size
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.encode_action_size
     max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
     arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)

@@ -207,8 +207,8 @@ class PVRNN(nn.Module):
         
     def predict(self, h, action):
         h_w_actions = torch.cat([h, action], dim = -1)
-        pred_rgbd, pred_comms, pred_other = self.predict_obs(h_w_actions)
-        return(pred_rgbd, pred_comms, pred_other)
+        pred_rgbd, pred_comms, pred_sensors = self.predict_obs(h_w_actions)
+        return(pred_rgbd, pred_comms, pred_sensors)
         
     def bottom_to_top_step(self, prev_hidden_states, obs = None, prev_actions = None, prev_comms_out = None):
         if(obs != None and len(obs.shape) == 2): 
@@ -249,7 +249,7 @@ class PVRNN(nn.Module):
             (zq_mu.unsqueeze(1), zq_std.unsqueeze(1), new_hidden_states_q.unsqueeze(1)),
             dkls)
     
-    def forward(self, prev_hidden_states, rgbd, comms_in, other, prev_actions, prev_comms_out):
+    def forward(self, prev_hidden_states, rgbd, comms_in, sensors, prev_actions, prev_comms_out):
         zp_mu_list = []
         zp_std_list = []
         zq_mu_list = []
@@ -260,7 +260,7 @@ class PVRNN(nn.Module):
         episodes, steps = episodes_steps(rgbd)
         if(prev_hidden_states == None):
             prev_hidden_states = torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size))
-        obs = self.obs_in(rgbd, comms_in, other)
+        obs = self.obs_in(rgbd, comms_in, sensors)
         prev_actions = self.action_in(prev_actions)
         prev_comms_out = self.comm_in(prev_comms_out)
                         
@@ -280,12 +280,12 @@ class PVRNN(nn.Module):
             lists[i] = torch.cat(lists[i], dim=1)
         zp_mu, zp_std, zq_mu, zq_std, new_hidden_states_p, new_hidden_states_q = lists
         
-        pred_rgbd, pred_comms, pred_others = self.predict(new_hidden_states_q[:, :-1, 0], prev_actions[:, 1:])
+        pred_rgbd, pred_comms, pred_sensors = self.predict(new_hidden_states_q[:, :-1, 0], prev_actions[:, 1:])
         
         return(
             (zp_mu, zp_std, new_hidden_states_p),
             (zq_mu, zq_std, new_hidden_states_q),
-            (pred_rgbd, pred_comms, pred_others),
+            (pred_rgbd, pred_comms, pred_sensors),
             dkls)
         
         
@@ -306,7 +306,7 @@ if __name__ == "__main__":
                                 ((episodes, args.layers, args.pvrnn_mtrnn_size), 
                                 (episodes, steps+1, args.image_size, args.image_size, 4), 
                                 (episodes, steps+1, args.max_comm_len, args.comm_shape),
-                                (episodes, steps+1, args.other_shape),
+                                (episodes, steps+1, args.sensors_shape),
                                 (episodes, steps+1, args.action_shape),
                                 (episodes, steps+1, args.max_comm_len, args.comm_shape))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
@@ -326,7 +326,7 @@ if __name__ == "__main__":
                                 ((episodes, args.layers, args.pvrnn_mtrnn_size), 
                                 (episodes, steps+1, args.image_size, args.image_size * 4, 4), 
                                 (episodes, steps+1, args.max_comm_len, args.comm_shape),
-                                (episodes, steps+1, args.other_shape),
+                                (episodes, steps+1, args.sensors_shape),
                                 (episodes, steps+1, args.action_shape),
                                 (episodes, steps+1, args.max_comm_len, args.comm_shape))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))

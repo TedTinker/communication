@@ -36,7 +36,7 @@ testing_memory = RecurrentReplayBuffer(args)
 physicsClient = get_physics(GUI = False, time_step = args.time_step, steps_per_step = args.steps_per_step)
 arena_1 = Arena(physicsClient)
 arena_2 = None
-task_runner = Task_Runner(Task(actions = [-1], objects = num_objects, shapes = [0, 1, 2, 3, 4], colors = [0, 1, 2, 3, 4, 5]), arena_1, arena_2)
+task_runner = Task_Runner(Task(actions = [-1], objects = num_objects, shapes = [0, 1, 2, 3], colors = [0, 1, 2, 3, 4, 5]), arena_1, arena_2)
 
 forward = PVRNN(args = args)
 forward.train()
@@ -56,8 +56,8 @@ def example_images(e, reals, action, nexts, guess):
     fig.suptitle("EPOCH {}".format(e))
     fig.patch.set_facecolor('white')
     
-    def one_part(this, title, image, comm, other):
-        this.set_title("{} :\nCOMM ({}),\nOTHER ({})".format(title, comm, [round(o, 1) for o in other.tolist()])) # comm, [round(o,2) for o in other.tolist()]))
+    def one_part(this, title, image, comm, sensors):
+        this.set_title("{} :\nCOMM ({}),\nSENSORS ({})".format(title, comm, [round(o, 1) for o in [0, 1, 2, 3]])) #sensors.tolist()])) # comm, [round(o,2) for o in sensors.tolist()]))
         this.imshow(image)
         this.set_xticks([])
         this.set_yticks([])
@@ -91,11 +91,11 @@ def example_images(e, reals, action, nexts, guess):
 def plot_losses(losses, test_losses):
     plt.plot([loss[0] for loss in losses], color=(1, 0, 0), label="RGBD")
     plt.plot([loss[1] for loss in losses], color=(0, 1, 0), label="Comm")
-    plt.plot([loss[2] for loss in losses], color=(0, 0, 1), label="Other")
+    plt.plot([loss[2] for loss in losses], color=(0, 0, 1), label="SENSORS")
     
     plt.plot([test_loss[0] for test_loss in test_losses], color=(1, .6, .6), label="test RGBD")
     plt.plot([test_loss[1] for test_loss in test_losses], color=(.6, 1, .6), label="test Comm")
-    plt.plot([test_loss[2] for test_loss in test_losses], color=(.6, .6, 1), label="test Other")
+    plt.plot([test_loss[2] for test_loss in test_losses], color=(.6, .6, 1), label="test SENSORS")
     
     plt.legend(loc='lower left')  
     plt.show()
@@ -107,25 +107,25 @@ def add_episode(test = False):
     task_runner.begin()
     rgbds = []
     comms = []
-    others = []
+    sensors = []
     actions = []
     rewards = []
     dones = []
     for step in range(args.max_steps):
-        rgbd, comm, other = task_runner.obs()
+        rgbd, comm, sensor = task_runner.obs()
         action = task_runner.get_recommended_action(verbose = False)#True)
         action = torch.tensor([0, 0, 1])
         raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win = task_runner.step(action, verbose = False)#True)
         rgbds.append(rgbd)
         comms.append(comm)
-        others.append(other)
+        sensors.append(sensor)
         actions.append(action.unsqueeze(0))
         rewards.append(raw_reward + distance_reward + angle_reward)
         dones.append(done)
-    rgbd, comm, other = task_runner.obs()
+    rgbd, comm, sensor = task_runner.obs()
     rgbds.append(rgbd)
     comms.append(comm)
-    others.append(other)
+    sensors.append(sensor)
     task_runner.done()
     if(test):
         memory = testing_memory
@@ -135,14 +135,14 @@ def add_episode(test = False):
         memory.push(
             rgbd = rgbds[i], 
             communication_in = comms[i], 
-            other = others[i], 
+            sensors = sensors[i], 
             action = actions[i], 
             recommended_action = actions[i], 
             communication_out = comms[i], 
             reward = rewards[i], 
             next_rgbd = rgbds[i+1], 
             next_communication_in = comms[i+1], 
-            next_other = others[i+1], 
+            next_sensors = sensors[i+1], 
             done = dones[i])
 
 
@@ -150,11 +150,11 @@ def add_episode(test = False):
 def epoch(e):
     print(e, end = "... ")
     add_episode()
-    rgbds, comms_in, others, actions, comms_out, recommended_actions, rewards, dones, masks = training_memory.sample(args.batch_size)
+    rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, dones, masks = training_memory.sample(args.batch_size)
     
     rgbds = torch.from_numpy(rgbds)
     comms_in = torch.from_numpy(comms_in)
-    others = torch.from_numpy(others)
+    sensors = torch.from_numpy(sensors)
     actions = torch.from_numpy(actions)
     comms_out = torch.from_numpy(comms_out)
     recommended_actions = torch.from_numpy(recommended_actions)
@@ -169,19 +169,19 @@ def epoch(e):
     
     forward.train()
     
-    (zp_mu, zp_std, hps), (zq_mu, zq_std, hqs), (guess_rgbd, guess_comm, guess_other), _ = forward(torch.zeros((episodes, args.layers, args.pvrnn_mtrnn_size)), rgbds, comms_in, others, actions, comms_out)
+    (zp_mu, zp_std, hps), (zq_mu, zq_std, hqs), (guess_rgbd, guess_comm, guess_sensors), _ = forward(torch.zeros((episodes, args.layers, args.pvrnn_mtrnn_size)), rgbds, comms_in, sensors, actions, comms_out)
     
     real_rgbd = rgbds
     real_comm = comms_in
-    real_other = others
+    real_sensors = sensors
     
     next_rgbd = real_rgbd[:,1:]
     next_comm = real_comm[:,1:]
-    next_other = real_other[:,1:]
+    next_sensors = real_sensors[:,1:]
     
     real_rgbd = real_rgbd[:,:-1]
     real_comm = real_comm[:,:-1]
-    real_other = real_other[:,:-1]
+    real_sensors = real_sensors[:,:-1]
                         
     rgbd_loss = F.binary_cross_entropy(guess_rgbd, next_rgbd, reduction = "none")
     rgbd_loss = rgbd_loss.mean() * args.rgbd_scaler
@@ -195,23 +195,23 @@ def epoch(e):
     comm_loss = F.cross_entropy(guess_comm_temp, next_comm_temp, reduction = "none")
     comm_loss = comm_loss.mean() * args.comm_scaler
     
-    other_loss = F.binary_cross_entropy(guess_other, next_other, reduction = "none")
-    other_loss = other_loss.mean() * args.other_scaler
+    sensors_loss = F.binary_cross_entropy(guess_sensors, next_sensors, reduction = "none")
+    sensors_loss = sensors_loss.mean() * args.sensors_scaler
     
     complexity_for_hidden_state = [dkl(zq_mu[:,:,layer], zq_std[:,:,layer], zp_mu[:,:,layer], zp_std[:,:,layer]).mean(-1).unsqueeze(-1) * all_masks for layer in range(args.layers)] 
     complexity          = sum([args.beta[layer] * complexity_for_hidden_state[layer].mean() for layer in range(args.layers)])    
     
-    loss = rgbd_loss + comm_loss + other_loss + complexity
+    loss = rgbd_loss + comm_loss + sensors_loss + complexity
     
     opt.zero_grad()
     loss.backward()
     opt.step()
     
-    rgbds, comms_in, others, actions, comms_out, recommended_actions, rewards, dones, masks = testing_memory.sample(args.batch_size)
+    rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, dones, masks = testing_memory.sample(args.batch_size)
     
     rgbds = torch.from_numpy(rgbds)
     comms_in = torch.from_numpy(comms_in)
-    others = torch.from_numpy(others)
+    sensors = torch.from_numpy(sensors)
     actions = torch.from_numpy(actions)
     comms_out = torch.from_numpy(comms_out)
     recommended_actions = torch.from_numpy(recommended_actions)
@@ -228,19 +228,19 @@ def epoch(e):
     
     forward.eval()
     
-    _, _, (test_guess_rgbd, test_guess_comm, test_guess_other), _ = forward(torch.zeros((episodes, args.layers, args.pvrnn_mtrnn_size)), rgbds, comms_in, others, actions, comms_out)
+    _, _, (test_guess_rgbd, test_guess_comm, test_guess_sensors), _ = forward(torch.zeros((episodes, args.layers, args.pvrnn_mtrnn_size)), rgbds, comms_in, sensors, actions, comms_out)
     
     test_real_rgbd = rgbds
     test_real_comm = comms_in
-    test_real_other = others
+    test_real_sensors = sensors
     
     test_next_rgbd = test_real_rgbd[:,1:]
     test_next_comm = test_real_comm[:,1:]
-    test_next_other = test_real_other[:,1:]
+    test_next_sensors = test_real_sensors[:,1:]
     
     test_real_rgbd = test_real_rgbd[:,:-1]
     test_real_comm = test_real_comm[:,:-1]
-    test_real_other = test_real_other[:,:-1]
+    test_real_sensors = test_real_sensors[:,:-1]
     
     test_rgbd_loss = F.binary_cross_entropy(test_guess_rgbd, test_next_rgbd, reduction = "none")
     test_rgbd_loss = test_rgbd_loss.mean() * args.rgbd_scaler
@@ -254,22 +254,22 @@ def epoch(e):
     test_comm_loss = F.cross_entropy(test_guess_comm_temp, test_next_comm_temp, reduction = "none")
     test_comm_loss = test_comm_loss.mean() * args.comm_scaler
     
-    test_other_loss = F.binary_cross_entropy(test_guess_other, test_next_other, reduction = "none")
-    test_other_loss = test_other_loss.mean() * args.other_scaler
+    test_sensors_loss = F.binary_cross_entropy(test_guess_sensors, test_next_sensors, reduction = "none")
+    test_sensors_loss = test_sensors_loss.mean() * args.sensors_scaler
     
     
         
     real_rgbd = torch.cat([real_rgbd[0].unsqueeze(0), test_real_rgbd[0].unsqueeze(0)])
     real_comm = torch.cat([real_comm[0].unsqueeze(0), test_real_comm[0].unsqueeze(0)])
-    real_other = torch.cat([real_other[0].unsqueeze(0), test_real_other[0].unsqueeze(0)])
+    real_sensors = torch.cat([real_sensors[0].unsqueeze(0), test_real_sensors[0].unsqueeze(0)])
     
     next_rgbd = torch.cat([next_rgbd[0].unsqueeze(0), test_next_rgbd[0].unsqueeze(0)])
     next_comm = torch.cat([next_comm[0].unsqueeze(0), test_next_comm[0].unsqueeze(0)])
-    next_other = torch.cat([next_other[0].unsqueeze(0), test_next_other[0].unsqueeze(0)])
+    next_sensors = torch.cat([next_sensors[0].unsqueeze(0), test_next_sensors[0].unsqueeze(0)])
     
     guess_rgbd = torch.cat([guess_rgbd[0].unsqueeze(0), test_guess_rgbd[0].unsqueeze(0)])
     guess_comm = torch.cat([guess_comm[0].unsqueeze(0), test_guess_comm[0].unsqueeze(0)])
-    guess_other = torch.cat([guess_other[0].unsqueeze(0), test_guess_other[0].unsqueeze(0)])
+    guess_sensors = torch.cat([guess_sensors[0].unsqueeze(0), test_guess_sensors[0].unsqueeze(0)])
         
     episodes = 2
     steps = args.max_steps
@@ -277,27 +277,27 @@ def epoch(e):
     real_rgbd = real_rgbd[:episodes,:steps,:,:,0:3].detach()
     real_comm = real_comm[:episodes,:steps].detach()
     real_comm = many_onehots_to_strings(real_comm)
-    real_other = real_other[:episodes,:steps].detach()
+    real_sensors = real_sensors[:episodes,:steps].detach()
         
     actions = actions[:episodes,1:steps+1].detach()
     
     next_rgbd = next_rgbd[:episodes,:steps,:,:,0:3].detach()
     next_comm = next_comm[:episodes,:steps].detach()
     next_comm = many_onehots_to_strings(next_comm)
-    next_other = next_other[:episodes,:steps].detach()
+    next_sensors = next_sensors[:episodes,:steps].detach()
     
     guess_rgbd = guess_rgbd[:episodes,:steps,:,:,0:3].detach()
     guess_comm = guess_comm[:episodes,:steps].detach()
     guess_comm = many_onehots_to_strings(guess_comm)
-    guess_other = guess_other[:episodes,:steps].detach()
+    guess_sensors = guess_sensors[:episodes,:steps].detach()
         
     return(
-        (rgbd_loss.detach(), comm_loss.detach(), other_loss.detach()),
-        (test_rgbd_loss.detach(), test_comm_loss.detach(), test_other_loss.detach()),
-        (real_rgbd, real_comm, real_other), 
+        (rgbd_loss.detach(), comm_loss.detach(), sensors_loss.detach()),
+        (test_rgbd_loss.detach(), test_comm_loss.detach(), test_sensors_loss.detach()),
+        (real_rgbd, real_comm, real_sensors), 
         actions, 
-        (next_rgbd, next_comm, next_other), 
-        (guess_rgbd, guess_comm, guess_other))
+        (next_rgbd, next_comm, next_sensors), 
+        (guess_rgbd, guess_comm, guess_sensors))
 
     
 for i in range(args.batch_size):

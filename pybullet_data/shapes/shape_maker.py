@@ -3,7 +3,9 @@
 import os
 import numpy as np
 import pybullet as p
-from math import pi
+from math import pi, sin, cos, radians, tan
+import matplotlib.pyplot as plt
+from skimage.transform import resize
 
 max_radius = .6
 
@@ -80,11 +82,11 @@ def innards(lengths, radia):
     text += "\n</robot>"
     return(text)
 
-pole = innards([1], [max_radius])
-delta = innards([.1] * 10, [max_radius - i/16 for i in range(10)])
-bottom = innards([1], [.1])
-hourglass = innards([.1] * 10, [max_radius - i/8 for i in range(5)] + [.1 + i/8 for i in range(5)])
+pillar = innards([1], [max_radius])
+pole = innards([1], [.1])
 dumbbell = innards([.9, .1], [.1, max_radius])
+delta = innards([.1] * 10, [max_radius - i/16 for i in range(10)])
+hourglass = innards([.1] * 10, [max_radius - i/8 for i in range(5)] + [.1 + i/8 for i in range(5)])
 
 
 
@@ -96,8 +98,8 @@ if last_folder == "pybullet_data":
     
     
   
-shapes = [pole, delta, bottom, hourglass, dumbbell]
-names = ["POLE", "DELTA", "BOTTOM", "HOURGLASS", "DUMBBELL"]
+shapes = [pillar, pole, dumbbell, delta, hourglass]
+names = ["PILLAR", "POLE", "DUMBBELL", "DELTA", "HOURGLASS"]
 letters = ["L", "M", "N", "O", "P"]
 file_names = []
 
@@ -115,5 +117,58 @@ p.setAdditionalSearchPath("pybullet_data")
 
 for i, file_name in zip([-2, -1, 0, 1, 2], file_names):
   print(file_name)
-  object_index = p.loadURDF("{}".format(file_name), (-5, 3 * i, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+  object_index = p.loadURDF("{}".format(file_name), (-5, 15 * i, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                               useFixedBase=False, globalScaling = 2, physicsClientId=physicsClient)
+  p.changeVisualShape(object_index, -1, rgbaColor = (1, 0, 0, 1), physicsClientId = physicsClient)
+  for i in range(p.getNumJoints(object_index)):
+      p.changeVisualShape(object_index, i, rgbaColor=(1, 0, 0, 1), physicsClientId = physicsClient)
+  
+  
+  
+fov_x_deg = 90
+fov_y_deg = 90
+fov_x_rad = radians(fov_x_deg)
+fov_y_rad = radians(fov_y_deg)
+near = 1
+far = 15
+right = near * tan(fov_x_rad / 2)
+left = -right
+top = near * tan(fov_y_rad / 2)
+bottom = -top
+
+
+
+def photo(pos, image_size):
+    x, y = cos(pi), sin(pi)
+    view_matrix = p.computeViewMatrix(
+        cameraEyePosition=[pos[0], pos[1], 1], 
+        cameraTargetPosition=[pos[0] + x*2, pos[1] + y*2, 1],
+        cameraUpVector=[0, 0, 1], physicsClientId=physicsClient)
+    proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far)
+    _, _, rgba, depth, _ = p.getCameraImage(
+        width=image_size * 2, height=image_size * 2,
+        projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow=0,
+        physicsClientId=physicsClient)
+    rgb = np.divide(rgba[:, :, :-1], 255)
+    rgb = resize(rgb, (image_size, image_size, 3))
+    return rgb
+  
+  
+  
+def plot_these(all_rgbs):
+  fig, axs = plt.subplots(len(all_rgbs[0]), len(all_rgbs), figsize = (20, 20))
+  for i, rgbs in enumerate(all_rgbs):
+    for j, rgb in enumerate(rgbs):
+      axs[j, i].imshow(rgb)
+  fig.show()
+  
+
+for image_size in [8, 16, 32, 64]:
+  all_rgbs = []
+  for object_pos in [15 * i for i in [-2, -1, 0, 1, 2]]:
+    rgbs = []
+    for distance_pos in [-2.5, -2, -1, 0, 1, 2, 3]: 
+      rgb = photo((distance_pos, object_pos), image_size)
+      rgbs.append(rgb)
+    all_rgbs.append(rgbs)
+  plot_these(all_rgbs)

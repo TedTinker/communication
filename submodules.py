@@ -62,23 +62,7 @@ class RGBD_IN(nn.Module):
             Ted_Conv2d(
                 in_channels = 4 + 2,
                 out_channels = [self.args.hidden_size // 4] * 4,
-                kernel_sizes = [3, 3, 5, 7],
-                stride = 2))
-        
-        self.b = nn.Sequential(
-            nn.BatchNorm2d(self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(self.args.dropout),
-            
-            Ted_Conv2d(
-                in_channels = self.args.hidden_size,
-                out_channels = [self.args.hidden_size // 4] * 4,
-                kernel_sizes = [1, 3, 5, 7]),
-            nn.BatchNorm2d(self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(self.args.dropout))
-        
-        self.c = nn.Sequential(
+                kernel_sizes = [3, 3, 5, 7]),
             nn.BatchNorm2d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(self.args.dropout),
@@ -92,8 +76,6 @@ class RGBD_IN(nn.Module):
             nn.Dropout(self.args.dropout))
         
         example = self.a(example)
-        example = self.b(example)
-        example = self.c(example)
         rgbd_latent_size = example.flatten(1).shape[1]
                 
         self.d = nn.Sequential(
@@ -116,11 +98,8 @@ class RGBD_IN(nn.Module):
         positional_layers = generate_2d_positional_layers(rgbd.shape[0], rgbd.shape[2], device=self.args.device)
         rgbd = torch.cat([rgbd, positional_layers], dim = 1)
         
-        a = self.a(rgbd)
-        b = self.b(a)
-        b = a + b
-        c = self.c(b).flatten(1)
-        encoding = self.d(c)
+        a = self.a(rgbd).flatten(1)
+        encoding = self.d(a)
         
         encoding = encoding.reshape(episodes, steps, encoding.shape[1])
         #print("RGBD_IN:", duration() - start)
@@ -167,11 +146,12 @@ class RGBD_OUT(nn.Module):
             
             nn.Conv2d(
                 in_channels = self.args.hidden_size + 2, 
-                out_channels = 4,
+                out_channels = 4 * (divide ** 2),
                 kernel_size = 3,
                 padding = 1,
                 padding_mode = "reflect"),
-            nn.Sigmoid())
+            nn.Tanh(),
+            nn.PixelShuffle(divide))
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -191,6 +171,8 @@ class RGBD_OUT(nn.Module):
                 
         rgbd = rgbd.permute(0, 2, 3, 1)
         rgbd = rgbd.reshape(episodes, steps, rgbd.shape[1], rgbd.shape[2], rgbd.shape[3])
+        
+        rgbd = (rgbd + 1) / 2
         #print("RGBD_OUT:", duration() - start)
         return(rgbd)
     
@@ -394,63 +376,63 @@ if __name__ == "__main__":
 
 
     
-class Other_IN(nn.Module):
+class Sensors_IN(nn.Module):
     
     def __init__(self, args = default_args):
-        super(Other_IN, self).__init__()
+        super(Sensors_IN, self).__init__()
         
         self.args = args 
         
-        self.other_in = nn.Sequential(
+        self.sensors_in = nn.Sequential(
             nn.Linear(
-                in_features = self.args.other_shape,
-                out_features = self.args.encode_other_size),
-            #nn.BatchNorm1d(self.args.encode_other_size),
+                in_features = self.args.sensors_shape,
+                out_features = self.args.encode_sensors_size),
+            #nn.BatchNorm1d(self.args.encode_sensors_size),
             nn.PReLU())
         
         self.apply(init_weights)
         self.to(self.args.device)
         
-    def forward(self, other):
-        #[other] = attach_list([other], self.args.device)
-        if(len(other.shape) == 2):   other = other.unsqueeze(1)
-        episodes, steps = episodes_steps(other)
-        other = other.reshape(episodes * steps, other.shape[2])
-        other = self.other_in(other)
-        other = other.reshape(episodes, steps, other.shape[1])
-        return(other)
+    def forward(self, sensors):
+        #[sensors] = attach_list([sensors], self.args.device)
+        if(len(sensors.shape) == 2):   sensors = sensors.unsqueeze(1)
+        episodes, steps = episodes_steps(sensors)
+        sensors = sensors.reshape(episodes * steps, sensors.shape[2])
+        sensors = self.sensors_in(sensors)
+        sensors = sensors.reshape(episodes, steps, sensors.shape[1])
+        return(sensors)
 
     
     
 if __name__ == "__main__":
     
-    other_in = Other_IN(args = args)
+    sensors_in = Sensors_IN(args = args)
     
     print("\n\n")
-    print(other_in)
+    print(sensors_in)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(torch_summary(other_in, 
-                                (episodes, steps, args.other_shape)))
+            print(torch_summary(sensors_in, 
+                                (episodes, steps, args.sensors_shape)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 
 #%%
 
 
 
-class Other_OUT(nn.Module):
+class Sensors_OUT(nn.Module):
 
     def __init__(self, args = default_args):
-        super(Other_OUT, self).__init__()  
+        super(Sensors_OUT, self).__init__()  
         
         self.args = args 
         
-        self.other_out_lin = nn.Sequential(
+        self.sensors_out_lin = nn.Sequential(
             nn.Linear(
                 in_features = self.args.h_w_action_size,
-                out_features = self.args.other_shape),
-            nn.Sigmoid())
+                out_features = self.args.sensors_shape),
+            nn.Tanh())
         
         self.apply(init_weights)
         self.to(args.device)
@@ -460,23 +442,24 @@ class Other_OUT(nn.Module):
         if(len(h_w_action.shape) == 2): h_w_action = h_w_action.unsqueeze(1)
         episodes, steps = episodes_steps(h_w_action)
         h_w_action = h_w_action.reshape(episodes * steps, self.args.h_w_action_size)
-        other = self.other_out_lin(h_w_action)
-        other = other.reshape(episodes, steps, other.shape[1])
+        sensors = self.sensors_out_lin(h_w_action)
+        sensors = sensors.reshape(episodes, steps, sensors.shape[1])
+        sensors = (sensors + 1) / 2
         #print("RGBD_OUT:", duration() - start)
-        return(other)
+        return(sensors)
     
     
     
 if __name__ == "__main__":
     
-    other_out = Other_OUT(args = args)
+    sensors_out = Sensors_OUT(args = args)
     
     print("\n\n")
-    print(other_out)
+    print(sensors_out)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(torch_summary(other_out, 
+            print(torch_summary(sensors_out, 
                                 (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 #%%
@@ -491,13 +474,13 @@ class Obs_IN(nn.Module):
         self.args = args
         self.rgbd_in = RGBD_IN(self.args)
         self.comm_in = Comm_IN(self.args)
-        self.other_in = Other_IN(self.args)
+        self.sensors_in = Sensors_IN(self.args)
         
-    def forward(self, rgbd, comm, other):
+    def forward(self, rgbd, comm, sensors):
         rgbd = self.rgbd_in(rgbd)
         comm = self.comm_in(comm)
-        other = self.other_in(other)
-        return(torch.cat([rgbd, comm, other], dim = -1))
+        sensors = self.sensors_in(sensors)
+        return(torch.cat([rgbd, comm, sensors], dim = -1))
     
     
     
@@ -513,7 +496,7 @@ if __name__ == "__main__":
             print(torch_summary(obs_in, 
                                 ((episodes, steps, args.image_size, args.image_size, 4),
                                 (episodes, steps, args.max_comm_len, args.comm_shape),
-                                (episodes, steps, args.other_shape))))
+                                (episodes, steps, args.sensors_shape))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
 #%%
@@ -528,13 +511,13 @@ class Obs_OUT(nn.Module):
         self.args = args 
         self.rgbd_out = RGBD_OUT(self.args)
         self.comm_out = Comm_OUT(actor = False, args = self.args)
-        self.other_out = Other_OUT(self.args)
+        self.sensors_out = Sensors_OUT(self.args)
         
     def forward(self, h_w_action):
         rgbd_pred = self.rgbd_out(h_w_action)
         comm_pred = self.comm_out(h_w_action)
-        other_pred = self.other_out(h_w_action)
-        return(rgbd_pred, comm_pred, other_pred)
+        sensors_pred = self.sensors_out(h_w_action)
+        return(rgbd_pred, comm_pred, sensors_pred)
     
     
     
@@ -594,77 +577,6 @@ if __name__ == "__main__":
         with record_function("model_inference"):
             print(torch_summary(action_in, 
                                 (episodes, steps, args.action_shape)))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-# %%
-
-
-
-class Discriminator(nn.Module):
-    
-    def __init__(self, args = default_args):
-        super(Discriminator, self).__init__()  
-        
-        self.args = args
-        #self.obs_in = Obs_IN(self.args)
-        self.rgbd_in = RGBD_IN(self.args)
-        
-        self.stat_quantity = self.get_stats(
-            torch.zeros((1, 1, self.args.image_size, self.args.image_size, 4))).shape[-1]
-                
-        self.lin = nn.Sequential(
-            nn.Linear(
-                in_features = self.args.h_w_action_size + self.args.encode_rgbd_size + self.stat_quantity, # + self.args.encode_obs_size + self.stat_quantity, 
-                out_features = self.args.hidden_size),
-            nn.PReLU(),
-            nn.Linear(
-                in_features = self.args.hidden_size, 
-                out_features = 1),
-            nn.Sigmoid())
-        
-        self.apply(init_weights)
-        self.to(self.args.device)
-        
-    def get_stats(self, images):
-        # Statistics for each image
-        c_mean   = images.mean((2, 3))
-        #c_q     = torch.quantile(images.flatten(3), q = torch.tensor([.01, .25, .5, .75, .99]), dim = 2)#.permute(1, 2, 0).flatten(1)
-        c_var    = torch.var(images, dim = (2, 3)) 
-        
-        # Statistics for entire batch
-        b_mean   = c_mean.mean((0, 1))
-        b_mean   = torch.tile(b_mean, (images.shape[0], images.shape[1], 1))
-        #b_q     = torch.tile(torch.quantile(images.permute(1, 0, 2, 3).flatten(1), q = torch.tensor([.01, .25,  .5, .75, .99]), dim = 1).flatten(0).unsqueeze(0), (images.shape[0], 1))
-        b_var    = torch.var(images, dim = (0, 1, 2, 3))
-        b_var    = torch.tile(b_var, (images.shape[0], images.shape[1], 1))
-        
-        stats = torch.cat([c_mean, c_var, b_mean, b_var], dim = -1).to(self.args.device)
-        return(stats)
-            
-    def forward(self, h_w_action, rgbd, comm, other):
-        episodes, steps = episodes_steps(h_w_action)
-        stats = self.get_stats(rgbd)
-        #obs = self.obs_in(rgbd, comm, other)
-        obs = self.rgbd_in(rgbd)
-        h_w_action = torch.cat([h_w_action, obs, stats], dim = -1)
-        judgement = self.lin(h_w_action)
-        return(judgement)
-    
-    
-    
-if __name__ == "__main__":
-    
-    discriminator = Discriminator(args = args)
-        
-    print("\n\n")
-    print(discriminator)
-    print()
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            print(torch_summary(discriminator, 
-                                ((episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size),
-                                (episodes, steps, args.image_size, args.image_size, 4),
-                                (episodes, steps, args.max_comm_len, args.comm_shape),
-                                (episodes, steps, args.other_shape))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     

@@ -100,23 +100,23 @@ class Task_Runner:
             else:
                 arena = self.arena_2
                 
+                
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
+        touched = [False] * self.args.sensors_shape
         
-        touching = list(arena.touching_any_object().values())
-        touched = [False] * len(touching[0])
-        for i in range(len(touched)):
-            for touch in touching:
-                if(touch[i]):
+        touching = arena.touching_any_object()
+        for object_key, object_dict in touching.items():
+            for i, (link_name, value) in enumerate(object_dict.items()):
+                if(value == True):
                     touched[i] = True
         touching = [int(t) for t in touched]
         
-        
         #_, _, speed = arena.get_pos_yaw_spe()
         #speed = opposite_relative_to(speed, self.args.min_speed, self.args.max_speed)
-        other = torch.tensor([touching]).float()
+        sensors = torch.tensor([touching]).float()
                 
-        return(rgbd, self.task.goal_comm.unsqueeze(0), other)
+        return(rgbd, self.task.goal_comm.unsqueeze(0), sensors)
             
     def act(self, action, agent_1 = True, verbose = False, sleep_time = None):
         if(agent_1): arena = self.arena_1

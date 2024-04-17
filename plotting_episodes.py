@@ -17,6 +17,7 @@ def plot_episodes(complete_order, plot_dicts):
             for plot_dict in plot_dicts:
                 if(plot_dict["arg_name"] == arg_name):
                     episode_dicts = plot_dict["episode_dicts"]
+                    args = plot_dict["args"]
                     for key, episode_dict in episode_dicts.items():
                         plot_episode(key, episode_dict, arg_name)
                         animate_episode(key, episode_dict, arg_name)
@@ -90,19 +91,19 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         text_list.append(comms_in_q)
         label_list.append(f"Predicted Comms (Posterior) ({agent_num}):")
     
-    other = episode_dict[f"others_{agent_num}"][step]
-    text_list.append(str(other))
-    label_list.append(f"Other ({agent_num}):")
+    sensors = episode_dict[f"sensors_{agent_num}"][step]
+    text_list.append(str(sensors))
+    label_list.append(f"Sensors ({agent_num}):")
     
     if not step == 0:
         
-        other_p = episode_dict[f"prior_predicted_others_{agent_num}"][step-1]
-        text_list.append(str(other_p))
-        label_list.append(f"Predicted Other (Prior) ({agent_num}):")
+        sensors_p = episode_dict[f"prior_predicted_sensors_{agent_num}"][step-1]
+        text_list.append(str(sensors_p))
+        label_list.append(f"Predicted Sensors (Prior) ({agent_num}):")
         
-        other_q = episode_dict[f"posterior_predicted_others_{agent_num}"][step-1]
-        text_list.append(str(other_q))
-        label_list.append(f"Predicted Other (Posterior) ({agent_num}):")
+        sensors_q = episode_dict[f"posterior_predicted_sensors_{agent_num}"][step-1]
+        text_list.append(str(sensors_q))
+        label_list.append(f"Predicted Sensors (Posterior) ({agent_num}):")
         
         raw_rewards = episode_dict["raw_rewards"][step-1]
         text_list.append(raw_rewards)
@@ -265,21 +266,21 @@ def animate_step(step, episode_dict, agent_1 = True, last_step = False):
         text_list.append(comms_in_q)
         label_list.append(f"Predicted Comms (Posterior) ({agent_num}):")
     
-    other = episode_dict[f"others_{agent_num}"][step]
-    text_list.append(str(other))
-    label_list.append(f"Other ({agent_num}):")
+    sensors = episode_dict[f"sensors_{agent_num}"][step]
+    text_list.append(str(sensors))
+    label_list.append(f"Sensors ({agent_num}):")
     if step == 0:
-        other_q_shape = len(episode_dict[f"posterior_predicted_others_{agent_num}"][step-1])
-        text_list.append(str(1) * other_q_shape)
-        label_list.append(f"Predicted Other (Posterior) ({agent_num}):")
+        sensors_q_shape = len(episode_dict[f"posterior_predicted_sensors_{agent_num}"][step-1])
+        text_list.append(str(1) * sensors_q_shape)
+        label_list.append(f"Predicted Sensors (Posterior) ({agent_num}):")
         
         comms_out = ""
         text_list.append(comms_out)
         label_list.append(f"Comms Out ({agent_num}):")
     else:
-        other_q = episode_dict[f"posterior_predicted_others_{agent_num}"][step-1]
-        text_list.append(str(other_q))
-        label_list.append(f"Predicted Other (Posterior) ({agent_num}):")
+        sensors_q = episode_dict[f"posterior_predicted_sensors_{agent_num}"][step-1]
+        text_list.append(str(sensors_q))
+        label_list.append(f"Predicted Sensors (Posterior) ({agent_num}):")
         
         comms_out = episode_dict[f"comms_out_{agent_num}"][step-1]
         text_list.append(comms_out)
