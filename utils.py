@@ -3,7 +3,8 @@
 # To do: 
 #   Make it work.
 #   Make it work FASTER.
-#   Make comm prediction testing more successful.
+#   No longer plotting gen-win-rates, maybe messing up wins altogether.
+#   Make comm prediction work with GRU.
 #   Try making sensor-observation deeper, with speed or something. 
 #   Maybe using separate PVRNNs for rgbd, comm, sensors?
 #   Plot episodes with names of just activated sensors.
@@ -960,7 +961,7 @@ def calculate_similarity(recommended_actions, actor_actions):
 
 
 def hsv_to_circular_hue(hsv_image):
-    hue = hsv_image[:, 0, :, :] * 2 * torch.pi  # Convert hue from [0, 1] to [0, 2*pi]
+    hue = hsv_image[:, 0, :, :]
     hue_sin = (torch.sin(hue) + 1) / 2
     hue_cos = (torch.cos(hue) + 1) / 2
     hsv_circular = torch.stack([hue_sin, hue_cos, hsv_image[:, 1, :, :], hsv_image[:, 2, :, :]], dim=1)

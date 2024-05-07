@@ -30,12 +30,24 @@ class PVRNN_LAYER(nn.Module):
         self.zp_mu = nn.Sequential(
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
-                    out_features = self.args.state_size), 
+                    out_features = self.args.state_size),
+                #nn.BatchNorm1d(self.args.state_size),
+                nn.PReLU(),
+                nn.Dropout(self.args.dropout),
+                nn.Linear(
+                    in_features = self.args.state_size, 
+                    out_features = self.args.state_size),
                 nn.Tanh())
         self.zp_std = nn.Sequential(
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
-                    out_features = self.args.state_size), 
+                    out_features = self.args.state_size),
+                #nn.BatchNorm1d(self.args.state_size),
+                nn.PReLU(),
+                nn.Dropout(self.args.dropout),
+                nn.Linear(
+                    in_features = self.args.state_size, 
+                    out_features = self.args.state_size),
                 nn.Softplus())
                             
         # Posterior: Previous hidden state, plus observation and action if bottom, plus lower-layer hidden state otherwise.
@@ -43,11 +55,23 @@ class PVRNN_LAYER(nn.Module):
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
                     out_features = self.args.state_size), 
+                #nn.BatchNorm1d(self.args.state_size),
+                nn.PReLU(),
+                nn.Dropout(self.args.dropout),
+                nn.Linear(
+                    in_features = self.args.state_size, 
+                    out_features = self.args.state_size),
                 nn.Tanh())
         self.zq_std = nn.Sequential(
                 nn.Linear(
                     in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
                     out_features = self.args.state_size), 
+                #nn.BatchNorm1d(self.args.state_size),
+                nn.PReLU(),
+                nn.Dropout(self.args.dropout),
+                nn.Linear(
+                    in_features = self.args.state_size, 
+                    out_features = self.args.state_size),
                 nn.Softplus())
                             
         # New hidden state: Previous hidden state, zq value, plus higher-layer hidden state if not top.
