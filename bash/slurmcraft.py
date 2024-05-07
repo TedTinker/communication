@@ -75,7 +75,7 @@ def add_this(name, args):
 
 add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
 add_this("n",   {"curiosity" : "prediction_error"}) #, "prediciton_error_eta" : [.01, .03, .1, .3, 1, 3, 10]})
-add_this("f",   {"curiosity" : "hidden_state"}) #"beta" : convert_list( [ [.5], [1], [1.5] ] ), "hidden_size" : [32, 64], "encode_rgbd_size" : [128, 256], "pvrnn_mtrnn_size" : [128, 256], "state_size" : [128, 256]}) #, "beta" : convert_list( [ [.5], [1], [1.5], [2] ] ), "hidden_state_eta" : convert_list( [ [.5], [1], [1.5], [2] ])})
+add_this("f",   {"curiosity" : "hidden_state"}) #, "beta" : convert_list( [ [.5], [1], [1.5], [2] ] ), "hidden_state_eta" : convert_list( [ [.5], [1], [1.5], [2] ])})
 add_this("i",   {"delta" : 1})
 
 
@@ -106,7 +106,7 @@ max_cpus = 30
  
 if(__name__ == "__main__" and args.arg_list == []):
     for key, value in slurm_dict.items(): print(key, ":", value,"\n")
-    interesting = [f"ef_{k}" for k in [4, 5, 8, 10, 13, 22, 25, 28, 31, 33, 37, 38, 39, 40, 41, 42, 43, 46, 47, 48]]
+    interesting = ["f_15", "f_18"]
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
 

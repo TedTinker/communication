@@ -5,7 +5,7 @@ import matplotlib.patches as patches
 from random import choices
 import torch
 
-from utils import default_args, make_objects_and_action, action_map, default_args, custom_loss
+from utils import default_args, make_objects_and_action, action_map, default_args, custom_loss, hsv_to_circular_hue
 from task import Task_Runner, Task
 from submodules import Obs_IN, Obs_OUT, Action_IN
 from pvrnn import PVRNN
@@ -36,7 +36,7 @@ testing_memory = RecurrentReplayBuffer(args)
 physicsClient = get_physics(GUI = False, time_step = args.time_step, steps_per_step = args.steps_per_step)
 arena_1 = Arena(physicsClient)
 arena_2 = None
-task_runner = Task_Runner(Task(actions = [-1], objects = num_objects, shapes = [0, 1, 2, 3], colors = [0, 1, 2, 3, 4, 5]), arena_1, arena_2)
+task_runner = Task_Runner(Task(actions = [-1], objects = num_objects, shapes = [0, 1, 2], colors = [0, 1, 2, 3, 4, 5]), arena_1, arena_2)
 
 forward = PVRNN(args = args)
 forward.train()
@@ -182,8 +182,20 @@ def epoch(e):
     real_rgbd = real_rgbd[:,:-1]
     real_comm = real_comm[:,:-1]
     real_sensors = real_sensors[:,:-1]
-                        
+               
+    def add_hsv_to_rgbd(rgbd):
+        rgb = rgbd[:,:,:,:,:-1]
+        rgb = rgb.reshape(episodes * steps, rgb.shape[2], rgb.shape[3], rgb.shape[4]).permute(0, -1, 1, 2)
+        hsv = rgb_to_hsv(rgb)
+        hsv = hsv_to_circular_hue(hsv)
+        hsv = hsv.permute(0, 2, 3, 1).reshape(episodes, steps, rgbd.shape[2], rgbd.shape[3], rgbd.shape[4])
+        return(torch.cat([rgbd, hsv], dim = -1))
+    
+    #guess_rgbd = add_hsv_to_rgbd(guess_rgbd)
+    #next_rgbd = add_hsv_to_rgbd(next_rgbd)
     rgbd_loss = F.binary_cross_entropy(guess_rgbd, next_rgbd, reduction = "none")
+    guess_rgbd = guess_rgbd[:,:,:,:,:4]
+    next_rgbd = next_rgbd[:,:,:,:,:4]
     rgbd_loss = rgbd_loss.mean() * args.rgbd_scaler
     
     next_comm_temp = next_comm.reshape((next_comm.shape[0] * next_comm.shape[1], args.max_comm_len, args.comm_shape))

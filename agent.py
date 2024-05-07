@@ -16,6 +16,7 @@ from utils import default_args, duration, dkl, calculate_similarity, onehots_to_
 from arena import Arena, get_physics
 from task import Task, Task_Runner
 from buffer import RecurrentReplayBuffer
+from submodules import Discriminator
 from pvrnn import PVRNN
 from models import Actor, Critic
 
@@ -30,10 +31,10 @@ class Agent:
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         
         self.tasks = {
-            "0" : Task(actions = [-1],              objects = 3, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],      parent = True, args = self.args),
-            "1" : Task(actions = [1],               objects = 1, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],      parent = True, args = self.args),
-            "2" : Task(actions = [1],               objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],      parent = True, args = self.args),
-            "3" : Task(actions = [0, 1, 2, 3, 4],   objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],      parent = True, args = self.args)}
+            "0" : Task(actions = [-1],              objects = 4, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args),
+            "1" : Task(actions = [1],               objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],   parent = True, args = self.args),
+            "2" : Task(actions = [0],               objects = 1, colors = [0, 1, 2, 3, 4, 5],   shapes = [0],               parent = True, args = self.args),
+            "3" : Task(actions = [0, 1, 2, 3, 4],   objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args)}
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
         physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
@@ -53,6 +54,9 @@ class Agent:
 
         self.forward = PVRNN(self.args)
         self.forward_opt = optim.Adam(self.forward.parameters(), lr=self.args.forward_lr, weight_decay = .00001)
+        
+        self.discriminator = Discriminator(self.args)
+        self.discriminator_obt = optim.Adam(self.discriminator.parameters(), lr=self.args.discriminator_lr, weight_decay = .00001)
                            
         self.actor = Actor(self.args)
         self.actor_opt = optim.Adam(self.actor.parameters(), lr=self.args.actor_lr, weight_decay = .00001) 
@@ -73,7 +77,7 @@ class Agent:
             "arg_title" : args.arg_title,
             "arg_name" : args.arg_name,
             "episode_dicts" : {}, 
-            "agent_lists" : {} if (self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list) else {"forward" : PVRNN(), "actor" : Actor(), "critic" : Critic()},
+            "agent_lists" : {"forward" : PVRNN, "actor" : Actor, "critic" : Critic},
             "rewards" : [], 
             "gen_rewards" : [], 
             "steps" : [],
@@ -95,7 +99,6 @@ class Agent:
             "hidden_state" : [[] for _ in range(self.args.layers)]}
         for a in action_map.values():
             self.plot_dict[f"wins_{a[1].lower()}"] = []
-            self.plot_dict[f"gen_wins_{a[1].lower()}"] = []
             
         
         
@@ -151,10 +154,6 @@ class Agent:
                 self.gen_test()  
                 time = duration()
                 if(self.args.show_duration): print("AFTER GEN:", time - prev_time)
-            else:
-                win_dict_list = [self.plot_dict["gen_wins_" + action_name.lower()] for action_name in action_name_list]
-                for i, win_dict in enumerate(win_dict_list):
-                    win_dict.append(None)
             if(self.epochs % self.args.epochs_per_episode_dict == 0):
                 self.save_episodes(swapping = False)
                 time = duration()
@@ -248,9 +247,6 @@ class Agent:
                     value, hc = self.critics[i](rgbd_2, parent_comm if parented else prev_comm_out_1, action_2, comm_out_2, hq_2[:,:,0].detach(), hcs_2[i]) 
                     values_2.append(round(value.item(), 3))
                     new_hcs_2.append(hc)
-                    
-            """action_1 = torch.tensor([[[.5, -.5, 1]]])
-            action_2 = torch.tensor([[[.5, -.5, 1]]])"""
                                     
             raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win = self.task.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
             total_reward = raw_reward + distance_reward + angle_reward 
@@ -375,8 +371,7 @@ class Agent:
         goal_action = self.task.task.goal[0]
         win_dict_list = [self.plot_dict["wins_" + action_name.lower()] for action_name in action_name_list]
         for i, win_dict in enumerate(win_dict_list):
-            if(i-1 == goal_action): 
-                win_dict.append(win)
+            if(i-1 == goal_action): win_dict.append(win)
             else:                   win_dict.append(None)
                              
         for to_push in to_push_list_1:
@@ -414,7 +409,7 @@ class Agent:
         
         
         
-    def gen_test(self, test = True, sleep_time = None, verbose = False):
+    def gen_test(self, sleep_time = None):
         done = False
         complete_reward = 0
         
@@ -432,9 +427,7 @@ class Agent:
                 
         try:
             self.task = self.task_runners[self.task_name]
-            self.task.begin(test = test)        
-            if(verbose):
-                print(self.task.task.goal_human_text, end = " ")
+            self.task.begin(test = True)        
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
@@ -446,22 +439,10 @@ class Agent:
                     complete_reward += total_reward
                 #print("DONE")
             self.task.done()
-            if(verbose):
-                print("\tWIN!" if win else "\tLOSE!")
-            goal_action = self.task.task.goal[0]
-            win_dict_list = [self.plot_dict["gen_wins_" + action_name.lower()] for action_name in action_name_list]
-            for i, win_dict in enumerate(win_dict_list):
-                if(i-1 == goal_action): 
-                    win_dict.append(win)
-                else: win_dict.append(None)
         except:
             complete_reward = 0
-            win = False
-            win_dict_list = [self.plot_dict["gen_wins_" + action_name.lower()] for action_name in action_name_list]
-            for i, win_dict in enumerate(win_dict_list):
-                win_dict.append(None)
+            self.task.done()
         self.plot_dict["gen_rewards"].append(complete_reward)
-        return(win)
         
         
         
@@ -938,11 +919,11 @@ class Agent:
         return(to_return)
 
     def load_state_dict(self, state_dict):
-        self.forward.load_state_dict(state_dict = state_dict[0])
-        self.actor.load_state_dict(state_dict = state_dict[1])
+        self.forward.load_state_dict(state_dict[0])
+        self.actor.load_state_dict(state_dict[1])
         for i in range(self.args.critics):
-            self.critics[i].load_state_dict(state_dict = state_dict[2+2*i])
-            self.critic_targets[i].load_state_dict(state_dict = state_dict[3+2*i])
+            self.critics[i].load_state_dict(state_dict[2+2*i])
+            self.critic_targets[i].load_state_dict(state_dict[3+2*i])
         self.memory = RecurrentReplayBuffer(self.args)
 
     def eval(self):

@@ -59,6 +59,8 @@ class MTRNNCell(nn.Module):
         #attach_list([x, h], self.args.device)
         r = torch.sigmoid(self.r_x(x) + self.r_h(h))
         z = torch.sigmoid(self.z_x(x) + self.z_h(h))
+        #r = (torch.tanh(self.r_x(x) + self.r_h(h)) + 1) / 2
+        #z = (torch.tanh(self.z_x(x) + self.z_h(h)) + 2) / 2
         new_h = torch.tanh(self.n_x(x) + r * self.n_h(h))
         new_h = new_h * (1 - z)  + h * z
         new_h = new_h * self.new + h * self.old

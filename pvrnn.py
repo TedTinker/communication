@@ -4,7 +4,7 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, init_weights, var, sample, attach_list, detach_list, episodes_steps, pad_zeros, dkl
+from utils import default_args, init_weights, var, sample, attach_list, detach_list, episodes_steps, pad_zeros, dkl, duration
 from mtrnn import MTRNN
 from submodules import Obs_IN, Obs_OUT, Action_IN, Comm_IN
 
@@ -256,6 +256,8 @@ class PVRNN(nn.Module):
         zq_std_list = []
         new_hidden_states_list_p = []
         new_hidden_states_list_q = []
+        
+        prev_time = duration()
                 
         episodes, steps = episodes_steps(rgbd)
         if(prev_hidden_states == None):

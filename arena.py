@@ -235,7 +235,8 @@ class Arena():
         joint_state = p.getJointState(self.robot_index, joint_index, physicsClientId=self.physicsClient)
         return joint_state[0]
         
-    def generate_positions(self, n):
+    def generate_positions(self, n, distence = 4):
+        """
         positions = [(0, 0)]
         while len(positions) < n + 1:
             angle = uniform(0, 2 * pi)
@@ -245,6 +246,20 @@ class Arena():
             if all(sqrt((x - px) ** 2 + (y - py) ** 2) >= self.args.min_object_separation for px, py in positions):
                 positions.append((x, y))
         return positions[1:]
+        """
+        base_angle = uniform(0, 2 * pi)
+        x1 = distence * cos(base_angle)
+        y1 = distence * sin(base_angle)
+        r = distence 
+        angle_step = (2 * pi) / n
+        positions = [(x1, y1)]
+        for i in range(1, n):
+            current_angle = base_angle + (i * angle_step)
+            x = r * cos(current_angle)
+            y = r * sin(current_angle)
+            positions.append((x, y))
+        return positions
+        
         
     def object_faces_up(self, object_index):
         pos, orn = p.getBasePositionAndOrientation(object_index, physicsClientId = self.physicsClient)
@@ -387,6 +402,11 @@ class Arena():
                     angle_reward *= 0
                 angle_reward *= self.args.angle_reward
                 
+                if(action_map[goal_action][1] == "NONE"):
+                    reward = 0
+                    distance_reward = 0
+                    angle_reward = 0
+                    
                 if(verbose):
                     print("Raw reward:", round(reward, 2))
                     print("DISTANCE:", round(distance, 2))
@@ -444,12 +464,6 @@ if __name__ == "__main__":
     arena = Arena(physicsClient, args = args)
     sleep_time = 1
     
-    action, colors_shapes_1, colors_shapes_2 = make_objects_and_action(
-        num_objects = 1,
-        allowed_actions = [0],
-        allowed_colors = [0],
-        allowed_shapes = [3])
-    
     def show_them():
         above_rgba = arena.photo_from_above()
         agent_rgba = arena.photo_for_agent()
@@ -461,9 +475,18 @@ if __name__ == "__main__":
         plt.close()
         
         
-    """print("\nFREE PLAY")
+        
+    action, colors_shapes_1, colors_shapes_2 = make_objects_and_action(
+        num_objects = 3,
+        allowed_actions = [0],
+        allowed_colors = [0, 1, 2, 3, 4, 5, 6],
+        allowed_shapes = [0, 1, 2])
+        
+        
+        
+    print("\nFREE PLAY")
     goal = [-1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(4.5,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parented = False)
     steps = 0
     while(True):
         steps += 1
@@ -473,7 +496,15 @@ if __name__ == "__main__":
             arena.rewards(verbose = True)
         sleep(.05)
     arena.end()
-    """
+    
+    
+    
+    action, colors_shapes_1, colors_shapes_2 = make_objects_and_action(
+        num_objects = 1,
+        allowed_actions = [0],
+        allowed_colors = [0],
+        allowed_shapes = [3])
+    
     
     """    
     print("\nHIT")

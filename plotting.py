@@ -12,7 +12,27 @@ print("name:\n{}\n".format(args.arg_name),)
 
 
 
-def get_quantiles(plot_dict, name, precision = 5, adjust_xs=True, remove_none = True):
+"""
+def get_quantiles(plot_dict, name, adjust_xs = True):
+    xs = [i for i, x in enumerate(plot_dict[name][0]) if x != None]
+    lists = np.array(plot_dict[name], dtype=float)    
+    lists = lists[:,xs]
+    quantile_dict = {"xs" : [x * plot_dict["args"].keep_data for x in xs] if adjust_xs else xs}
+    quantile_dict["min"] = np.min(lists, 0)
+    quantile_dict["q10"] = np.quantile(lists, .1, 0)
+    quantile_dict["q20"] = np.quantile(lists, .2, 0)
+    quantile_dict["q30"] = np.quantile(lists, .3, 0)
+    quantile_dict["q40"] = np.quantile(lists, .4, 0)
+    quantile_dict["med"] = np.quantile(lists, .5, 0)
+    quantile_dict["q60"] = np.quantile(lists, .6, 0)
+    quantile_dict["q70"] = np.quantile(lists, .7, 0)
+    quantile_dict["q80"] = np.quantile(lists, .8, 0)
+    quantile_dict["q90"] = np.quantile(lists, .9, 0)
+    quantile_dict["max"] = np.max(lists, 0)
+    return(quantile_dict)
+"""
+
+def get_quantiles(plot_dict, name, adjust_xs=True, remove_none = True):
     # Convert all None to np.nan in the dataset for uniformity
     lists = np.array([[np.nan if x is None else x for x in agent] for agent in plot_dict[name]], dtype=float)
     
@@ -25,30 +45,20 @@ def get_quantiles(plot_dict, name, precision = 5, adjust_xs=True, remove_none = 
     quantile_dict = {"xs": xs}
     
     # Calculate quantiles and other statistics only on non-nan values
-    if(precision >= 5):
-        quantile_dict["min"] = np.nanmin(lists, axis=0)
-        quantile_dict["max"] = np.nanmax(lists, axis=0)
-    if(precision >= 4):
-        quantile_dict["q10"] = np.nanquantile(lists, 0.1, axis=0)
-        quantile_dict["q90"] = np.nanquantile(lists, 0.9, axis=0)
-    if(precision >= 3):
-        quantile_dict["q20"] = np.nanquantile(lists, 0.2, axis=0)
-        quantile_dict["q80"] = np.nanquantile(lists, 0.8, axis=0)
-    if(precision >= 2):
-        quantile_dict["q30"] = np.nanquantile(lists, 0.3, axis=0)
-        quantile_dict["q70"] = np.nanquantile(lists, 0.7, axis=0)
-    if(precision >= 1):
-        quantile_dict["q40"] = np.nanquantile(lists, 0.4, axis=0)
-        quantile_dict["q60"] = np.nanquantile(lists, 0.6, axis=0)
+    quantile_dict["min"] = np.nanmin(lists, axis=0)
+    quantile_dict["q10"] = np.nanquantile(lists, 0.1, axis=0)
+    quantile_dict["q20"] = np.nanquantile(lists, 0.2, axis=0)
+    quantile_dict["q30"] = np.nanquantile(lists, 0.3, axis=0)
+    quantile_dict["q40"] = np.nanquantile(lists, 0.4, axis=0)
     quantile_dict["med"] = np.nanquantile(lists, 0.5, axis=0)
-
-    
-    
-    
-    
+    quantile_dict["q60"] = np.nanquantile(lists, 0.6, axis=0)
+    quantile_dict["q70"] = np.nanquantile(lists, 0.7, axis=0)
+    quantile_dict["q80"] = np.nanquantile(lists, 0.8, axis=0)
+    quantile_dict["q90"] = np.nanquantile(lists, 0.9, axis=0)
+    quantile_dict["max"] = np.nanmax(lists, axis=0)
     return quantile_dict
 
-def get_list_quantiles(list_of_lists, plot_dict, precision = 5, remove_none = True):
+def get_list_quantiles(list_of_lists, plot_dict, remove_none = True):
     quantile_dicts = []
     for layer in range(len(list_of_lists[0])):
         l = [l[layer] for l in list_of_lists]
@@ -59,22 +69,17 @@ def get_list_quantiles(list_of_lists, plot_dict, precision = 5, remove_none = Tr
         lists = np.array(l, dtype=float)    
         lists = lists[:,xs]
         quantile_dict = {"xs" : [x * plot_dict["args"].keep_data for x in xs]}
-        if(precision >= 5):
-            quantile_dict["min"] = np.min(lists, axis=0)
-            quantile_dict["max"] = np.max(lists, axis=0)
-        if(precision >= 4):
-            quantile_dict["q10"] = np.quantile(lists, 0.1, axis=0)
-            quantile_dict["q90"] = np.quantile(lists, 0.9, axis=0)
-        if(precision >= 3):
-            quantile_dict["q20"] = np.quantile(lists, 0.2, axis=0)
-            quantile_dict["q80"] = np.quantile(lists, 0.8, axis=0)
-        if(precision >= 2):
-            quantile_dict["q30"] = np.quantile(lists, 0.3, axis=0)
-            quantile_dict["q70"] = np.quantile(lists, 0.7, axis=0)
-        if(precision >= 1):
-            quantile_dict["q40"] = np.quantile(lists, 0.4, axis=0)
-            quantile_dict["q60"] = np.quantile(lists, 0.6, axis=0)
-        quantile_dict["med"] = np.quantile(lists, 0.5, axis=0)
+        quantile_dict["min"] = np.min(lists, 0)
+        quantile_dict["q10"] = np.quantile(lists, .1, 0)
+        quantile_dict["q20"] = np.quantile(lists, .2, 0)
+        quantile_dict["q30"] = np.quantile(lists, .3, 0)
+        quantile_dict["q40"] = np.quantile(lists, .4, 0)
+        quantile_dict["med"] = np.quantile(lists, .5, 0)
+        quantile_dict["q60"] = np.quantile(lists, .6, 0)
+        quantile_dict["q70"] = np.quantile(lists, .7, 0)
+        quantile_dict["q80"] = np.quantile(lists, .8, 0)
+        quantile_dict["q90"] = np.quantile(lists, .9, 0)
+        quantile_dict["max"] = np.max(lists, 0)
         quantile_dicts.append(quantile_dict)
     return(quantile_dicts)
 
@@ -130,7 +135,7 @@ def plots(plot_dicts, min_max_dict):
     too_many_plot_dicts = len(plot_dicts) > 25
     figsize = (10, 10)
     if(not too_many_plot_dicts):
-        fig, axs = plt.subplots(30, len(plot_dicts), figsize = (20*len(plot_dicts), 300))
+        fig, axs = plt.subplots(24, len(plot_dicts), figsize = (20*len(plot_dicts), 300))
                 
     for i, plot_dict in enumerate(plot_dicts):
         
@@ -150,44 +155,30 @@ def plots(plot_dicts, min_max_dict):
         for key in plot_dict.keys():
             if(key.startswith("wins_")):
                 action_name_list.append(key[5:])
-        try:
-            action_name_list.remove("none")
-        except:
-            pass 
         for action_name in action_name_list:
-            win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), precision = 5, adjust_xs = False, remove_none = False)
-            gen_win_dict = get_quantiles(plot_dict, "gen_wins_" + action_name.lower(), precision = 5, adjust_xs = False, remove_none = False)
-            
+            win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), adjust_xs = False, remove_none = False)
+            #print("\n\nBEFORE:", win_dict)
             win_dict = get_rolling_average(win_dict)
-            gen_win_dict = get_rolling_average(gen_win_dict)
+            #print("AFTER:", win_dict)
                 
-            def plot_rolling_average_wins_shared_min_max(here, gen = False):
-                awesome_plot(here, gen_win_dict if gen else win_dict, "pink" if gen else "turquoise", "WinRate", (0,1))
-                here.set_ylabel((f"Rolling-Average Gen-Win-Rate" if gen else f"Rolling-Average Win-Rate"))
+            def plot_rolling_average_wins_shared_min_max(here):
+                awesome_plot(here, win_dict, "turquoise", "WinRate", (0,1))
+                here.set_ylabel("Rolling-Average Win-Rate")
                 here.set_xlabel("Epochs")
-                here.set_title(plot_dict["arg_title"] + (f"\nRolling-Average Gen-Win-Rate ({action_name})" if gen else f"\nRolling-Average Win-Rate ({action_name})"))
+                here.set_title(plot_dict["arg_title"] + f"\nRolling-Average Win-Rate ({action_name})")
                 divide_arenas([x for x in range(sum(epochs))], here)
                     
             if(not too_many_plot_dicts): 
                 ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
                 plot_rolling_average_wins_shared_min_max(ax)
-                ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-                plot_rolling_average_wins_shared_min_max(ax, gen = True)
-                
             fig2, ax2 = plt.subplots(figsize = figsize)  
             plot_rolling_average_wins_shared_min_max(ax2)  
             ax2.set_title("Rolling-Average Win-Rate")
-            fig2.savefig("thesis_pics/{}_wins_{}.png".format(action_name.lower(), plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
-            plt.close(fig2)
-            
-            fig2, ax2 = plt.subplots(figsize = figsize)  
-            plot_rolling_average_wins_shared_min_max(ax2)  
-            ax2.set_title("Rolling-Average Gen-Win-Rate")
-            fig2.savefig("thesis_pics/{}_gen_wins_{}.png".format(action_name.lower(), plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
+            fig2.savefig("thesis_pics/wins_{}_{}.png".format(action_name.lower(), plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
             plt.close(fig2)
     
         # Cumulative rewards
-        rew_dict = get_quantiles(plot_dict, "rewards", precision = 5, adjust_xs = False)
+        rew_dict = get_quantiles(plot_dict, "rewards", adjust_xs = False)
         max_reward = args.reward
         max_rewards = [max_reward*x for x in range(rew_dict["xs"][-1])]
         min_reward = args.step_lim_punishment
@@ -217,13 +208,13 @@ def plots(plot_dicts, min_max_dict):
         fig2, ax2 = plt.subplots(figsize = figsize)  
         plot_cumulative_rewards_shared_min_max(ax2)  
         ax2.set_title("Cumulative Rewards")
-        fig2.savefig("thesis_pics/{}_rewards.png".format(plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
+        fig2.savefig("thesis_pics/rewards_{}.png".format(plot_dict["arg_name"]), bbox_inches = "tight", dpi=300) 
         plt.close(fig2)
         
         
         
         # Cumulative generalization-test rewards
-        gen_rew_dict = get_quantiles(plot_dict, "gen_rewards", precision = 5, adjust_xs = False)
+        gen_rew_dict = get_quantiles(plot_dict, "gen_rewards", adjust_xs = False)
         max_reward = args.reward
         max_rewards = [max_reward*x for x in range(gen_rew_dict["xs"][-1])]
         min_reward = args.step_lim_punishment
@@ -260,11 +251,11 @@ def plots(plot_dicts, min_max_dict):
         
         if(not too_many_plot_dicts): 
             # Forward Losses
-            rgbd_dict = get_quantiles(plot_dict, "rgbd_loss", precision = 5)
-            comm_dict = get_quantiles(plot_dict, "comm_loss", precision = 5)
-            sensors_dict = get_quantiles(plot_dict, "sensors_loss", precision = 5)
-            accuracy_dict = get_quantiles(plot_dict, "accuracy", precision = 5)
-            comp_dict = get_quantiles(plot_dict, "complexity", precision = 5)
+            rgbd_dict = get_quantiles(plot_dict, "rgbd_loss")
+            comm_dict = get_quantiles(plot_dict, "comm_loss")
+            sensors_dict = get_quantiles(plot_dict, "sensors_loss")
+            accuracy_dict = get_quantiles(plot_dict, "accuracy")
+            comp_dict = get_quantiles(plot_dict, "complexity")
             min_max = many_min_max([min_max_dict["accuracy"], min_max_dict["complexity"]])
             
             handles = []
@@ -334,9 +325,9 @@ def plots(plot_dicts, min_max_dict):
             
             
             # Other Losses
-            alpha_dict = get_quantiles(plot_dict, "alpha", precision = 5)
-            actor_dict = get_quantiles(plot_dict, "actor", precision = 5)
-            crit_dicts = get_list_quantiles(plot_dict["critics"], plot_dict, precision = 5)
+            alpha_dict = get_quantiles(plot_dict, "alpha")
+            actor_dict = get_quantiles(plot_dict, "actor")
+            crit_dicts = get_list_quantiles(plot_dict["critics"], plot_dict)
             
             handles = []
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
@@ -351,7 +342,7 @@ def plots(plot_dicts, min_max_dict):
             ax3.set_ylabel("Alpha Loss")
             ax.set_xlabel("Epochs")
             ax.legend(handles = handles)
-            ax.set_title(plot_dict["arg_title"] + "\nSensors Losses")
+            ax.set_title(plot_dict["arg_title"] + "\nOther Losses")
             divide_arenas(actor_dict, ax)
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
@@ -369,16 +360,16 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(ax3, alpha_dict, "black", "Alpha", min_max_dict["alpha"]))
             ax3.set_ylabel("Alpha Loss")
             ax.legend(handles = handles)
-            ax.set_title(plot_dict["arg_title"] + "\nSensors Losses, shared min/max")
+            ax.set_title(plot_dict["arg_title"] + "\nOther Losses, shared min/max")
             divide_arenas(actor_dict, ax)
             
             
             
             # Extrinsic and Intrinsic rewards
-            ext_dict = get_quantiles(plot_dict, "extrinsic", precision = 5)
-            ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", precision = 5)
-            cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", precision = 5)
-            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", precision = 5)
+            ext_dict = get_quantiles(plot_dict, "extrinsic")
+            ent_dict = get_quantiles(plot_dict, "intrinsic_entropy")
+            cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity")
+            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation")
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             handles = []
@@ -428,10 +419,10 @@ def plots(plot_dicts, min_max_dict):
             
             
             # Extrinsic and Intrinsic rewards with same dims
-            ext_dict = get_quantiles(plot_dict, "extrinsic", precision = 5)
-            ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", precision = 5)
-            cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", precision = 5)
-            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", precision = 5)
+            ext_dict = get_quantiles(plot_dict, "extrinsic")
+            ent_dict = get_quantiles(plot_dict, "intrinsic_entropy")
+            cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity")
+            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation")
             min_max = many_min_max([min_max_dict["extrinsic"], min_max_dict["intrinsic_entropy"], min_max_dict["intrinsic_curiosity"]])#, min_max_dict["intrinsic_imitation"]])
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
@@ -467,8 +458,8 @@ def plots(plot_dicts, min_max_dict):
             
             
             # Curiosities
-            prediction_error_dict = get_quantiles(plot_dict, "prediction_error", precision = 5)
-            hidden_state_dicts = get_list_quantiles(plot_dict["hidden_state"], plot_dict, precision = 5)
+            prediction_error_dict = get_quantiles(plot_dict, "prediction_error")
+            hidden_state_dicts = get_list_quantiles(plot_dict["hidden_state"], plot_dict)
             min_max = many_min_max([min_max_dict["prediction_error"]] + [hidden_state_min_max for hidden_state_min_max in min_max_dict["hidden_state"]])
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1

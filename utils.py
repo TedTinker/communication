@@ -4,10 +4,11 @@
 #   Make it work.
 #   Make it work FASTER.
 #   Make comm prediction testing more successful.
-#   Not correctly plotting win-rates. 
 #   Try making sensor-observation deeper, with speed or something. 
-#   Plot episodes use just activated sensors, not untouched ones.
-#   Plot success rates of generalization states.
+#   Maybe using separate PVRNNs for rgbd, comm, sensors?
+#   Plot episodes with names of just activated sensors.
+#   Try predicting multiple steps in the future.
+#   Can we use smaller data-type?
 
 import os
 import pickle
@@ -26,6 +27,7 @@ import platform
 from torch.distributions import Normal
 import torch.nn.functional as F
 from torchvision.transforms import Resize
+from kornia.color import rgb_to_hsv 
 import psutil
 from itertools import product
 
@@ -82,7 +84,7 @@ def agent_to_english(agent_string):
             if(char == " "):
                 english_string += "___ "
             else:
-                english_string += f"?{char}? "
+                english_string += f"_{char}_ "
     english_string = english_string.strip()
     return(english_string)
 
@@ -231,13 +233,13 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
                     help='Should durations be printed?')
 
     # Things which have list-values.
-parser.add_argument('--task_list',          type=literal,    default = ["1", "2"],
+parser.add_argument('--task_list',          type=literal,    default = ["1"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [100, 100],
+parser.add_argument('--epochs',             type=literal,    default = [10000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
-parser.add_argument("--beta",               type=literal,    default = [1],
+parser.add_argument("--beta",               type=literal,    default = [2],
                     help='Relative importance of complexity in each layer.')
 parser.add_argument("--hidden_state_eta",   type=literal,    default = [1],
                     help='Nonnegative valued, how much to consider hidden_state curiosity in each layer.') 
@@ -253,7 +255,7 @@ parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--time_step',          type=float,      default = .2,
                     help='numSubSteps in pybullet environment.')
-parser.add_argument('--steps_per_step',     type=int,        default = 15,
+parser.add_argument('--steps_per_step',     type=int,        default = 30,
                     help='numSubSteps in pybullet environment.')
 
     # Agent details
@@ -313,6 +315,8 @@ parser.add_argument('--angle_reward_max',   type=float,      default = 90,
                     help='If agent pointing farther from correct object that this, punished. If angle between min and max, agent relatively rewarded.')
 
     # Training
+parser.add_argument('--capacity',           type=int,        default = 256,
+                    help='How many episodes can the memory buffer contain.')
 parser.add_argument('--batch_size',         type=int,        default = 32, 
                     help='How many episodes are sampled for each epoch.')      
 parser.add_argument('--rgbd_scaler',        type=float,      default = 5, 
@@ -321,30 +325,6 @@ parser.add_argument('--comm_scaler',        type=float,      default = 1,
                     help='How much to consider comm prediction in accuracy compared to rgbd and sensors.')       
 parser.add_argument('--sensors_scaler',     type=float,      default = 1, 
                     help='How much to consider sensors prediction in accuracy compared to rgbd and comm.')       
-
-    # Memory buffer
-parser.add_argument('--capacity',           type=int,        default = 256,
-                    help='How many episodes can the memory buffer contain.')
-
-    # Module  
-parser.add_argument('--hidden_size',        type=int,        default = 64,
-                    help='Parameters in hidden layers.')   
-parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 256,
-                    help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
-parser.add_argument('--state_size',         type=int,        default = 256,
-                    help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--encode_char_size',   type=int,        default = 8,
-                    help='Parameters in encoding.')   
-parser.add_argument('--encode_rgbd_size',   type=int,        default = 128,
-                    help='Parameters in encoding image.')   
-parser.add_argument('--encode_comm_size',   type=int,        default = 128,
-                    help='Parameters in encoding communicaiton.')   
-parser.add_argument('--encode_sensors_size',  type=int,        default = 16,
-                    help='Parameters in encoding sensors, angles, speed.')   
-parser.add_argument('--encode_action_size', type=int,        default = 8,
-                    help='Parameters in encoding action.')   
-parser.add_argument('--dropout',            type=float,      default = .01,
-                    help='Dropout percentage.')   
 parser.add_argument('--forward_lr',         type=float,      default = .0003,
                     help='Learning rate for forward model.')
 parser.add_argument('--discriminator_lr',   type=float,      default = .0003,
@@ -365,6 +345,32 @@ parser.add_argument('--GAMMA',              type=float,      default = .9,
                     help='How heavily critics consider the future.')
 parser.add_argument("--d",                  type=int,        default = 2,
                     help='Delay for training actors.') 
+
+    # Module  
+parser.add_argument('--hidden_size',        type=int,        default = 64,
+                    help='Parameters in hidden layers.')   
+parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 256,
+                    help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
+parser.add_argument('--state_size',         type=int,        default = 256,
+                    help='Parameters in prior and posterior inner-states.')
+parser.add_argument('--encode_char_size',   type=int,        default = 8,
+                    help='Parameters in encoding.')   
+parser.add_argument('--encode_rgbd_size',   type=int,        default = 128,
+                    help='Parameters in encoding image.')   
+parser.add_argument('--encode_comm_size',   type=int,        default = 128,
+                    help='Parameters in encoding communicaiton.')   
+parser.add_argument('--encode_sensors_size',  type=int,      default = 8,
+                    help='Parameters in encoding sensors, angles, speed.')   
+parser.add_argument('--encode_action_size', type=int,        default = 8,
+                    help='Parameters in encoding action.')   
+parser.add_argument('--dropout',            type=float,      default = .001,
+                    help='Dropout percentage.')
+parser.add_argument('--use_hsv',            type=literal,    default = True,
+                    help='Should RGBD_In use hsv?')   
+parser.add_argument('--pos_channels',       type=int,        default = 2,
+                    help='How many channels for positions in rgbd?')   
+parser.add_argument('--divisions',          type=int,        default = 1,
+                    help='How many times should RBGD_Out double size to image-size?')      
 
     # Complexity 
 parser.add_argument('--std_min',            type=int,        default = exp(-20),
@@ -405,14 +411,14 @@ parser.add_argument('--keep_data',           type=int,       default = 10,
 parser.add_argument('--epochs_per_gen_test', type=int,       default = 10,
                     help='How many epochs should pass before trying generalization test.')
 
-parser.add_argument('--epochs_per_episode_dict',type=int,    default = 1000,
+parser.add_argument('--epochs_per_episode_dict',type=int,    default = 2000,
                     help='How many epochs should pass before saving an episode.')
 parser.add_argument('--agents_per_episode_dict',type=int,    default = 3,
                     help='How many agents to save episodes.')
 parser.add_argument('--episodes_in_episode_dict',type=int,   default = 1,
                     help='How many episodes to save per agent.')
 
-parser.add_argument('--epochs_per_agent_list',type=int,       default = 1000,
+parser.add_argument('--epochs_per_agent_list',type=int,       default = 2000,
                     help='How many epochs should pass before saving agent model.')
 parser.add_argument('--agents_per_agent_list',type=int,       default = 3,
                     help='How many agents to save.') 
@@ -950,6 +956,21 @@ def custom_loss(guess, target, max_shift=1):
 def calculate_similarity(recommended_actions, actor_actions):
     similarities = -F.mse_loss(recommended_actions, actor_actions, reduction='none').mean(-1)
     return similarities
+
+
+
+def hsv_to_circular_hue(hsv_image):
+    hue = hsv_image[:, 0, :, :] * 2 * torch.pi  # Convert hue from [0, 1] to [0, 2*pi]
+    hue_sin = (torch.sin(hue) + 1) / 2
+    hue_cos = (torch.cos(hue) + 1) / 2
+    hsv_circular = torch.stack([hue_sin, hue_cos, hsv_image[:, 1, :, :], hsv_image[:, 2, :, :]], dim=1)
+    return hsv_circular
+
+
+
+def add_hsv_to_rgbd(rgbd):
+    pass 
+
 
 
 

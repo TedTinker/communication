@@ -15,7 +15,7 @@ class Task:
     
     def __init__(
             self, 
-            actions = [0], 
+            actions = [-1], 
             objects = 1, 
             colors = [0], 
             shapes = [0], 
@@ -30,7 +30,7 @@ class Task:
         
         self.agent_to_english = agent_to_english
         
-    def begin(self, goal_action = None, test = False, verbose = False):
+    def begin(self, test = False, verbose = False):
         self.solved = False
         self.goal = []
         self.current_objects_1 = []
@@ -40,12 +40,9 @@ class Task:
         goal_color, goal_shape = self.current_objects_1[0]
         self.goal = (action_num, goal_color, goal_shape)
         
+        self.goal_text = "{}{}{}".format(action_map[action_num][0], color_map[goal_color][0], shape_map[goal_shape][0])
         if(action_num == -1):
-            self.goal_text = ""
-            for _ in range(self.args.max_comm_len):
-                self.goal_text += choice(list(comm_map.values()))
-        else:
-            self.goal_text = "{}{}{}".format(action_map[action_num][0], color_map[goal_color][0], shape_map[goal_shape][0])
+            self.goal_text = self.goal_text[0]            
         self.goal_human_text = "Given "
         for i, (c, s) in enumerate(self.current_objects_1):
             self.goal_human_text += color_map[c][1] + " " + shape_map[s][1]
@@ -86,9 +83,9 @@ class Task_Runner:
         self.arena_1 = arena_1 
         self.arena_2 = arena_2
         
-    def begin(self, goal_action = None, test = False, verbose = False):
+    def begin(self, test = False, verbose = False):
         self.steps = 0
-        self.task.begin(goal_action, test, verbose)
+        self.task.begin(test, verbose)
         self.arena_1.begin(self.task.current_objects_1, self.task.goal, self.parenting)
         if(not self.parenting): self.arena_2.begin(self.task.current_objects_2, self.task.goal, self.parenting)
         
@@ -155,8 +152,13 @@ class Task_Runner:
                     
         if(raw_reward > 0): 
             raw_reward *= self.args.step_cost ** (self.steps-1)
+        if(distance_reward > 0):
+            distance_reward *= self.args.step_cost ** (self.steps-1)
+        if(angle_reward > 0):
+            angle_reward *= self.args.step_cost ** (self.steps-1)
         end = self.steps >= self.args.max_steps
-        if(end and not win and self.task.goal[0] != -1): 
+                
+        if(end and not win): 
             done = True
             if(self.task.goal[0] != -1):
                 raw_reward += self.args.step_lim_punishment
@@ -247,7 +249,7 @@ if __name__ == "__main__":
     physicsClient = get_physics(GUI = True, time_step = args.time_step, steps_per_step = args.steps_per_step)
     arena_1 = Arena(physicsClient)
     arena_2 = None
-    task_runner = Task_Runner(Task(actions = [0], objects = 3, colors = [0, 1, 2, 3, 4, 5], shapes = [0]), arena_1, arena_2)
+    task_runner = Task_Runner(Task(actions = [2], objects = 3, colors = [0, 1, 2, 3, 4, 5], shapes = [0]), arena_1, arena_2)
     
     def get_images():
         rgba = task_runner.arena_1.photo_from_above()
@@ -282,7 +284,7 @@ if __name__ == "__main__":
         
         print("episode", i)
         images = []
-        task_runner.begin(goal_action = None, verbose = True)
+        task_runner.begin(verbose = True)
         done = False
         j = 0
         while(done == False):
