@@ -149,7 +149,7 @@ class RGBD_OUT(nn.Module):
             
             nn.Conv2d(
                 in_channels = self.out_features_channels + 2, 
-                out_channels = 4, # * (2 ** self.args.divisions),
+                out_channels = 4 * (1 if self.args.divisions == 1 else 2 ** self.args.divisions),
                 kernel_size = 3,
                 padding = 1,
                 padding_mode = "reflect"),

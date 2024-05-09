@@ -371,7 +371,7 @@ parser.add_argument('--use_hsv',            type=literal,    default = True,
                     help='Should RGBD_In use hsv?')   
 parser.add_argument('--pos_channels',       type=int,        default = 2,
                     help='How many channels for positions in rgbd?')   
-parser.add_argument('--divisions',          type=int,        default = 1,
+parser.add_argument('--divisions',          type=int,        default = 2,
                     help='How many times should RBGD_Out double size to image-size?')      
 
     # Complexity 
