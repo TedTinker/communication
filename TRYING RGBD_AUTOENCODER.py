@@ -43,7 +43,7 @@ forward.train()
 opt = optim.Adam(
     params=forward.parameters(), 
     lr=args.forward_lr, 
-    weight_decay = .00001) 
+    weight_decay = args.weight_decay) 
 
 
 

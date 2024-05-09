@@ -44,18 +44,18 @@ class Agent:
         self.target_entropy = self.args.target_entropy
         self.alpha = 1
         self.log_alpha = torch.tensor([0.0], requires_grad=True)
-        self.alpha_opt = optim.Adam(params=[self.log_alpha], lr=self.args.alpha_lr, weight_decay = .00001) 
+        self.alpha_opt = optim.Adam(params=[self.log_alpha], lr=self.args.alpha_lr, weight_decay = self.args.weight_decay) 
         
         self.target_entropy_text = self.args.target_entropy_text
         self.alpha_text = 1
         self.log_alpha_text = torch.tensor([0.0], requires_grad=True)
-        self.alpha_text_opt = optim.Adam(params=[self.log_alpha_text], lr=self.args.alpha_text_lr, weight_decay = .00001) 
+        self.alpha_text_opt = optim.Adam(params=[self.log_alpha_text], lr=self.args.alpha_text_lr, weight_decay = self.args.weight_decay) 
 
         self.forward = PVRNN(self.args)
-        self.forward_opt = optim.Adam(self.forward.parameters(), lr=self.args.forward_lr, weight_decay = .00001)
+        self.forward_opt = optim.Adam(self.forward.parameters(), lr=self.args.forward_lr, weight_decay = self.args.weight_decay)
                            
         self.actor = Actor(self.args)
-        self.actor_opt = optim.Adam(self.actor.parameters(), lr=self.args.actor_lr, weight_decay = .00001) 
+        self.actor_opt = optim.Adam(self.actor.parameters(), lr=self.args.actor_lr, weight_decay = self.args.weight_decay) 
         
         self.critics = []
         self.critic_targets = []
@@ -64,7 +64,7 @@ class Agent:
             self.critics.append(Critic(self.args))
             self.critic_targets.append(Critic(self.args))
             self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
-            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr=self.args.critic_lr, weight_decay = .00001))
+            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr=self.args.critic_lr, weight_decay = self.args.weight_decay))
         
         self.memory = RecurrentReplayBuffer(self.args)
         
@@ -108,7 +108,6 @@ class Agent:
         self.save_agent()
         while(True):
             cumulative_epochs = 0
-            prev_task_name = self.task_name
             for i, epochs in enumerate(self.args.epochs): 
                 cumulative_epochs += epochs
                 if(self.epochs == cumulative_epochs): 
@@ -119,14 +118,19 @@ class Agent:
                     self.save_episodes(swapping = False)
                     self.save_agent()
                     
+                    parented_before = self.tasks[self.task_name].parenting
                     self.task_name = self.args.task_list[i+1] 
+                    parented_after = self.tasks[self.task_name].parenting
+                    
+                    if(parented_before and not parented_after):
+                        self.actor.comm_out.load_state_dict(self.forward.predict_obs.comm_out.state_dict())
                     
                     self.gen_test()  
                     self.save_episodes(swapping = True)
                     self.save_agent()
                     
                     time = duration()
-                    if(self.args.show_duration): print("AFTER GEN, SAVE EPISODE, SAVE AGENT (START):", time - prev_time)
+                    if(self.args.show_duration): print("AFTER GEN, SAVE EPISODE, SAVE AGENT:", time - prev_time)
                     prev_time = time
                     break
                 

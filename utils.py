@@ -365,6 +365,8 @@ parser.add_argument('--encode_action_size', type=int,        default = 8,
                     help='Parameters in encoding action.')   
 parser.add_argument('--dropout',            type=float,      default = .001,
                     help='Dropout percentage.')
+parser.add_argument('--weight_decay',       type=float,      default = .00001,
+                    help='Weight decay for modules.')   
 parser.add_argument('--use_hsv',            type=literal,    default = True,
                     help='Should RGBD_In use hsv?')   
 parser.add_argument('--pos_channels',       type=int,        default = 2,
