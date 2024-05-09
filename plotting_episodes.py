@@ -7,9 +7,11 @@ import imageio
 import numpy as np
 
 from utils import print, args, duration, load_dicts
-print("name:\n{}".format(args.arg_name))
+
+
 
 def plot_episodes(complete_order, plot_dicts):
+    global args
     for arg_name in complete_order:
         if(arg_name in ["break", "empty_space"]): 
             pass 
@@ -17,6 +19,7 @@ def plot_episodes(complete_order, plot_dicts):
             for plot_dict in plot_dicts:
                 if(plot_dict["arg_name"] == arg_name):
                     episode_dicts = plot_dict["episode_dicts"]
+                    args = plot_dict["args"]
                     for key, episode_dict in episode_dicts.items():
                         plot_episode(key, episode_dict, arg_name)
                         
@@ -89,8 +92,10 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         text_list.append(comms_in_q)
         label_list.append(f"Predicted Comms (Posterior) ({agent_num}):")
     
-    sensors = episode_dict[f"sensors_{agent_num}"][step]
-    text_list.append(str(sensors))
+    # How to make this use names of any none-zero sensors?
+    sensors = episode_dict[f"sensors_{agent_num}"][step][0]
+    sensor_names = [args.sensor_names[i] for i in range(len(sensors)) if sensors[i] > 0]    
+    text_list.append(str(sensor_names))
     label_list.append(f"Sensors ({agent_num}):")
     
     if not step == 0:
@@ -179,9 +184,6 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
     plt.savefig(f"Step {step} Agent {agent_num}.png")
     plt.close()
     
-    
-    
-
     
   
 plot_dicts, min_max_dict, complete_order = load_dicts(args)

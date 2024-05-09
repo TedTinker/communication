@@ -3,7 +3,6 @@
 # To do: 
 #   Make it work.
 #   Make it work FASTER.
-#   No longer plotting gen-win-rates, maybe messing up wins altogether.
 #   Make comm prediction work with GRU.
 #   Try making sensor-observation deeper, with speed or something. 
 #   Maybe using separate PVRNNs for rgbd, comm, sensors?
@@ -256,7 +255,7 @@ parser.add_argument('--body_size',          type=float,      default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--time_step',          type=float,      default = .2,
                     help='numSubSteps in pybullet environment.')
-parser.add_argument('--steps_per_step',     type=int,        default = 30,
+parser.add_argument('--steps_per_step',     type=int,        default = 20,
                     help='numSubSteps in pybullet environment.')
 
     # Agent details

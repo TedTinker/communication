@@ -336,8 +336,6 @@ class Arena():
                 movement_forward = delta_x * v_rx + delta_y * v_ry
                 movement_left = delta_x * (-v_ry) + delta_y * v_rx
                 if(verbose):
-                    print("Distance from agent to object:", round(distance, 2))
-                    print("Angle of agent to object:", round(angle_degrees, 2))
                     print("Object movement (forward):", round(movement_forward, 2))
                     print("Object movement (left):", round(movement_left, 2))
                     print("Angle of object movement:", round(v_rx, 2), round(v_ry, 2))
@@ -408,14 +406,14 @@ class Arena():
                     angle_reward = 0
                     
                 if(verbose):
-                    print("Raw reward:", round(reward, 2))
-                    print("DISTANCE:", round(distance, 2))
+                    print("Distance:", round(distance, 2))
                     print("Distance reward:", round(distance_reward, 2))
-                    print("ANGLE:", round(angle_degrees, 2))
-                    print("Angle reward:", round(angle_reward, 2))
+                    print("Angle:", round(angle_degrees, 2))
+                    print("Angle reward:", round(angle_reward, 2)),
+                    print("Raw reward:", round(reward, 2))
                     
         if(verbose):
-            print("Reward:", reward)
+            print("Total reward:", reward + distance_reward + angle_reward)
             print("Win:", win)
 
         return(reward, distance_reward, angle_reward, win)
@@ -483,7 +481,7 @@ if __name__ == "__main__":
         allowed_shapes = [0, 1, 2])
         
         
-        
+    """
     print("\nFREE PLAY")
     goal = [-1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parented = False)
@@ -496,6 +494,7 @@ if __name__ == "__main__":
             arena.rewards(verbose = True)
         sleep(.05)
     arena.end()
+    """
     
     
     
@@ -564,7 +563,7 @@ if __name__ == "__main__":
     arena.end()
     """
     
-    """
+    #"""
     print("\nWATCH")
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(6,0)])
@@ -576,7 +575,7 @@ if __name__ == "__main__":
         if(arena.rewards(verbose = True)[-1]):
             break
     arena.end()
-    """
+    #"""
     
     #"""
     print("\nPUSH")
