@@ -6,9 +6,9 @@
 #   Make comm prediction work with GRU.
 #   Try making sensor-observation deeper, with speed or something. 
 #   Maybe using separate PVRNNs for rgbd, comm, sensors?
-#   Plot episodes with names of just activated sensors.
 #   Try predicting multiple steps in the future.
 #   Can we use smaller data-type?
+#   Try with cut PVRNN linear layers.
 
 import os
 import pickle
@@ -239,9 +239,9 @@ parser.add_argument('--epochs',             type=literal,    default = [10000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
-parser.add_argument("--beta",               type=literal,    default = [2],
+parser.add_argument("--beta",               type=literal,    default = [.5],
                     help='Relative importance of complexity in each layer.')
-parser.add_argument("--hidden_state_eta",   type=literal,    default = [1],
+parser.add_argument("--hidden_state_eta",   type=literal,    default = [5],
                     help='Nonnegative valued, how much to consider hidden_state curiosity in each layer.') 
 
     # Simulation details
@@ -371,6 +371,8 @@ parser.add_argument('--use_hsv',            type=literal,    default = True,
                     help='Should RGBD_In use hsv?')   
 parser.add_argument('--pos_channels',       type=int,        default = 2,
                     help='How many channels for positions in rgbd?')   
+parser.add_argument('--use_trig_pos',       type=literal,    default = True,
+                    help='Use trigonometric positions, or linear?') 
 parser.add_argument('--divisions',          type=int,        default = 2,
                     help='How many times should RBGD_Out double size to image-size?')      
 
@@ -454,6 +456,8 @@ for arg_set in [default_args, args]:
     arg_set.beta = extend_list_to_match_length(arg_set.beta, max_length, 0)
     arg_set.hidden_state_eta = extend_list_to_match_length(arg_set.hidden_state_eta, max_length, 0)
     arg_set.layers = len(arg_set.time_scales)
+    if(arg_set.use_trig_pos):
+        arg_set.pos_channels = 2
         
 args_not_in_title = ["arg_title", "id", "agents", "previous_agents", "init_seed", "keep_data", "epochs_per_pred_list", "episodes_in_pred_list", "agents_per_pred_list", "epochs_per_pos_list", "episodes_in_pos_list", "agents_per_pos_list"]
 def get_args_title(default_args, args):

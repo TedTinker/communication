@@ -502,7 +502,7 @@ if __name__ == "__main__":
         num_objects = 1,
         allowed_actions = [0],
         allowed_colors = [0],
-        allowed_shapes = [3])
+        allowed_shapes = [4])
     
     
     """    

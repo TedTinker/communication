@@ -101,11 +101,13 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
     if not step == 0:
         
         sensors_p = episode_dict[f"prior_predicted_sensors_{agent_num}"][step-1]
-        text_list.append(str(sensors_p))
+        sensor_names_p = [args.sensor_names[i] for i in range(len(sensors_p)) if sensors_p[i] > .25]    
+        text_list.append(str(sensor_names_p))
         label_list.append(f"Predicted Sensors (Prior) ({agent_num}):")
         
         sensors_q = episode_dict[f"posterior_predicted_sensors_{agent_num}"][step-1]
-        text_list.append(str(sensors_q))
+        sensor_names_q = [args.sensor_names[i] for i in range(len(sensors_q)) if sensors_q[i] > .25]    
+        text_list.append(str(sensor_names_q))
         label_list.append(f"Predicted Sensors (Posterior) ({agent_num}):")
         
         raw_rewards = episode_dict["raw_rewards"][step-1]

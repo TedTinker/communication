@@ -97,7 +97,6 @@ class Task_Runner:
             else:
                 arena = self.arena_2
                 
-                
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
         touched = [False] * self.args.sensors_shape
@@ -255,42 +254,39 @@ if __name__ == "__main__":
         rgba = task_runner.arena_1.photo_from_above()
         rgbd, _, _ = task_runner.obs()
         rgb = rgbd[0,:,:,0:3]
-        return(rgba, rgb)
+        d = rgbd[0,:,:,-1]
+        return(rgba, rgb, d)
         
     def example_images(images):
-        num_images = len(images)
-        fig, axs = plt.subplots(2, num_images, figsize=(num_images * 5, 6), gridspec_kw={'wspace':0.1, 'hspace':0.1})
-        for i, (rgba, rgb) in enumerate(images):
-            if num_images > 1:
-                ax1 = axs[0, i]
-                ax2 = axs[1, i]
-            else:
-                ax1 = axs[0]
-                ax2 = axs[1]
-            ax1.imshow(rgba)
-            ax1.axis('off') 
-            rect1 = patches.Rectangle((-.5, -.5), rgba.shape[1], rgba.shape[0], linewidth=4, edgecolor='black', facecolor='none')
-            ax1.add_patch(rect1)
-            ax2.imshow(rgb)
-            ax2.axis('off') 
-            rect2 = patches.Rectangle((-.5, -.5), rgb.shape[1], rgb.shape[0], linewidth=4, edgecolor='black', facecolor='none')
-            ax2.add_patch(rect2)
-        plt.tight_layout()
+        rgba, rgb, d = images
+        
+        plt.imshow(rgba)
+        plt.axis('off') 
         plt.show()
+        plt.close()
 
+        plt.imshow(rgb)
+        plt.axis('off') 
+        plt.show()
+        plt.close()
+        
+        plt.imshow(d)
+        plt.axis('off') 
+        plt.show()
+        plt.close()
+        
     i = 0
     while(True):
         i += 1
         
         print("episode", i)
-        images = []
         task_runner.begin(verbose = True)
         done = False
         j = 0
         while(done == False):
             j += 1 
             print("step", j)
-            images.append(get_images())
+            example_images(get_images())
             recommendation = task_runner.get_recommended_action(verbose = False)#True)
             print("Got recommendation:", recommendation)
             raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win = task_runner.step(recommendation, verbose = True)
@@ -302,8 +298,7 @@ if __name__ == "__main__":
             plt.show()
             plt.close()
             sleep(.1)
-        images.append(get_images())
         print("Win:", win)
-        example_images(images)
+        example_images(get_images())
         task_runner.done()
 # %%

@@ -6,6 +6,7 @@ import pybullet as p
 from math import pi, sin, cos, radians, tan
 import matplotlib.pyplot as plt
 from skimage.transform import resize
+from copy import deepcopy
 
 max_radius = .6
 
@@ -85,10 +86,13 @@ def innards(lengths, radia):
 pillar = innards([1], [max_radius])
 pole = innards([1], [.1])
 dumbbell = innards([.9, .1], [.1, max_radius])
-delta = innards([.1] * 10, [max_radius - i/16 for i in range(10)])
-hourglass = innards([.1] * 10, [max_radius - i/8 for i in range(5)] + [.1 + i/8 for i in range(5)])
+delta = innards([.1] * 10, [max_radius - i/18 for i in range(1, 11)])
 
-
+hourglass_part = [max_radius - i/11 for i in range(6)]
+hourglass_part_reversed = deepcopy(hourglass_part)
+hourglass_part_reversed.reverse()
+all_hourglass = hourglass_part[1:] + hourglass_part_reversed[1:]
+hourglass = innards([.1] * 10, all_hourglass)
 
 current_dir = os.getcwd()
 last_folder = os.path.basename(os.getcwd())
@@ -116,7 +120,6 @@ physicsClient = p.connect(p.GUI)
 p.setAdditionalSearchPath("pybullet_data")
 
 for i, file_name in zip([-2, -1, 0, 1, 2], file_names):
-  print(file_name)
   object_index = p.loadURDF("{}".format(file_name), (-5, 15 * i, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                               useFixedBase=False, globalScaling = 2, physicsClientId=physicsClient)
   p.changeVisualShape(object_index, -1, rgbaColor = (1, 0, 0, 1), physicsClientId = physicsClient)
@@ -129,7 +132,7 @@ fov_x_deg = 90
 fov_y_deg = 90
 fov_x_rad = radians(fov_x_deg)
 fov_y_rad = radians(fov_y_deg)
-near = 1
+near = .1
 far = 15
 right = near * tan(fov_x_rad / 2)
 left = -right
@@ -153,22 +156,54 @@ def photo(pos, image_size):
     rgb = resize(rgb, (image_size, image_size, 3))
     return rgb
   
-  
-  
 def plot_these(all_rgbs):
   fig, axs = plt.subplots(len(all_rgbs[0]), len(all_rgbs), figsize = (20, 20))
   for i, rgbs in enumerate(all_rgbs):
     for j, rgb in enumerate(rgbs):
       axs[j, i].imshow(rgb)
   fig.show()
+  #plt.close()
   
 
-for image_size in [8, 16, 32, 64]:
+for image_size in [8, 16, 32, 64, 360]:
   all_rgbs = []
   for object_pos in [15 * i for i in [-2, -1, 0, 1, 2]]:
     rgbs = []
-    for distance_pos in [-2.5, -2, -1, 0, 1, 2, 3]: 
+    for distance_pos in [p - 5 for p in [2.5, 3, 4, 5, 6, 7]]: 
       rgb = photo((distance_pos, object_pos), image_size)
       rgbs.append(rgb)
     all_rgbs.append(rgbs)
   plot_these(all_rgbs)
+  
+#p.disconnect(physicsClientId = physicsClient)
+
+
+
+"""physicsClient = p.connect(p.GUI)
+p.setAdditionalSearchPath("pybullet_data")
+
+for i, file_name in zip([-2, -1, 0, 1, 2], file_names):
+  object_index = p.loadURDF("{}".format(file_name), (-5, 3 * i, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+                                              useFixedBase=False, globalScaling = 2, physicsClientId=physicsClient)
+  p.changeVisualShape(object_index, -1, rgbaColor = (1, 0, 0, 1), physicsClientId = physicsClient)
+  for i in range(p.getNumJoints(object_index)):
+      p.changeVisualShape(object_index, i, rgbaColor=(1, 0, 0, 1), physicsClientId = physicsClient)
+      
+x, y = cos(pi), sin(pi)
+view_matrix = p.computeViewMatrix(
+    cameraEyePosition=[0, 0, 1], 
+    cameraTargetPosition= [x*2, y*2, 1],
+    cameraUpVector=[0, 0, 1], physicsClientId=physicsClient)
+proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far)
+_, _, rgba, depth, _ = p.getCameraImage(
+    width = 3600, height = 3600,
+    projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow=0,
+    physicsClientId=physicsClient)
+rgb = np.divide(rgba[:, :, :-1], 255)
+
+plt.imshow(rgb)
+plt.show()
+
+p.disconnect(physicsClientId = physicsClient)"""
+
+  

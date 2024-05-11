@@ -279,7 +279,7 @@ for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsCli
     p.changeDynamics(robot_index, link_index, maxJointVelocity = 10000)
     
     if("sensor" in link_name):
-        p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, .5), physicsClientId = physicsClient)
+        p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, 0), physicsClientId = physicsClient)
     else:
         p.changeVisualShape(robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = physicsClient)
 # %%

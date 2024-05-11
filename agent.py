@@ -30,10 +30,10 @@ class Agent:
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
         
         self.tasks = {
-            "0" : Task(actions = [-1],              objects = 3, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],      parent = True, args = self.args),
-            "1" : Task(actions = [1],               objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],      parent = True, args = self.args),
-            "2" : Task(actions = [1],               objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],      parent = True, args = self.args),
-            "3" : Task(actions = [0, 1, 2, 3, 4],   objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],      parent = True, args = self.args)}
+            "0" : Task(actions = [-1],              objects = 3, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parent = True, args = self.args),
+            "1" : Task(actions = [1],               objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parent = True, args = self.args),
+            "2" : Task(actions = [1],               objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parent = True, args = self.args),
+            "3" : Task(actions = [0, 1, 2, 3, 4],   objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parent = True, args = self.args)}
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
         physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)

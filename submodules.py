@@ -79,7 +79,7 @@ class RGBD_IN(nn.Module):
                 out_features = self.args.encode_rgbd_size),
             nn.BatchNorm1d(self.args.encode_rgbd_size),
             nn.PReLU(),
-            nn.Dropout(self.args.dropout),)
+            nn.Dropout(self.args.dropout))
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -93,9 +93,9 @@ class RGBD_IN(nn.Module):
             hsv = hsv_to_circular_hue(rgbd[:,:-1])
             rgbd = torch.cat([rgbd, hsv], dim = 1)
         rgbd = (rgbd * 2) - 1
-        positional_layers = generate_2d_positional_layers(rgbd.shape[0], rgbd.shape[2], device=self.args.device)
-        #positional_layers = generate_2d_sinusoidal_positions(
-        #    batch_size = rgbd.shape[0], image_size = rgbd.shape[2], d_model = self.args.pos_channels, device='cpu')
+        #positional_layers = generate_2d_positional_layers(rgbd.shape[0], rgbd.shape[2], device=self.args.device)
+        positional_layers = generate_2d_sinusoidal_positions(
+            batch_size = rgbd.shape[0], image_size = rgbd.shape[2], d_model = self.args.pos_channels, device='cpu')
         rgbd = torch.cat([rgbd, positional_layers], dim = 1)
         
         a = self.a(rgbd).flatten(1)
@@ -138,7 +138,7 @@ class RGBD_OUT(nn.Module):
                 out_features = self.out_features_channels * (self.args.image_size//self.args.divisions) * (self.args.image_size//self.args.divisions)))
         
         self.b = nn.Sequential(
-            nn.BatchNorm2d(self.out_features_channels + 2),
+            nn.BatchNorm2d(self.out_features_channels + self.args.pos_channels),
             nn.PReLU(),
             nn.Dropout(self.args.dropout),
             
@@ -148,7 +148,7 @@ class RGBD_OUT(nn.Module):
             #    align_corners = True),
             
             nn.Conv2d(
-                in_channels = self.out_features_channels + 2, 
+                in_channels = self.out_features_channels + self.args.pos_channels, 
                 out_channels = 4 * (1 if self.args.divisions == 1 else 2 ** self.args.divisions),
                 kernel_size = 3,
                 padding = 1,
@@ -167,7 +167,9 @@ class RGBD_OUT(nn.Module):
         
         a = self.a(h_w_action)
         a = a.reshape(episodes * steps, self.out_features_channels, self.args.image_size//self.args.divisions, self.args.image_size//self.args.divisions)
-        positional_layers = generate_2d_positional_layers(a.shape[0], self.args.image_size//self.args.divisions, device=self.args.device)
+        #positional_layers = generate_2d_positional_layers(a.shape[0], self.args.image_size//self.args.divisions, device=self.args.device)
+        positional_layers = generate_2d_sinusoidal_positions(
+            batch_size = a.shape[0], image_size = self.args.image_size//self.args.divisions, d_model = self.args.pos_channels, device='cpu')
         a_w_positions = torch.cat([a, positional_layers], dim = 1)
         
         rgbd = self.b(a_w_positions)
