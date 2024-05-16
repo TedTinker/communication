@@ -11,10 +11,10 @@ from kornia.color import rgb_to_hsv
 import torchgan.layers as gg
 from torchinfo import summary as torch_summary
 
-from utils import print, default_args, init_weights, hsv_to_circular_hue, \
-    episodes_steps, pad_zeros, Ted_Conv1d, Ted_Conv2d, var, \
-    sample, duration, ConstrainedConv1d, ConstrainedConv2d, ResidualBlock2d, ResidualBlock1d, DenseBlock, \
-    TransformerModel, ImageTransformer
+from utils import print, default_args
+from submodule_utils import model_start, model_end, generate_2d_sinusoidal_positions, generate_2d_positional_layers, generate_1d_positional_layers, \
+    Ted_Conv1d, Ted_Conv2d, ConstrainedConv1d, ConstrainedConv2d, ResidualBlock2d, ResidualBlock1d, DenseBlock, \
+    TransformerModel, ImageTransformer, init_weights, hsv_to_circular_hue, pad_zeros, var, sample
 from mtrnn import MTRNN
 
 if __name__ == "__main__":
@@ -23,38 +23,6 @@ if __name__ == "__main__":
     episodes = args.batch_size ; steps = args.max_steps
     
     
-    
-def generate_1d_positional_layers(batch_size, length, device='cpu'):
-    x = torch.linspace(-1, 1, steps=length).view(1, 1, 1, length).repeat(batch_size, 1, length, 1)
-    x = x.to(device)
-    return x
-    
-def generate_2d_positional_layers(batch_size, image_size, device='cpu'):
-    x = torch.linspace(-1, 1, steps=image_size).view(1, 1, 1, image_size).repeat(batch_size, 1, image_size, 1)
-    y = torch.linspace(-1, 1, steps=image_size).view(1, 1, image_size, 1).repeat(batch_size, 1, 1, image_size)
-    x, y = x.to(device), y.to(device)
-    return torch.cat([x, y], dim=1)
-
-
-
-def generate_2d_sinusoidal_positions(batch_size, image_size, d_model=2, device='cpu'):
-    assert d_model % 2 == 0, "d_model should be even."
-    x = torch.arange(image_size, dtype=torch.float32, device=device).unsqueeze(0).expand(image_size, image_size)
-    y = torch.arange(image_size, dtype=torch.float32, device=device).unsqueeze(1).expand(image_size, image_size)
-    x = x.unsqueeze(2).tile((1, 1, d_model // 2))
-    y = y.unsqueeze(2).tile((1, 1, d_model // 2))
-
-    div_term = torch.exp(torch.arange(0, d_model, 2, dtype=torch.float32, device=device) * (-log(10000.0) / (d_model // 2)))
-    div_term = torch.tile(div_term.unsqueeze(0).unsqueeze(0), (image_size, image_size, 1))
-    
-    pe = torch.zeros(image_size, image_size, d_model, device=device)
-    pe[:, :, 0::2] = torch.sin(x * div_term) + torch.sin(y * div_term)
-    pe[:, :, 1::2] = torch.cos(x * div_term) + torch.cos(y * div_term)
-    pe = torch.tile(pe.unsqueeze(0), (batch_size, 1, 1, 1))
-    pe = pe.permute(0, 3, 1, 2) / 2
-    return pe
-
-
 
 class RGBD_IN(nn.Module):
 
@@ -83,33 +51,40 @@ class RGBD_IN(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
     def forward(self, rgbd):
-        start = duration()
-        if(len(rgbd.shape) == 4): rgbd = rgbd.unsqueeze(1)
-        episodes, steps = episodes_steps(rgbd)
-        rgbd = rgbd.reshape(episodes * steps, rgbd.shape[2], rgbd.shape[3], rgbd.shape[4]).permute(0, -1, 1, 2)
+        #print(f"\n\n{rgbd.dtype}\n\n")
+        #rgbd = rgbd.to(dtype=torch.float16)
+        #print(f"\n\n{rgbd.dtype}\n\n")
+        
+        start, episodes, steps, [rgbd] = model_start([(rgbd, "cnn")], self.args.device)
+        
         if(self.args.use_hsv):
-            hsv = hsv_to_circular_hue(rgbd[:,:-1])
+            hsv = hsv_to_circular_hue(rgb_to_hsv(rgbd[:,:-1]))
             rgbd = torch.cat([rgbd, hsv], dim = 1)
         rgbd = (rgbd * 2) - 1
-        #positional_layers = generate_2d_positional_layers(rgbd.shape[0], rgbd.shape[2], device=self.args.device)
-        positional_layers = generate_2d_sinusoidal_positions(
-            batch_size = rgbd.shape[0], image_size = rgbd.shape[2], d_model = self.args.pos_channels, device='cpu')
+        if(self.args.use_trig_pos):
+            positional_layers = generate_2d_sinusoidal_positions(
+                batch_size = rgbd.shape[0], image_size = rgbd.shape[2], d_model = self.args.pos_channels, device=self.args.device)
+        else:
+            positional_layers = generate_2d_positional_layers(rgbd.shape[0], rgbd.shape[2], device=self.args.device)        
+        #if(str(self.args.device) != "cpu"):
+        #    positional_layers = positional_layers.to(dtype=torch.float16)    
         rgbd = torch.cat([rgbd, positional_layers], dim = 1)
         
         a = self.a(rgbd).flatten(1)
         encoding = self.b(a)
         
-        encoding = encoding.reshape(episodes, steps, encoding.shape[1])
-        #print("RGBD_IN:", duration() - start)
+        [encoding] = model_end(start, episodes, steps, [(encoding, "lin")], "RGBD_IN" if self.args.show_duration else None)
         return(encoding)
     
     
     
 if __name__ == "__main__":
     
-    rgbd_in = RGBD_IN(args = args)
+    rgbd_in = RGBD_IN(args = args) #.half()
     
     print("\n\n")
     print(rgbd_in)
@@ -158,26 +133,25 @@ class RGBD_OUT(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
     def forward(self, h_w_action):
-        start = duration()
-        if(len(h_w_action.shape) == 2): h_w_action = h_w_action.unsqueeze(1)
-        episodes, steps = episodes_steps(h_w_action)
-        h_w_action = h_w_action.reshape(episodes * steps, h_w_action.shape[2])
+        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device)
         
         a = self.a(h_w_action)
         a = a.reshape(episodes * steps, self.out_features_channels, self.args.image_size//self.args.divisions, self.args.image_size//self.args.divisions)
-        #positional_layers = generate_2d_positional_layers(a.shape[0], self.args.image_size//self.args.divisions, device=self.args.device)
-        positional_layers = generate_2d_sinusoidal_positions(
-            batch_size = a.shape[0], image_size = self.args.image_size//self.args.divisions, d_model = self.args.pos_channels, device='cpu')
+        if(self.args.use_trig_pos):
+            positional_layers = generate_2d_sinusoidal_positions(
+                batch_size = a.shape[0], image_size = self.args.image_size//self.args.divisions, d_model = self.args.pos_channels, device=self.args.device)
+        else:
+            positional_layers = generate_2d_positional_layers(
+                a.shape[0], self.args.image_size//self.args.divisions, device=self.args.device)
         a_w_positions = torch.cat([a, positional_layers], dim = 1)
-        
         rgbd = self.b(a_w_positions)
         rgbd = (rgbd + 1) / 2
                 
-        rgbd = rgbd.permute(0, 2, 3, 1)
-        rgbd = rgbd.reshape(episodes, steps, rgbd.shape[1], rgbd.shape[2], rgbd.shape[3])
-        #print("RGBD_OUT:", duration() - start)
+        [rgbd] = model_end(start, episodes, steps, [(rgbd, "cnn")], "RGBD_OUT" if self.args.show_duration else None)        
         return(rgbd)
     
     
@@ -236,13 +210,12 @@ class Comm_IN(nn.Module):
                 
         self.apply(init_weights)
         self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
     def forward(self, comm):
-        start = duration()
-        if(len(comm.shape) == 2):  comm = comm.unsqueeze(0)
-        if(len(comm.shape) == 3):  comm = comm.unsqueeze(1)
-        episodes, steps = episodes_steps(comm)
-        comm = comm.reshape(episodes * steps, comm.shape[2], comm.shape[3])
+        start, episodes, steps, [comm] = model_start([(comm, "comm")], self.args.device)
+        
         comm = pad_zeros(comm, self.args.max_comm_len)
         comm = torch.argmax(comm, dim = -1).int()
         a = self.a(comm)
@@ -251,7 +224,7 @@ class Comm_IN(nn.Module):
         b = b.reshape(episodes, steps, self.args.hidden_size)
         encoding = self.c(b)
         
-        #print("COMM_IN:", duration() - start)
+        [encoding] = model_end(start, episodes, steps, [(encoding, "lin")], "COMM_IN" if self.args.show_duration else None)
         return(encoding)
 
     
@@ -317,12 +290,13 @@ class Comm_OUT(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
                 
     def forward(self, h_w_action):
-        start = duration()
-        if(len(h_w_action.shape) == 2):   h_w_action = h_w_action.unsqueeze(1)
-        #[h_w_action] = attach_list([h_w_action], self.args.device)
-        episodes, steps = episodes_steps(h_w_action)
+        
+        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device)
+        
         h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.encode_action_size)
         a = self.a(h_w_action)
         a = a.reshape(episodes * steps, self.args.max_comm_len, self.args.hidden_size)
@@ -342,14 +316,11 @@ class Comm_OUT(nn.Module):
             log_prob = Normal(mu, std).log_prob(comm) - torch.log(1 - comm_out.pow(2) + 1e-6)
             log_prob = torch.mean(log_prob, -1).unsqueeze(-1)
             log_prob = log_prob.mean(-2)
-            comm_out = comm_out.reshape(episodes, steps, self.args.max_comm_len, self.args.comm_shape)
-            log_prob = log_prob.reshape(episodes, steps, 1)
-            #print("COMM_OUT:", duration() - start)
+            [comm_out, log_prob] = model_end(start, episodes, steps, [(comm_out, "comm"), (log_prob, "lin")], "ACTOR_COMM_OUT" if self.args.show_duration else None)        
             return(comm_out, log_prob)
         else:
             comm_pred = self.mu(b)
-            comm_pred = comm_pred.reshape(episodes, steps, self.args.max_comm_len, self.args.comm_shape)
-            #print("COMM_OUT:", duration() - start)
+            [comm_pred] = model_end(start, episodes, steps, [(comm_pred, "comm")], "COMM_OUT" if self.args.show_duration else None)        
             return(comm_pred)
     
     
@@ -367,19 +338,21 @@ if __name__ == "__main__":
                                 (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
-    """comm_out = Comm_OUT(actor = True, args = args)
+    #"""
+    comm_out = Comm_OUT(actor = True, args = args)
     
     print("\n\n")
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(comm_out, 
                                 (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))"""
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+    #"""
     
 #%%
 
 
-""" For some reason, these kill it all!
+""" For some reason, these kill it all! 
 class Comm_IN(nn.Module):
 
     def __init__(self, args = default_args):
@@ -412,6 +385,8 @@ class Comm_IN(nn.Module):
                 
         self.apply(init_weights)
         self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
     def forward(self, comm):
         start = duration()
@@ -446,9 +421,11 @@ if __name__ == "__main__":
                                 (episodes, steps, args.max_comm_len, args.comm_shape)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
+"""
+    
 #%%
 
-
+"""
 
 class Comm_OUT(nn.Module):
 
@@ -498,6 +475,8 @@ class Comm_OUT(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
                 
     def forward(self, h_w_action):
         start = duration()
@@ -572,14 +551,13 @@ class Sensors_IN(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
     def forward(self, sensors):
-        #[sensors] = attach_list([sensors], self.args.device)
-        if(len(sensors.shape) == 2):   sensors = sensors.unsqueeze(1)
-        episodes, steps = episodes_steps(sensors)
-        sensors = sensors.reshape(episodes * steps, sensors.shape[2])
+        start, episodes, steps, [sensors] = model_start([(sensors, "lin")], self.args.device)
         encoding = self.a(sensors)
-        encoding = encoding.reshape(episodes, steps, encoding.shape[1])
+        [encoding] = model_end(start, episodes, steps, [(encoding, "lin")], "SENSORS_IN" if self.args.show_duration else None)
         return(encoding)
 
     
@@ -615,17 +593,15 @@ class Sensors_OUT(nn.Module):
             nn.Tanh())
         
         self.apply(init_weights)
-        self.to(args.device)
+        self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
     def forward(self, h_w_action):
-        start = duration()
-        if(len(h_w_action.shape) == 2): h_w_action = h_w_action.unsqueeze(1)
-        episodes, steps = episodes_steps(h_w_action)
-        h_w_action = h_w_action.reshape(episodes * steps, self.args.h_w_action_size)
+        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device)
         sensors = self.a(h_w_action)
-        sensors = sensors.reshape(episodes, steps, sensors.shape[1])
         sensors = (sensors + 1) / 2
-        #print("RGBD_OUT:", duration() - start)
+        [sensors] = model_end(start, episodes, steps, [(sensors, "lin")], "SENSORS_OUT" if self.args.show_duration else None)
         return(sensors)
     
     
@@ -655,6 +631,11 @@ class Obs_IN(nn.Module):
         self.rgbd_in = RGBD_IN(self.args)
         self.comm_in = Comm_IN(self.args)
         self.sensors_in = Sensors_IN(self.args)
+        
+        self.apply(init_weights)
+        self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
     def forward(self, rgbd, comm, sensors):
         rgbd = self.rgbd_in(rgbd)
@@ -692,6 +673,11 @@ class Obs_OUT(nn.Module):
         self.rgbd_out = RGBD_OUT(self.args)
         self.comm_out = Comm_OUT(actor = False, args = self.args)
         self.sensors_out = Sensors_OUT(self.args)
+        
+        self.apply(init_weights)
+        self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
     def forward(self, h_w_action):
         rgbd_pred = self.rgbd_out(h_w_action)
@@ -734,14 +720,14 @@ class Action_IN(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
     def forward(self, action):
-        #[action] = attach_list([action], self.args.device)
-        if(len(action.shape) == 2):   action = action.unsqueeze(1)
-        episodes, steps = episodes_steps(action)
-        action = action.reshape(episodes * steps, action.shape[2])
+        start, episodes, steps, [action] = model_start([(action, "lin")], self.args.device)
         encoded = self.a(action)
-        encoded = encoded.reshape(episodes, steps, encoded.shape[1])
+        [encoded] = model_end(start, episodes, steps, [(encoded, "lin")], "ACTION_IN" if self.args.show_duration else None)
+
         return(encoded)
     
     
@@ -758,77 +744,4 @@ if __name__ == "__main__":
             print(torch_summary(action_in, 
                                 (episodes, steps, args.action_shape)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-# %%
-
-
-
-class Discriminator(nn.Module):
-    
-    def __init__(self, args = default_args):
-        super(Discriminator, self).__init__()  
-        
-        self.args = args
-        #self.obs_in = Obs_IN(self.args)
-        self.rgbd_in = RGBD_IN(self.args)
-        
-        self.stat_quantity = self.get_stats(
-            torch.zeros((1, 1, self.args.image_size, self.args.image_size, 4))).shape[-1]
-                
-        self.lin = nn.Sequential(
-            nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_rgbd_size + self.stat_quantity, # + self.args.encode_obs_size + self.stat_quantity, 
-                out_features = self.args.hidden_size),
-            nn.PReLU(),
-            nn.Linear(
-                in_features = self.args.hidden_size, 
-                out_features = 1),
-            nn.Sigmoid())
-        
-        self.apply(init_weights)
-        self.to(self.args.device)
-        
-    def get_stats(self, images):
-        # Statistics for each image
-        c_mean   = images.mean((2, 3))
-        #c_q     = torch.quantile(images.flatten(3), q = torch.tensor([.01, .25, .5, .75, .99]), dim = 2)#.permute(1, 2, 0).flatten(1)
-        c_var    = torch.var(images, dim = (2, 3)) 
-        
-        # Statistics for entire batch
-        b_mean   = c_mean.mean((0, 1))
-        b_mean   = torch.tile(b_mean, (images.shape[0], images.shape[1], 1))
-        #b_q     = torch.tile(torch.quantile(images.permute(1, 0, 2, 3).flatten(1), q = torch.tensor([.01, .25,  .5, .75, .99]), dim = 1).flatten(0).unsqueeze(0), (images.shape[0], 1))
-        b_var    = torch.var(images, dim = (0, 1, 2, 3))
-        b_var    = torch.tile(b_var, (images.shape[0], images.shape[1], 1))
-        
-        stats = torch.cat([c_mean, c_var, b_mean, b_var], dim = -1).to(self.args.device)
-        return(stats)
-            
-    def forward(self, h_w_action, rgbd, comm, sensors):
-        episodes, steps = episodes_steps(h_w_action)
-        stats = self.get_stats(rgbd)
-        #obs = self.obs_in(rgbd, comm, sensors)
-        obs = self.rgbd_in(rgbd)
-        h_w_action = torch.cat([h_w_action, obs, stats], dim = -1)
-        judgement = self.lin(h_w_action)
-        return(judgement)
-    
-    
-    
-if __name__ == "__main__":
-    
-    discriminator = Discriminator(args = args)
-        
-    print("\n\n")
-    print(discriminator)
-    print()
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            print(torch_summary(discriminator, 
-                                ((episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size),
-                                (episodes, steps, args.image_size, args.image_size, 4),
-                                (episodes, steps, args.max_comm_len, args.comm_shape),
-                                (episodes, steps, args.sensors_shape))))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-    
-    
 # %%

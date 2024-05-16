@@ -7,7 +7,8 @@ from torch.distributions import Normal
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, detach_list, attach_list, print, init_weights, episodes_steps, var, sample, duration
+from utils import default_args, detach_list, attach_list, print, duration
+from submodule_utils import init_weights, episodes_steps, var, sample, model_start, model_end
 from mtrnn import MTRNN
 from submodules import Obs_IN, Action_IN, Comm_IN, Comm_OUT
 
@@ -60,15 +61,13 @@ class Actor(nn.Module):
             nn.Softplus())
 
         self.apply(init_weights)
-        self.to(args.device)
+        self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
 
     def forward(self, rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden, parented = True):
-        start = duration()
-        if(len(forward_hidden.shape) == 2): forward_hidden = forward_hidden.unsqueeze(1)
-        #if(len(comm_in.shape) == 2):  comm_in = comm_in.unsqueeze(0)
-        #if(len(comm_in.shape) == 3):  comm_in = comm_in.unsqueeze(1)
-        #if(len(prev_comm_out.shape) == 2):  prev_comm_out = prev_comm_out.unsqueeze(0)
-        #if(len(prev_comm_out.shape) == 3):  prev_comm_out = prev_comm_out.unsqueeze(1)
+        start, episodes, steps, [rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden] = model_start(
+            [(rgbd, "cnn"), (comm_in, "comm"), (prev_action, "lin"), (prev_comm_out, "comm"), (forward_hidden, "lin"), (action_hidden, "lin")], device = self.args.device)
         
         #obs = self.obs_in(rgbd, comm_in)
         #prev_action = self.action_in(prev_action)
@@ -90,7 +89,9 @@ class Actor(nn.Module):
             comm_log_prob = torch.zeros_like(log_prob)
         else:
             comm_out, comm_log_prob = self.comm_out(torch.cat([forward_hidden, self.action_in(action)], dim = -1))
-        #print("ACTOR:", duration() - start)
+                
+        [action, comm_out, log_prob, comm_log_prob, action_hidden] = model_end(start, episodes, steps, 
+            [(action, "lin"), (comm_out, "comm"), (log_prob, "lin"), (comm_log_prob, "lin"), (action_hidden, "lin")], "ACTOR" if self.args.show_duration else None)
         return action, comm_out, log_prob, comm_log_prob, action_hidden
     
     
@@ -149,25 +150,28 @@ class Critic(nn.Module):
                 in_features = self.args.hidden_size,
                 out_features = 1))
         
-    def forward(self, rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden):
-        start = duration()
-        if(len(action.shape) == 2): action = action.unsqueeze(1)
-        if(len(forward_hidden.shape) == 2): forward_hidden = forward_hidden.unsqueeze(1)
-        #if(len(comm_in.shape) == 2):  comm_in = comm_in.unsqueeze(0)
-        #if(len(comm_in.shape) == 3):  comm_in = comm_in.unsqueeze(1)
-        #if(len(comm_out.shape) == 2):  comm_out = comm_out.unsqueeze(0)
-        #if(len(comm_out.shape) == 3):  comm_out = comm_out.unsqueeze(1)
+        self.apply(init_weights)
+        self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
+    def forward(self, rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden):        
+        start, episodes, steps, [rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden] = model_start(
+            [(rgbd, "cnn"), (comm_in, "comm"), (action, "lin"), (comm_out, "comm"), (forward_hidden, "lin"), (critic_hidden, "lin")], device = self.args.device)
+                
         #obs = self.obs_in(rgbd, comm_in)
         action = self.action_in(action)
         comm_out = self.comm_in(comm_out)
-        x = torch.cat([forward_hidden, action, comm_out], dim=-1)
+        x = torch.cat([forward_hidden, action.squeeze(1), comm_out.squeeze(1)], dim=-1)
         x = self.lin(x)
         #value = self.mtrnn(x, critic_hidden)
         #critic_hidden = value[:,-1].unsqueeze(1)
         value = self.value(x)
-        #print("CRITIC:", duration() - start)
-        return(value, None)
+                
+        [value, critic_hidden] = model_end(start, episodes, steps, 
+            [(value, "lin"), (critic_hidden, "lin")], "CRITIC" if self.args.show_duration else None)
+        
+        return(value, critic_hidden)
     
 
 

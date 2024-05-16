@@ -2,7 +2,8 @@
 
 import numpy as np
 
-from utils import default_args, pad_zeros
+from utils import default_args
+from submodule_utils import pad_zeros
 
 
 

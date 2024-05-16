@@ -4,7 +4,8 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, init_weights, var, sample, attach_list, detach_list, episodes_steps, pad_zeros, dkl, duration
+from utils import default_args, attach_list, detach_list, dkl, duration
+from submodule_utils import init_weights, episodes_steps, pad_zeros, var, sample
 from mtrnn import MTRNN
 from submodules import Obs_IN, Obs_OUT, Action_IN, Comm_IN
 
@@ -59,6 +60,8 @@ class PVRNN_LAYER(nn.Module):
             
         self.apply(init_weights)
         self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
     def forward(
         self, 
@@ -66,7 +69,9 @@ class PVRNN_LAYER(nn.Module):
         obs = None, prev_actions = None, prev_comms_out = None, 
         hidden_states_below = None, 
         prev_hidden_states_above = None):
-                
+        
+        prev_hidden_states = prev_hidden_states.to(self.args.device)
+                        
         if(self.bottom):
             zp_inputs = torch.cat([prev_hidden_states, prev_actions, prev_comms_out], dim = -1)
             zq_inputs = torch.cat([prev_hidden_states, obs, prev_actions, prev_comms_out], dim = -1)
@@ -80,6 +85,10 @@ class PVRNN_LAYER(nn.Module):
         if(prev_hidden_states_above != None):
             prev_hidden_states_above = prev_hidden_states_above.reshape(episodes * steps, prev_hidden_states_above.shape[2])
             
+        #if(str(self.args.device) != "cpu"):
+        #    zp_inputs = zp_inputs.to(dtype=torch.float16)
+        #    zq_inputs = zq_inputs.to(dtype=torch.float16)
+        
         zp_mu, zp_std = var(zp_inputs, self.zp_mu, self.zp_std, self.args)
         zp = sample(zp_mu, zp_std, self.args.device)
         zq_mu, zq_std = var(zq_inputs, self.zq_mu, self.zq_std, self.args)
@@ -203,7 +212,9 @@ class PVRNN(nn.Module):
         self.predict_obs = Obs_OUT(args)
         
         self.apply(init_weights)
-        self.to(args.device)
+        self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
         
     def predict(self, h, action):
         h_w_actions = torch.cat([h, action], dim = -1)

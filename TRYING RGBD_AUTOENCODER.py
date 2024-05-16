@@ -5,7 +5,8 @@ import matplotlib.patches as patches
 from random import choices
 import torch
 
-from utils import default_args, make_objects_and_action, action_map, default_args, custom_loss, hsv_to_circular_hue
+from utils import default_args, make_objects_and_action, action_map, default_args, custom_loss
+from submodule_utils import  init_weights, episodes_steps, pad_zeros, Ted_Conv1d, Ted_Conv2d, var, sample, rnn_cnn
 from task import Task_Runner, Task
 from submodules import Obs_IN, Obs_OUT, Action_IN
 from pvrnn import PVRNN
@@ -20,8 +21,8 @@ from kornia.color import rgb_to_hsv
 from pytorch_msssim import ssim
 from torchinfo import summary as torch_summary
 
-from utils import print, default_args, init_weights, attach_list, detach_list, many_onehots_to_strings, \
-    episodes_steps, pad_zeros, Ted_Conv1d, Ted_Conv2d, var, sample, rnn_cnn, duration, ConstrainedConv1d, ConstrainedConv2d, dkl
+from utils import print, default_args, attach_list, detach_list, many_onehots_to_strings, \
+    duration, dkl
 from buffer import RecurrentReplayBuffer
 from mtrnn import MTRNN
 from arena import Arena, get_physics
@@ -182,14 +183,6 @@ def epoch(e):
     real_rgbd = real_rgbd[:,:-1]
     real_comm = real_comm[:,:-1]
     real_sensors = real_sensors[:,:-1]
-               
-    def add_hsv_to_rgbd(rgbd):
-        rgb = rgbd[:,:,:,:,:-1]
-        rgb = rgb.reshape(episodes * steps, rgb.shape[2], rgb.shape[3], rgb.shape[4]).permute(0, -1, 1, 2)
-        hsv = rgb_to_hsv(rgb)
-        hsv = hsv_to_circular_hue(hsv)
-        hsv = hsv.permute(0, 2, 3, 1).reshape(episodes, steps, rgbd.shape[2], rgbd.shape[3], rgbd.shape[4])
-        return(torch.cat([rgbd, hsv], dim = -1))
     
     #guess_rgbd = add_hsv_to_rgbd(guess_rgbd)
     #next_rgbd = add_hsv_to_rgbd(next_rgbd)

@@ -1,14 +1,18 @@
 #%% 
 
-# To do: 
+# To do: most important 
 #   Make it work.
 #   Make it work FASTER.
+#   Performing any goal with wrong object should punish.
+#   Make sure two goals can't be done at once.
+#   Trying float16 on cuda. Getting NaN.
+
+# To do: less important 
 #   Make comm prediction work with GRU.
-#   Try making sensor-observation deeper, with speed or something. 
+#   Try making sensor-observation deeper, like speed or something.
 #   Maybe using separate PVRNNs for rgbd, comm, sensors?
 #   Try predicting multiple steps in the future.
-#   Can we use smaller data-type?
-#   Try with cut PVRNN linear layers.
+#   Maybe actor and critic losses can be added to pvrnn's?
 
 import os
 import pickle
@@ -22,30 +26,29 @@ import argparse, ast
 from math import exp, sqrt, log
 from random import choice, randint
 import torch
-from torch import nn 
 import platform
-from torch.distributions import Normal
 import torch.nn.functional as F
-from torchvision.transforms import Resize
 from kornia.color import rgb_to_hsv 
 import psutil
 from itertools import product
 
 if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
+print(os.getcwd())
 
 torch.set_printoptions(precision=3, sci_mode=False)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("DEVICE:", device)
-device = "cpu"
+#device = "cpu"
+
+#%%
 
 action_map = {
     -1: ["Z", "NONE"],
-    0: ["A", "WATCH"],
-    1: ["B", "PUSH"],     
-    2: ["C", "PULL"],   
-    3: ["D", "LEFT"],   
-    4: ["E", "RIGHT"]}    
+    0:  ["A", "WATCH"],
+    1:  ["B", "PUSH"],     
+    2:  ["C", "PULL"],   
+    3:  ["D", "LEFT"],   
+    4:  ["E", "RIGHT"]}    
 max_len_action_name = max([len(a[1]) for a in action_map.values()])
 action_name_list = [action[1] for action in action_map.values()]
 
@@ -229,6 +232,8 @@ parser.add_argument('--comp',               type=str,        default = "deigo",
                     help='Cluster name (deigo or saion).')
 parser.add_argument('--device',             type=str,        default = device,
                     help='Which device to use for Torch.')
+parser.add_argument('--cpu',                type=int,        default = 0,
+                    help='Which cpu for affinity.')
 parser.add_argument('--show_duration',      type=bool,       default = False,
                     help='Should durations be printed?')
 
@@ -239,7 +244,7 @@ parser.add_argument('--epochs',             type=literal,    default = [10000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
-parser.add_argument("--beta",               type=literal,    default = [.5],
+parser.add_argument("--beta",               type=literal,    default = [2],
                     help='Relative importance of complexity in each layer.')
 parser.add_argument("--hidden_state_eta",   type=literal,    default = [5],
                     help='Nonnegative valued, how much to consider hidden_state curiosity in each layer.') 
@@ -327,8 +332,6 @@ parser.add_argument('--sensors_scaler',     type=float,      default = 1,
                     help='How much to consider sensors prediction in accuracy compared to rgbd and comm.')       
 parser.add_argument('--forward_lr',         type=float,      default = .0003,
                     help='Learning rate for forward model.')
-parser.add_argument('--discriminator_lr',   type=float,      default = .0003,
-                    help='Learning rate for discriminator model.')
 parser.add_argument('--actor_lr',           type=float,      default = .0003,
                     help='Learning rate for actor model.')
 parser.add_argument('--critic_lr',          type=float,      default = .0003,
@@ -506,10 +509,12 @@ if(args.alpha == "None"):         args.alpha = None
 if(args == default_args): print("Using default arguments.")
 else:
     for arg in vars(default_args):
+        
         default, this_time = getattr(default_args, arg), getattr(args, arg)
-        if(this_time == default): pass
-        else: print("{}:\n\tDefault:\t{}\n\tThis time:\t{}".format(arg, default, this_time))
-
+        if(this_time != default):
+            print("{}:\n\tDefault:\t{}\n\tThis time:\t{}".format(arg, default, this_time))
+        elif(arg == "device"):
+            print("{}:\n\tDefault:\t{}\n\tThis time:\t{}".format(arg, default, this_time))
 
 
 # For printing tensors as what they represent.
@@ -563,40 +568,7 @@ def opposite_relative_to(this, min, max):
 
 
 # PyTorch functions.
-def init_weights(m):
-    try:
-        torch.nn.init.xavier_normal_(m.weight)
-        m.bias.data.fill_(0.01)
-    except: pass
 
-def episodes_steps(this):
-    return(this.shape[0], this.shape[1])
-
-def pad_zeros(value, length):
-    rows_to_add = length - value.size(-2)
-    padding_shape = list(value.shape)
-    padding_shape[-2] = rows_to_add
-    padding = torch.zeros(padding_shape)
-    padding
-    padding[..., 0] = 1
-    value = torch.cat([value, padding], dim=-2)
-    return value
-
-def var(x, mu_func, std_func, args):
-    mu = mu_func(x)
-    std = torch.clamp(std_func(x), min = args.std_min, max = args.std_max)
-    return(mu, std)
-
-def sample(mu, std, device):
-    e = Normal(0, 1).sample(std.shape).to(device)
-    return(mu + e * std)
-
-def rnn_cnn(do_this, to_this):
-    episodes, steps = episodes_steps(to_this)
-    this = to_this.view((episodes * steps, to_this.shape[2], to_this.shape[3], to_this.shape[4]))
-    this = do_this(this)
-    this = this.view((episodes, steps, this.shape[1], this.shape[2], this.shape[3]))
-    return(this)
 
 def extract_and_concatenate(tensor, expected_len):
     episodes, steps, _ = tensor.shape
@@ -641,300 +613,6 @@ def dkl(mu_1, std_1, mu_2, std_2):
     out = (.5 * (term_1 + term_2 - term_3 - 1))
     out = torch.nan_to_num(out)
     return(out)
-
-
-
-class ConstrainedConv1d(nn.Conv1d):
-    def forward(self, input):
-        return nn.functional.conv1d(input, self.weight.clamp(min=-1.0, max=1.0), self.bias, self.stride,
-                                    self.padding, self.dilation, self.groups)
-        
-class Ted_Conv1d(nn.Module):
-    
-    def __init__(self, in_channels, out_channels, kernel_sizes = [1,2,3], stride = 1):
-        super(Ted_Conv1d, self).__init__()
-        
-        self.Conv1ds = nn.ModuleList()
-        for kernel, out_channel in zip(kernel_sizes, out_channels):
-            padding = (kernel-1)//2
-            layer = nn.Sequential(
-                ConstrainedConv1d(
-                    in_channels = in_channels,
-                    out_channels = out_channel,
-                    kernel_size = kernel,
-                    padding = padding,
-                    padding_mode = "reflect",
-                    stride = stride))
-            self.Conv1ds.append(layer)
-                
-    def forward(self, x):
-        y = []
-        for Conv1d in self.Conv1ds: y.append(Conv1d(x)) 
-        return(torch.cat(y, dim = -2))
-    
-    
-    
-class ConstrainedConv2d(nn.Conv2d):
-    def forward(self, input):
-        return nn.functional.conv2d(input, self.weight.clamp(min=-1.0, max=1.0), self.bias, self.stride,
-                                    self.padding, self.dilation, self.groups)
-        
-class Ted_Conv2d(nn.Module):
-    
-    def __init__(self, in_channels, out_channels, kernel_sizes = [(1,1),(3,3),(5,5)], stride = 1):
-        super(Ted_Conv2d, self).__init__()
-        
-        self.Conv2ds = nn.ModuleList()
-        for kernel, out_channel in zip(kernel_sizes, out_channels):
-            if(type(kernel) == int): 
-                kernel = (kernel, kernel)
-            padding = ((kernel[0]-1)//2, (kernel[1]-1)//2)
-            layer = nn.Sequential(
-                ConstrainedConv2d(
-                    in_channels = in_channels,
-                    out_channels = out_channel,
-                    kernel_size = kernel,
-                    padding = padding,
-                    padding_mode = "reflect",
-                    stride = stride))
-            self.Conv2ds.append(layer)
-                
-    def forward(self, x):
-        y = []
-        for Conv2d in self.Conv2ds: y.append(Conv2d(x)) 
-        return(torch.cat(y, dim = -3))
-    
-    
-
-class ResidualBlock2d(nn.Module):
-    def __init__(self, channels, kernel_sizes, strides, paddings, padding_modes, activations, dropouts):
-        super(ResidualBlock2d, self).__init__()
-        
-        # Ensure all parameter lists have compatible lengths
-        assert len(channels) - 1 == len(kernel_sizes) == len(strides) == len(paddings) == \
-               len(padding_modes) == len(activations) == len(dropouts) - 1, "All parameter lists must have compatible lengths."
-        
-        self.layers = nn.ModuleList()
-        self.adjust_channels = channels[0] != channels[-1] or strides[0] != 1
-        self.final_activation = activations[-1] is not None
-        
-        # Add the convolutional layers, batch normalization, activation functions, and dropout based on the parameters
-        for i in range(len(channels) - 1):
-            self.layers.append(
-                nn.Conv2d(
-                    in_channels=channels[i],
-                    out_channels=channels[i+1],
-                    kernel_size=kernel_sizes[i],
-                    stride=strides[i],
-                    padding=paddings[i],
-                    padding_mode=padding_modes[i]))
-            self.layers.append(nn.BatchNorm2d(channels[i+1]))
-            
-            if activations[i] is not None:  # Check if the activation is specified
-                self.layers.append(activations[i]())
-            
-            if dropouts[i] > 0:  # Add dropout layer if dropout rate is greater than 0
-                self.layers.append(nn.Dropout2d(dropouts[i]))
-                
-        self.final_layer = nn.ModuleList()
-        if self.final_activation:
-            self.final_layer.append(activations[-1]())
-        if dropouts[-1] > 0:
-            self.final_layer.append(nn.Dropout2d(dropouts[-1]))
-        self.final_layer.append(nn.BatchNorm2d(channels[-1]))
-        
-        # Add an adjustment layer to match the shortcut connection, if necessary
-        if self.adjust_channels:
-            self.adjustment_layer = nn.Sequential(
-                nn.Conv2d(
-                    in_channels=channels[0],
-                    out_channels=channels[-1],
-                    kernel_size=1,
-                    stride=strides[0],  # Adjust based on the first stride value if needed
-                    padding=0),
-                nn.BatchNorm2d(channels[-1]))
-        
-    def forward(self, x):
-        identity = x
-        for layer in self.layers:
-            x = layer(x)
-        if self.adjust_channels:
-            identity = self.adjustment_layer(identity)
-        x += identity
-        for layer in self.final_layer:
-            x = layer(x)
-        return x
-    
-
-
-class ResidualBlock1d(nn.Module):
-    def __init__(self, channels, kernel_sizes, strides, paddings, padding_modes, activations, dropouts):
-        super(ResidualBlock1d, self).__init__()
-        
-        # Ensure all parameter lists have compatible lengths
-        assert len(channels) - 1 == len(kernel_sizes) == len(strides) == len(paddings) == \
-               len(padding_modes) == len(activations) == len(dropouts) - 1, "All parameter lists must have compatible lengths."
-        
-        self.layers = nn.ModuleList()
-        self.adjust_channels = channels[0] != channels[-1] or strides[0] != 1
-        self.final_activation = activations[-1] is not None
-        
-        # Add the convolutional layers, batch normalization, activation functions, and dropout based on the parameters
-        for i in range(len(channels) - 1):
-            self.layers.append(
-                nn.Conv1d(
-                    in_channels=channels[i],
-                    out_channels=channels[i+1],
-                    kernel_size=kernel_sizes[i],
-                    stride=strides[i],
-                    padding=paddings[i],
-                    padding_mode=padding_modes[i]))
-            self.layers.append(nn.BatchNorm1d(channels[i+1]))
-            
-            if activations[i] is not None:  # Check if the activation is specified
-                self.layers.append(activations[i]())
-            
-            if dropouts[i] > 0:  # Add dropout layer if dropout rate is greater than 0
-                self.layers.append(nn.Dropout1d(dropouts[i]))
-                
-        self.final_layer = nn.ModuleList()
-        if self.final_activation:
-            self.final_layer.append(activations[-1]())
-        if dropouts[-1] > 0:
-            self.final_layer.append(nn.Dropout1d(dropouts[-1]))
-        self.final_layer.append(nn.BatchNorm1d(channels[-1]))
-        
-        # Add an adjustment layer to match the shortcut connection, if necessary
-        if self.adjust_channels:
-            self.adjustment_layer = nn.Sequential(
-                nn.Conv1d(
-                    in_channels=channels[0],
-                    out_channels=channels[-1],
-                    kernel_size=1,
-                    stride=strides[0],  # Adjust based on the first stride value if needed
-                    padding=0),
-                nn.BatchNorm1d(channels[-1]))
-        
-    def forward(self, x):
-        identity = x
-        for layer in self.layers:
-            x = layer(x)
-        if self.adjust_channels:
-            identity = self.adjustment_layer(identity)
-        x += identity
-        for layer in self.final_layer:
-            x = layer(x)
-        return x
-    
-    
-    
-class DenseBlock(nn.Module):
-    def __init__(self, input_channels, growth_rates, kernel_sizes, paddings, padding_modes, activations, dropouts):
-        super(DenseBlock, self).__init__()
-        
-        assert len(growth_rates) == len(kernel_sizes) == len(activations) == len(dropouts)
-        
-        self.layers = nn.ModuleList()
-        for i in range(len(growth_rates)):
-            layer_channels = input_channels + sum(growth_rates[:i])
-            self.layers.append(nn.Sequential(
-                nn.BatchNorm2d(layer_channels),
-                activations[i](),
-                nn.Conv2d(
-                    in_channels = layer_channels, 
-                    out_channels = growth_rates[i], 
-                    kernel_size = kernel_sizes[i], 
-                    padding = paddings[i],
-                    padding_mode = padding_modes[i]),
-                nn.Dropout2d(dropouts[i])))
-        
-    def forward(self, x):
-        features = [x]
-        for layer in self.layers:
-            these_features = torch.cat(features, 1)
-            new_features = layer(these_features)
-            features.append(new_features)
-        return torch.cat(features, 1)
-    
-    
-    
-class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, dropout=0.1, max_len=5000):
-        super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        # Create a long enough 'position encoding' matrix in advance
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
-        # Register 'pe' as a constant buffer that does not require gradients
-        self.register_buffer('pe', pe)
-
-    def forward(self, x):
-        """
-        Args:
-            x: Tensor, shape [seq_len, batch_size, embedding_dim]
-        """
-        # Add position encoding to input tensor
-        x = x + self.pe[:x.size(0), :]
-        return self.dropout(x)
-    
-    
-    
-class TransformerModel(nn.Module):
-    def __init__(self, ntoken, ninp, nhead, nhid, nlayers, dropout=0.5):
-        super(TransformerModel, self).__init__()
-        self.model_type = 'Transformer'
-        self.pos_encoder = PositionalEncoding(ninp, dropout)
-        encoder_layers = nn.TransformerEncoderLayer(ninp, nhead, nhid, dropout)
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, nlayers)
-        self.encoder = nn.Embedding(ntoken, ninp)
-        self.ninp = ninp
-        self.decoder = nn.Linear(ninp, ntoken)
-
-        self.init_weights()
-
-    def generate_square_subsequent_mask(self, sz):
-        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-        return mask
-
-    def init_weights(self):
-        initrange = 0.1
-        self.encoder.weight.data.uniform_(-initrange, initrange)
-        self.decoder.weight.data.uniform_(-initrange, initrange)
-        self.decoder.bias.data.zero_()
-
-    def forward(self, src, src_mask = None):
-        src = self.encoder(src) * sqrt(self.ninp)
-        src = self.pos_encoder(src)
-        output = self.transformer_encoder(src, src_mask)
-        output = self.decoder(output)
-        return output
-    
-    
-    
-class ImageTransformer(nn.Module):
-    def __init__(self, in_channels, ntoken, ninp, nhead, nhid, nlayers, dropout=0.5):
-        super(ImageTransformer, self).__init__()
-        self.transformer = TransformerModel(ntoken, ninp, nhead, nhid, nlayers, dropout)
-        
-        # Resize and flatten image to fit transformer input
-        self.resize = Resize((ninp, ninp))  # Assuming square images for simplicity
-        self.flatten = nn.Flatten()
-        self.linear = nn.Linear(in_channels * ninp * ninp, ninp)  # Adapt to transformer input dimension
-        
-    def forward(self, img, src_mask = None):
-        # img shape: [batch_size, in_channels, H, W]
-        img = self.resize(img)
-        img = self.flatten(img)
-        img = self.linear(img)
-        img = img.unsqueeze(0)  # Add sequence dimension
-        output = self.transformer(img, src_mask)
-        return output
     
     
 
@@ -965,17 +643,7 @@ def calculate_similarity(recommended_actions, actor_actions):
 
 
 
-def hsv_to_circular_hue(hsv_image):
-    hue = hsv_image[:, 0, :, :]
-    hue_sin = (torch.sin(hue) + 1) / 2
-    hue_cos = (torch.cos(hue) + 1) / 2
-    hsv_circular = torch.stack([hue_sin, hue_cos, hsv_image[:, 1, :, :], hsv_image[:, 2, :, :]], dim=1)
-    return hsv_circular
 
-
-
-def add_hsv_to_rgbd(rgbd):
-    pass 
 
 
 
@@ -1026,19 +694,24 @@ def load_dicts(args):
         
     complete_order = args.arg_title[3:-3].split("+")
     order = [o for o in complete_order if not o in ["empty_space", "break"]]
-    
+        
     for name in order:
+        print(f"Loading dictionaries for {name}...")
         got_plot_dicts = False ; got_min_max_dicts = False
         while(not got_plot_dicts):
             try:
                 with open(name + "/" + "plot_dict.pickle", "rb") as handle: 
                     plot_dicts.append(pickle.load(handle)) ; got_plot_dicts = True
-            except: print("Stuck trying to get {}'s plot_dicts...".format(name)) ; sleep(1)
+            except Exception as e:
+                print(e) 
+                print("Stuck trying to get {}'s plot_dicts...".format(name)) ; sleep(1)
         while(not got_min_max_dicts):
             try:
                 with open(name + "/" + "min_max_dict.pickle", "rb") as handle: 
                     min_max_dicts.append(pickle.load(handle)) ; got_min_max_dicts = True 
-            except: print("Stuck trying to get {}'s min_max_dicts...".format(name)) ; sleep(1)
+            except: 
+                print("Stuck trying to get {}'s min_max_dicts...".format(name)) ; sleep(1)
+    print("Loaded all dicts!")
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():

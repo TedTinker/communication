@@ -4,7 +4,8 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, init_weights, attach_list, detach_list, episodes_steps
+from utils import default_args, attach_list, detach_list
+from submodule_utils import episodes_steps, init_weights
 
 
 
@@ -53,7 +54,9 @@ class MTRNNCell(nn.Module):
                 out_features = hidden_size))
         
         self.apply(init_weights)
-        self.to(args.device)
+        self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
 
     def forward(self, x, h):
         #attach_list([x, h], self.args.device)
@@ -99,16 +102,23 @@ class MTRNN(nn.Module):
         self.args = args
         self.hidden_size = hidden_size
         self.mtrnn_cell = MTRNNCell(input_size, hidden_size, time_constant, args)
+        
         self.apply(init_weights)
+        self.to(self.args.device)
+        #if(str(self.args.device) != "cpu"):
+        #    self = self.half()
 
-    def forward(self, input, h = None):
+    def forward(self, x, h = None):
         if(h == None):
-            h = torch.zeros((input.shape[0], 1, self.hidden_size))
-        #[input, h] = attach_list([input, h], self.args.device)
-        episodes, steps = episodes_steps(input)
+            h = torch.zeros((x.shape[0], 1, self.hidden_size))
+        #if(str(self.args.device) != "cpu"):
+        #    x = x.to(dtype=torch.float16)
+        #    h = h.to(dtype=torch.float16)
+        #[x, h] = attach_list([x, h], self.args.device)
+        episodes, steps = episodes_steps(x)
         outputs = []
         for step in range(steps):  
-            h = self.mtrnn_cell(input[:, step], h[:, 0])
+            h = self.mtrnn_cell(x[:, step], h[:, 0])
             outputs.append(h)
         outputs = torch.cat(outputs, dim = 1)
         return outputs

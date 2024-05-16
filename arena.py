@@ -444,6 +444,7 @@ class Arena():
         proj_matrix = proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far)
         _, _, rgba, depth, _ = p.getCameraImage(
             width=self.args.image_size * 2, height=self.args.image_size * 2,
+            #width=self.args.image_size, height=self.args.image_size,
             projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
             physicsClientId = self.physicsClient)
         rgb = np.divide(rgba[:,:,:-1], 255)
@@ -502,7 +503,7 @@ if __name__ == "__main__":
         num_objects = 1,
         allowed_actions = [0],
         allowed_colors = [0],
-        allowed_shapes = [4])
+        allowed_shapes = [1])
     
     
     """    

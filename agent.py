@@ -1,5 +1,7 @@
 #%%
 
+import os 
+import psutil
 from time import sleep
 import numpy as np
 from math import log
@@ -28,6 +30,25 @@ class Agent:
         self.agent_num = i
         self.args = args
         self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
+        
+        if self.args.device.type == "cuda":
+            print(f"\nIN AGENT: {i} DEVICE: {self.args.device} ({torch.cuda.current_device()} out of {[j for j in range(torch.cuda.device_count())]}, {torch.cuda.get_device_name(torch.cuda.current_device())})\n")
+        else:
+            print(f"\nIN AGENT: {i} DEVICE: {self.args.device}\n")
+        pid = os.getpid()
+        process = psutil.Process(pid)
+        cpu_affinity = process.cpu_affinity()
+        print(f"CPU affinity: {cpu_affinity}")
+        current_cpu = psutil.cpu_percent(interval=1, percpu=True)
+        print(f"Current CPU usage per core: {current_cpu}")
+        
+        #os.sched_setaffinity(0, {self.args.cpu})
+        #pid = os.getpid()
+        #process = psutil.Process(pid)
+        #cpu_affinity = process.cpu_affinity()
+        #print(f"CPU affinity: {cpu_affinity}")
+        #current_cpu = psutil.cpu_percent(interval=1, percpu=True)
+        #print(f"Current CPU usage per core: {current_cpu}")
         
         self.tasks = {
             "0" : Task(actions = [-1],              objects = 3, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parent = True, args = self.args),
@@ -386,32 +407,32 @@ class Agent:
         for to_push in to_push_list_1:
             rgbd, comm_in, sensors, action, comm_out, recommended_action, total_reward, next_rgbd, next_comm_in, next_sensors, done = to_push
             self.memory.push(
-                rgbd,
-                comm_in, 
-                sensors,
-                action, 
-                comm_out,
-                recommended_action,
+                rgbd.to("cpu"),
+                comm_in.to("cpu"), 
+                sensors.to("cpu"),
+                action.to("cpu"), 
+                comm_out.to("cpu"),
+                recommended_action.to("cpu"),
                 total_reward, 
-                next_rgbd,
-                next_comm_in, 
-                next_sensors,
+                next_rgbd.to("cpu"),
+                next_comm_in.to("cpu"), 
+                next_sensors.to("cpu"),
                 done)
             
         for to_push in to_push_list_2:
             if(to_push != None):
                 rgbd, comm_in, sensors, action, comm_out, recommended_action, total_reward, next_rgbd, next_comm_in, next_sensors, done = to_push
                 self.memory.push(
-                    rgbd,
-                    comm_in, 
-                    sensors,
-                    action, 
-                    comm_out,
-                    recommended_action,
+                    rgbd.to("cpu"),
+                    comm_in.to("cpu"), 
+                    sensors.to("cpu"),
+                    action.to("cpu"), 
+                    comm_out.to("cpu"),
+                    recommended_action.to("cpu"),
                     total_reward, 
-                    next_rgbd,
-                    next_comm_in, 
-                    next_sensors,
+                    next_rgbd.to("cpu"),
+                    next_comm_in.to("cpu"), 
+                    next_sensors.to("cpu"),
                     done)
                 
         self.episodes += 1
@@ -689,18 +710,19 @@ class Agent:
         self.epochs += 1
 
         rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, dones, masks = batch
-        rgbds = torch.from_numpy(rgbds)
-        comms_in = torch.from_numpy(comms_in)
-        sensors = torch.from_numpy(sensors)
+        rgbds = torch.from_numpy(rgbds).to(self.args.device)
+        comms_in = torch.from_numpy(comms_in).to(self.args.device)
+        sensors = torch.from_numpy(sensors).to(self.args.device)
         actions = torch.from_numpy(actions)
         comms_out = torch.from_numpy(comms_out)
-        recommended_actions = torch.from_numpy(recommended_actions)
-        rewards = torch.from_numpy(rewards)
-        dones = torch.from_numpy(dones)
+        recommended_actions = torch.from_numpy(recommended_actions).to(self.args.device)
+        rewards = torch.from_numpy(rewards).to(self.args.device)
+        dones = torch.from_numpy(dones).to(self.args.device)
         masks = torch.from_numpy(masks)
-        actions = torch.cat([torch.zeros(actions[:,0].unsqueeze(1).shape).to(self.args.device), actions], dim = 1)
-        comms_out = torch.cat([torch.zeros(comms_out[:,0].unsqueeze(1).shape).to(self.args.device), comms_out], dim = 1)
-        all_masks = torch.cat([torch.ones(masks.shape[0], 1, 1).to(self.args.device), masks], dim = 1)   
+        actions = torch.cat([torch.zeros(actions[:,0].unsqueeze(1).shape), actions], dim = 1).to(self.args.device)
+        comms_out = torch.cat([torch.zeros(comms_out[:,0].unsqueeze(1).shape), comms_out], dim = 1).to(self.args.device)
+        all_masks = torch.cat([torch.ones(masks.shape[0], 1, 1), masks], dim = 1).to(self.args.device)
+        masks = masks.to(self.args.device)
         episodes = rewards.shape[0]
         steps = rewards.shape[1]
         
@@ -779,10 +801,10 @@ class Agent:
                 
         # Train critics
         with torch.no_grad():
-            new_actions, new_comms_out, log_pis_next, log_pis_next_text, _ = self.actor(rgbds, comms_in, actions, comms_out, hqs.detach(), torch.zeros((episodes, steps, self.args.hidden_size)), parented)
+            new_actions, new_comms_out, log_pis_next, log_pis_next_text, _ = self.actor(rgbds, comms_in, actions, comms_out, hqs.detach(), torch.zeros((episodes, steps + 1, self.args.hidden_size)), parented)
             Q_target_nexts = []
             for i in range(self.args.critics):
-                Q_target_next, _ = self.critic_targets[i](rgbds, comms_in, new_actions, new_comms_out, hqs.detach(), torch.zeros((episodes, steps, self.args.hidden_size)))
+                Q_target_next, _ = self.critic_targets[i](rgbds, comms_in, new_actions, new_comms_out, hqs.detach(), torch.zeros((episodes, steps + 1, self.args.hidden_size)))
                 Q_target_next[:,1:]
                 Q_target_nexts.append(Q_target_next)
             log_pis_next = log_pis_next[:,1:]

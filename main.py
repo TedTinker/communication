@@ -1,8 +1,9 @@
 #%%
 
+import os
 import pickle, torch, random
 import numpy as np
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, set_start_method
 from time import sleep 
 from math import floor
 
@@ -16,7 +17,20 @@ print("\nagents: {}. previous_agents: {}.".format(args.agents, args.previous_age
 
 def train(q, i):
     seed = args.init_seed + i
-    np.random.seed(seed) ; random.seed(seed) ; torch.manual_seed(seed) ; torch.cuda.manual_seed(seed)
+    np.random.seed(seed) 
+    random.seed(seed) 
+    torch.manual_seed(seed) 
+    torch.cuda.manual_seed(seed)
+    
+    if(str(args.device) != "cpu"):
+        num_gpus = torch.cuda.device_count()
+        gpu_id = i % num_gpus
+        args.device = torch.device(f"cuda:{gpu_id}")
+        
+    num_cores = os.cpu_count()
+    cpu_id = i % num_cores
+    args.cpu = cpu_id
+    
     agent = Agent(i, args = args)
     agent.training(q)
     with open(folder + "/plot_dict_{}.pickle".format(   str(i).zfill(3)), "wb") as handle:
@@ -25,6 +39,7 @@ def train(q, i):
         pickle.dump(agent.min_max_dict, handle)
 
 if __name__ == '__main__':
+    set_start_method('spawn')
     queue = Queue()
     
     processes = []

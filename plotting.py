@@ -155,8 +155,8 @@ def plots(plot_dicts, min_max_dict):
         except:
             pass 
         for action_name in action_name_list:
-            win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), precision = 5, adjust_xs = False, remove_none = False)
-            gen_win_dict = get_quantiles(plot_dict, "gen_wins_" + action_name.lower(), precision = 5, adjust_xs = False, remove_none = False)
+            win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), precision = 1, adjust_xs = False, remove_none = False)
+            gen_win_dict = get_quantiles(plot_dict, "gen_wins_" + action_name.lower(), precision = 1, adjust_xs = False, remove_none = False)
             
             win_dict = get_rolling_average(win_dict)
             gen_win_dict = get_rolling_average(gen_win_dict)
@@ -187,7 +187,7 @@ def plots(plot_dicts, min_max_dict):
             plt.close(fig2)
     
         # Cumulative rewards
-        rew_dict = get_quantiles(plot_dict, "rewards", precision = 5, adjust_xs = False)
+        rew_dict = get_quantiles(plot_dict, "rewards", precision = 1, adjust_xs = False)
         max_reward = args.reward
         max_rewards = [max_reward*x for x in range(rew_dict["xs"][-1])]
         min_reward = args.step_lim_punishment
@@ -223,7 +223,7 @@ def plots(plot_dicts, min_max_dict):
         
         
         # Cumulative generalization-test rewards
-        gen_rew_dict = get_quantiles(plot_dict, "gen_rewards", precision = 5, adjust_xs = False)
+        gen_rew_dict = get_quantiles(plot_dict, "gen_rewards", precision = 1, adjust_xs = False)
         max_reward = args.reward
         max_rewards = [max_reward*x for x in range(gen_rew_dict["xs"][-1])]
         min_reward = args.step_lim_punishment
@@ -260,11 +260,11 @@ def plots(plot_dicts, min_max_dict):
         
         if(not too_many_plot_dicts): 
             # Forward Losses
-            rgbd_dict = get_quantiles(plot_dict, "rgbd_loss", precision = 5)
-            comm_dict = get_quantiles(plot_dict, "comm_loss", precision = 5)
-            sensors_dict = get_quantiles(plot_dict, "sensors_loss", precision = 5)
-            accuracy_dict = get_quantiles(plot_dict, "accuracy", precision = 5)
-            comp_dict = get_quantiles(plot_dict, "complexity", precision = 5)
+            rgbd_dict = get_quantiles(plot_dict, "rgbd_loss", precision = 1)
+            comm_dict = get_quantiles(plot_dict, "comm_loss", precision = 1)
+            sensors_dict = get_quantiles(plot_dict, "sensors_loss", precision = 1)
+            accuracy_dict = get_quantiles(plot_dict, "accuracy", precision = 1)
+            comp_dict = get_quantiles(plot_dict, "complexity", precision = 1)
             min_max = many_min_max([min_max_dict["accuracy"], min_max_dict["complexity"]])
             
             handles = []
@@ -334,9 +334,9 @@ def plots(plot_dicts, min_max_dict):
             
             
             # Other Losses
-            alpha_dict = get_quantiles(plot_dict, "alpha", precision = 5)
-            actor_dict = get_quantiles(plot_dict, "actor", precision = 5)
-            crit_dicts = get_list_quantiles(plot_dict["critics"], plot_dict, precision = 5)
+            alpha_dict = get_quantiles(plot_dict, "alpha", precision = 1)
+            actor_dict = get_quantiles(plot_dict, "actor", precision = 1)
+            crit_dicts = get_list_quantiles(plot_dict["critics"], plot_dict, precision = 1)
             
             handles = []
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
@@ -375,26 +375,34 @@ def plots(plot_dicts, min_max_dict):
             
             
             # Extrinsic and Intrinsic rewards
-            ext_dict = get_quantiles(plot_dict, "extrinsic", precision = 5)
-            ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", precision = 5)
-            cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", precision = 5)
-            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", precision = 5)
+            this_precision = 1
+            keys = \
+                    ["q40", "q60"] if this_precision == 1 else \
+                    ["q30", "q70"] if this_precision == 2 else \
+                    ["q20", "q80"] if this_precision == 3 else \
+                    ["q10", "q90"] if this_precision == 4 else \
+                    ["min", "max"]
+                    
+            ext_dict = get_quantiles(plot_dict, "extrinsic", precision = this_precision)
+            ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", precision = this_precision)
+            cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", precision = this_precision)
+            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", precision = this_precision)
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             handles = []
             handles.append(awesome_plot(ax, ext_dict, "red", "Extrinsic"))
             ax.set_ylabel("Extrinsic")
             ax.set_xlabel("Epochs")
-            if((ent_dict["min"] != ent_dict["max"]).all()):
+            if((ent_dict[keys[0]] != ent_dict[keys[1]]).all()):
                 ax2 = ax.twinx()
                 handles.append(awesome_plot(ax2, ent_dict, "black", "Entropy"))
                 ax2.set_ylabel("Entropy")
-            if((cur_dict["min"] != cur_dict["max"]).all()):
+            if((cur_dict[keys[0]] != cur_dict[keys[1]]).all()):
                 ax3 = ax.twinx()
                 ax3.spines["right"].set_position(("axes", 1.08))
                 handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity"))
                 ax3.set_ylabel("Curiosity")
-            if((imi_dict["min"] != imi_dict["max"]).all()):
+            if((imi_dict[keys[0]] != imi_dict[keys[1]]).all()):
                 ax4 = ax.twinx()
                 ax4.spines["right"].set_position(("axes", 1.16))
                 handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation"))
@@ -408,16 +416,16 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(ax, ext_dict, "red", "Extrinsic", min_max_dict["extrinsic"]))
             ax.set_ylabel("Extrinsic")
             ax.set_xlabel("Epochs")
-            if((ent_dict["min"] != ent_dict["max"]).all()):
+            if((ent_dict[keys[0]] != ent_dict[keys[1]]).all()):
                 ax2 = ax.twinx()
                 handles.append(awesome_plot(ax2, ent_dict, "black", "Entropy", min_max_dict["intrinsic_entropy"]))
                 ax2.set_ylabel("Entropy")
-            if((cur_dict["min"] != cur_dict["max"]).all()):
+            if((cur_dict[keys[0]] != cur_dict[keys[1]]).all()):
                 ax3 = ax.twinx()
                 ax3.spines["right"].set_position(("axes", 1.08))
                 handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity", min_max_dict["intrinsic_curiosity"]))
                 ax3.set_ylabel("Curiosity")
-            if((imi_dict["min"] != imi_dict["max"]).all()):
+            if((imi_dict[keys[0]] != imi_dict[keys[1]]).all()):
                 ax4 = ax.twinx()
                 ax4.spines["right"].set_position(("axes", 1.16))
                 handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation", min_max_dict["intrinsic_imitation"]))
@@ -428,10 +436,17 @@ def plots(plot_dicts, min_max_dict):
             
             
             # Extrinsic and Intrinsic rewards with same dims
-            ext_dict = get_quantiles(plot_dict, "extrinsic", precision = 5)
-            ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", precision = 5)
-            cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", precision = 5)
-            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", precision = 5)
+            this_precision = 1
+            keys = \
+                    ["q40", "q60"] if this_precision == 1 else \
+                    ["q30", "q70"] if this_precision == 2 else \
+                    ["q20", "q80"] if this_precision == 3 else \
+                    ["q10", "q90"] if this_precision == 4 else \
+                    ["min", "max"]
+            ext_dict = get_quantiles(plot_dict, "extrinsic", precision = this_precision)
+            ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", precision = this_precision)
+            cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", precision = this_precision)
+            imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", precision = this_precision)
             min_max = many_min_max([min_max_dict["extrinsic"], min_max_dict["intrinsic_entropy"], min_max_dict["intrinsic_curiosity"]])#, min_max_dict["intrinsic_imitation"]])
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
@@ -439,11 +454,11 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(ax, ext_dict, "red", "Extrinsic"))
             ax.set_ylabel("Rewards")
             ax.set_xlabel("Epochs")
-            if((ent_dict["min"] != ent_dict["max"]).all()):
+            if((ent_dict[keys[0]] != ent_dict[keys[1]]).all()):
                 handles.append(awesome_plot(ax, ent_dict, "black", "Entropy"))
-            if((cur_dict["min"] != cur_dict["max"]).all()):
+            if((cur_dict[keys[0]] != cur_dict[keys[1]]).all()):
                 handles.append(awesome_plot(ax, cur_dict, "green", "Curiosity"))
-            if((imi_dict["min"] != imi_dict["max"]).all()):
+            if((imi_dict[keys[0]] != imi_dict[keys[1]]).all()):
                 handles.append(awesome_plot(ax, imi_dict, "blue", "Imitation"))
             ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared dims")
@@ -454,11 +469,11 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(ax, ext_dict, "red", "Extrinsic", min_max))
             ax.set_ylabel("Rewards")
             ax.set_xlabel("Epochs")
-            if((ent_dict["min"] != ent_dict["max"]).all()):
+            if((ent_dict[keys[0]] != ent_dict[keys[1]]).all()):
                 handles.append(awesome_plot(ax, ent_dict, "black", "Entropy", min_max))
-            if((cur_dict["min"] != cur_dict["max"]).all()):
+            if((cur_dict[keys[0]] != cur_dict[keys[1]]).all()):
                 handles.append(awesome_plot(ax, cur_dict, "green", "Curiosity", min_max))
-            if((imi_dict["min"] != imi_dict["max"]).all()):
+            if((imi_dict[keys[0]] != imi_dict[keys[1]]).all()):
                 handles.append(awesome_plot(ax, imi_dict, "blue", "Imitation", min_max))
             ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared min/max and dim")
@@ -467,8 +482,8 @@ def plots(plot_dicts, min_max_dict):
             
             
             # Curiosities
-            prediction_error_dict = get_quantiles(plot_dict, "prediction_error", precision = 5)
-            hidden_state_dicts = get_list_quantiles(plot_dict["hidden_state"], plot_dict, precision = 5)
+            prediction_error_dict = get_quantiles(plot_dict, "prediction_error", precision = 1)
+            hidden_state_dicts = get_list_quantiles(plot_dict["hidden_state"], plot_dict, precision = 1)
             min_max = many_min_max([min_max_dict["prediction_error"]] + [hidden_state_min_max for hidden_state_min_max in min_max_dict["hidden_state"]])
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1

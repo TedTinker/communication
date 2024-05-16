@@ -75,7 +75,7 @@ def add_this(name, args):
 
 add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
 add_this("n",   {"curiosity" : "prediction_error"}) #, "prediciton_error_eta" : [.01, .03, .1, .3, 1, 3, 10]})
-add_this("f",   {"curiosity" : "hidden_state"}) #, "beta" : convert_list( [ [.5], [1], [1.5], [2] ] ), "hidden_state_eta" : convert_list( [ [1], [2], [5], [10] ] )})
+add_this("f",   {"curiosity" : "hidden_state"}) #, "beta" : convert_list( [ [.25], [.5], [1], [2] ]), "hidden_state_eta" : convert_list( [ [5], [10], [15], [20], [25], [30] ]) })
 add_this("i",   {"delta" : 1})
 
 
@@ -121,8 +121,8 @@ if(__name__ == "__main__" and args.arg_list != []):
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time 24:00:00
-#SBATCH --mem=100G"""
+#SBATCH --time 5:00:00
+#SBATCH --mem=25G"""
 
     if(args.comp == "saion"):
         nv = "--nv"

@@ -6,7 +6,8 @@ from time import sleep
 from random import uniform, choice
 
 from utils import default_args, action_map, shape_map, color_map, make_objects_and_action,\
-    string_to_onehots, onehots_to_string, pad_zeros, print, agent_to_english, comm_map
+    string_to_onehots, onehots_to_string, print, agent_to_english, comm_map
+from submodule_utils import pad_zeros
 from arena import Arena, get_physics
 
 
