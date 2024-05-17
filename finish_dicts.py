@@ -36,13 +36,9 @@ for folder in folders:
         
     for key in min_max_dict.keys():
         if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
-            print("\n", key)
-            print(min_max_dict[key])
             if(key == "hidden_state"):
                 min_maxes = []
                 for layer in range(len(min_max_dict[key][0])):
-                    print("LAYER", layer)
-                    print([mm[layer] for mm in min_max_dict[key]])
                     minimum = None ; maximum = None
                     for min_max in [mm[layer] for mm in min_max_dict[key]]:
                         if(  minimum == None):      minimum = min_max[0]
@@ -51,7 +47,6 @@ for folder in folders:
                         elif(maximum < min_max[1]): maximum = min_max[1]
                     min_maxes.append((minimum, maximum))
                 min_max_dict[key] = min_maxes
-                print(min_maxes)
             else:
                 minimum = None ; maximum = None
                 for min_max in min_max_dict[key]:

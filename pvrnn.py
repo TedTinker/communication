@@ -60,8 +60,8 @@ class PVRNN_LAYER(nn.Module):
             
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def forward(
         self, 
@@ -71,6 +71,18 @@ class PVRNN_LAYER(nn.Module):
         prev_hidden_states_above = None):
         
         prev_hidden_states = prev_hidden_states.to(self.args.device)
+        
+        #print("\nPVRNN LAYER 1", torch.isnan(prev_hidden_states).sum())
+        #if(obs != None):
+        #    print("2", torch.isnan(obs).sum())
+        #if(prev_actions != None):
+        #    print("3", torch.isnan(prev_actions).sum())
+        #if(prev_comms_out != None):
+        #    print("4", torch.isnan(prev_comms_out).sum())
+        #if(hidden_states_below != None):
+        #    print("5", torch.isnan(hidden_states_below).sum())
+        #if(prev_hidden_states_above != None):
+        #    print("6", torch.isnan(prev_hidden_states_above).sum())
                         
         if(self.bottom):
             zp_inputs = torch.cat([prev_hidden_states, prev_actions, prev_comms_out], dim = -1)
@@ -85,9 +97,9 @@ class PVRNN_LAYER(nn.Module):
         if(prev_hidden_states_above != None):
             prev_hidden_states_above = prev_hidden_states_above.reshape(episodes * steps, prev_hidden_states_above.shape[2])
             
-        #if(str(self.args.device) != "cpu"):
-        #    zp_inputs = zp_inputs.to(dtype=torch.float16)
-        #    zq_inputs = zq_inputs.to(dtype=torch.float16)
+        if(self.args.half):
+            zp_inputs = zp_inputs.to(dtype=torch.float16)
+            zq_inputs = zq_inputs.to(dtype=torch.float16)
         
         zp_mu, zp_std = var(zp_inputs, self.zp_mu, self.zp_std, self.args)
         zp = sample(zp_mu, zp_std, self.args.device)
@@ -213,8 +225,8 @@ class PVRNN(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def predict(self, h, action):
         h_w_actions = torch.cat([h, action], dim = -1)
@@ -228,6 +240,14 @@ class PVRNN(nn.Module):
             prev_actions = prev_actions.unsqueeze(1)
         if(prev_comms_out != None and len(prev_comms_out.shape) == 2): 
             prev_comms_out = prev_comms_out.unsqueeze(1)
+                                
+        #print("\nPVRNN BOTTOM-TO-TOP 1", torch.isnan(prev_hidden_states).sum())
+        #if(obs != None):
+        #    print("2", torch.isnan(obs).sum())
+        #if(prev_actions != None):
+        #    print("3", torch.isnan(prev_actions).sum())
+        #if(prev_comms_out != None):
+        #    print("4", torch.isnan(prev_comms_out).sum())
                                 
         zp_mu_list = []
         zp_std_list = []
@@ -244,6 +264,13 @@ class PVRNN(nn.Module):
                     obs, prev_actions, prev_comms_out,
                     new_hidden_states_list_q[-1] if layer > 0 else None, 
                     prev_hidden_states[:,layer+1].unsqueeze(1) if layer + 1 < self.args.layers else None)
+            #print("5", torch.isnan(zp_mu).sum())
+            #print("6", torch.isnan(zp_std).sum())
+            #print("7", torch.isnan(new_hidden_states_p).sum())
+            #print("8", torch.isnan(zq_mu).sum())
+            #print("9", torch.isnan(zq_std).sum())
+            #print("10", torch.isnan(new_hidden_states_q).sum())
+            #print("11", torch.isnan(dkl).sum())
     
             for l, o in zip(
                 [zp_mu_list, zp_std_list, zq_mu_list, zq_std_list, new_hidden_states_list_p, new_hidden_states_list_q, dkls],

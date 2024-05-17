@@ -92,13 +92,13 @@ def hsv_to_circular_hue(hsv_image):
 
 
 
-def model_start(model_input_list, device = "cpu"):
+def model_start(model_input_list, device = "cpu", half = False):
     start = duration()
     new_model_inputs = []
     for model_input, layer_type in model_input_list:
         model_input = model_input.to(device)
-        #if(str(device) != "cpu"):
-        #    model_input = model_input.to(dtype=torch.float16)
+        if(half):
+            model_input = model_input.to(dtype=torch.float16)
         if(layer_type == "lin"):
             if(len(model_input.shape) == 2):   model_input = model_input.unsqueeze(1)
             episodes, steps = episodes_steps(model_input)

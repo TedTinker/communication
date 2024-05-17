@@ -305,114 +305,131 @@ class Arena():
                 for link_name, value in object_dict.items():
                     if(value):
                         print(f"Touching {object_key} with {link_name}.")
+                        
+        objects_goals = {}
                 
         for i, ((color_index, shape_index, _), object_index) in enumerate(self.objects_in_play.items()):
-            if(color_index == goal_color and shape_index == goal_shape):
-                # Is the agent touching the object?
-                touching = self.touching_object(object_index)
-                touching = any(touching.values())
+            watching = False 
+            pushing = False 
+            pulling = False 
+            lefting = False 
+            righting = False
+            
+            # Is the agent touching the object?
+            touching = self.touching_object(object_index)
+            touching = any(touching.values())
+            
+            # Distance and angle from agent to object.
+            object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
+            agent_pos, agent_ori = p.getBasePositionAndOrientation(self.robot_index, physicsClientId = self.physicsClient)
+            distance_vector = np.subtract(object_pos[:2], agent_pos[:2])
+            distance = np.linalg.norm(distance_vector)
+            normalized_distance_vector = distance_vector / distance
+            rotation_matrix = p.getMatrixFromQuaternion(agent_ori, physicsClientId = self.physicsClient)
+            forward_vector = np.array([rotation_matrix[0], rotation_matrix[3]])
+            forward_vector /= np.linalg.norm(forward_vector)
+            dot_product = np.dot(forward_vector, normalized_distance_vector)
+            angle_radians = np.arccos(np.clip(dot_product, -1.0, 1.0))  
+            angle_degrees = degrees(angle_radians)
+            cross_product = np.cross(np.append(forward_vector, 0), np.append(normalized_distance_vector, 0))
+            if cross_product[2] < 0:  
+                angle_radians = -angle_radians
                 
-                # Distance and angle from agent to object.
-                object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
-                agent_pos, agent_ori = p.getBasePositionAndOrientation(self.robot_index, physicsClientId = self.physicsClient)
-                distance_vector = np.subtract(object_pos[:2], agent_pos[:2])
-                distance = np.linalg.norm(distance_vector)
-                normalized_distance_vector = distance_vector / distance
-                rotation_matrix = p.getMatrixFromQuaternion(agent_ori, physicsClientId = self.physicsClient)
-                forward_vector = np.array([rotation_matrix[0], rotation_matrix[3]])
-                forward_vector /= np.linalg.norm(forward_vector)
-                dot_product = np.dot(forward_vector, normalized_distance_vector)
-                angle_radians = np.arccos(np.clip(dot_product, -1.0, 1.0))  
-                angle_degrees = degrees(angle_radians)
-                cross_product = np.cross(np.append(forward_vector, 0), np.append(normalized_distance_vector, 0))
-                if cross_product[2] < 0:  
-                    angle_radians = -angle_radians
+            # How is the object moving in relation to the agent?
+            (x_before, y_before, z_before) = self.objects_start[i]
+            (x_after, y_after, z_after) = self.objects_end[i]
+            delta_x = x_after - x_before
+            delta_y = y_after - y_before
+            movement_forward = delta_x * v_rx + delta_y * v_ry
+            movement_left = delta_x * (-v_ry) + delta_y * v_rx
+            if(verbose):
+                print("Object movement (forward):", round(movement_forward, 2))
+                print("Object movement (left):", round(movement_left, 2))
+                print("Angle of object movement:", round(v_rx, 2), round(v_ry, 2))
+            
+            # Is the agent watching an object?
+            watching_now = abs(angle_radians) < pi/6 and not touching and distance <= self.args.watch_distance
+            if watching_now: self.watching[object_index] += 1
+            else:        self.watching[object_index] = 0 
+            if(self.watching[object_index] == self.args.watch_duration):
+                watching = True
+                        
+            # Is the object pushed/pulled away from its starting position, relative to the agent's starting position and angle?
+            if(action_map[goal_action][1] == "PUSH"):
+                if(movement_forward >= self.args.push_amount and touching):
+                    pushing = True
+            if(action_map[goal_action][1] == "PULL"):
+                if(movement_forward <= -self.args.push_amount and touching):
+                    pulling = True
+                        
+            # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
+            if(action_map[goal_action][1] == "LEFT"):
+                if(movement_left >= self.args.push_amount and touching):
+                    lefting = True
+            if(action_map[goal_action][1] == "RIGHT"):
+                if(movement_left <= -self.args.push_amount and touching):
+                    righting = True
                     
-                # How is the object moving in relation to the agent?
-                (x_before, y_before, z_before) = self.objects_start[i]
-                (x_after, y_after, z_after) = self.objects_end[i]
-                delta_x = x_after - x_before
-                delta_y = y_after - y_before
-                movement_forward = delta_x * v_rx + delta_y * v_ry
-                movement_left = delta_x * (-v_ry) + delta_y * v_rx
-                if(verbose):
-                    print("Object movement (forward):", round(movement_forward, 2))
-                    print("Object movement (left):", round(movement_left, 2))
-                    print("Angle of object movement:", round(v_rx, 2), round(v_ry, 2))
+            # Also add reward for mere distance.
+            midpoint = (self.args.dist_reward_min + self.args.dist_reward_max) / 2
+            if distance <= self.args.dist_reward_min:
+                distance_reward = 1
+            elif distance <= midpoint:
+                proportion = (distance - self.args.dist_reward_min) / (midpoint - self.args.dist_reward_min)
+                distance_reward = (1 - proportion)
+            elif(distance >= midpoint and distance <= self.args.dist_reward_max):
+                proportion = (distance - midpoint) / (self.args.dist_reward_max - midpoint)
+                distance_reward = -proportion
+            else:
+                distance_reward = -1
+            distance_reward *= self.args.dist_reward
                 
-                if(action_map[goal_action][1] == "WATCH"):   
-                    # Is the agent watching an object?
-                    watching_now = abs(angle_radians) < pi/6 and not touching and distance <= self.args.watch_distance
-                    if watching_now: self.watching[object_index] += 1
-                    else:        self.watching[object_index] = 0 
-                    if(self.watching[object_index] == self.args.watch_duration):
-                        win = True
-                
-                else:
+            # Also add reward for mere angle.
+            abs_angle = abs(angle_degrees)
+            midpoint = (self.args.angle_reward_min + self.args.angle_reward_max) / 2
+            if abs_angle <= self.args.angle_reward_min:
+                angle_reward = 1
+            elif abs_angle <= midpoint:
+                proportion = (abs_angle - self.args.angle_reward_min) / (midpoint - self.args.angle_reward_min)
+                angle_reward = (1 - proportion)
+            elif(abs_angle >= midpoint and abs_angle <= self.args.angle_reward_max):
+                proportion = (abs_angle - midpoint) / (self.args.angle_reward_max - midpoint)
+                angle_reward = -proportion
+            else:
+                angle_reward = -1
+            if(distance_reward < 0 and angle_reward > 0):
+                angle_reward *= 0
+            angle_reward *= self.args.angle_reward
                     
-                    # Is the object pushed/pulled away from its starting position, relative to the agent's starting position and angle?
-                    if(action_map[goal_action][1] == "PUSH"):
-                        if(movement_forward >= self.args.push_amount and touching):
-                            win = True
-                    if(action_map[goal_action][1] == "PULL"):
-                        if(movement_forward <= -self.args.push_amount and touching):
-                            win = True
-                                
-                    # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
-                    if(action_map[goal_action][1] == "LEFT"):
-                        if(movement_left >= self.args.push_amount and touching):
-                            win = True
-                    if(action_map[goal_action][1] == "RIGHT"):
-                        if(movement_left <= -self.args.push_amount and touching):
-                            win = True
-                            
-                if(win):
+            objects_goals[(color_index, shape_index)] = [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward]
+                        
+        for key in objects_goals.keys():
+            [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward] = objects_goals[key]
+            if(key[0] == goal_color and key[1] == goal_shape):
+                if((action_map[goal_action][1] == "WATCH" and watching) or 
+                   (action_map[goal_action][1] == "PUSH" and pushing) or
+                   (action_map[goal_action][1] == "PULL" and pulling) or
+                   (action_map[goal_action][1] == "LEFT" and lefting) or
+                   (action_map[goal_action][1] == "RIGHT" and righting)):   
+                    win = True 
                     reward = self.args.reward
-                    
-                # Also add reward for mere distance.
-                midpoint = (self.args.dist_reward_min + self.args.dist_reward_max) / 2
-                if distance <= self.args.dist_reward_min:
-                    distance_reward = 1
-                elif distance <= midpoint:
-                    proportion = (distance - self.args.dist_reward_min) / (midpoint - self.args.dist_reward_min)
-                    distance_reward = (1 - proportion)
-                elif(distance >= midpoint and distance <= self.args.dist_reward_max):
-                    proportion = (distance - midpoint) / (self.args.dist_reward_max - midpoint)
-                    distance_reward = -proportion
-                else:
-                    distance_reward = -1
-                distance_reward *= self.args.dist_reward
-                    
-                # Also add reward for mere angle.
-                abs_angle = abs(angle_degrees)
-                midpoint = (self.args.angle_reward_min + self.args.angle_reward_max) / 2
-                if abs_angle <= self.args.angle_reward_min:
-                    angle_reward = 1
-                elif abs_angle <= midpoint:
-                    proportion = (abs_angle - self.args.angle_reward_min) / (midpoint - self.args.angle_reward_min)
-                    angle_reward = (1 - proportion)
-                elif(abs_angle >= midpoint and abs_angle <= self.args.angle_reward_max):
-                    proportion = (abs_angle - midpoint) / (self.args.angle_reward_max - midpoint)
-                    angle_reward = -proportion
-                else:
-                    angle_reward = -1
-                if(distance_reward < 0 and angle_reward > 0):
-                    angle_reward *= 0
-                angle_reward *= self.args.angle_reward
-                
-                if(action_map[goal_action][1] == "NONE"):
-                    reward = 0
-                    distance_reward = 0
-                    angle_reward = 0
-                    
-                if(verbose):
-                    print("Distance:", round(distance, 2))
-                    print("Distance reward:", round(distance_reward, 2))
-                    print("Angle:", round(angle_degrees, 2))
-                    print("Angle reward:", round(angle_reward, 2)),
-                    print("Raw reward:", round(reward, 2))
-                    
+            else:
+                if(watching or pushing or pulling or lefting or righting):
+                    reward += self.args.wrong_object_punishment
+                       
+        [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward] = objects_goals[(goal_color, goal_shape)]
+        if(action_map[goal_action][1] == "NONE"):
+            reward = 0
+            distance_reward = 0
+            angle_reward = 0
+            
+        
         if(verbose):
+            print("Raw reward:", round(reward, 2))
+            print("Distance:", round(distance, 2))
+            print("Distance reward:", round(distance_reward, 2))
+            print("Angle:", round(angle_degrees, 2))
+            print("Angle reward:", round(angle_reward, 2))
             print("Total reward:", reward + distance_reward + angle_reward)
             print("Win:", win)
 

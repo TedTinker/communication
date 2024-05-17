@@ -31,6 +31,8 @@ def train(q, i):
     cpu_id = i % num_cores
     args.cpu = cpu_id
     
+    print(f"\nagent {i}: cpu {cpu_id}\n")
+    
     agent = Agent(i, args = args)
     agent.training(q)
     with open(folder + "/plot_dict_{}.pickle".format(   str(i).zfill(3)), "wb") as handle:

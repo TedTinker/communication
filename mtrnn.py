@@ -55,8 +55,8 @@ class MTRNNCell(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
 
     def forward(self, x, h):
         #attach_list([x, h], self.args.device)
@@ -105,15 +105,15 @@ class MTRNN(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
 
     def forward(self, x, h = None):
         if(h == None):
             h = torch.zeros((x.shape[0], 1, self.hidden_size))
-        #if(str(self.args.device) != "cpu"):
-        #    x = x.to(dtype=torch.float16)
-        #    h = h.to(dtype=torch.float16)
+        if(self.args.half):
+            x = x.to(dtype=torch.float16)
+            h = h.to(dtype=torch.float16)
         #[x, h] = attach_list([x, h], self.args.device)
         episodes, steps = episodes_steps(x)
         outputs = []

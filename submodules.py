@@ -51,15 +51,11 @@ class RGBD_IN(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def forward(self, rgbd):
-        #print(f"\n\n{rgbd.dtype}\n\n")
-        #rgbd = rgbd.to(dtype=torch.float16)
-        #print(f"\n\n{rgbd.dtype}\n\n")
-        
-        start, episodes, steps, [rgbd] = model_start([(rgbd, "cnn")], self.args.device)
+        start, episodes, steps, [rgbd] = model_start([(rgbd, "cnn")], self.args.device, self.args.half)
         
         if(self.args.use_hsv):
             hsv = hsv_to_circular_hue(rgb_to_hsv(rgbd[:,:-1]))
@@ -70,8 +66,8 @@ class RGBD_IN(nn.Module):
                 batch_size = rgbd.shape[0], image_size = rgbd.shape[2], d_model = self.args.pos_channels, device=self.args.device)
         else:
             positional_layers = generate_2d_positional_layers(rgbd.shape[0], rgbd.shape[2], device=self.args.device)        
-        #if(str(self.args.device) != "cpu"):
-        #    positional_layers = positional_layers.to(dtype=torch.float16)    
+        if(self.args.half):
+            positional_layers = positional_layers.to(dtype=torch.float16)    
         rgbd = torch.cat([rgbd, positional_layers], dim = 1)
         
         a = self.a(rgbd).flatten(1)
@@ -133,11 +129,11 @@ class RGBD_OUT(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def forward(self, h_w_action):
-        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device)
+        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
         
         a = self.a(h_w_action)
         a = a.reshape(episodes * steps, self.out_features_channels, self.args.image_size//self.args.divisions, self.args.image_size//self.args.divisions)
@@ -210,11 +206,11 @@ class Comm_IN(nn.Module):
                 
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def forward(self, comm):
-        start, episodes, steps, [comm] = model_start([(comm, "comm")], self.args.device)
+        start, episodes, steps, [comm] = model_start([(comm, "comm")], self.args.device, self.args.half)
         
         comm = pad_zeros(comm, self.args.max_comm_len)
         comm = torch.argmax(comm, dim = -1).int()
@@ -290,12 +286,12 @@ class Comm_OUT(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
                 
     def forward(self, h_w_action):
         
-        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device)
+        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
         
         h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.encode_action_size)
         a = self.a(h_w_action)
@@ -385,8 +381,8 @@ class Comm_IN(nn.Module):
                 
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def forward(self, comm):
         start = duration()
@@ -475,8 +471,8 @@ class Comm_OUT(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
                 
     def forward(self, h_w_action):
         start = duration()
@@ -551,11 +547,11 @@ class Sensors_IN(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def forward(self, sensors):
-        start, episodes, steps, [sensors] = model_start([(sensors, "lin")], self.args.device)
+        start, episodes, steps, [sensors] = model_start([(sensors, "lin")], self.args.device, self.args.half)
         encoding = self.a(sensors)
         [encoding] = model_end(start, episodes, steps, [(encoding, "lin")], "SENSORS_IN" if self.args.show_duration else None)
         return(encoding)
@@ -594,11 +590,11 @@ class Sensors_OUT(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def forward(self, h_w_action):
-        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device)
+        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
         sensors = self.a(h_w_action)
         sensors = (sensors + 1) / 2
         [sensors] = model_end(start, episodes, steps, [(sensors, "lin")], "SENSORS_OUT" if self.args.show_duration else None)
@@ -634,8 +630,8 @@ class Obs_IN(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def forward(self, rgbd, comm, sensors):
         rgbd = self.rgbd_in(rgbd)
@@ -676,8 +672,8 @@ class Obs_OUT(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def forward(self, h_w_action):
         rgbd_pred = self.rgbd_out(h_w_action)
@@ -720,11 +716,11 @@ class Action_IN(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def forward(self, action):
-        start, episodes, steps, [action] = model_start([(action, "lin")], self.args.device)
+        start, episodes, steps, [action] = model_start([(action, "lin")], self.args.device, self.args.half)
         encoded = self.a(action)
         [encoded] = model_end(start, episodes, steps, [(encoded, "lin")], "ACTION_IN" if self.args.show_duration else None)
 

@@ -22,6 +22,15 @@ from pvrnn import PVRNN
 from models import Actor, Critic
 
 
+def print_cpu_usage(string, num):
+    pid = os.getpid()
+    process = psutil.Process(pid)
+    cpu_affinity = process.cpu_affinity()
+    print(f"{string}: {num} CPU affinity: {cpu_affinity}")
+    current_cpu = psutil.cpu_percent(interval=1, percpu=True)
+    print(f"{string}: {num} Current CPU usage per core: {current_cpu}")
+
+
 
 class Agent:
     
@@ -35,20 +44,8 @@ class Agent:
             print(f"\nIN AGENT: {i} DEVICE: {self.args.device} ({torch.cuda.current_device()} out of {[j for j in range(torch.cuda.device_count())]}, {torch.cuda.get_device_name(torch.cuda.current_device())})\n")
         else:
             print(f"\nIN AGENT: {i} DEVICE: {self.args.device}\n")
-        pid = os.getpid()
-        process = psutil.Process(pid)
-        cpu_affinity = process.cpu_affinity()
-        print(f"CPU affinity: {cpu_affinity}")
-        current_cpu = psutil.cpu_percent(interval=1, percpu=True)
-        print(f"Current CPU usage per core: {current_cpu}")
         
         #os.sched_setaffinity(0, {self.args.cpu})
-        #pid = os.getpid()
-        #process = psutil.Process(pid)
-        #cpu_affinity = process.cpu_affinity()
-        #print(f"CPU affinity: {cpu_affinity}")
-        #current_cpu = psutil.cpu_percent(interval=1, percpu=True)
-        #print(f"Current CPU usage per core: {current_cpu}")
         
         self.tasks = {
             "0" : Task(actions = [-1],              objects = 3, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parent = True, args = self.args),
@@ -86,6 +83,12 @@ class Agent:
             self.critic_targets.append(Critic(self.args))
             self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
             self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr=self.args.critic_lr, weight_decay = self.args.weight_decay))
+            
+        all_params = list(self.forward.parameters())
+        all_params += list(self.actor.parameters())
+        for critic in self.critics:
+            all_params += list(critic.parameters())
+        self.complete_opt = optim.Adam(all_params, lr=self.args.forward_lr, weight_decay=self.args.weight_decay)        
         
         self.memory = RecurrentReplayBuffer(self.args)
         
@@ -117,7 +120,7 @@ class Agent:
         for a in action_map.values():
             self.plot_dict[f"wins_{a[1].lower()}"] = []
             self.plot_dict[f"gen_wins_{a[1].lower()}"] = []
-            
+                        
         
         
     def training(self, q = None):      
@@ -770,6 +773,7 @@ class Agent:
         self.forward_opt.zero_grad()
         (accuracy + complexity).backward()
         self.forward_opt.step()
+        #complete_loss = accuracy + complexity 
         
         if(self.args.beta == 0): complexity = None
         torch.cuda.empty_cache()
@@ -833,6 +837,7 @@ class Agent:
             self.critic_opts[i].zero_grad()
             critic_loss.backward()
             self.critic_opts[i].step()
+            #complete_loss += critic_loss
         
             self.soft_update(self.critics[i], self.critic_targets[i], self.args.tau)
         
@@ -840,37 +845,6 @@ class Agent:
         
         time = duration()
         if(self.args.show_duration): print("TRAINED CRITICS:", time - prev_time)
-        prev_time = time
-                                
-        
-        
-        # Train alpha
-        if self.args.alpha == None:
-            _, _, log_pis, _, _ = self.actor(rgbds[:,:-1], comms_in[:,:-1], actions[:,:-1], comms_out[:,:-1], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)), parented)
-            alpha_loss = -(self.log_alpha.to(self.args.device) * (log_pis + self.target_entropy))*masks
-            alpha_loss = alpha_loss.mean() / masks.mean()
-            self.alpha_opt.zero_grad()
-            alpha_loss.backward()
-            self.alpha_opt.step()
-            self.alpha = torch.exp(self.log_alpha).to(self.args.device)
-            torch.cuda.empty_cache()
-        else:
-            alpha_loss = None
-            
-        if self.args.alpha_text == None:
-            _, _, _, log_pis_text, _ = self.actor(rgbds[:,:-1], comms_in[:,:-1], actions[:,:-1], comms_out[:,:-1], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)), parented)
-            alpha_text_loss = -(self.log_alpha_text.to(self.args.device) * (log_pis_text + self.target_entropy_text))*masks
-            alpha_text_loss = alpha_text_loss.mean() / masks.mean()
-            self.alpha_text_opt.zero_grad()
-            alpha_text_loss.backward()
-            self.alpha_text_opt.step()
-            self.alpha_text = torch.exp(self.log_alpha_text).to(self.args.device)
-            torch.cuda.empty_cache()
-        else:
-            alpha_text_loss = None
-            
-        time = duration()
-        if(self.args.show_duration): print("TRAINED ALPHA:", time - prev_time)
         prev_time = time
                                     
             
@@ -913,16 +887,51 @@ class Agent:
             self.actor_opt.zero_grad()
             actor_loss.backward()
             self.actor_opt.step()
+            #complete_loss += actor_loss 
             
             time = duration()
             if(self.args.show_duration): print("TRAINED ACTOR:", time - prev_time)
             prev_time = time
-            
         else:
             Q = None
             intrinsic_entropy = None
             intrinsic_imitation = None
             actor_loss = None
+            
+        #self.complete_opt.zero_grad()
+        #complete_loss.backward()
+        #self.complete_opt.step()
+        
+            
+            
+        # Train alpha
+        if self.args.alpha == None:
+            _, _, log_pis, _, _ = self.actor(rgbds[:,:-1], comms_in[:,:-1], actions[:,:-1], comms_out[:,:-1], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)), parented)
+            alpha_loss = -(self.log_alpha.to(self.args.device) * (log_pis + self.target_entropy))*masks
+            alpha_loss = alpha_loss.mean() / masks.mean()
+            self.alpha_opt.zero_grad()
+            alpha_loss.backward()
+            self.alpha_opt.step()
+            self.alpha = torch.exp(self.log_alpha).to(self.args.device)
+            torch.cuda.empty_cache()
+        else:
+            alpha_loss = None
+            
+        if self.args.alpha_text == None:
+            _, _, _, log_pis_text, _ = self.actor(rgbds[:,:-1], comms_in[:,:-1], actions[:,:-1], comms_out[:,:-1], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)), parented)
+            alpha_text_loss = -(self.log_alpha_text.to(self.args.device) * (log_pis_text + self.target_entropy_text))*masks
+            alpha_text_loss = alpha_text_loss.mean() / masks.mean()
+            self.alpha_text_opt.zero_grad()
+            alpha_text_loss.backward()
+            self.alpha_text_opt.step()
+            self.alpha_text = torch.exp(self.log_alpha_text).to(self.args.device)
+            torch.cuda.empty_cache()
+        else:
+            alpha_text_loss = None
+            
+        time = duration()
+        if(self.args.show_duration): print("TRAINED ALPHA:", time - prev_time)
+        prev_time = time
                                 
                                 
                                 

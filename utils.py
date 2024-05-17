@@ -40,8 +40,6 @@ torch.set_printoptions(precision=3, sci_mode=False)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #device = "cpu"
 
-#%%
-
 action_map = {
     -1: ["Z", "NONE"],
     0:  ["A", "WATCH"],
@@ -280,6 +278,8 @@ parser.add_argument('--max_shoulder_speed', type=float,      default = 8,
     # Task details
 parser.add_argument('--reward',             type=float,      default = 10,
                     help='Extrinsic reward for choosing correct action, shape, and color.') 
+parser.add_argument('--wrong_object_punishment', type=float, default = -1,
+                    help='Extrinsic punishment for choosing any action with wrong object.') 
 parser.add_argument('--max_steps',          type=int,        default = 10,
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',type=float,      default = -10,
@@ -377,7 +377,9 @@ parser.add_argument('--pos_channels',       type=int,        default = 2,
 parser.add_argument('--use_trig_pos',       type=literal,    default = True,
                     help='Use trigonometric positions, or linear?') 
 parser.add_argument('--divisions',          type=int,        default = 2,
-                    help='How many times should RBGD_Out double size to image-size?')      
+                    help='How many times should RBGD_Out double size to image-size?')
+parser.add_argument('--half',               type=literal,    default = True,
+                    help='Should the models use float16 instead of float32?')      
 
     # Complexity 
 parser.add_argument('--std_min',            type=int,        default = exp(-20),
@@ -446,6 +448,8 @@ def extend_list_to_match_length(target_list, length, value):
     return target_list
 
 for arg_set in [default_args, args]:
+    if(arg_set.comp == "deigo"):
+        arg_set.half = False
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.object_shape = arg_set.shapes + arg_set.colors
     arg_set.comm_shape = len(comm_map)

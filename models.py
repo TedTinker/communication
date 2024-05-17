@@ -62,24 +62,29 @@ class Actor(nn.Module):
 
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
 
     def forward(self, rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden, parented = True):
         start, episodes, steps, [rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden] = model_start(
-            [(rgbd, "cnn"), (comm_in, "comm"), (prev_action, "lin"), (prev_comm_out, "comm"), (forward_hidden, "lin"), (action_hidden, "lin")], device = self.args.device)
+            [(rgbd, "cnn"), (comm_in, "comm"), (prev_action, "lin"), (prev_comm_out, "comm"), (forward_hidden, "lin"), (action_hidden, "lin")], device = self.args.device, half = self.args.half)
         
         #obs = self.obs_in(rgbd, comm_in)
         #prev_action = self.action_in(prev_action)
         #prev_comm_out_encoded = self.comm_in(prev_comm_out)
         # x = torch.cat([obs, prev_action, prev_comm_out_encoded, forward_hidden], dim = -1)
+        #print("\nACTOR 1", torch.isnan(forward_hidden).sum())
         x = self.lin(forward_hidden)
+        #print("2", torch.isnan(x).sum())
         #x = self.mtrnn(x, action_hidden)
         #action_hidden = action_hidden[:,-1].unsqueeze(1)
         
         mu, std = var(x, self.mu, self.std, self.args)
+        #print("3", torch.isnan(mu).sum())
+        #print("4", torch.isnan(std).sum())
         
         sampled = sample(mu, std, self.args.device)
+        #print("5", torch.isnan(sampled).sum())
         action = torch.tanh(sampled)
         log_prob = Normal(mu, std).log_prob(sampled) - torch.log(1 - action.pow(2) + 1e-6)
         log_prob = torch.mean(log_prob, -1).unsqueeze(-1)
@@ -152,12 +157,12 @@ class Critic(nn.Module):
         
         self.apply(init_weights)
         self.to(self.args.device)
-        #if(str(self.args.device) != "cpu"):
-        #    self = self.half()
+        if(self.args.half):
+            self = self.half()
         
     def forward(self, rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden):        
         start, episodes, steps, [rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden] = model_start(
-            [(rgbd, "cnn"), (comm_in, "comm"), (action, "lin"), (comm_out, "comm"), (forward_hidden, "lin"), (critic_hidden, "lin")], device = self.args.device)
+            [(rgbd, "cnn"), (comm_in, "comm"), (action, "lin"), (comm_out, "comm"), (forward_hidden, "lin"), (critic_hidden, "lin")], device = self.args.device, half = self.args.half)
                 
         #obs = self.obs_in(rgbd, comm_in)
         action = self.action_in(action)
