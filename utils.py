@@ -3,8 +3,6 @@
 # To do: most important 
 #   Make it work.
 #   Make it work FASTER.
-#   Performing any goal with wrong object should punish.
-#   Make sure two goals can't be done at once.
 #   Trying float16 on cuda. Getting NaN.
 
 # To do: less important 
@@ -12,7 +10,7 @@
 #   Try making sensor-observation deeper, like speed or something.
 #   Maybe using separate PVRNNs for rgbd, comm, sensors?
 #   Try predicting multiple steps in the future.
-#   Maybe actor and critic losses can be added to pvrnn's?
+#   Maybe actor and critic losses can be added to pvrnn's? # This works, but needs find-tuning. 
 
 import os
 import pickle
@@ -278,7 +276,7 @@ parser.add_argument('--max_shoulder_speed', type=float,      default = 8,
     # Task details
 parser.add_argument('--reward',             type=float,      default = 10,
                     help='Extrinsic reward for choosing correct action, shape, and color.') 
-parser.add_argument('--wrong_object_punishment', type=float, default = -1,
+parser.add_argument('--wrong_object_punishment', type=float, default = 0,
                     help='Extrinsic punishment for choosing any action with wrong object.') 
 parser.add_argument('--max_steps',          type=int,        default = 10,
                     help='How many steps the agent can make in one episode.')

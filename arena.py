@@ -406,13 +406,14 @@ class Arena():
         for key in objects_goals.keys():
             [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward] = objects_goals[key]
             if(key[0] == goal_color and key[1] == goal_shape):
-                if((action_map[goal_action][1] == "WATCH" and watching) or 
-                   (action_map[goal_action][1] == "PUSH" and pushing) or
-                   (action_map[goal_action][1] == "PULL" and pulling) or
-                   (action_map[goal_action][1] == "LEFT" and lefting) or
-                   (action_map[goal_action][1] == "RIGHT" and righting)):   
-                    win = True 
-                    reward = self.args.reward
+                if(sum([watching, pushing, pulling, lefting, righting]) == 1):
+                    if((action_map[goal_action][1] == "WATCH" and watching) or 
+                    (action_map[goal_action][1] == "PUSH" and pushing) or
+                    (action_map[goal_action][1] == "PULL" and pulling) or
+                    (action_map[goal_action][1] == "LEFT" and lefting) or
+                    (action_map[goal_action][1] == "RIGHT" and righting)):   
+                        win = True 
+                        reward = self.args.reward
             else:
                 if(watching or pushing or pulling or lefting or righting):
                     reward += self.args.wrong_object_punishment
