@@ -56,11 +56,14 @@ class RGBD_IN(nn.Module):
         
     def forward(self, rgbd):
         start, episodes, steps, [rgbd] = model_start([(rgbd, "cnn")], self.args.device, self.args.half)
-        
+                
         if(self.args.use_hsv):
-            hsv = hsv_to_circular_hue(rgb_to_hsv(rgbd[:,:-1]))
+            hsv = rgb_to_hsv(rgbd[:,:-1]) # Results in NAN
+            #print("hsv", torch.isnan(hsv).sum().item())
+            hsv = hsv_to_circular_hue(hsv)
             rgbd = torch.cat([rgbd, hsv], dim = 1)
         rgbd = (rgbd * 2) - 1
+                
         if(self.args.use_trig_pos):
             positional_layers = generate_2d_sinusoidal_positions(
                 batch_size = rgbd.shape[0], image_size = rgbd.shape[2], d_model = self.args.pos_channels, device=self.args.device)
@@ -69,7 +72,7 @@ class RGBD_IN(nn.Module):
         if(self.args.half):
             positional_layers = positional_layers.to(dtype=torch.float16)    
         rgbd = torch.cat([rgbd, positional_layers], dim = 1)
-        
+                
         a = self.a(rgbd).flatten(1)
         encoding = self.b(a)
         
@@ -143,6 +146,9 @@ class RGBD_OUT(nn.Module):
         else:
             positional_layers = generate_2d_positional_layers(
                 a.shape[0], self.args.image_size//self.args.divisions, device=self.args.device)
+        if(self.args.half):
+            positional_layers = positional_layers.to(dtype=torch.float16)    
+            
         a_w_positions = torch.cat([a, positional_layers], dim = 1)
         rgbd = self.b(a_w_positions)
         rgbd = (rgbd + 1) / 2
@@ -296,8 +302,10 @@ class Comm_OUT(nn.Module):
         h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.encode_action_size)
         a = self.a(h_w_action)
         a = a.reshape(episodes * steps, self.args.max_comm_len, self.args.hidden_size)
-        x = generate_1d_positional_layers(episodes * steps, self.args.max_comm_len, self.args.device)
-        a = torch.cat([a, x.squeeze(1)], dim = -1)
+        positional_layers = generate_1d_positional_layers(episodes * steps, self.args.max_comm_len, self.args.device)
+        if(self.args.half):
+            positional_layers = positional_layers.to(dtype=torch.float16)  
+        a = torch.cat([a, positional_layers.squeeze(1)], dim = -1)
         b = self.b(a.permute((0, 2, 1))).permute((0, 2, 1))
         #comm_h = None
         #comm_hs = []

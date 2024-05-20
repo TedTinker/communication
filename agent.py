@@ -15,6 +15,7 @@ from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
 from utils import default_args, duration, dkl, calculate_similarity, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, action_map, action_name_list, custom_loss, print
+from submodule_utils import model_start
 from arena import Arena, get_physics
 from task import Task, Task_Runner
 from buffer import RecurrentReplayBuffer
@@ -63,11 +64,15 @@ class Agent:
         self.alpha = 1
         self.log_alpha = torch.tensor([0.0], requires_grad=True)
         self.alpha_opt = optim.Adam(params=[self.log_alpha], lr=self.args.alpha_lr, weight_decay = self.args.weight_decay) 
+        if(self.args.half):
+            self.log_alpha = self.log_alpha.to(dtype=torch.float16)
         
         self.target_entropy_text = self.args.target_entropy_text
         self.alpha_text = 1
         self.log_alpha_text = torch.tensor([0.0], requires_grad=True)
         self.alpha_text_opt = optim.Adam(params=[self.log_alpha_text], lr=self.args.alpha_text_lr, weight_decay = self.args.weight_decay) 
+        if(self.args.half):
+            self.log_alpha_text = self.log_alpha_text.to(dtype=torch.float16)
 
         self.forward = PVRNN(self.args)
         self.forward_opt = optim.Adam(self.forward.parameters(), lr=self.args.forward_lr, weight_decay = self.args.weight_decay)
@@ -248,7 +253,11 @@ class Agent:
             recommended_action_1 = self.task.get_recommended_action()
             comm = parent_comm.unsqueeze(0) if parented else prev_comm_out_2
             #print(1)
+            #print("\n\nIN STEP BEFORE:", torch.isnan(prev_action_1).sum().item(), torch.isnan(prev_comm_out_1).sum().item(), torch.isnan(hq_1).sum().item(), torch.isnan(ha_1).sum().item(), torch.isnan(hcs_1[0]).sum().item(), "\n\n")
+
             (_, _, hp_1), (_, _, hq_1), dkls_1 = self.forward.bottom_to_top_step(hq_1, self.forward.obs_in(rgbd_1, comm, sensors_1), self.forward.action_in(prev_action_1), self.forward.comm_in(prev_comm_out_1)) 
+            #print("\n\nIN STEP AFTER:", torch.isnan(prev_action_1).sum().item(), torch.isnan(prev_comm_out_1).sum().item(), torch.isnan(hq_1).sum().item(), torch.isnan(ha_1).sum().item(), torch.isnan(hcs_1[0]).sum().item(), "\n\n")
+
             #print(2)
             action_1, comm_out_1, _, _, ha_1 = self.actor(rgbd_1, parent_comm if parented else prev_comm_out_2, prev_action_1, prev_comm_out_1, hq_1[:,:,0].detach(), ha_1, parented) 
             values_1 = []
@@ -729,6 +738,12 @@ class Agent:
         episodes = rewards.shape[0]
         steps = rewards.shape[1]
         
+        if(self.args.half):
+            rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, dones, masks, actions, comms_out, all_masks, masks = \
+                rgbds.to(dtype=torch.float16), comms_in.to(dtype=torch.float16), sensors.to(dtype=torch.float16), actions.to(dtype=torch.float16), \
+                comms_out.to(dtype=torch.float16), recommended_actions.to(dtype=torch.float16), rewards.to(dtype=torch.float16), dones.to(dtype=torch.float16), \
+                masks.to(dtype=torch.float16), actions.to(dtype=torch.float16), comms_out.to(dtype=torch.float16), all_masks.to(dtype=torch.float16), masks.to(dtype=torch.float16)
+        
         time = duration()
         start_time = duration()
         prev_time = time
@@ -810,10 +825,11 @@ class Agent:
             for i in range(self.args.critics):
                 Q_target_next, _ = self.critic_targets[i](rgbds, comms_in, new_actions, new_comms_out, hqs.detach(), torch.zeros((episodes, steps + 1, self.args.hidden_size)))
                 Q_target_next[:,1:]
-                Q_target_nexts.append(Q_target_next)
+                Q_target_nexts.append(Q_target_next)                
             log_pis_next = log_pis_next[:,1:]
             log_pis_next_text = log_pis_next_text[:,1:]
             recommendation_value = calculate_similarity(recommended_actions, new_actions[:,:-1]).unsqueeze(-1)
+                        
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
             Q_target_next = Q_target_next[:,1:]
@@ -912,7 +928,7 @@ class Agent:
             self.alpha_opt.zero_grad()
             alpha_loss.backward()
             self.alpha_opt.step()
-            self.alpha = torch.exp(self.log_alpha).to(self.args.device)
+            self.alpha = torch.exp(self.log_alpha.to(dtype=torch.float32)).to(self.args.device)
             torch.cuda.empty_cache()
         else:
             alpha_loss = None
@@ -924,7 +940,7 @@ class Agent:
             self.alpha_text_opt.zero_grad()
             alpha_text_loss.backward()
             self.alpha_text_opt.step()
-            self.alpha_text = torch.exp(self.log_alpha_text).to(self.args.device)
+            self.alpha_text = torch.exp(self.log_alpha_text.to(dtype=torch.float32)).to(self.args.device)
             torch.cuda.empty_cache()
         else:
             alpha_text_loss = None

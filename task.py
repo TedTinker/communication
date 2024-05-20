@@ -100,8 +100,8 @@ class Task_Runner:
                 
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
-        touched = [False] * self.args.sensors_shape
         
+        touched = [False] * self.args.sensors_shape
         touching = arena.touching_any_object()
         for object_key, object_dict in touching.items():
             for i, (link_name, value) in enumerate(object_dict.items()):

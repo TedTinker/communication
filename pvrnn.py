@@ -5,7 +5,7 @@ from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
 from utils import default_args, attach_list, detach_list, dkl, duration
-from submodule_utils import init_weights, episodes_steps, pad_zeros, var, sample
+from submodule_utils import init_weights, episodes_steps, pad_zeros, var, sample, model_start, model_end
 from mtrnn import MTRNN
 from submodules import Obs_IN, Obs_OUT, Action_IN, Comm_IN
 
@@ -15,6 +15,66 @@ if __name__ == "__main__":
     
     args = default_args
     episodes = args.batch_size ; steps = args.max_steps
+    
+    
+
+# Not yet implemented, but should make separate curiosities easier.
+class ZP_ZQ(nn.Module):
+    
+    def __init__(self, zp_in_features, zq_in_features, out_features):
+        super(PVRNN_LAYER, self).__init__()
+        
+        self.args = args 
+            
+        # Prior: Previous hidden state, plus action if bottom.  
+        self.zp_mu = nn.Sequential(
+                nn.Linear(
+                    in_features = zp_in_features, 
+                    out_features = out_features),
+                nn.Tanh())
+        self.zp_std = nn.Sequential(
+                nn.Linear(
+                    in_features = zp_in_features, 
+                    out_features = out_features),
+                nn.Softplus())
+                            
+        # Posterior: Previous hidden state, plus observation and action if bottom, plus lower-layer hidden state otherwise.
+        self.zq_mu = nn.Sequential(
+                nn.Linear(
+                    in_features = zq_in_features, 
+                    out_features = out_features),
+                nn.Tanh())
+        self.zq_std = nn.Sequential(
+                nn.Linear(
+                    in_features = zq_in_features, 
+                    out_features = out_features),
+                nn.Softplus())
+            
+        self.apply(init_weights)
+        self.to(self.args.device)
+        if(self.args.half):
+            self = self.half()
+        
+    def forward(self, zp_input, zq_input):                        
+        start, episodes, steps, [zp_input, zq_input] = model_start([(zp_input, "lin"), (zp_input, "lin")], self.args.device, self.args.half)
+            
+        if(self.args.half):
+            zp_inputs = zp_inputs.to(dtype=torch.float16)
+            zq_inputs = zq_inputs.to(dtype=torch.float16)
+        
+        zp_mu, zp_std = var(zp_inputs, self.zp_mu, self.zp_std, self.args)
+        zp = sample(zp_mu, zp_std, self.args.device)
+        zq_mu, zq_std = var(zq_inputs, self.zq_mu, self.zq_std, self.args)
+        zq = sample(zq_mu, zq_std, self.args.device)
+        kullback_leibler = dkl(zp_mu, zp_std, zq_mu, zq_std)
+        
+        [zp, zp_mu, zp_std, zq, zq_mu, zq_std, kullback_leibler] = model_end(start, episodes, steps, 
+            [(zp, "lin"), (zp_mu, "lin"), (zp_std, "lin"), (zq, "lin"), (zq_mu, "lin"), (zq_std, "lin"), (kullback_leibler, "lin")], "SENSORS_IN" if self.args.show_duration else None)
+                        
+        return(
+            (zp, zp_mu, zp_std),
+            (zq, zq_mu, zq_std),
+            kullback_leibler)       
 
 
 
@@ -71,18 +131,6 @@ class PVRNN_LAYER(nn.Module):
         prev_hidden_states_above = None):
         
         prev_hidden_states = prev_hidden_states.to(self.args.device)
-        
-        #print("\nPVRNN LAYER 1", torch.isnan(prev_hidden_states).sum())
-        #if(obs != None):
-        #    print("2", torch.isnan(obs).sum())
-        #if(prev_actions != None):
-        #    print("3", torch.isnan(prev_actions).sum())
-        #if(prev_comms_out != None):
-        #    print("4", torch.isnan(prev_comms_out).sum())
-        #if(hidden_states_below != None):
-        #    print("5", torch.isnan(hidden_states_below).sum())
-        #if(prev_hidden_states_above != None):
-        #    print("6", torch.isnan(prev_hidden_states_above).sum())
                         
         if(self.bottom):
             zp_inputs = torch.cat([prev_hidden_states, prev_actions, prev_comms_out], dim = -1)
@@ -241,14 +289,6 @@ class PVRNN(nn.Module):
         if(prev_comms_out != None and len(prev_comms_out.shape) == 2): 
             prev_comms_out = prev_comms_out.unsqueeze(1)
                                 
-        #print("\nPVRNN BOTTOM-TO-TOP 1", torch.isnan(prev_hidden_states).sum())
-        #if(obs != None):
-        #    print("2", torch.isnan(obs).sum())
-        #if(prev_actions != None):
-        #    print("3", torch.isnan(prev_actions).sum())
-        #if(prev_comms_out != None):
-        #    print("4", torch.isnan(prev_comms_out).sum())
-                                
         zp_mu_list = []
         zp_std_list = []
         zq_mu_list = []
@@ -256,6 +296,13 @@ class PVRNN(nn.Module):
         new_hidden_states_list_p = []
         new_hidden_states_list_q = []
         dkls = []
+        
+        #print("\n\nIN PVRNN:", 
+        #      torch.isnan(prev_hidden_states[:,0]).sum().item(), 
+        #      torch.isnan(obs).sum().item(), 
+        #      torch.isnan(prev_actions).sum().item(), 
+        #      torch.isnan(prev_comms_out).sum().item(), "\n\n")
+
                         
         for layer in range(self.args.layers):
             (zp_mu, zp_std, new_hidden_states_p), (zq_mu, zq_std, new_hidden_states_q), dkl = \
@@ -264,13 +311,6 @@ class PVRNN(nn.Module):
                     obs, prev_actions, prev_comms_out,
                     new_hidden_states_list_q[-1] if layer > 0 else None, 
                     prev_hidden_states[:,layer+1].unsqueeze(1) if layer + 1 < self.args.layers else None)
-            #print("5", torch.isnan(zp_mu).sum())
-            #print("6", torch.isnan(zp_std).sum())
-            #print("7", torch.isnan(new_hidden_states_p).sum())
-            #print("8", torch.isnan(zq_mu).sum())
-            #print("9", torch.isnan(zq_std).sum())
-            #print("10", torch.isnan(new_hidden_states_q).sum())
-            #print("11", torch.isnan(dkl).sum())
     
             for l, o in zip(
                 [zp_mu_list, zp_std_list, zq_mu_list, zq_std_list, new_hidden_states_list_p, new_hidden_states_list_q, dkls],

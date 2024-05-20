@@ -4,13 +4,13 @@
 #   Make it work.
 #   Make it work FASTER.
 #   Trying float16 on cuda. Getting NaN.
+#   Maybe using separate PVRNNs for rgbd, comm, sensors? Bottom layer has separate zp/zq for rgbd, comm, sensors, make and cat hiddens tate. 
 
 # To do: less important 
 #   Make comm prediction work with GRU.
 #   Try making sensor-observation deeper, like speed or something.
-#   Maybe using separate PVRNNs for rgbd, comm, sensors?
 #   Try predicting multiple steps in the future.
-#   Maybe actor and critic losses can be added to pvrnn's? # This works, but needs find-tuning. 
+#   Maybe actor and critic losses can be added to pvrnn's? # This works, but needs fine-tuning. 
 
 import os
 import pickle
@@ -368,7 +368,7 @@ parser.add_argument('--dropout',            type=float,      default = .001,
                     help='Dropout percentage.')
 parser.add_argument('--weight_decay',       type=float,      default = .00001,
                     help='Weight decay for modules.')   
-parser.add_argument('--use_hsv',            type=literal,    default = True,
+parser.add_argument('--use_hsv',            type=literal,    default = False,
                     help='Should RGBD_In use hsv?')   
 parser.add_argument('--pos_channels',       type=int,        default = 2,
                     help='How many channels for positions in rgbd?')   
