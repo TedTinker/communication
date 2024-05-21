@@ -18,15 +18,15 @@ if __name__ == "__main__":
     
     
 
+
 # Not yet implemented, but should make separate curiosities easier.
 class ZP_ZQ(nn.Module):
     
-    def __init__(self, zp_in_features, zq_in_features, out_features):
-        super(PVRNN_LAYER, self).__init__()
+    def __init__(self, zp_in_features, zq_in_features, out_features, args):
+        super(ZP_ZQ, self).__init__()
         
         self.args = args 
             
-        # Prior: Previous hidden state, plus action if bottom.  
         self.zp_mu = nn.Sequential(
                 nn.Linear(
                     in_features = zp_in_features, 
@@ -38,7 +38,6 @@ class ZP_ZQ(nn.Module):
                     out_features = out_features),
                 nn.Softplus())
                             
-        # Posterior: Previous hidden state, plus observation and action if bottom, plus lower-layer hidden state otherwise.
         self.zq_mu = nn.Sequential(
                 nn.Linear(
                     in_features = zq_in_features, 
@@ -55,9 +54,7 @@ class ZP_ZQ(nn.Module):
         if(self.args.half):
             self = self.half()
         
-    def forward(self, zp_input, zq_input):                        
-        start, episodes, steps, [zp_input, zq_input] = model_start([(zp_input, "lin"), (zp_input, "lin")], self.args.device, self.args.half)
-            
+    def forward(self, zp_inputs, zq_inputs):                                    
         if(self.args.half):
             zp_inputs = zp_inputs.to(dtype=torch.float16)
             zq_inputs = zq_inputs.to(dtype=torch.float16)
@@ -67,10 +64,7 @@ class ZP_ZQ(nn.Module):
         zq_mu, zq_std = var(zq_inputs, self.zq_mu, self.zq_std, self.args)
         zq = sample(zq_mu, zq_std, self.args.device)
         kullback_leibler = dkl(zp_mu, zp_std, zq_mu, zq_std)
-        
-        [zp, zp_mu, zp_std, zq, zq_mu, zq_std, kullback_leibler] = model_end(start, episodes, steps, 
-            [(zp, "lin"), (zp_mu, "lin"), (zp_std, "lin"), (zq, "lin"), (zq_mu, "lin"), (zq_std, "lin"), (kullback_leibler, "lin")], "SENSORS_IN" if self.args.show_duration else None)
-                        
+                            
         return(
             (zp, zp_mu, zp_std),
             (zq, zq_mu, zq_std),
@@ -88,28 +82,11 @@ class PVRNN_LAYER(nn.Module):
         self.top = top
             
         # Prior: Previous hidden state, plus action if bottom.  
-        self.zp_mu = nn.Sequential(
-                nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
-                    out_features = self.args.state_size),
-                nn.Tanh())
-        self.zp_std = nn.Sequential(
-                nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0), 
-                    out_features = self.args.state_size),
-                nn.Softplus())
-                            
         # Posterior: Previous hidden state, plus observation and action if bottom, plus lower-layer hidden state otherwise.
-        self.zq_mu = nn.Sequential(
-                nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
-                    out_features = self.args.state_size),
-                nn.Tanh())
-        self.zq_std = nn.Sequential(
-                nn.Linear(
-                    in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_obs_size + self.args.encode_action_size + self.args.encode_comm_size if self.bottom else self.args.pvrnn_mtrnn_size), 
-                    out_features = self.args.state_size),
-                nn.Softplus())
+        self.z = ZP_ZQ(
+            zp_in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0),
+            zq_in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size + self.args.encode_obs_size if self.bottom else self.args.pvrnn_mtrnn_size), 
+            out_features = self.args.state_size, args = self.args)
                             
         # New hidden state: Previous hidden state, zq value, plus higher-layer hidden state if not top.
         self.mtrnn = MTRNN(
@@ -148,12 +125,8 @@ class PVRNN_LAYER(nn.Module):
         if(self.args.half):
             zp_inputs = zp_inputs.to(dtype=torch.float16)
             zq_inputs = zq_inputs.to(dtype=torch.float16)
-        
-        zp_mu, zp_std = var(zp_inputs, self.zp_mu, self.zp_std, self.args)
-        zp = sample(zp_mu, zp_std, self.args.device)
-        zq_mu, zq_std = var(zq_inputs, self.zq_mu, self.zq_std, self.args)
-        zq = sample(zq_mu, zq_std, self.args.device)
-        kullback_leibler = dkl(zp_mu, zp_std, zq_mu, zq_std)
+                
+        (zp, zp_mu, zp_std), (zq, zq_mu, zq_std), kullback_leibler = self.z(zp_inputs, zq_inputs)
             
         if(self.top):
             mtrnn_inputs_p = zp

@@ -788,7 +788,7 @@ class Agent:
         self.forward_opt.zero_grad()
         (accuracy + complexity).backward()
         self.forward_opt.step()
-        #complete_loss = accuracy + complexity 
+        #complete_loss = self.args.forward_scaler * (accuracy + complexity)
         
         if(self.args.beta == 0): complexity = None
         torch.cuda.empty_cache()
@@ -853,7 +853,7 @@ class Agent:
             self.critic_opts[i].zero_grad()
             critic_loss.backward()
             self.critic_opts[i].step()
-            #complete_loss += critic_loss
+            #complete_loss += self.args.critic_scaler * critic_loss
         
             self.soft_update(self.critics[i], self.critic_targets[i], self.args.tau)
         
@@ -903,7 +903,7 @@ class Agent:
             self.actor_opt.zero_grad()
             actor_loss.backward()
             self.actor_opt.step()
-            #complete_loss += actor_loss 
+            #complete_loss += self.args.actor_scaler * actor_loss 
             
             time = duration()
             if(self.args.show_duration): print("TRAINED ACTOR:", time - prev_time)

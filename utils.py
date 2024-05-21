@@ -4,7 +4,7 @@
 #   Make it work.
 #   Make it work FASTER.
 #   Trying float16 on cuda. Getting NaN.
-#   Maybe using separate PVRNNs for rgbd, comm, sensors? Bottom layer has separate zp/zq for rgbd, comm, sensors, make and cat hiddens tate. 
+#   Maybe using separate zp/zq for rgbd, comm, sensors? Make and cat hidden state. 
 
 # To do: less important 
 #   Make comm prediction work with GRU.
@@ -243,7 +243,7 @@ parser.add_argument('--time_scales',        type=literal,    default = [1],
 parser.add_argument("--beta",               type=literal,    default = [2],
                     help='Relative importance of complexity in each layer.')
 parser.add_argument("--hidden_state_eta",   type=literal,    default = [5],
-                    help='Nonnegative valued, how much to consider hidden_state curiosity in each layer.') 
+                    help='Nonnegative values, how much to consider hidden_state curiosity in each layer.') 
 
     # Simulation details
 parser.add_argument('--max_object_distance',type=float,      default = 6,
@@ -336,6 +336,12 @@ parser.add_argument('--critic_lr',          type=float,      default = .0003,
                     help='Learning rate for critic model.')
 parser.add_argument('--critics',            type=int,        default = 2,
                     help='How many critics?')  
+parser.add_argument('--forward_scaler',     type=float,      default = 1, 
+                    help='If forward/actor/critic loss are combined, consideration of forward.')  
+parser.add_argument('--actor_scaler',       type=float,      default = 1, 
+                    help='If forward/actor/critic loss are combined, consideration of actor.')  
+parser.add_argument('--critic_scaler',     type=float,      default = 1, 
+                    help='If forward/actor/critic loss are combined, consideration of critic.')  
 parser.add_argument('--alpha_lr',           type=float,      default = .0003,
                     help='Learning rate for alpha value.') 
 parser.add_argument('--alpha_text_lr',      type=float,      default = .0003,
@@ -384,6 +390,12 @@ parser.add_argument('--std_min',            type=int,        default = exp(-20),
                     help='Minimum value for standard deviation.')
 parser.add_argument('--std_max',            type=int,        default = exp(2),
                     help='Maximum value for standard deviation.')
+parser.add_argument("--beta_rgbd",          type=float,      default = 2,
+                    help='Relative importance of complexity for rgbd.')
+parser.add_argument("--beta_comm",          type=float,      default = 2,
+                    help='Relative importance of complexity for comm.')
+parser.add_argument("--beta_sensors",       type=float,      default = 2,
+                    help='Relative importance of complexity for sensors.')
 
     # Entropy
 parser.add_argument("--alpha",              type=literal,    default = 0,
@@ -405,7 +417,13 @@ parser.add_argument("--curiosity",          type=str,        default = "none",
 parser.add_argument("--dkl_max",            type=float,      default = 1,
                     help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')        
 parser.add_argument("--prediction_error_eta", type=float,    default = 1,
-                    help='Nonnegative value, how much to consider prediction_error curiosity.')          
+                    help='Nonnegative value, how much to consider prediction_error curiosity.')    
+parser.add_argument("--hidden_state_eta_rgbd",type=float,  default = 5,
+                    help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
+parser.add_argument("--hidden_state_eta_comm",type=float,  default = 5,
+                    help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
+parser.add_argument("--hidden_state_eta_sensors",type=float,  default = 5,
+                    help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')       
 
     # Imitation
 parser.add_argument("--delta",              type=float,      default = 0,
