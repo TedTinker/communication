@@ -799,10 +799,9 @@ class Agent:
                         
                         
         
-        # Get curiosity                  
-        #complexity_for_hidden_state = [torch.sigmoid(c) for c in complexity_for_hidden_state]
+        # Get curiosity                 
+        prediction_error_curiosity = accuracy_for_prediction_error * (self.args.prediction_error_eta if self.args.prediction_error_eta != None else self.prediction_error_eta) 
         complexity_for_hidden_state = [torch.clamp(c, min = 0, max = self.args.dkl_max) for c in complexity_for_hidden_state]  # Or tanh? sigmoid? Or just clamp?
-        prediction_error_curiosity = accuracy_for_prediction_error * (self.args.prediction_error_eta if self.args.prediction_error_eta != None else self.prediction_error_eta)
         hidden_state_curiosities = [complexity_for_hidden_state[layer] * (self.args.hidden_state_eta[layer] if self.args.hidden_state_eta[layer] != None else self.hidden_state_eta[layer]) for layer in range(self.args.layers)]
         hidden_state_curiosity = sum(hidden_state_curiosities)
         if(self.args.curiosity == "prediction_error"):  curiosity = prediction_error_curiosity
