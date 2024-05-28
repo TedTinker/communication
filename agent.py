@@ -124,10 +124,10 @@ class Agent:
             "comm_prediction_error_curiosity" : [], 
             "sensors_prediction_error_curiosity" : [], 
             "prediction_error_curiosity" : [], 
-            "rgbd_hidden_state_curiosity" : [[] for _ in range(self.args.layers)], 
-            "comm_hidden_state_curiosity" : [[] for _ in range(self.args.layers)], 
-            "sensors_hidden_state_curiosity" : [[] for _ in range(self.args.layers)],
-            "hidden_state_curiosity" : [[] for _ in range(self.args.layers)]}
+            "rgbd_hidden_state_curiosity" : [],
+            "comm_hidden_state_curiosity" : [],
+            "sensors_hidden_state_curiosity" : [],
+            "hidden_state_curiosity" : []}
         for a in action_map.values():
             self.plot_dict[f"wins_{a[1].lower()}"] = []
             self.plot_dict[f"gen_wins_{a[1].lower()}"] = []
@@ -427,10 +427,10 @@ class Agent:
                         self.plot_dict["comm_prediction_error_curiosity"].append(comm_prediction_error_curiosity)
                         self.plot_dict["sensors_prediction_error_curiosity"].append(sensors_prediction_error_curiosity)
                         self.plot_dict["prediction_error_curiosity"].append(prediction_error_curiosity)
-                        self.plot_dict["rgbd_hidden_state_curiosity"][0].append(rgbd_hidden_state_curiosity)    
-                        self.plot_dict["comm_hidden_state_curiosity"][0].append(comm_hidden_state_curiosity)    
-                        self.plot_dict["sensors_hidden_state_curiosity"][0].append(sensors_hidden_state_curiosity)  
-                        self.plot_dict["hidden_state_curiosity"][0].append(hidden_state_curiosity)    
+                        self.plot_dict["rgbd_hidden_state_curiosity"].append(rgbd_hidden_state_curiosity)    
+                        self.plot_dict["comm_hidden_state_curiosity"].append(comm_hidden_state_curiosity)    
+                        self.plot_dict["sensors_hidden_state_curiosity"].append(sensors_hidden_state_curiosity)  
+                        self.plot_dict["hidden_state_curiosity"].append(hidden_state_curiosity)    
                             
             time = duration()
             prev_time = time

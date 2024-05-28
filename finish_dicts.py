@@ -36,25 +36,13 @@ for folder in folders:
         
     for key in min_max_dict.keys():
         if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
-            if(key in ["rgbd_hidden_state_curiosity", "comm_hidden_state_curiosity", "sensors_hidden_state_curiosity, hidden_state_curiosity"]):
-                min_maxes = []
-                for layer in range(len(min_max_dict[key][0])):
-                    minimum = None ; maximum = None
-                    for min_max in [mm[layer] for mm in min_max_dict[key]]:
-                        if(  minimum == None):      minimum = min_max[0]
-                        elif(minimum > min_max[0]): minimum = min_max[0]
-                        if(  maximum == None):      maximum = min_max[1]
-                        elif(maximum < min_max[1]): maximum = min_max[1]
-                    min_maxes.append((minimum, maximum))
-                min_max_dict[key] = min_maxes
-            else:
-                minimum = None ; maximum = None
-                for min_max in min_max_dict[key]:
-                    if(  minimum == None):      minimum = min_max[0]
-                    elif(minimum > min_max[0]): minimum = min_max[0]
-                    if(  maximum == None):      maximum = min_max[1]
-                    elif(maximum < min_max[1]): maximum = min_max[1]
-                min_max_dict[key] = (minimum, maximum)
+            minimum = None ; maximum = None
+            for min_max in min_max_dict[key]:
+                if(  minimum == None):      minimum = min_max[0]
+                elif(minimum > min_max[0]): minimum = min_max[0]
+                if(  maximum == None):      maximum = min_max[1]
+                elif(maximum < min_max[1]): maximum = min_max[1]
+            min_max_dict[key] = (minimum, maximum)
 
     plot_dicts[folder] = plot_dict
     with open(folder + "/min_max_dict.pickle", "wb") as handle:

@@ -491,34 +491,30 @@ def plots(plot_dicts, min_max_dict):
             sensors_prediction_error_curiosity_dict = get_quantiles(plot_dict, "sensors_prediction_error_curiosity", levels = [])
             prediction_error_curiosity_dict = get_quantiles(plot_dict, "prediction_error_curiosity", levels = [])
             
-            rgbd_hidden_state_curiosity_dicts = get_list_quantiles(plot_dict["rgbd_hidden_state_curiosity"], plot_dict, levels = [])
-            comm_hidden_state_curiosity_dicts = get_list_quantiles(plot_dict["comm_hidden_state_curiosity"], plot_dict, levels = [])
-            sensors_hidden_state_curiosity_dicts = get_list_quantiles(plot_dict["sensors_hidden_state_curiosity"], plot_dict, levels = [])
-            hidden_state_curiosity_dicts = get_list_quantiles(plot_dict["hidden_state_curiosity"], plot_dict, levels = [])
+            rgbd_hidden_state_curiosity_dict = get_quantiles(plot_dict, "rgbd_hidden_state_curiosity", levels = [])
+            comm_hidden_state_curiosity_dict = get_quantiles(plot_dict, "comm_hidden_state_curiosity", levels = [])
+            sensors_hidden_state_curiosity_dict = get_quantiles(plot_dict, "sensors_hidden_state_curiosity", levels = [])
+            hidden_state_curiosity_dict = get_quantiles(plot_dict, "hidden_state_curiosity", levels = [])
             
             min_max = many_min_max(
                 [min_max_dict["rgbd_prediction_error_curiosity"]] + 
                 [min_max_dict["comm_prediction_error_curiosity"]] + 
                 [min_max_dict["sensors_prediction_error_curiosity"]] + 
                 [min_max_dict["prediction_error_curiosity"]] + 
-                [hidden_state_min_max for hidden_state_min_max in min_max_dict["rgbd_hidden_state_curiosity"]] + 
-                [hidden_state_min_max for hidden_state_min_max in min_max_dict["comm_hidden_state_curiosity"]] +
-                [hidden_state_min_max for hidden_state_min_max in min_max_dict["sensors_hidden_state_curiosity"]] +
-                [hidden_state_min_max for hidden_state_min_max in min_max_dict["hidden_state_curiosity"]])
+                [min_max_dict["rgbd_hidden_state_curiosity"]] + 
+                [min_max_dict["comm_hidden_state_curiosity"]] +
+                [min_max_dict["sensors_hidden_state_curiosity"]] +
+                [min_max_dict["hidden_state_curiosity"]])
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             awesome_plot(ax, prediction_error_curiosity_dict, "green", "prediction_error", linestyle = "solid")
             awesome_plot(ax, rgbd_prediction_error_curiosity_dict, "green", "rgbd_prediction_error", linestyle = "dotted")
             awesome_plot(ax, comm_prediction_error_curiosity_dict, "green", "comm_prediction_error", linestyle = "dashed")
             awesome_plot(ax, sensors_prediction_error_curiosity_dict, "green", "sensors_prediction_error", linestyle = "dashdot")
-            for layer, hidden_state_dict in enumerate(hidden_state_curiosity_dicts):
-                awesome_plot(ax, hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "hidden_state {}".format(layer+1), linestyle = "solid")
-            for layer, rgbd_hidden_state_dict in enumerate(rgbd_hidden_state_curiosity_dicts):
-                awesome_plot(ax, rgbd_hidden_state_dict, (1, layer/len(rgbd_hidden_state_curiosity_dicts), 0), "rgbd_hidden_state", linestyle = "dotted")
-            for layer, comm_hidden_state_dict in enumerate(comm_hidden_state_curiosity_dicts):
-                awesome_plot(ax, comm_hidden_state_dict, (1, layer/len(comm_hidden_state_curiosity_dicts), 0), "comm_hidden_state", linestyle = "dashed")
-            for layer, sensors_hidden_state_dict in enumerate(sensors_hidden_state_curiosity_dicts):
-                awesome_plot(ax, sensors_hidden_state_dict, (1, layer/len(sensors_hidden_state_curiosity_dicts), 0), "sensors_hidden_state", linestyle = "dashdot")
+            awesome_plot(ax, hidden_state_curiosity_dict, "red", "hidden_state", linestyle = "solid")
+            awesome_plot(ax, rgbd_hidden_state_curiosity_dict, "red", "rgbd_hidden_state", linestyle = "dotted")
+            awesome_plot(ax, comm_hidden_state_curiosity_dict, "red", "comm_hidden_state", linestyle = "dashed")
+            awesome_plot(ax, sensors_hidden_state_curiosity_dict, "red", "sensors_hidden_state", linestyle = "dashdot")
             ax.set_ylabel("Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()
@@ -530,14 +526,10 @@ def plots(plot_dicts, min_max_dict):
             awesome_plot(ax, rgbd_prediction_error_curiosity_dict, "green", "rgbd_prediction_error", min_max = min_max, linestyle = "dotted")
             awesome_plot(ax, comm_prediction_error_curiosity_dict, "green", "comm_prediction_error", min_max = min_max, linestyle = "dashed")
             awesome_plot(ax, sensors_prediction_error_curiosity_dict, "green", "sensors_prediction_error", min_max = min_max, linestyle = "dashdot")
-            for layer, hidden_state_dict in enumerate(hidden_state_curiosity_dicts):
-                awesome_plot(ax, hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "hidden_state {}".format(layer+1), min_max = min_max, linestyle = "solid")
-            for layer, rgbd_hidden_state_dict in enumerate(rgbd_hidden_state_curiosity_dicts):
-                awesome_plot(ax, rgbd_hidden_state_dict, (1, layer/len(rgbd_hidden_state_curiosity_dicts), 0), "rgbd_hidden_state", min_max = min_max, linestyle = "dotted")
-            for layer, comm_hidden_state_dict in enumerate(comm_hidden_state_curiosity_dicts):
-                awesome_plot(ax, comm_hidden_state_dict, (1, layer/len(comm_hidden_state_curiosity_dicts), 0), "comm_hidden_state", min_max = min_max, linestyle = "dashed")
-            for layer, sensors_hidden_state_dict in enumerate(sensors_hidden_state_curiosity_dicts):
-                awesome_plot(ax, sensors_hidden_state_dict, (1, layer/len(sensors_hidden_state_curiosity_dicts), 0), "sensors_hidden_state", min_max = min_max, linestyle = "dashdot")
+            awesome_plot(ax, hidden_state_curiosity_dict, "red", "sensors_hidden_state", min_max = min_max, linestyle = "dashdot")
+            awesome_plot(ax, rgbd_hidden_state_curiosity_dict, "red", "hidden_state", min_max = min_max, linestyle = "solid")
+            awesome_plot(ax, sensors_hidden_state_curiosity_dict, "red", "rgbd_hidden_state", min_max = min_max, linestyle = "dotted")
+            awesome_plot(ax, comm_hidden_state_curiosity_dict, "red", "comm_hidden_state", min_max = min_max, linestyle = "dashed")
             ax.set_ylabel("Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()
@@ -552,24 +544,20 @@ def plots(plot_dicts, min_max_dict):
             log_sensors_prediction_error_dict = get_logs(sensors_prediction_error_curiosity_dict)
             log_prediction_error_dict = get_logs(prediction_error_curiosity_dict)
             
-            log_rgbd_hidden_state_dicts = [get_logs(rgbd_hidden_state_dict) for rgbd_hidden_state_dict in rgbd_hidden_state_curiosity_dicts]
-            log_comm_hidden_state_dicts = [get_logs(comm_hidden_state_dict) for comm_hidden_state_dict in comm_hidden_state_curiosity_dicts]
-            log_sensors_hidden_state_dicts = [get_logs(sensors_hidden_state_dict) for sensors_hidden_state_dict in sensors_hidden_state_curiosity_dicts]
-            log_hidden_state_dicts = [get_logs(hidden_state_dict) for hidden_state_dict in hidden_state_curiosity_dicts]
+            log_rgbd_hidden_state_dict = get_logs(rgbd_hidden_state_curiosity_dict)
+            log_comm_hidden_state_dict = get_logs(comm_hidden_state_curiosity_dict)
+            log_sensors_hidden_state_dict = get_logs(sensors_hidden_state_curiosity_dict)
+            log_hidden_state_dict = get_logs(hidden_state_curiosity_dict)
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             awesome_plot(ax, log_prediction_error_dict, "green", "log prediction_error", linestyle = "solid")
             awesome_plot(ax, log_rgbd_prediction_error_dict, "green", "log rgbd prediction_error", linestyle = "dashed")
             awesome_plot(ax, log_comm_prediction_error_dict, "green", "log comm prediction_error", linestyle = "dotted")
             awesome_plot(ax, log_sensors_prediction_error_dict, "green", "log sensors prediction_error", linestyle = "dashdot")
-            for layer, log_hidden_state_dict in enumerate(log_hidden_state_dicts):
-                awesome_plot(ax, log_hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "log hidden_state {}".format(layer+1), linestyle = "solid")
-            for layer, log_rgbd_hidden_state_dict in enumerate(log_rgbd_hidden_state_dicts):
-                awesome_plot(ax, log_rgbd_hidden_state_dict, (1, layer/len(rgbd_hidden_state_curiosity_dicts), 0), "log rgbd hidden_state {}".format(layer+1), linestyle = "dashed")
-            for layer, log_comm_hidden_state_dict in enumerate(log_comm_hidden_state_dicts):
-                awesome_plot(ax, log_comm_hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "log comm hidden_state {}".format(layer+1), linestyle = "dotted")
-            for layer, log_sensors_hidden_state_dict in enumerate(log_sensors_hidden_state_dicts):
-                awesome_plot(ax, log_sensors_hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "log sensors hidden_state {}".format(layer+1), linestyle = "dashdot")
+            awesome_plot(ax, log_hidden_state_dict, "red", "log hidden_state", linestyle = "solid")
+            awesome_plot(ax, log_rgbd_hidden_state_dict, "red", "log rgbd hidden_state", linestyle = "dashed")
+            awesome_plot(ax, log_comm_hidden_state_dict, "red", "log comm hidden_state", linestyle = "dotted")
+            awesome_plot(ax, log_sensors_hidden_state_dict, "red", "log sensors hidden_state", linestyle = "dashdot")
             ax.set_ylabel("log Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()
@@ -584,14 +572,10 @@ def plots(plot_dicts, min_max_dict):
             awesome_plot(ax, log_rgbd_prediction_error_dict, "green", "log rgbd prediction_error", min_max = min_max, linestyle = "dashed")
             awesome_plot(ax, log_comm_prediction_error_dict, "green", "log comm prediction_error", min_max = min_max, linestyle = "dotted")
             awesome_plot(ax, log_sensors_prediction_error_dict, "green", "log sensors prediction_error", min_max = min_max, linestyle = "dashdot")
-            for layer, log_hidden_state_dict in enumerate(log_hidden_state_dicts):
-                awesome_plot(ax, log_hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "log hidden_state {}".format(layer+1), min_max = min_max, linestyle = "solid")
-            for layer, log_rgbd_hidden_state_dict in enumerate(log_rgbd_hidden_state_dicts):
-                awesome_plot(ax, log_rgbd_hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "log rgbd hidden_state {}".format(layer+1), min_max = min_max, linestyle = "dashed")
-            for layer, log_comm_hidden_state_dict in enumerate(log_comm_hidden_state_dicts):
-                awesome_plot(ax, log_comm_hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "log comm hidden_state {}".format(layer+1), min_max = min_max, linestyle = "dotted")
-            for layer, log_sensors_hidden_state_dict in enumerate(log_sensors_hidden_state_dicts):
-                awesome_plot(ax, log_sensors_hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "log sensors hidden_state {}".format(layer+1), min_max = min_max, linestyle = "dashdot")
+            awesome_plot(ax, log_hidden_state_dict, "red", "log hidden_state", min_max = min_max, linestyle = "solid")
+            awesome_plot(ax, log_rgbd_hidden_state_dict, "red", "log rgbd hidden_state", min_max = min_max, linestyle = "dashed")
+            awesome_plot(ax, log_comm_hidden_state_dict, "red", "log comm hidden_state", min_max = min_max, linestyle = "dotted")
+            awesome_plot(ax, log_sensors_hidden_state_dict, "red", "log sensors hidden_state", min_max = min_max, linestyle = "dashdot")
             ax.set_ylabel("log Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()
