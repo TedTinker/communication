@@ -116,7 +116,7 @@ def add_episode(test = False):
         rgbd, comm, sensor = task_runner.obs()
         action = task_runner.get_recommended_action(verbose = False)#True)
         action = torch.tensor([0, 0, 1])
-        raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win = task_runner.step(action, verbose = False)#True)
+        raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win, which_goal_message_1, which_goal_message_2 = task_runner.step(action, verbose = False)#True)
         rgbds.append(rgbd)
         comms.append(comm)
         sensors.append(sensor)

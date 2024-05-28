@@ -4,9 +4,11 @@
 #   Make it work.
 #   Make it work FASTER.
 #   Trying float16 on cuda. Getting NaN.
-#   Maybe using separate zp/zq for rgbd, comm, sensors? Make and cat hidden state. 
+#   Allow multiple layers in PVRNN.
 
 # To do: less important 
+#   Maybe NONE goal could tell the agent what goals it's doing?
+#   Plot different curiosity values.
 #   Make comm prediction work with GRU.
 #   Try making sensor-observation deeper, like speed or something.
 #   Try predicting multiple steps in the future.
@@ -208,6 +210,7 @@ for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsCli
     if("sensor" in link_name):
         sensors.append(link_name)
 p.disconnect(physicsClientId = physicsClient)
+num_sensors = len(sensors)
 
 # Arguments to parse. 
 def literal(arg_string): return(ast.literal_eval(arg_string))
@@ -358,19 +361,13 @@ parser.add_argument('--hidden_size',        type=int,        default = 64,
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 256,
                     help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
-parser.add_argument('--rgbd_hidden_size',   type=int,        default = 256,
-                    help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
-parser.add_argument('--comm_hidden_size',   type=int,        default = 256,
-                    help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
-parser.add_argument('--sensors_hidden_size',type=int,        default = 256,
-                    help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
 parser.add_argument('--state_size',         type=int,        default = 256,
                     help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--rgbd_state_size',    type=int,        default = 256,
+parser.add_argument('--rgbd_state_size',    type=int,        default = 128,
                     help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--comm_state_size',    type=int,        default = 256,
+parser.add_argument('--comm_state_size',    type=int,        default = 128,
                     help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--sensors_state_size', type=int,        default = 256,
+parser.add_argument('--sensors_state_size', type=int,        default = num_sensors,
                     help='Parameters in prior and posterior inner-states.')
 parser.add_argument('--encode_char_size',   type=int,        default = 8,
                     help='Parameters in encoding.')   
@@ -378,7 +375,7 @@ parser.add_argument('--encode_rgbd_size',   type=int,        default = 128,
                     help='Parameters in encoding image.')   
 parser.add_argument('--encode_comm_size',   type=int,        default = 128,
                     help='Parameters in encoding communicaiton.')   
-parser.add_argument('--encode_sensors_size',  type=int,      default = 8,
+parser.add_argument('--encode_sensors_size',  type=int,      default = num_sensors,
                     help='Parameters in encoding sensors, angles, speed.')   
 parser.add_argument('--encode_action_size', type=int,        default = 8,
                     help='Parameters in encoding action.')   
@@ -388,31 +385,19 @@ parser.add_argument('--weight_decay',       type=float,      default = .00001,
                     help='Weight decay for modules.')   
 parser.add_argument('--use_hsv',            type=literal,    default = False,
                     help='Should RGBD_In use hsv?')   
-parser.add_argument('--pos_channels',       type=int,        default = 2,
-                    help='How many channels for positions in rgbd?')   
 parser.add_argument('--use_trig_pos',       type=literal,    default = True,
                     help='Use trigonometric positions, or linear?') 
+parser.add_argument('--pos_channels',       type=int,        default = 2,
+                    help='How many channels for positions in rgbd?')   
 parser.add_argument('--divisions',          type=int,        default = 2,
                     help='How many times should RBGD_Out double size to image-size?')
 parser.add_argument('--half',               type=literal,    default = True,
                     help='Should the models use float16 instead of float32?')      
 
-    # Complexity 
-parser.add_argument('--std_min',            type=int,        default = exp(-20),
-                    help='Minimum value for standard deviation.')
-parser.add_argument('--std_max',            type=int,        default = exp(2),
-                    help='Maximum value for standard deviation.')
-parser.add_argument("--beta_rgbd",          type=float,      default = 2,
-                    help='Relative importance of complexity for rgbd.')
-parser.add_argument("--beta_comm",          type=float,      default = 2,
-                    help='Relative importance of complexity for comm.')
-parser.add_argument("--beta_sensors",       type=float,      default = 2,
-                    help='Relative importance of complexity for sensors.')
-
     # Entropy
 parser.add_argument("--alpha",              type=literal,    default = 0,
                     help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
-parser.add_argument("--target_entropy",     type=float,      default = 0,
+parser.add_argument("--target_entropy",     type=float,      default = -1,
                     help='Target for choosing alpha if alpha set to None. Recommended: negative size of action-space.')      
 parser.add_argument("--alpha_text",         type=literal,    default = 0,
                     help='Nonnegative value, how much to consider entropy regarding communication. Set to None to use target_entropy_text.')        
@@ -421,20 +406,36 @@ parser.add_argument("--target_entropy_text",type=float,      default = -2,
 parser.add_argument('--action_prior',       type=str,        default = "normal",
                     help='The actor can be trained based on normal or uniform distributions.')
 parser.add_argument("--normal_alpha",       type=float,      default = 0,
-                    help='Nonnegative value, how much to consider policy prior.')      
+                    help='Nonnegative value, how much to consider policy prior.') 
+
+    # Complexity 
+parser.add_argument('--std_min',            type=int,        default = exp(-20),
+                    help='Minimum value for standard deviation.')
+parser.add_argument('--std_max',            type=int,        default = exp(2),
+                    help='Maximum value for standard deviation.')
+parser.add_argument("--beta_rgbd",          type=float,      default = 1,
+                    help='Relative importance of complexity for rgbd.')
+parser.add_argument("--beta_comm",          type=float,      default = 1,
+                    help='Relative importance of complexity for comm.')
+parser.add_argument("--beta_sensors",       type=float,      default = 1,
+                    help='Relative importance of complexity for sensors.')     
 
     # Curiosity
 parser.add_argument("--curiosity",          type=str,        default = "none",
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
 parser.add_argument("--dkl_max",            type=float,      default = 1,
                     help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')        
-parser.add_argument("--prediction_error_eta", type=float,    default = 1,
-                    help='Nonnegative value, how much to consider prediction_error curiosity.')    
-parser.add_argument("--hidden_state_eta_rgbd",type=float,  default = 5,
+parser.add_argument("--prediction_error_eta_rgbd", type=float, default = 1,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for rgbd.')    
+parser.add_argument("--prediction_error_eta_comm", type=float, default = 1,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for comm.')    
+parser.add_argument("--prediction_error_eta_sensors", type=float, default = 1,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')    
+parser.add_argument("--hidden_state_eta_rgbd",type=float,    default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
-parser.add_argument("--hidden_state_eta_comm",type=float,  default = 5,
+parser.add_argument("--hidden_state_eta_comm",type=float,    default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
-parser.add_argument("--hidden_state_eta_sensors",type=float,  default = 5,
+parser.add_argument("--hidden_state_eta_sensors",type=float, default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')       
 
     # Imitation
@@ -481,7 +482,7 @@ for arg_set in [default_args, args]:
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.object_shape = arg_set.shapes + arg_set.colors
     arg_set.comm_shape = len(comm_map)
-    arg_set.sensors_shape = len(sensors)
+    arg_set.sensors_shape = num_sensors
     arg_set.sensor_names = sensors
     arg_set.action_shape = 3
     arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size + arg_set.encode_sensors_size

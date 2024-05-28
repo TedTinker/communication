@@ -482,57 +482,57 @@ def plots(plot_dicts, min_max_dict):
             
             
             # Curiosities
-            prediction_error_dict = get_quantiles(plot_dict, "prediction_error", precision = 1)
-            hidden_state_dicts = get_list_quantiles(plot_dict["hidden_state"], plot_dict, precision = 1)
-            min_max = many_min_max([min_max_dict["prediction_error"]] + [hidden_state_min_max for hidden_state_min_max in min_max_dict["hidden_state"]])
+            prediction_error_curiosity_dict = get_quantiles(plot_dict, "prediction_error_curiosity", precision = 1)
+            hidden_state_curiosity_dicts = get_list_quantiles(plot_dict["hidden_state_curiosity"], plot_dict, precision = 1)
+            min_max = many_min_max([min_max_dict["prediction_error_curiosity"]] + [hidden_state_min_max for hidden_state_min_max in min_max_dict["hidden_state_curiosity"]])
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            awesome_plot(ax, prediction_error_dict, "green", "prediction_error")
-            for layer, hidden_state_dict in enumerate(hidden_state_dicts):
-                awesome_plot(ax, hidden_state_dict, (1, layer/len(hidden_state_dicts), 0), "hidden_state {}".format(layer+1))
+            awesome_plot(ax, prediction_error_curiosity_dict, "green", "prediction_error")
+            for layer, hidden_state_dict in enumerate(hidden_state_curiosity_dicts):
+                awesome_plot(ax, hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "hidden_state {}".format(layer+1))
             ax.set_ylabel("Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()
             ax.set_title(plot_dict["arg_title"] + "\nPossible Curiosities")
-            divide_arenas(prediction_error_dict, ax)
+            divide_arenas(prediction_error_curiosity_dict, ax)
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            awesome_plot(ax, prediction_error_dict, "green", "prediction_error", min_max)
-            for layer, hidden_state_dict in enumerate(hidden_state_dicts):
-                awesome_plot(ax, hidden_state_dict, (1, layer/len(hidden_state_dicts), 0), "hidden_state {}".format(layer+1), min_max)
+            awesome_plot(ax, prediction_error_curiosity_dict, "green", "prediction_error", min_max)
+            for layer, hidden_state_dict in enumerate(hidden_state_curiosity_dicts):
+                awesome_plot(ax, hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "hidden_state {}".format(layer+1), min_max)
             ax.set_ylabel("Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()
             ax.set_title(plot_dict["arg_title"] + "\nPossible Curiosities, shared min/max")
-            divide_arenas(prediction_error_dict, ax)
+            divide_arenas(prediction_error_curiosity_dict, ax)
             
             
             
             # Log Curiosities
-            log_prediction_error_dict = get_logs(prediction_error_dict)
-            log_hidden_state_dicts = [get_logs(hidden_state_dict) for hidden_state_dict in hidden_state_dicts]
+            log_prediction_error_dict = get_logs(prediction_error_curiosity_dict)
+            log_hidden_state_dicts = [get_logs(hidden_state_dict) for hidden_state_dict in hidden_state_curiosity_dicts]
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             awesome_plot(ax, log_prediction_error_dict, "green", "log prediction_error")
             for layer, log_hidden_state_dict in enumerate(log_hidden_state_dicts):
-                awesome_plot(ax, log_hidden_state_dict, (1, layer/len(hidden_state_dicts), 0), "log hidden_state {}".format(layer+1))
+                awesome_plot(ax, log_hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "log hidden_state {}".format(layer+1))
             ax.set_ylabel("log Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()
             ax.set_title(plot_dict["arg_title"] + "\nlog Possible Curiosities")
-            divide_arenas(prediction_error_dict, ax)
+            divide_arenas(prediction_error_curiosity_dict, ax)
             
             try:
                 min_max = (log(min_max[0]), log(min_max[1]))
                 ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
                 awesome_plot(ax, log_prediction_error_dict, "green", "log prediction_error", min_max)
                 for layer, log_hidden_state_dict in enumerate(log_hidden_state_dicts):
-                    awesome_plot(ax, log_hidden_state_dict, (1, layer/len(hidden_state_dicts), 0), "log hidden_state {}".format(layer+1), min_max)
+                    awesome_plot(ax, log_hidden_state_dict, (1, layer/len(hidden_state_curiosity_dicts), 0), "log hidden_state {}".format(layer+1), min_max)
                 ax.set_ylabel("log Curiosity")
                 ax.set_xlabel("Epochs")
                 ax.legend()
                 ax.set_title(plot_dict["arg_title"] + "\nlog Possible Curiosities, shared min/max")
-                divide_arenas(prediction_error_dict, ax)
+                divide_arenas(prediction_error_curiosity_dict, ax)
             except: pass
         
         

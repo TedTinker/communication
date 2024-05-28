@@ -65,13 +65,13 @@ class Actor(nn.Module):
         if(self.args.half):
             self = self.half()
 
-    def forward(self, rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden, parented = True):
+    def forward(self, rgbd, comm_in, sensors, prev_action, prev_comm_out, forward_hidden, action_hidden, parented = True):
         start, episodes, steps, [rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden] = model_start(
             [(rgbd, "cnn"), (comm_in, "comm"), (prev_action, "lin"), (prev_comm_out, "comm"), (forward_hidden, "lin"), (action_hidden, "lin")], device = self.args.device, half = self.args.half)
         
         #print("\n\nACTOR:", torch.isnan(rgbd).sum().item(), torch.isnan(comm_in).sum().item(), torch.isnan(prev_action).sum().item(), torch.isnan(prev_comm_out).sum().item(), torch.isnan(forward_hidden).sum().item(), torch.isnan(action_hidden).sum().item(), "\n\n")
         
-        #obs = self.obs_in(rgbd, comm_in)
+        #obs = self.obs_in(rgbd, comm_in, sensors)
         #prev_action = self.action_in(prev_action)
         #prev_comm_out_encoded = self.comm_in(prev_comm_out)
         # x = torch.cat([obs, prev_action, prev_comm_out_encoded, forward_hidden], dim = -1)
@@ -162,11 +162,11 @@ class Critic(nn.Module):
         if(self.args.half):
             self = self.half()
         
-    def forward(self, rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden):        
+    def forward(self, rgbd, comm_in, sensors, action, comm_out, forward_hidden, critic_hidden):        
         start, episodes, steps, [rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden] = model_start(
             [(rgbd, "cnn"), (comm_in, "comm"), (action, "lin"), (comm_out, "comm"), (forward_hidden, "lin"), (critic_hidden, "lin")], device = self.args.device, half = self.args.half)
                 
-        #obs = self.obs_in(rgbd, comm_in)
+        #obs = self.obs_in(rgbd, comm_in, sensors)
         action = self.action_in(action)
         comm_out = self.comm_in(comm_out)
         x = torch.cat([forward_hidden, action.squeeze(1), comm_out.squeeze(1)], dim=-1)

@@ -52,7 +52,7 @@ i = 0
 wins = 0
 while(True):
     i += 1
-    win = agent.gen_test(test = True, sleep_time = .25, verbose = True)
+    win = agent.gen_test(test = False, sleep_time = .25, verbose = True)
     if(win): 
         wins += 1
     print(f"\tWIN RATE: {round(100 * (wins / i), 2)}%")

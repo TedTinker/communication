@@ -36,7 +36,7 @@ for folder in folders:
         
     for key in min_max_dict.keys():
         if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
-            if(key == "hidden_state"):
+            if(key in ["rgbd_hidden_state_curiosity", "comm_hidden_state_curiosity", "sensors_hidden_state_curiosity, hidden_state_curiosity"]):
                 min_maxes = []
                 for layer in range(len(min_max_dict[key][0])):
                     minimum = None ; maximum = None

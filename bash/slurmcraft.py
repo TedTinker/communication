@@ -75,7 +75,7 @@ def add_this(name, args):
 
 add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
 add_this("n",   {"curiosity" : "prediction_error"}) #, "prediciton_error_eta" : [.01, .03, .1, .3, 1, 3, 10]})
-add_this("f",   {"curiosity" : "hidden_state"}) #, "beta" : convert_list( [ [.25], [.5], [1], [2] ]), "hidden_state_eta" : convert_list( [ [5], [10], [15], [20], [25], [30] ]) })
+add_this("f",   {"curiosity" : "hidden_state"}) #, "beta_sensors" : [.01, .03, .1, .3], "hidden_state_eta_sensors" : [.01, .03, .1, .3]})
 add_this("i",   {"delta" : 1})
 
 
@@ -106,7 +106,7 @@ max_cpus = 30
  
 if(__name__ == "__main__" and args.arg_list == []):
     for key, value in slurm_dict.items(): print(key, ":", value,"\n")
-    interesting = ["f_15", "f_18"]
+    interesting = []
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
 

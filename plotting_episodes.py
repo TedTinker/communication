@@ -148,12 +148,20 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         label_list.append(f"Comms Out ({agent_num}):")
         
     if not step == 0:
-        dkls = episode_dict[f"dkls_{agent_num}"][step-1]
-        for layer in range(len(dkls)):
-            dkl_list = [episode_dict[f"dkls_{agent_num}"][s][layer] for s in range(step)]
-            text_list.append("plot")
-            plot_list.append(dkl_list)
-            label_list.append(f"Layer {layer} DKL ({agent_num}):")
+        rgbd_dkls = episode_dict[f"rgbd_dkls_{agent_num}"][step-1]
+        text_list.append("plot")
+        plot_list.append(rgbd_dkls)
+        label_list.append(f"RGBD DKL ({agent_num}):")
+            
+        comm_dkls = episode_dict[f"comm_dkls_{agent_num}"][step-1]
+        text_list.append("plot")
+        plot_list.append(comm_dkls)
+        label_list.append(f"Comm DKL ({agent_num}):")
+            
+        sensors_dkls = episode_dict[f"sensors_dkls_{agent_num}"][step-1]
+        text_list.append("plot")
+        plot_list.append(sensors_dkls)
+        label_list.append(f"Sensors DKL ({agent_num}):")
         
     fig = plt.figure(figsize=(15, 20 if last_step else 20))
     gs = gridspec.GridSpec(len(label_list), 2, height_ratios=[20 if text == "image" else 10 if text == "plot" else 1 if text.startswith("Yaw:") else 1 for text in text_list], width_ratios=[1, 4])
