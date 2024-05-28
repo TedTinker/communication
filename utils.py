@@ -239,7 +239,7 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
     # Things which have list-values.
 parser.add_argument('--task_list',          type=literal,    default = ["1"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [10000],
+parser.add_argument('--epochs',             type=literal,    default = [100],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
