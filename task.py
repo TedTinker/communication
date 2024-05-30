@@ -20,13 +20,13 @@ class Task:
             objects = 1, 
             colors = [0], 
             shapes = [0], 
-            parent = True, 
+            parenting = True, 
             args = default_args):
         self.actions = actions
         self.objects = objects 
         self.shapes = shapes
         self.colors = colors
-        self.parent = parent
+        self.parenting = parenting
         self.args = args
         
         self.agent_to_english = agent_to_english
@@ -65,7 +65,7 @@ class Task:
     
     def __str__(self):
         to_return = "\n\nSHAPE-COLORS (1):\t{}".format(["{} {}".format(list(color_map)[color], list(shape_map)[shape]) for color, shape in self.current_objects_1])
-        if(not self.parent):
+        if(not self.parenting):
             to_return += "\nSHAPE-COLORS (2):\t{}".format(["{} {}".format(list(color_map)[color], list(shape_map)[shape]) for color, shape in self.current_objects_2])
         to_return += "\nGOAL:\t{} ({})".format(onehots_to_string(self.goal_comm), self.goal_human_text)
         return(to_return)
@@ -80,7 +80,7 @@ class Task_Runner:
     def __init__(self, task, arena_1, arena_2, args = default_args):
         self.args = args
         self.task = task
-        self.parenting = self.task.parent
+        self.parenting = self.task.parenting
         self.arena_1 = arena_1 
         self.arena_2 = arena_2
         
@@ -142,7 +142,7 @@ class Task_Runner:
         else:
             distance_reward_2 = 0
             angle_reward_2 = 0
-            which_goal_message_2 = "   "
+            which_goal_message_2 = "      "
             
         if(self.task.goal[0] == -1):
             raw_reward = 0

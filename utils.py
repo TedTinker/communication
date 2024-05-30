@@ -3,15 +3,14 @@
 # To do: most important 
 #   Make it work.
 #   Make it work FASTER.
+#   'free play' which_goal_messages seem to be working, but maybe offset? Also, image prediction terrible!
 #   Trying float16 on cuda. Getting NaN.
 #   Allow multiple layers in PVRNN.
 
 # To do: less important 
-#   Maybe NONE goal could tell the agent what goals it's doing?
-#   Plot different curiosity values.
 #   Make comm prediction work with GRU.
-#   Try making sensor-observation deeper, like speed or something.
-#   Try predicting multiple steps in the future.
+#   Try making sensor-observation more helpful, like speed or something.
+#   Try predicting multiple steps into the future.
 #   Maybe actor and critic losses can be added to pvrnn's? # This works, but needs fine-tuning. 
 
 import os
@@ -41,7 +40,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #device = "cpu"
 
 action_map = {
-    -1: ["Z", "NONE"],
+    -1: ["Z", "FREE_PLAY"],
     0:  ["A", "WATCH"],
     1:  ["B", "PUSH"],     
     2:  ["C", "PULL"],   
@@ -239,7 +238,7 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
     # Things which have list-values.
 parser.add_argument('--task_list',          type=literal,    default = ["1"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [100],
+parser.add_argument('--epochs',             type=literal,    default = [10000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for MTRNN.')
@@ -301,7 +300,11 @@ parser.add_argument('--watch_distance',     type=float,      default = 8,
                     help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--watch_duration',     type=int,        default = 3,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--push_amount',        type=float,      default = .75,
+parser.add_argument('--push_amount',        type=float,      default = .25,
+                    help='Needed distance of an object for push/pull/left/right.')
+parser.add_argument('--pull_amount',        type=float,      default = .25,
+                    help='Needed distance of an object for push/pull/left/right.')
+parser.add_argument('--left_right_amount',  type=float,      default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
 
     # Rewards for distances
@@ -330,11 +333,17 @@ parser.add_argument('--rgbd_scaler',        type=float,      default = 5,
 parser.add_argument('--comm_scaler',        type=float,      default = 1, 
                     help='How much to consider comm prediction in accuracy compared to rgbd and sensors.')       
 parser.add_argument('--sensors_scaler',     type=float,      default = 1, 
-                    help='How much to consider sensors prediction in accuracy compared to rgbd and comm.')       
+                    help='How much to consider sensors prediction in accuracy compared to rgbd and comm.')   
+parser.add_argument('--weight_decay',       type=float,      default = .00001,
+                    help='Weight decay for modules.')       
 parser.add_argument('--forward_lr',         type=float,      default = .0003,
                     help='Learning rate for forward model.')
 parser.add_argument('--actor_lr',           type=float,      default = .0003,
                     help='Learning rate for actor model.')
+parser.add_argument('--alpha_lr',           type=float,      default = .0003,
+                    help='Learning rate for alpha value.') 
+parser.add_argument('--alpha_text_lr',      type=float,      default = .0003,
+                    help='Learning rate for alpha value.') 
 parser.add_argument('--critic_lr',          type=float,      default = .0003,
                     help='Learning rate for critic model.')
 parser.add_argument('--critics',            type=int,        default = 2,
@@ -345,10 +354,6 @@ parser.add_argument('--actor_scaler',       type=float,      default = 1,
                     help='If forward/actor/critic loss are combined, consideration of actor.')  
 parser.add_argument('--critic_scaler',     type=float,      default = 1, 
                     help='If forward/actor/critic loss are combined, consideration of critic.')  
-parser.add_argument('--alpha_lr',           type=float,      default = .0003,
-                    help='Learning rate for alpha value.') 
-parser.add_argument('--alpha_text_lr',      type=float,      default = .0003,
-                    help='Learning rate for alpha value.') 
 parser.add_argument("--tau",                type=float,      default = .1,
                     help='Rate at which target-critics approach critics.')      
 parser.add_argument('--GAMMA',              type=float,      default = .9,
@@ -381,8 +386,6 @@ parser.add_argument('--encode_action_size', type=int,        default = 8,
                     help='Parameters in encoding action.')   
 parser.add_argument('--dropout',            type=float,      default = .001,
                     help='Dropout percentage.')
-parser.add_argument('--weight_decay',       type=float,      default = .00001,
-                    help='Weight decay for modules.')   
 parser.add_argument('--use_hsv',            type=literal,    default = False,
                     help='Should RGBD_In use hsv?')   
 parser.add_argument('--use_trig_pos',       type=literal,    default = True,

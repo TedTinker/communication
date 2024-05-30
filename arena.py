@@ -121,14 +121,14 @@ class Arena():
     def stop(self):
         p.disconnect(physicsClientId = self.physicsClient)
                                 
-    def begin(self, objects, goal, parented, set_positions = None):
+    def begin(self, objects, goal, parenting, set_positions = None):
         self.set_pos()
         self.set_yaw()
         self.set_wheel_speeds()
         self.set_shoulder_angle()
         self.set_shoulder_speed()
         self.goal = goal
-        self.parented = parented
+        self.parenting = parenting
         
         self.objects_in_play = {}
         self.watching = {}
@@ -359,15 +359,15 @@ class Arena():
                 if(movement_forward >= self.args.push_amount and touching):
                     pushing = True
             if(action_map[goal_action][1] == "PULL"):
-                if(movement_forward <= -self.args.push_amount and touching):
+                if(movement_forward <= -self.args.pull_amount and touching):
                     pulling = True
                         
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             if(action_map[goal_action][1] == "LEFT"):
-                if(movement_left >= self.args.push_amount and touching):
+                if(movement_left >= self.args.left_right_amount and touching):
                     lefting = True
             if(action_map[goal_action][1] == "RIGHT"):
-                if(movement_left <= -self.args.push_amount and touching):
+                if(movement_left <= -self.args.left_right_amount and touching):
                     righting = True
                     
             # Also add reward for mere distance.
@@ -413,7 +413,7 @@ class Arena():
                 if(righting): action_char = action_map[4][0]
                 color_char = color_map[color][0]
                 shape_char = shape_map[shape][0]
-                which_goal_message = action_char + color_char + shape_char + "  "
+                which_goal_message = action_char + color_char + shape_char + "   "
             if(color == goal_color and shape == goal_shape):
                 if(sum([watching, pushing, pulling, lefting, righting]) == 1):
                     if((action_map[goal_action][1] == "WATCH" and watching) or 
@@ -428,7 +428,7 @@ class Arena():
                     reward += self.args.wrong_object_punishment
                                            
         [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward] = objects_goals[(goal_color, goal_shape)]
-        if(action_map[goal_action][1] == "NONE"):
+        if(action_map[goal_action][1] == "FREE_PLAY"):
             reward = 0
             distance_reward = 0
             angle_reward = 0
@@ -509,10 +509,10 @@ if __name__ == "__main__":
         allowed_shapes = [0, 1, 2])
         
         
-    #"""
+    """
     print("\nFREE PLAY")
     goal = [-1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False)
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False)
     steps = 0
     while(True):
         steps += 1
@@ -522,7 +522,7 @@ if __name__ == "__main__":
             arena.rewards(verbose = True)
         sleep(.05)
     arena.end()
-    #"""
+    """
     
     
     
@@ -536,7 +536,7 @@ if __name__ == "__main__":
     """    
     print("\nHIT")
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(4.5,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(4.5,0)])
     show_them()
     reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
     for j in range(3):
@@ -551,7 +551,7 @@ if __name__ == "__main__":
     """    
     print("\nAPPROACH")
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(15,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(15,0)])
     show_them()
     reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
     for j in range(15):
@@ -564,7 +564,7 @@ if __name__ == "__main__":
     """
     print("\nAIM")
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(8,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(8,0)])
     show_them()
     reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
     for j in range(15):
@@ -577,7 +577,7 @@ if __name__ == "__main__":
     """
     print("\nNO GOAL")
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(8,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(8,0)])
     show_them()
     reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
     i = 1
@@ -594,7 +594,7 @@ if __name__ == "__main__":
     #"""
     print("\nWATCH")
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(6,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(6,0)])
     show_them()
     reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
     while(True):
@@ -609,7 +609,7 @@ if __name__ == "__main__":
     #"""
     print("\nPUSH")
     goal = [1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(5,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(5,0)])
     show_them()
     arena.rewards(verbose = True)
     while(True):
@@ -624,7 +624,7 @@ if __name__ == "__main__":
     #"""
     print("\nPULL")
     goal = [2, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
     show_them()
     arena.rewards(verbose = True)
     arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
@@ -642,7 +642,7 @@ if __name__ == "__main__":
     #"""   
     print("\nLEFT")
     goal = [3, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
     show_them()
     arena.rewards(verbose = True)
     arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
@@ -660,7 +660,7 @@ if __name__ == "__main__":
     #"""
     print("\nRIGHT")
     goal = [4, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parented = False, set_positions = [(3,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
     show_them()
     arena.rewards(verbose = True)
     arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)

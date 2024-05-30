@@ -42,14 +42,6 @@ def get_quantiles(plot_dict, name, levels = [1, 2, 3, 4, 5], adjust_xs=True, rem
         quantile_dict["min"] = np.nanmin(lists, axis=0)
         quantile_dict["max"] = np.nanmax(lists, axis=0)
 
-
-
-
-
-    
-    
-    
-    
     return quantile_dict
 
 def get_list_quantiles(list_of_lists, plot_dict, levels = [1, 2, 3, 4, 5], remove_none = True):
@@ -155,7 +147,7 @@ def plots(plot_dicts, min_max_dict):
             if(key.startswith("wins_")):
                 action_name_list.append(key[5:])
         try:
-            action_name_list.remove("none")
+            action_name_list.remove("free_play")
         except:
             pass 
         for action_name in action_name_list:
@@ -526,10 +518,10 @@ def plots(plot_dicts, min_max_dict):
             awesome_plot(ax, rgbd_prediction_error_curiosity_dict, "green", "rgbd_prediction_error", min_max = min_max, linestyle = "dotted")
             awesome_plot(ax, comm_prediction_error_curiosity_dict, "green", "comm_prediction_error", min_max = min_max, linestyle = "dashed")
             awesome_plot(ax, sensors_prediction_error_curiosity_dict, "green", "sensors_prediction_error", min_max = min_max, linestyle = "dashdot")
-            awesome_plot(ax, hidden_state_curiosity_dict, "red", "sensors_hidden_state", min_max = min_max, linestyle = "dashdot")
-            awesome_plot(ax, rgbd_hidden_state_curiosity_dict, "red", "hidden_state", min_max = min_max, linestyle = "solid")
-            awesome_plot(ax, sensors_hidden_state_curiosity_dict, "red", "rgbd_hidden_state", min_max = min_max, linestyle = "dotted")
+            awesome_plot(ax, hidden_state_curiosity_dict, "red", "hidden_state", min_max = min_max, linestyle = "solid")
+            awesome_plot(ax, rgbd_hidden_state_curiosity_dict, "red", "rgbd_hidden_state", min_max = min_max, linestyle = "dotted")
             awesome_plot(ax, comm_hidden_state_curiosity_dict, "red", "comm_hidden_state", min_max = min_max, linestyle = "dashed")
+            awesome_plot(ax, sensors_hidden_state_curiosity_dict, "red", "sensors_hidden_state", min_max = min_max, linestyle = "dashdot")
             ax.set_ylabel("Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()
@@ -551,12 +543,12 @@ def plots(plot_dicts, min_max_dict):
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             awesome_plot(ax, log_prediction_error_dict, "green", "log prediction_error", linestyle = "solid")
-            awesome_plot(ax, log_rgbd_prediction_error_dict, "green", "log rgbd prediction_error", linestyle = "dashed")
-            awesome_plot(ax, log_comm_prediction_error_dict, "green", "log comm prediction_error", linestyle = "dotted")
+            awesome_plot(ax, log_rgbd_prediction_error_dict, "green", "log rgbd prediction_error", linestyle = "dotted")
+            awesome_plot(ax, log_comm_prediction_error_dict, "green", "log comm prediction_error", linestyle = "dashed")
             awesome_plot(ax, log_sensors_prediction_error_dict, "green", "log sensors prediction_error", linestyle = "dashdot")
             awesome_plot(ax, log_hidden_state_dict, "red", "log hidden_state", linestyle = "solid")
-            awesome_plot(ax, log_rgbd_hidden_state_dict, "red", "log rgbd hidden_state", linestyle = "dashed")
-            awesome_plot(ax, log_comm_hidden_state_dict, "red", "log comm hidden_state", linestyle = "dotted")
+            awesome_plot(ax, log_rgbd_hidden_state_dict, "red", "log rgbd hidden_state", linestyle = "dotted")
+            awesome_plot(ax, log_comm_hidden_state_dict, "red", "log comm hidden_state", linestyle = "dashed")
             awesome_plot(ax, log_sensors_hidden_state_dict, "red", "log sensors hidden_state", linestyle = "dashdot")
             ax.set_ylabel("log Curiosity")
             ax.set_xlabel("Epochs")
@@ -569,12 +561,12 @@ def plots(plot_dicts, min_max_dict):
             min_max = (log(min_max[0]), log(min_max[1]))
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             awesome_plot(ax, log_prediction_error_dict, "green", "log prediction_error", min_max = min_max, linestyle = "solid")
-            awesome_plot(ax, log_rgbd_prediction_error_dict, "green", "log rgbd prediction_error", min_max = min_max, linestyle = "dashed")
-            awesome_plot(ax, log_comm_prediction_error_dict, "green", "log comm prediction_error", min_max = min_max, linestyle = "dotted")
+            awesome_plot(ax, log_rgbd_prediction_error_dict, "green", "log rgbd prediction_error", min_max = min_max, linestyle = "dotted")
+            awesome_plot(ax, log_comm_prediction_error_dict, "green", "log comm prediction_error", min_max = min_max, linestyle = "dashed")
             awesome_plot(ax, log_sensors_prediction_error_dict, "green", "log sensors prediction_error", min_max = min_max, linestyle = "dashdot")
             awesome_plot(ax, log_hidden_state_dict, "red", "log hidden_state", min_max = min_max, linestyle = "solid")
-            awesome_plot(ax, log_rgbd_hidden_state_dict, "red", "log rgbd hidden_state", min_max = min_max, linestyle = "dashed")
-            awesome_plot(ax, log_comm_hidden_state_dict, "red", "log comm hidden_state", min_max = min_max, linestyle = "dotted")
+            awesome_plot(ax, log_rgbd_hidden_state_dict, "red", "log rgbd hidden_state", min_max = min_max, linestyle = "dotted")
+            awesome_plot(ax, log_comm_hidden_state_dict, "red", "log comm hidden_state", min_max = min_max, linestyle = "dashed")
             awesome_plot(ax, log_sensors_hidden_state_dict, "red", "log sensors hidden_state", min_max = min_max, linestyle = "dashdot")
             ax.set_ylabel("log Curiosity")
             ax.set_xlabel("Epochs")

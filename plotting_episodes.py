@@ -36,7 +36,7 @@ def plot_episode(key, episode_dict, arg_name):
     steps = len(episode_dict["rgbds_1"])
     for step in range(steps):
         plot_step(step, episode_dict, last_step = step + 1 == steps)
-        if(episode_dict["task"]).parent: pass 
+        if(episode_dict["task"]).parenting: pass 
         else: plot_step(step, episode_dict, agent_1 = False, last_step = step + 1 == steps)
     print("SAVED PLOTS")
     os.chdir('..')
@@ -55,6 +55,11 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
     goal = episode_dict["goal"]
     text_list.append(goal)
     label_list.append("Goal:")
+    
+    if not step == 0:
+        which_goal_message = episode_dict[f"which_goal_message_{agent_num}"][step-1]
+        text_list.append(which_goal_message)
+        label_list.append("Achieved goal:")
         
     birds_eye = episode_dict[f"birds_eye_{agent_num}"][step]
     text_list.append("image")
@@ -148,17 +153,17 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         label_list.append(f"Comms Out ({agent_num}):")
         
     if not step == 0:
-        rgbd_dkls = episode_dict[f"rgbd_dkls_{agent_num}"][step-1]
+        rgbd_dkls = episode_dict[f"rgbd_dkls_{agent_num}"][:step]
         text_list.append("plot")
         plot_list.append(rgbd_dkls)
         label_list.append(f"RGBD DKL ({agent_num}):")
             
-        comm_dkls = episode_dict[f"comm_dkls_{agent_num}"][step-1]
+        comm_dkls = episode_dict[f"comm_dkls_{agent_num}"][:step]
         text_list.append("plot")
         plot_list.append(comm_dkls)
         label_list.append(f"Comm DKL ({agent_num}):")
             
-        sensors_dkls = episode_dict[f"sensors_dkls_{agent_num}"][step-1]
+        sensors_dkls = episode_dict[f"sensors_dkls_{agent_num}"][:step]
         text_list.append("plot")
         plot_list.append(sensors_dkls)
         label_list.append(f"Sensors DKL ({agent_num}):")

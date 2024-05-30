@@ -74,8 +74,8 @@ def add_this(name, args):
 
 
 add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
-add_this("n",   {"curiosity" : "prediction_error"}) #, "prediciton_error_eta" : [.01, .03, .1, .3, 1, 3, 10]})
-add_this("f",   {"curiosity" : "hidden_state", "beta_rgbd" : [0, 1], "beta_comm" : [0, 1], "beta_sensors" : [0, 1], "hidden_state_eta_sensors" : [0, 1]}) #, "beta_sensors" : [.01, .03, .1, .3], "hidden_state_eta_sensors" : [.01, .03, .1, .3]})
+add_this("n",   {"curiosity" : "prediction_error"}) #, "prediction_error_eta" : [.01, .03, .1, .3, 1, 3, 10]})
+add_this("f",   {"curiosity" : "hidden_state"}) #, "hidden_state_eta_comm" : [1, 10, 50, 100], "hidden_state_eta_sensors" : [1, 10, 50, 100]})
 add_this("i",   {"delta" : 1})
 
 

@@ -184,8 +184,6 @@ def epoch(e):
     real_comm = real_comm[:,:-1]
     real_sensors = real_sensors[:,:-1]
     
-    #guess_rgbd = add_hsv_to_rgbd(guess_rgbd)
-    #next_rgbd = add_hsv_to_rgbd(next_rgbd)
     rgbd_loss = F.binary_cross_entropy(guess_rgbd, next_rgbd, reduction = "none")
     guess_rgbd = guess_rgbd[:,:,:,:,:4]
     next_rgbd = next_rgbd[:,:,:,:,:4]
@@ -196,7 +194,6 @@ def epoch(e):
     guess_comm_temp = guess_comm.reshape((guess_comm.shape[0] * guess_comm.shape[1], args.max_comm_len, args.comm_shape))
     guess_comm_temp = guess_comm_temp.transpose(1,2)
      
-    #comm_loss = custom_loss(guess_comm_temp, next_comm_temp, max_shift = 0)    
     comm_loss = F.cross_entropy(guess_comm_temp, next_comm_temp, reduction = "none")
     comm_loss = comm_loss.mean() * args.comm_scaler
     
@@ -255,14 +252,11 @@ def epoch(e):
     test_guess_comm_temp = test_guess_comm.reshape((test_guess_comm.shape[0] * test_guess_comm.shape[1], args.max_comm_len, args.comm_shape))
     test_guess_comm_temp = test_guess_comm_temp.transpose(1,2)
      
-    #comm_loss = custom_loss(guess_comm_temp, next_comm_temp, max_shift = 0)    
     test_comm_loss = F.cross_entropy(test_guess_comm_temp, test_next_comm_temp, reduction = "none")
     test_comm_loss = test_comm_loss.mean() * args.comm_scaler
     
     test_sensors_loss = F.binary_cross_entropy(test_guess_sensors, test_next_sensors, reduction = "none")
     test_sensors_loss = test_sensors_loss.mean() * args.sensors_scaler
-    
-    
         
     real_rgbd = torch.cat([real_rgbd[0].unsqueeze(0), test_real_rgbd[0].unsqueeze(0)])
     real_comm = torch.cat([real_comm[0].unsqueeze(0), test_real_comm[0].unsqueeze(0)])

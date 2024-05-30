@@ -65,7 +65,7 @@ class Actor(nn.Module):
         if(self.args.half):
             self = self.half()
 
-    def forward(self, rgbd, comm_in, sensors, prev_action, prev_comm_out, forward_hidden, action_hidden, parented = True):
+    def forward(self, rgbd, comm_in, sensors, prev_action, prev_comm_out, forward_hidden, action_hidden, parenting = True):
         start, episodes, steps, [rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden] = model_start(
             [(rgbd, "cnn"), (comm_in, "comm"), (prev_action, "lin"), (prev_comm_out, "comm"), (forward_hidden, "lin"), (action_hidden, "lin")], device = self.args.device, half = self.args.half)
         
@@ -88,7 +88,7 @@ class Actor(nn.Module):
         log_prob = Normal(mu, std).log_prob(sampled) - torch.log(1 - action.pow(2) + 1e-6)
         log_prob = torch.mean(log_prob, -1).unsqueeze(-1)
         
-        if(parented):
+        if(parenting):
             comm_out = torch.zeros_like(prev_comm_out)
             comm_log_prob = torch.zeros_like(log_prob)
             if(self.args.half):
