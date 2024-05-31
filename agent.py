@@ -19,7 +19,7 @@ from submodule_utils import model_start
 from arena import Arena, get_physics
 from task import Task, Task_Runner
 from buffer import RecurrentReplayBuffer
-from new_pvrnn import PVRNN
+from pvrnn import PVRNN
 from models import Actor, Critic
 
 
@@ -837,7 +837,7 @@ class Agent:
         comm_loss = comm_loss.reshape(episodes, steps, self.args.max_comm_len)
         comm_loss = comm_loss.mean(dim=2).unsqueeze(-1) * masks * self.args.comm_scaler
         
-        sensors_loss = F.binary_cross_entropy(pred_sensors_q, sensors[:,1:], reduction = "none")
+        sensors_loss = F.mse_loss(pred_sensors_q, sensors[:,1:], reduction = "none")
         sensors_loss = sensors_loss.mean(-1).unsqueeze(-1) * masks * self.args.sensors_scaler
         
         accuracy = (rgbd_loss + comm_loss + sensors_loss).mean()

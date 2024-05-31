@@ -170,7 +170,9 @@ def epoch(e):
     
     forward.train()
     
-    (zp_mu, zp_std, hps), (zq_mu, zq_std, hqs), (guess_rgbd, guess_comm, guess_sensors), _ = forward(torch.zeros((episodes, args.layers, args.pvrnn_mtrnn_size)), rgbds, comms_in, sensors, actions, comms_out)
+    new_hidden_states_p, new_hidden_states_q, \
+        rgbd_dkl, comm_dkl, sensors_dkl, \
+        guess_rgbd, guess_comm, guess_sensors = forward(torch.zeros((episodes, args.layers, args.pvrnn_mtrnn_size)), rgbds, comms_in, sensors, actions, comms_out)
     
     real_rgbd = rgbds
     real_comm = comms_in
@@ -200,8 +202,14 @@ def epoch(e):
     sensors_loss = F.binary_cross_entropy(guess_sensors, next_sensors, reduction = "none")
     sensors_loss = sensors_loss.mean() * args.sensors_scaler
     
-    complexity_for_hidden_state = [dkl(zq_mu[:,:,layer], zq_std[:,:,layer], zp_mu[:,:,layer], zp_std[:,:,layer]).mean(-1).unsqueeze(-1) * all_masks for layer in range(args.layers)] 
-    complexity          = sum([args.beta[layer] * complexity_for_hidden_state[layer].mean() for layer in range(args.layers)])    
+    rgbd_complexity_for_hidden_state = rgbd_dkl.mean(-1).unsqueeze(-1) * all_masks
+    comm_complexity_for_hidden_state = comm_dkl.mean(-1).unsqueeze(-1) * all_masks
+    sensors_complexity_for_hidden_state = sensors_dkl.mean(-1).unsqueeze(-1) * all_masks
+            
+    complexity = sum([
+        args.beta_rgbd * rgbd_complexity_for_hidden_state.mean(),
+        args.beta_comm * comm_complexity_for_hidden_state.mean(),
+        args.beta_sensors * sensors_complexity_for_hidden_state.mean()])       
     
     loss = rgbd_loss + comm_loss + sensors_loss + complexity
     
@@ -230,7 +238,7 @@ def epoch(e):
     
     forward.eval()
     
-    _, _, (test_guess_rgbd, test_guess_comm, test_guess_sensors), _ = forward(torch.zeros((episodes, args.layers, args.pvrnn_mtrnn_size)), rgbds, comms_in, sensors, actions, comms_out)
+    new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, test_guess_rgbd, test_guess_comm, test_guess_sensors = forward(torch.zeros((episodes, args.layers, args.pvrnn_mtrnn_size)), rgbds, comms_in, sensors, actions, comms_out)
     
     test_real_rgbd = rgbds
     test_real_comm = comms_in

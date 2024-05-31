@@ -101,17 +101,19 @@ class Task_Runner:
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
         
-        touched = [False] * self.args.sensors_shape
-        touching = arena.touching_any_object()
-        for object_key, object_dict in touching.items():
-            for i, (link_name, value) in enumerate(object_dict.items()):
-                if(value == True):
-                    touched[i] = True
-        touching = [int(t) for t in touched]
         
+        touched = [0] * self.args.sensors_shape
+        #touching = arena.touching_any_object()
+        touching = arena.objects_touch
+        for object_key, object_dict in arena.objects_touch.items(): #arena.touching_any_object().items():
+            for i, (link_name, value) in enumerate(object_dict.items()):
+                #if(value == True):
+                #    touched[i] = True
+                touched[i] += value
+                
         #_, _, speed = arena.get_pos_yaw_spe()
         #speed = opposite_relative_to(speed, self.args.min_speed, self.args.max_speed)
-        sensors = torch.tensor([touching]).float()
+        sensors = torch.tensor([touched]).float()
                 
         return(rgbd, self.task.goal_comm.unsqueeze(0), sensors)
             
@@ -173,7 +175,7 @@ class Task_Runner:
             print("Angle reward:", angle_reward)
             if(done): 
                 print("Done.")
-        return(raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win, which_goal_message_1, which_goal_message_1)
+        return(raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win, which_goal_message_1, which_goal_message_2)
     
     def done(self):
         self.arena_1.end()
@@ -291,7 +293,7 @@ if __name__ == "__main__":
             example_images(get_images())
             recommendation = task_runner.get_recommended_action(verbose = False)#True)
             print("Got recommendation:", recommendation)
-            raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win = task_runner.step(recommendation, verbose = True)
+            raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win, which_goal_message_1, which_goal_message_2 = task_runner.step(recommendation, verbose = True)
             print("Done:", done)
             rgbd, _, _ = task_runner.obs()
             rgb = rgbd[0,:,:,0:3]

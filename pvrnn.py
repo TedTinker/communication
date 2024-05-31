@@ -7,7 +7,7 @@ from torchinfo import summary as torch_summary
 from utils import default_args, attach_list, detach_list, dkl, duration
 from submodule_utils import init_weights, episodes_steps, pad_zeros, var, sample, model_start, model_end
 from mtrnn import MTRNN
-from submodules import Obs_IN, Obs_OUT, Action_IN, Comm_IN
+from submodules import RGBD_IN, Comm_IN, Sensors_IN, Obs_IN, Obs_OUT, Action_IN, Comm_IN
 
 
 
@@ -18,8 +18,6 @@ if __name__ == "__main__":
     
     
 
-
-# Not yet implemented, but should make separate curiosities easier.
 class ZP_ZQ(nn.Module):
     
     def __init__(self, zp_in_features, zq_in_features, out_features, args):
@@ -27,6 +25,7 @@ class ZP_ZQ(nn.Module):
         
         self.args = args 
             
+        # Prior: Previous hidden state and action.  
         self.zp_mu = nn.Sequential(
                 nn.Linear(
                     in_features = zp_in_features, 
@@ -38,6 +37,7 @@ class ZP_ZQ(nn.Module):
                     out_features = out_features),
                 nn.Softplus())
                             
+        # Posterior: Include observation.
         self.zq_mu = nn.Sequential(
                 nn.Linear(
                     in_features = zq_in_features, 
@@ -65,32 +65,37 @@ class ZP_ZQ(nn.Module):
         zq = sample(zq_mu, zq_std, self.args.device)
         kullback_leibler = dkl(zp_mu, zp_std, zq_mu, zq_std)
                             
-        return(
-            (zp, zp_mu, zp_std),
-            (zq, zq_mu, zq_std),
-            kullback_leibler)       
+        return(zp, zq, kullback_leibler)       
 
 
 
 class PVRNN_LAYER(nn.Module):
     
-    def __init__(self, time_scale = 1, bottom = False, top = False, args = default_args):
+    def __init__(self, time_scale = 1, args = default_args):
         super(PVRNN_LAYER, self).__init__()
         
         self.args = args 
-        self.bottom = bottom
-        self.top = top
             
-        # Prior: Previous hidden state, plus action if bottom.  
-        # Posterior: Previous hidden state, plus observation and action if bottom, plus lower-layer hidden state otherwise.
-        self.z = ZP_ZQ(
-            zp_in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size if self.bottom else 0),
-            zq_in_features = self.args.pvrnn_mtrnn_size + (self.args.encode_action_size + self.args.encode_comm_size + self.args.encode_obs_size if self.bottom else self.args.pvrnn_mtrnn_size), 
-            out_features = self.args.state_size, args = self.args)
+        # Prior: Previous hidden state and action.  
+        # Posterior: Include observation.
+        self.rgbd_z = ZP_ZQ(
+            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size,
+            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size + self.args.encode_rgbd_size, 
+            out_features = self.args.rgbd_state_size, args = self.args)
+        
+        self.comm_z = ZP_ZQ(
+            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size,
+            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size + self.args.encode_comm_size, 
+            out_features = self.args.comm_state_size, args = self.args)
+        
+        self.sensors_z = ZP_ZQ(
+            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size,
+            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size + self.args.encode_sensors_size, 
+            out_features = self.args.sensors_state_size, args = self.args)
                             
         # New hidden state: Previous hidden state, zq value, plus higher-layer hidden state if not top.
         self.mtrnn = MTRNN(
-                input_size = self.args.state_size + (self.args.pvrnn_mtrnn_size if not self.top else 0),
+                input_size = self.args.rgbd_state_size + self.args.comm_state_size + self.args.sensors_state_size,
                 hidden_size = self.args.pvrnn_mtrnn_size, 
                 time_constant = time_scale,
                 args = self.args)
@@ -99,124 +104,61 @@ class PVRNN_LAYER(nn.Module):
         self.to(self.args.device)
         if(self.args.half):
             self = self.half()
+            
+    def forward(self, prev_hidden_states, rgbd=None, comm=None, sensors=None, prev_actions=None, prev_comms_out=None):
+        def reshape_and_to_dtype(inputs, episodes, steps, dtype=None):
+            inputs = inputs.reshape(episodes * steps, inputs.shape[2])
+            if dtype:
+                inputs = inputs.to(dtype=dtype)
+            return inputs
         
-    def forward(
-        self, 
-        prev_hidden_states, 
-        obs = None, prev_actions = None, prev_comms_out = None, 
-        hidden_states_below = None, 
-        prev_hidden_states_above = None):
+        def process_z_func_outputs(zp_inputs, zq_inputs, z_func, episodes, steps, dtype=None):
+            zp_inputs = reshape_and_to_dtype(zp_inputs, episodes, steps, dtype)
+            zq_inputs = reshape_and_to_dtype(zq_inputs, episodes, steps, dtype)
+            zp, zq, kullback_leibler = z_func(zp_inputs, zq_inputs)
+            kullback_leibler = kullback_leibler.reshape((episodes, steps, kullback_leibler.shape[1]))
+            return(zp, zq, kullback_leibler)
         
         prev_hidden_states = prev_hidden_states.to(self.args.device)
-                        
-        if(self.bottom):
-            zp_inputs = torch.cat([prev_hidden_states, prev_actions, prev_comms_out], dim = -1)
-            zq_inputs = torch.cat([prev_hidden_states, obs, prev_actions, prev_comms_out], dim = -1)
-        else:
-            zp_inputs = prev_hidden_states 
-            zq_inputs = torch.cat([prev_hidden_states, hidden_states_below], dim = -1)
-            
+        zp_inputs = torch.cat([prev_hidden_states, prev_actions, prev_comms_out], dim=-1)
+        rgbd_zq_inputs, comm_zq_inputs, sensors_zq_inputs = [torch.cat([zp_inputs, input_data], dim=-1) for input_data in (rgbd, comm, sensors)]
+        
         episodes, steps = episodes_steps(zp_inputs)
-        zp_inputs = zp_inputs.reshape(episodes * steps, zp_inputs.shape[2])
-        zq_inputs = zq_inputs.reshape(episodes * steps, zq_inputs.shape[2])
-        if(prev_hidden_states_above != None):
-            prev_hidden_states_above = prev_hidden_states_above.reshape(episodes * steps, prev_hidden_states_above.shape[2])
-            
-        if(self.args.half):
-            zp_inputs = zp_inputs.to(dtype=torch.float16)
-            zq_inputs = zq_inputs.to(dtype=torch.float16)
-                
-        (zp, zp_mu, zp_std), (zq, zq_mu, zq_std), kullback_leibler = self.z(zp_inputs, zq_inputs)
-            
-        if(self.top):
-            mtrnn_inputs_p = zp
-        else:
-            mtrnn_inputs_p = torch.cat([zp, prev_hidden_states_above], dim = -1)
-            
-        if(self.top):
-            mtrnn_inputs_q = zq 
-        else:
-            mtrnn_inputs_q = torch.cat([zq, prev_hidden_states_above], dim = -1)
-                    
-        mtrnn_inputs_p = mtrnn_inputs_p.reshape((episodes, steps, mtrnn_inputs_p.shape[1]))
-        mtrnn_inputs_q = mtrnn_inputs_q.reshape((episodes, steps, mtrnn_inputs_q.shape[1]))
-            
+        dtype = torch.float16 if self.args.half else None
+        
+        rgbd_zp, rgbd_zq, rgbd_dkl = process_z_func_outputs(zp_inputs, rgbd_zq_inputs, self.rgbd_z, episodes, steps, dtype)
+        comm_zp, comm_zq, comm_dkl = process_z_func_outputs(zp_inputs, comm_zq_inputs, self.comm_z, episodes, steps, dtype)
+        sensors_zp, sensors_zq, sensors_dkl = process_z_func_outputs(zp_inputs, sensors_zq_inputs, self.sensors_z, episodes, steps, dtype)
+        
+        mtrnn_inputs_p = torch.cat([rgbd_zp, comm_zp, sensors_zp], dim=-1)
+        mtrnn_inputs_q = torch.cat([rgbd_zq, comm_zq, sensors_zq], dim=-1)
+        
+        mtrnn_inputs_p = mtrnn_inputs_p.reshape(episodes, steps, mtrnn_inputs_p.shape[1])
+        mtrnn_inputs_q = mtrnn_inputs_q.reshape(episodes, steps, mtrnn_inputs_q.shape[1])
+        
         new_hidden_states_p = self.mtrnn(mtrnn_inputs_p, prev_hidden_states)
         new_hidden_states_q = self.mtrnn(mtrnn_inputs_q, prev_hidden_states)
         
-        zp_mu = zp_mu.reshape((episodes, steps, zp_mu.shape[1]))
-        zp_std = zp_std.reshape((episodes, steps, zp_std.shape[1]))
-        zq_mu = zq_mu.reshape((episodes, steps, zq_mu.shape[1]))
-        zq_std = zq_std.reshape((episodes, steps, zq_std.shape[1]))
-        kullback_leibler = kullback_leibler.reshape((episodes, steps, kullback_leibler.shape[1]))
-                        
-        return(
-            (zp_mu, zp_std, new_hidden_states_p),
-            (zq_mu, zq_std, new_hidden_states_q),
-            kullback_leibler)        
+        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl)
+        
         
     
 if __name__ == "__main__":
     
-    bottom_top_layer = PVRNN_LAYER(bottom = True, top = True, args = args)
+    pvrnn_layer = PVRNN_LAYER(time_scale = 1, args = args)
     
-    print("\n\nBOTTOM-TOP")
-    print(bottom_top_layer)
+    print("\n\nPVRNN LAYER")
+    print(pvrnn_layer)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(torch_summary(bottom_top_layer, 
+            print(torch_summary(pvrnn_layer, 
                                 ((episodes, 1, args.pvrnn_mtrnn_size), 
-                                (episodes, 1, args.encode_obs_size),
+                                (episodes, 1, args.encode_rgbd_size),
+                                (episodes, 1, args.encode_comm_size),
+                                (episodes, 1, args.encode_sensors_size),
                                 (episodes, 1, args.encode_action_size),
                                 (episodes, 1, args.encode_comm_size))))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-    
-    bottom_layer = PVRNN_LAYER(bottom = True, args = args)
-    
-    print("\n\nBOTTOM")
-    print(bottom_layer)
-    print()
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            print(torch_summary(bottom_layer, 
-                                ((episodes, 1, args.pvrnn_mtrnn_size), 
-                                (episodes, 1, args.encode_obs_size),
-                                (episodes, 1, args.encode_action_size),
-                                (episodes, 1, args.encode_comm_size),
-                                (1,), # No hidden_states_below 
-                                (episodes, 1, args.pvrnn_mtrnn_size))))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-    
-    top_layer = PVRNN_LAYER(top = True, args = args)
-    
-    print("\n\nTOP")
-    print(top_layer)
-    print()
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            print(torch_summary(top_layer, 
-                                ((episodes, 1, args.pvrnn_mtrnn_size), 
-                                (1,), # No obs
-                                (1,), # No actions
-                                (1,), # No comms out 
-                                (episodes, 1, args.pvrnn_mtrnn_size))))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-    
-    middle_layer = PVRNN_LAYER(args = args)
-    
-    print("\n\nMIDDLE")
-    print(middle_layer)
-    print()
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            print(torch_summary(middle_layer, 
-                                ((episodes, 1, args.pvrnn_mtrnn_size), 
-                                (1,), # No obs
-                                (1,), # No actions
-                                (1,), # comms out
-                                (episodes, 1, args.pvrnn_mtrnn_size),
-                                (episodes, 1, args.pvrnn_mtrnn_size))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
 #%%
@@ -228,20 +170,16 @@ class PVRNN(nn.Module):
         
         self.args = args 
         
-        self.obs_in = Obs_IN(self.args)
-        self.action_in = Action_IN(self.args)
+        self.rgbd_in = RGBD_IN(self.args)
         self.comm_in = Comm_IN(self.args)
-        
-        pvrnn_layers = []
-        for layer in range(self.args.layers): 
-            pvrnn_layers.append(
-                PVRNN_LAYER(
-                    self.args.time_scales[layer], 
-                    bottom = layer == 0, 
-                    top = layer + 1 == self.args.layers, 
-                    args = self.args))
+        self.sensors_in = Sensors_IN(self.args)
+        self.action_in = Action_IN(self.args)
+        self.comm_out_in = Comm_IN(self.args)
+
+        self.pvrnn_layer = PVRNN_LAYER(
+            self.args.time_scales[0], 
+            args = self.args)
             
-        self.pvrnn_layers = nn.ModuleList(pvrnn_layers)
         self.predict_obs = Obs_OUT(args)
         
         self.apply(init_weights)
@@ -254,92 +192,66 @@ class PVRNN(nn.Module):
         pred_rgbd, pred_comms, pred_sensors = self.predict_obs(h_w_actions)
         return(pred_rgbd, pred_comms, pred_sensors)
         
-    def bottom_to_top_step(self, prev_hidden_states, obs = None, prev_actions = None, prev_comms_out = None):
-        if(obs != None and len(obs.shape) == 2): 
-            obs = obs.unsqueeze(1)
+    def bottom_to_top_step(self, prev_hidden_states, rgbd = None, comm = None, sensors = None, prev_actions = None, prev_comms_out = None):
+        if(prev_hidden_states != None and len(prev_hidden_states.shape) == 2): 
+            prev_hidden_states = prev_hidden_states.unsqueeze(1)
+        if(rgbd != None and len(rgbd.shape) == 2): 
+            rgbd = rgbd.unsqueeze(1)
+        if(comm != None and len(comm.shape) == 2): 
+            comm = comm.unsqueeze(1)
+        if(sensors != None and len(sensors.shape) == 2): 
+            sensors = sensors.unsqueeze(1)
         if(prev_actions != None and len(prev_actions.shape) == 2): 
             prev_actions = prev_actions.unsqueeze(1)
         if(prev_comms_out != None and len(prev_comms_out.shape) == 2): 
             prev_comms_out = prev_comms_out.unsqueeze(1)
-                                
-        zp_mu_list = []
-        zp_std_list = []
-        zq_mu_list = []
-        zq_std_list = []
-        new_hidden_states_list_p = []
-        new_hidden_states_list_q = []
-        dkls = []
-        
-        #print("\n\nIN PVRNN:", 
-        #      torch.isnan(prev_hidden_states[:,0]).sum().item(), 
-        #      torch.isnan(obs).sum().item(), 
-        #      torch.isnan(prev_actions).sum().item(), 
-        #      torch.isnan(prev_comms_out).sum().item(), "\n\n")
-
-                        
-        for layer in range(self.args.layers):
-            (zp_mu, zp_std, new_hidden_states_p), (zq_mu, zq_std, new_hidden_states_q), dkl = \
-                self.pvrnn_layers[layer](
-                    prev_hidden_states[:,layer].unsqueeze(1), 
-                    obs, prev_actions, prev_comms_out,
-                    new_hidden_states_list_q[-1] if layer > 0 else None, 
-                    prev_hidden_states[:,layer+1].unsqueeze(1) if layer + 1 < self.args.layers else None)
-    
-            for l, o in zip(
-                [zp_mu_list, zp_std_list, zq_mu_list, zq_std_list, new_hidden_states_list_p, new_hidden_states_list_q, dkls],
-                [zp_mu, zp_std, zq_mu, zq_std, new_hidden_states_p, new_hidden_states_q, dkl]):            
-                l.append(o)
+                                    
+        new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl = \
+            self.pvrnn_layer(
+                prev_hidden_states[:,0].unsqueeze(1), 
+                rgbd, comm, sensors, prev_actions, prev_comms_out)
                 
-        lists = [zp_mu_list, zp_std_list, zq_mu_list, zq_std_list, new_hidden_states_list_p, new_hidden_states_list_q, dkls]
-        for i in range(len(lists)):
-            lists[i] = torch.cat(lists[i], dim=1)
-        zp_mu, zp_std, zq_mu, zq_std, new_hidden_states_p, new_hidden_states_q, dkl = lists
-                                
-        return(
-            (zp_mu.unsqueeze(1), zp_std.unsqueeze(1), new_hidden_states_p.unsqueeze(1)),
-            (zq_mu.unsqueeze(1), zq_std.unsqueeze(1), new_hidden_states_q.unsqueeze(1)),
-            dkls)
+        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl)
     
     def forward(self, prev_hidden_states, rgbd, comms_in, sensors, prev_actions, prev_comms_out):
-        zp_mu_list = []
-        zp_std_list = []
-        zq_mu_list = []
-        zq_std_list = []
-        new_hidden_states_list_p = []
-        new_hidden_states_list_q = []
+        rgbd_dkl_list = []
+        comm_dkl_list = []
+        sensors_dkl_list = []
+        new_hidden_states_p_list = []
+        new_hidden_states_q_list = []
         
         prev_time = duration()
                 
         episodes, steps = episodes_steps(rgbd)
         if(prev_hidden_states == None):
-            prev_hidden_states = torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size))
-        obs = self.obs_in(rgbd, comms_in, sensors)
+            prev_hidden_states = torch.zeros(episodes, 1, self.args.pvrnn_mtrnn_size)
+        rgbd = self.rgbd_in(rgbd)
+        comms_in = self.comm_in(comms_in)
+        sensors = self.sensors_in(sensors)
         prev_actions = self.action_in(prev_actions)
-        prev_comms_out = self.comm_in(prev_comms_out)
-                        
+        prev_comms_out = self.comm_out_in(prev_comms_out)
+                                
         for step in range(steps):
-            (zp_mu, zp_std, new_hidden_states_p), (zq_mu, zq_std, new_hidden_states_q), dkls = \
-                self.bottom_to_top_step(prev_hidden_states, obs[:,step], prev_actions[:,step], prev_comms_out[:,step])
-            
-            for l, o in zip(
-                [zp_mu_list, zp_std_list, zq_mu_list, zq_std_list, new_hidden_states_list_p, new_hidden_states_list_q],
-                [zp_mu, zp_std, zq_mu, zq_std, new_hidden_states_p, new_hidden_states_q]):     
-                l.append(o)
+            new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl = \
+            self.bottom_to_top_step(
+                prev_hidden_states, rgbd[:,step], comms_in[:,step], sensors[:,step], 
+                prev_actions[:,step], prev_comms_out[:,step])
                 
-            prev_hidden_states = new_hidden_states_q.squeeze(1)
-            
-        lists = [zp_mu_list, zp_std_list, zq_mu_list, zq_std_list, new_hidden_states_list_p, new_hidden_states_list_q]
+            for l, o in zip(
+                [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_dkl_list, comm_dkl_list,sensors_dkl_list],
+                [new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl]):     
+                l.append(o)
+                                
+            prev_hidden_states = new_hidden_states_q
+                        
+        lists = [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_dkl_list, comm_dkl_list, sensors_dkl_list]
         for i in range(len(lists)):
             lists[i] = torch.cat(lists[i], dim=1)
-        zp_mu, zp_std, zq_mu, zq_std, new_hidden_states_p, new_hidden_states_q = lists
-        
-        pred_rgbd, pred_comms, pred_sensors = self.predict(new_hidden_states_q[:, :-1, 0], prev_actions[:, 1:])
-        
-        return(
-            (zp_mu, zp_std, new_hidden_states_p),
-            (zq_mu, zq_std, new_hidden_states_q),
-            (pred_rgbd, pred_comms, pred_sensors),
-            dkls)
+        new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl = lists
+                
+        pred_rgbd_q, pred_comms_q, pred_sensors_q = self.predict(new_hidden_states_q[:, :-1], prev_actions[:, 1:])
+                
+        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comms_q, pred_sensors_q)
         
         
         

@@ -3,15 +3,16 @@
 # To do: most important 
 #   Make it work.
 #   Make it work FASTER.
+#   Beta values seem to harm.
 #   'free play' which_goal_messages seem to be working, but maybe offset? Also, image prediction terrible!
 #   Trying float16 on cuda. Getting NaN.
 #   Allow multiple layers in PVRNN.
 
 # To do: less important 
 #   Make comm prediction work with GRU.
-#   Try making sensor-observation more helpful, like speed or something.
+#   Try making sensor-observation more helpful, like number of sub-steps touching.
 #   Try predicting multiple steps into the future.
-#   Maybe actor and critic losses can be added to pvrnn's? # This works, but needs fine-tuning. 
+#   Training forward, actor, and critic losses together works, but needs fine-tuning. 
 
 import os
 import pickle
@@ -238,14 +239,14 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
     # Things which have list-values.
 parser.add_argument('--task_list',          type=literal,    default = ["1"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [10000],
+parser.add_argument('--epochs',             type=literal,    default = [3000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
-                    help='Time-scales for MTRNN.')
+                    help='Time-scales for upper MTRNN.')
 parser.add_argument("--beta",               type=literal,    default = [2],
-                    help='Relative importance of complexity in each layer.')
+                    help='Relative importance of complexity in each upper layer.')
 parser.add_argument("--hidden_state_eta",   type=literal,    default = [5],
-                    help='Nonnegative values, how much to consider hidden_state curiosity in each layer.') 
+                    help='Nonnegative values, how much to consider hidden_state curiosity in each upper layer.') 
 
     # Simulation details
 parser.add_argument('--max_object_distance',type=float,      default = 6,
@@ -288,7 +289,7 @@ parser.add_argument('--step_cost',          type=float,      default = .975,
                     help='How much extrinsic rewards for exiting are reduced per step.')
 parser.add_argument('--actions',            type=int,        default = 5,
                     help='Maximum count of actions in one episode.')
-parser.add_argument('--objects',            type=int,        default = 4,
+parser.add_argument('--objects',            type=int,        default = 2,
                     help='Maximum count of objects in one episode.')
 parser.add_argument('--shapes',             type=int,        default = 5,
                     help='Maximum count of shapes in one episode.')
@@ -365,9 +366,7 @@ parser.add_argument("--d",                  type=int,        default = 2,
 parser.add_argument('--hidden_size',        type=int,        default = 64,
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 256,
-                    help='Parameters in hidden layers pf PVRNN\'s mtrnn.')   
-parser.add_argument('--state_size',         type=int,        default = 256,
-                    help='Parameters in prior and posterior inner-states.')
+                    help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
 parser.add_argument('--rgbd_state_size',    type=int,        default = 128,
                     help='Parameters in prior and posterior inner-states.')
 parser.add_argument('--comm_state_size',    type=int,        default = 128,
@@ -416,11 +415,11 @@ parser.add_argument('--std_min',            type=int,        default = exp(-20),
                     help='Minimum value for standard deviation.')
 parser.add_argument('--std_max',            type=int,        default = exp(2),
                     help='Maximum value for standard deviation.')
-parser.add_argument("--beta_rgbd",          type=float,      default = 1,
+parser.add_argument("--beta_rgbd",          type=float,      default = .1,
                     help='Relative importance of complexity for rgbd.')
-parser.add_argument("--beta_comm",          type=float,      default = 1,
+parser.add_argument("--beta_comm",          type=float,      default = .1,
                     help='Relative importance of complexity for comm.')
-parser.add_argument("--beta_sensors",       type=float,      default = 1,
+parser.add_argument("--beta_sensors",       type=float,      default = .1,
                     help='Relative importance of complexity for sensors.')     
 
     # Curiosity

@@ -16,7 +16,9 @@ def get_physics(GUI, time_step, steps_per_step, w = 10, h = 10):
         p.resetDebugVisualizerCamera(1,90,-89,(w/2,h/2,w), physicsClientId = physicsClient)
     else:   
         physicsClient = p.connect(p.DIRECT)
+        p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0, physicsClientId = physicsClient)
     p.setAdditionalSearchPath("pybullet_data")
+    # Consider reducing gravity.
     p.setGravity(0, 0, -100, physicsClientId = physicsClient)
     p.setTimeStep(time_step / steps_per_step, physicsClientId=physicsClient)  # More accurate time step
     p.setPhysicsEngineParameter(numSolverIterations=1, numSubSteps=1, physicsClientId=physicsClient)  # Increased solver iterations for potentially better stability
@@ -115,8 +117,8 @@ class Arena():
                 self.object_indexs.append(object_index)
                 
     def end(self):
-        for (_, _, old_pos), object_index in self.objects_in_play.items():
-            p.resetBasePositionAndOrientation(object_index, old_pos, self.default_orn, physicsClientId = self.physicsClient)
+        for (_, _, idle_pos), object_index in self.objects_in_play.items():
+            p.resetBasePositionAndOrientation(object_index, idle_pos, self.default_orn, physicsClientId = self.physicsClient)
             
     def stop(self):
         p.disconnect(physicsClientId = self.physicsClient)
@@ -139,7 +141,7 @@ class Arena():
             random_positions = set_positions
         for i, (color_index, shape_index) in enumerate(objects):
             rgba = color_map[color_index][2]
-            object_index, old_pos = self.loaded[shape_index][already_in_play[shape_index]]
+            object_index, idle_pos = self.loaded[shape_index][already_in_play[shape_index]]
             already_in_play[shape_index] += 1
             x, y = random_positions[i]
             p.resetBasePositionAndOrientation(object_index, (x, y, object_upper_starting_pos), (0, 0, 0, 1), physicsClientId = self.physicsClient)
@@ -147,12 +149,13 @@ class Arena():
             p.changeVisualShape(object_index, -1, rgbaColor = rgba, physicsClientId = self.physicsClient)
             for i in range(p.getNumJoints(object_index)):
                 p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId = self.physicsClient)
-            self.objects_in_play[(color_index, shape_index, old_pos)] = object_index
+            self.objects_in_play[(color_index, shape_index, idle_pos)] = object_index
             self.watching[object_index] = 0
             
         self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
         self.objects_start = self.object_positions()
         self.objects_end = self.object_positions()
+        self.objects_touch = self.touching_any_object()
         
     def step(self, left_wheel, right_wheel, shoulder, verbose = False, sleep_time = None):
         
@@ -161,8 +164,10 @@ class Arena():
             
         self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
         self.objects_start = self.object_positions()
-        for object_index in self.objects_in_play.values():
-            pos, _, _ = self.get_pos_yaw_spe(object_index)
+        touching = self.touching_any_object()
+        for object_index, touch_dict in touching.items():
+           for body_part in touch_dict.keys():
+               touch_dict[body_part] = 0 
  
         if(shoulder < 0): 
             shoulder = -self.args.max_shoulder_speed
@@ -182,8 +187,14 @@ class Arena():
             if(self.get_shoulder_angle() < self.args.min_shoulder_angle):
                 self.set_shoulder_angle(shoulder = self.args.min_shoulder_angle)
                 shoulder = 0
+            touching_now = self.touching_any_object()
+            for object_index, touch_dict in touching_now.items():
+                for body_part, value in touch_dict.items():
+                    if(value):
+                        touching[object_index][body_part] += 1/self.args.steps_per_step
                 
         self.objects_end = self.object_positions()
+        self.objects_touch = touching
             
         if(sleep_time != None):
             p.setTimeStep(self.args.time_step / self.args.steps_per_step, physicsClientId=self.physicsClient)  # More accurate time step
@@ -272,8 +283,9 @@ class Arena():
     def touching_object(self, object_index):
         touching = {}
         for sensor_index, link_name in self.sensors:
-            touching[link_name] = bool(p.getContactPoints(
+            touching_this = bool(p.getContactPoints(
                 bodyA=self.robot_index, bodyB=object_index, linkIndexA=sensor_index, physicsClientId = self.physicsClient))
+            touching[link_name] = 1 if touching_this else 0
         return(touching)
     
     def touching_any_object(self):
@@ -300,8 +312,7 @@ class Arena():
         v_ry = sin(self.robot_start_yaw)
         
         if(verbose):
-            touchings = self.touching_any_object()
-            for object_key, object_dict in touchings.items():
+            for object_key, object_dict in self.objects_touch.items():
                 for link_name, value in object_dict.items():
                     if(value):
                         print(f"Touching {object_key} with {link_name}.")
@@ -316,8 +327,7 @@ class Arena():
             righting = False
             
             # Is the agent touching the object?
-            touching = self.touching_object(object_index)
-            touching = any(touching.values())
+            touching = any(self.objects_touch[object_index].values())
             
             # Distance and angle from agent to object.
             object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
