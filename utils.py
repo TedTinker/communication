@@ -1,16 +1,14 @@
 #%% 
 
 # To do: most important 
-#   Make it work.
-#   Make it work FASTER.
+#   Make it work, and FASTER.
+#   Make comm prediction work with GRU.
 #   Beta values seem to harm.
 #   'free play' which_goal_messages seem to be working, but maybe offset? Also, image prediction terrible!
 #   Trying float16 on cuda. Getting NaN.
-#   Allow multiple layers in PVRNN.
 
 # To do: less important 
-#   Make comm prediction work with GRU.
-#   Try making sensor-observation more helpful, like number of sub-steps touching.
+#   Allow multiple layers in PVRNN.
 #   Try predicting multiple steps into the future.
 #   Training forward, actor, and critic losses together works, but needs fine-tuning. 
 
@@ -239,7 +237,7 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
     # Things which have list-values.
 parser.add_argument('--task_list',          type=literal,    default = ["1"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [3000],
+parser.add_argument('--epochs',             type=literal,    default = [10000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for upper MTRNN.')
