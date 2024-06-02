@@ -6,6 +6,7 @@
 #   Beta values seem to harm.
 #   'free play' which_goal_messages seem to be working, but maybe offset? Also, image prediction terrible!
 #   Trying float16 on cuda. Getting NaN.
+#   In plot episodes, make diagram showing which sensors are touched!
 
 # To do: less important 
 #   Allow multiple layers in PVRNN.
@@ -235,9 +236,9 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
                     help='Should durations be printed?')
 
     # Things which have list-values.
-parser.add_argument('--task_list',          type=literal,    default = ["1"],
+parser.add_argument('--task_list',          type=literal,    default = ["0", "1"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [10000],
+parser.add_argument('--epochs',             type=literal,    default = [5000, 5000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for upper MTRNN.')
