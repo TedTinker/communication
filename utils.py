@@ -3,10 +3,9 @@
 # To do: most important 
 #   Make it work, and FASTER.
 #   Make comm prediction work with GRU.
-#   Beta values seem to harm.
-#   'free play' which_goal_messages seem to be working, but maybe offset? Also, image prediction terrible!
+#   'free play' image prediction terrible! WHY?
 #   Trying float16 on cuda. Getting NaN.
-#   In plot episodes, make diagram showing which sensors are touched!
+#   Beta values seem to harm.
 
 # To do: less important 
 #   Allow multiple layers in PVRNN.
@@ -60,7 +59,6 @@ max_len_color_name = max([len(c[2]) for c in color_map.values()])
 color_name_list = [c[2] for c in color_map.values()]
 
 data_path = "pybullet_data"
-robot_file = data_path + "/robot"
 shape_files = [f.name for f in os.scandir(data_path + "/shapes") if f.name.endswith("urdf")] ; shape_files.sort()
 shape_num_letter_name_file = [[f.split("_")[0], f.split("_")[1], f.split("_")[2][:-5], f] for f in shape_files]
 shape_map = {int(num) : [l, n, f] for num, l, n, f in shape_num_letter_name_file} 
@@ -211,6 +209,8 @@ for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsCli
 p.disconnect(physicsClientId = physicsClient)
 num_sensors = len(sensors)
 
+
+
 # Arguments to parse. 
 def literal(arg_string): return(ast.literal_eval(arg_string))
 parser = argparse.ArgumentParser()
@@ -236,9 +236,9 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
                     help='Should durations be printed?')
 
     # Things which have list-values.
-parser.add_argument('--task_list',          type=literal,    default = ["0", "1"],
+parser.add_argument('--task_list',          type=literal,    default = ["1"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [5000, 5000],
+parser.add_argument('--epochs',             type=literal,    default = [5000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -300,7 +300,7 @@ parser.add_argument('--watch_distance',     type=float,      default = 8,
                     help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--watch_duration',     type=int,        default = 3,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--push_amount',        type=float,      default = .25,
+parser.add_argument('--push_amount',        type=float,      default = .75,
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--pull_amount',        type=float,      default = .25,
                     help='Needed distance of an object for push/pull/left/right.')

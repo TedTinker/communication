@@ -1,3 +1,5 @@
+#%% 
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
@@ -6,7 +8,11 @@ import re
 import imageio
 import numpy as np
 
+print(os.getcwd())
+
 from utils import print, args, duration, load_dicts
+from pybullet_data.robot_maker import plot_sensors
+
 
 
 
@@ -97,22 +103,21 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         text_list.append(comms_in_q)
         label_list.append(f"Predicted Comms (Posterior) ({agent_num}):")
     
-    # How to make this use names of any none-zero sensors?
     sensors = episode_dict[f"sensors_{agent_num}"][step][0]
-    sensor_names = [args.sensor_names[i] for i in range(len(sensors)) if sensors[i] > 0]    
-    text_list.append(str(sensor_names))
+    text_list.append("image")
+    image_list.append(plot_sensors(sensors))
     label_list.append(f"Sensors ({agent_num}):")
     
     if not step == 0:
         
         sensors_p = episode_dict[f"prior_predicted_sensors_{agent_num}"][step-1]
-        sensor_names_p = [args.sensor_names[i] for i in range(len(sensors_p)) if sensors_p[i] > .25]    
-        text_list.append(str(sensor_names_p))
+        text_list.append("image")   
+        image_list.append(plot_sensors(sensors_p))
         label_list.append(f"Predicted Sensors (Prior) ({agent_num}):")
         
         sensors_q = episode_dict[f"posterior_predicted_sensors_{agent_num}"][step-1]
-        sensor_names_q = [args.sensor_names[i] for i in range(len(sensors_q)) if sensors_q[i] > .25]    
-        text_list.append(str(sensor_names_q))
+        text_list.append("image")   
+        image_list.append(plot_sensors(sensors_q))
         label_list.append(f"Predicted Sensors (Posterior) ({agent_num}):")
         
         raw_rewards = episode_dict["raw_rewards"][step-1]
@@ -168,7 +173,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         plot_list.append(sensors_dkls)
         label_list.append(f"Sensors DKL ({agent_num}):")
         
-    fig = plt.figure(figsize=(15, 20 if last_step else 20))
+    fig = plt.figure(figsize=(15, 20))
     gs = gridspec.GridSpec(len(label_list), 2, height_ratios=[20 if text == "image" else 10 if text == "plot" else 1 if text.startswith("Yaw:") else 1 for text in text_list], width_ratios=[1, 4])
     images_plotted = 0
     plots_plotted = 0
@@ -204,3 +209,4 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 plot_episodes(complete_order, plot_dicts)
 print("\nDuration: {}. Done!".format(duration()))
+# %%

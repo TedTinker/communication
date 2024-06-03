@@ -81,7 +81,7 @@ class Arena():
             
         # Place robot. 
         self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = self.physicsClient)
-        self.robot_index = p.loadURDF("robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
+        self.robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
         
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
         p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
@@ -100,7 +100,7 @@ class Arena():
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 0, 0, sensor_alpha), physicsClientId = self.physicsClient)
             else:
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
-        
+                        
         # Place objects on lower level for future use.
         self.loaded = {key : [] for key in shape_map.keys()}
         self.object_indexs = []
@@ -156,6 +156,9 @@ class Arena():
         self.objects_start = self.object_positions()
         self.objects_end = self.object_positions()
         self.objects_touch = self.touching_any_object()
+        for object_index, touch_dict in self.objects_touch.items():
+           for body_part in touch_dict.keys():
+               touch_dict[body_part] = 0 
         
     def step(self, left_wheel, right_wheel, shoulder, verbose = False, sleep_time = None):
         
@@ -192,6 +195,8 @@ class Arena():
                 for body_part, value in touch_dict.items():
                     if(value):
                         touching[object_index][body_part] += 1/self.args.steps_per_step
+                        if(touching[object_index][body_part]) > 1:
+                            touching[object_index][body_part] = 1
                 
         self.objects_end = self.object_positions()
         self.objects_touch = touching
