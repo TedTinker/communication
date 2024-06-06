@@ -1,10 +1,12 @@
 import os
 import matplotlib.pyplot as plt 
+custom_ls = (0, (3, 5, 1, 5))
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE" # Without this, pyplot crashes the kernal
 
 import numpy as np
 from math import log
 from itertools import accumulate
+from statistics import mode
 
 from utils import args, duration, load_dicts, print, real_names
 
@@ -14,7 +16,8 @@ print("name:\n{}\n".format(args.arg_name),)
 
 def get_quantiles(plot_dict, name, levels = [1, 2, 3, 4, 5], adjust_xs=True, remove_none = True):
     # Convert all None to np.nan in the dataset for uniformity
-    lists = np.array([[np.nan if x is None else x for x in agent] for agent in plot_dict[name]], dtype=float)
+    max_len = mode([len(agent) for agent in plot_dict[name]])
+    lists = np.array([[0 if x is None else x for x in agent] for agent in plot_dict[name] if len(agent) == max_len], dtype=float)
     
     # Adjust xs based on whether to adjust them by 'keep_data' multiplier or not
     xs = np.arange(lists.shape[1])
@@ -48,11 +51,12 @@ def get_list_quantiles(list_of_lists, plot_dict, levels = [1, 2, 3, 4, 5], remov
     quantile_dicts = []
     for layer in range(len(list_of_lists[0])):
         l = [l[layer] for l in list_of_lists]
+        max_len = mode(len(sublist) for sublist in l)
+        lists = np.array([l[i] for i in range(len(l)) if len(l[i]) == max_len], dtype=float)   
         if(remove_none):
-            xs = [i for i, x in enumerate(l[0]) if x != None]
+            xs = [i for i, x in enumerate(lists[0]) if x != None]
         else:
-            xs = [i for i, x in enumerate(l[0])]
-        lists = np.array(l, dtype=float)    
+            xs = [i for i, x in enumerate(lists[0])] 
         lists = lists[:,xs]
         quantile_dict = {"xs" : [x * plot_dict["args"].keep_data for x in xs]}
         quantile_dict["med"] = np.quantile(lists, 0.5, axis=0)
@@ -145,11 +149,8 @@ def plots(plot_dicts, min_max_dict):
         action_name_list = []
         for key in plot_dict.keys():
             if(key.startswith("wins_")):
-                action_name_list.append(key[5:])
-        try:
-            action_name_list.remove("free_play")
-        except:
-            pass 
+                if(key[5:] != "free_play"):
+                    action_name_list.append(key[5:])
         for action_name in action_name_list:
             win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), levels = [1], adjust_xs = False, remove_none = False)
             gen_win_dict = get_quantiles(plot_dict, "gen_wins_" + action_name.lower(), levels = [1], adjust_xs = False, remove_none = False)
@@ -347,7 +348,7 @@ def plots(plot_dicts, min_max_dict):
             ax3.set_ylabel("Alpha Loss")
             ax.set_xlabel("Epochs")
             ax.legend(handles = handles)
-            ax.set_title(plot_dict["arg_title"] + "\nSensors Losses")
+            ax.set_title(plot_dict["arg_title"] + "\nActor, Critic Losses")
             divide_arenas(actor_dict, ax)
             
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
@@ -365,7 +366,7 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(ax3, alpha_dict, "black", "Alpha", min_max_dict["alpha"]))
             ax3.set_ylabel("Alpha Loss")
             ax.legend(handles = handles)
-            ax.set_title(plot_dict["arg_title"] + "\nSensors Losses, shared min/max")
+            ax.set_title(plot_dict["arg_title"] + "\nActor, Critic Losses, shared min/max")
             divide_arenas(actor_dict, ax)
             
             
@@ -502,11 +503,11 @@ def plots(plot_dicts, min_max_dict):
             awesome_plot(ax, prediction_error_curiosity_dict, "green", "prediction_error", linestyle = "solid")
             awesome_plot(ax, rgbd_prediction_error_curiosity_dict, "green", "rgbd_prediction_error", linestyle = "dotted")
             awesome_plot(ax, comm_prediction_error_curiosity_dict, "green", "comm_prediction_error", linestyle = "dashed")
-            awesome_plot(ax, sensors_prediction_error_curiosity_dict, "green", "sensors_prediction_error", linestyle = "dashdot")
+            awesome_plot(ax, sensors_prediction_error_curiosity_dict, "green", "sensors_prediction_error", linestyle = custom_ls)
             awesome_plot(ax, hidden_state_curiosity_dict, "red", "hidden_state", linestyle = "solid")
             awesome_plot(ax, rgbd_hidden_state_curiosity_dict, "red", "rgbd_hidden_state", linestyle = "dotted")
             awesome_plot(ax, comm_hidden_state_curiosity_dict, "red", "comm_hidden_state", linestyle = "dashed")
-            awesome_plot(ax, sensors_hidden_state_curiosity_dict, "red", "sensors_hidden_state", linestyle = "dashdot")
+            awesome_plot(ax, sensors_hidden_state_curiosity_dict, "red", "sensors_hidden_state", linestyle = custom_ls)
             ax.set_ylabel("Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()
@@ -517,11 +518,11 @@ def plots(plot_dicts, min_max_dict):
             awesome_plot(ax, prediction_error_curiosity_dict, "green", "prediction_error", min_max = min_max, linestyle = "solid")
             awesome_plot(ax, rgbd_prediction_error_curiosity_dict, "green", "rgbd_prediction_error", min_max = min_max, linestyle = "dotted")
             awesome_plot(ax, comm_prediction_error_curiosity_dict, "green", "comm_prediction_error", min_max = min_max, linestyle = "dashed")
-            awesome_plot(ax, sensors_prediction_error_curiosity_dict, "green", "sensors_prediction_error", min_max = min_max, linestyle = "dashdot")
+            awesome_plot(ax, sensors_prediction_error_curiosity_dict, "green", "sensors_prediction_error", min_max = min_max, linestyle = custom_ls)
             awesome_plot(ax, hidden_state_curiosity_dict, "red", "hidden_state", min_max = min_max, linestyle = "solid")
             awesome_plot(ax, rgbd_hidden_state_curiosity_dict, "red", "rgbd_hidden_state", min_max = min_max, linestyle = "dotted")
             awesome_plot(ax, comm_hidden_state_curiosity_dict, "red", "comm_hidden_state", min_max = min_max, linestyle = "dashed")
-            awesome_plot(ax, sensors_hidden_state_curiosity_dict, "red", "sensors_hidden_state", min_max = min_max, linestyle = "dashdot")
+            awesome_plot(ax, sensors_hidden_state_curiosity_dict, "red", "sensors_hidden_state", min_max = min_max, linestyle = custom_ls)
             ax.set_ylabel("Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()
@@ -545,11 +546,11 @@ def plots(plot_dicts, min_max_dict):
             awesome_plot(ax, log_prediction_error_dict, "green", "log prediction_error", linestyle = "solid")
             awesome_plot(ax, log_rgbd_prediction_error_dict, "green", "log rgbd prediction_error", linestyle = "dotted")
             awesome_plot(ax, log_comm_prediction_error_dict, "green", "log comm prediction_error", linestyle = "dashed")
-            awesome_plot(ax, log_sensors_prediction_error_dict, "green", "log sensors prediction_error", linestyle = "dashdot")
+            awesome_plot(ax, log_sensors_prediction_error_dict, "green", "log sensors prediction_error", linestyle = custom_ls)
             awesome_plot(ax, log_hidden_state_dict, "red", "log hidden_state", linestyle = "solid")
             awesome_plot(ax, log_rgbd_hidden_state_dict, "red", "log rgbd hidden_state", linestyle = "dotted")
             awesome_plot(ax, log_comm_hidden_state_dict, "red", "log comm hidden_state", linestyle = "dashed")
-            awesome_plot(ax, log_sensors_hidden_state_dict, "red", "log sensors hidden_state", linestyle = "dashdot")
+            awesome_plot(ax, log_sensors_hidden_state_dict, "red", "log sensors hidden_state", linestyle = custom_ls)
             ax.set_ylabel("log Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()
@@ -563,11 +564,11 @@ def plots(plot_dicts, min_max_dict):
             awesome_plot(ax, log_prediction_error_dict, "green", "log prediction_error", min_max = min_max, linestyle = "solid")
             awesome_plot(ax, log_rgbd_prediction_error_dict, "green", "log rgbd prediction_error", min_max = min_max, linestyle = "dotted")
             awesome_plot(ax, log_comm_prediction_error_dict, "green", "log comm prediction_error", min_max = min_max, linestyle = "dashed")
-            awesome_plot(ax, log_sensors_prediction_error_dict, "green", "log sensors prediction_error", min_max = min_max, linestyle = "dashdot")
+            awesome_plot(ax, log_sensors_prediction_error_dict, "green", "log sensors prediction_error", min_max = min_max, linestyle = custom_ls)
             awesome_plot(ax, log_hidden_state_dict, "red", "log hidden_state", min_max = min_max, linestyle = "solid")
             awesome_plot(ax, log_rgbd_hidden_state_dict, "red", "log rgbd hidden_state", min_max = min_max, linestyle = "dotted")
             awesome_plot(ax, log_comm_hidden_state_dict, "red", "log comm hidden_state", min_max = min_max, linestyle = "dashed")
-            awesome_plot(ax, log_sensors_hidden_state_dict, "red", "log sensors hidden_state", min_max = min_max, linestyle = "dashdot")
+            awesome_plot(ax, log_sensors_hidden_state_dict, "red", "log sensors hidden_state", min_max = min_max, linestyle = custom_ls)
             ax.set_ylabel("log Curiosity")
             ax.set_xlabel("Epochs")
             ax.legend()

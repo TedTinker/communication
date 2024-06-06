@@ -3,7 +3,7 @@
 # To do: most important 
 #   Make it work, and FASTER.
 #   Make comm prediction work with GRU.
-#   'free play' image prediction terrible! WHY?
+#   'free play' image prediction is terrible! WHY? 
 #   Trying float16 on cuda. Getting NaN.
 #   Beta values seem to harm.
 
@@ -236,9 +236,9 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
                     help='Should durations be printed?')
 
     # Things which have list-values.
-parser.add_argument('--task_list',          type=literal,    default = ["1"],
+parser.add_argument('--task_list',          type=literal,    default = ["0", "1"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [5000],
+parser.add_argument('--epochs',             type=literal,    default = [5000, 5000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -348,6 +348,8 @@ parser.add_argument('--critic_lr',          type=float,      default = .0003,
                     help='Learning rate for critic model.')
 parser.add_argument('--critics',            type=int,        default = 2,
                     help='How many critics?')  
+parser.add_argument('--train_together',     type=literal,    default = False,
+                    help='Training forward/actor/critics together, or separately?') 
 parser.add_argument('--forward_scaler',     type=float,      default = 1, 
                     help='If forward/actor/critic loss are combined, consideration of forward.')  
 parser.add_argument('--actor_scaler',       type=float,      default = 1, 
@@ -602,6 +604,15 @@ def opposite_relative_to(this, min, max):
 
 
 # PyTorch functions.
+
+
+
+def how_many_nans(tensor, place = "tensor"):
+    if(tensor == None):
+        return
+    nan_count = torch.isnan(tensor).sum().item()
+    if nan_count > 0:
+        print(f'nans in {place}: \t{nan_count}.')
 
 
 def extract_and_concatenate(tensor, expected_len):

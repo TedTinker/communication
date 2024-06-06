@@ -51,7 +51,7 @@ class Agent:
         self.tasks = {
             "0" : Task(actions = [-1],              objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parenting = True, args = self.args),
             "1" : Task(actions = [1],               objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0],               parenting = True, args = self.args),
-            "2" : Task(actions = [0, 1, 3, 4],      objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0],               parenting = True, args = self.args),
+            "2" : Task(actions = [3],      objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0],               parenting = True, args = self.args),
             "3" : Task(actions = [0, 1, 2, 3, 4],   objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args)}
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
@@ -324,7 +324,7 @@ class Agent:
             next_rgbd_2, _, next_sensors_2 = self.task.obs(agent_1 = False)
             
             next_comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.task.task.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
-            next_comm_in_2 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.task.task.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
+            next_comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.task.task.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
             
             #print("which_goal_message_1:", string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0).shape)
             #print("parent_comm:", next_parent_comm.unsqueeze(0).shape)
@@ -817,9 +817,7 @@ class Agent:
         #print("Agent {}, epoch {}. rgbds: {}. comms in: {}. actions: {}. comms out: {}. recommended actions: {}. rewards: {}. dones: {}. masks: {}.".format(
         #    self.agent_num, self.epochs, rgbds.shape, comms_in.shape, actions.shape, comms_out.shape, recommended_actions.shape, rewards.shape, dones.shape, masks.shape))
         #print("\n\n")
-        
                 
-        
         # Train forward
         hps, hqs, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comms_q, pred_sensors_q = self.forward(
             torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), 
@@ -855,10 +853,12 @@ class Agent:
         if(self.args.show_duration): print("USED FORWARD:", time - prev_time)
         prev_time = time
                                 
-        self.forward_opt.zero_grad()
-        (accuracy + complexity).backward()
-        self.forward_opt.step()
-        #complete_loss = self.args.forward_scaler * (accuracy + complexity)
+        if(self.args.train_together):
+            complete_loss = self.args.forward_scaler * (accuracy + complexity)
+        else:
+            self.forward_opt.zero_grad()
+            (accuracy + complexity).backward()
+            self.forward_opt.step()
         
         if(self.args.beta == 0): complexity = None
         torch.cuda.empty_cache()
@@ -927,10 +927,12 @@ class Agent:
             critic_loss = 0.5*F.mse_loss(Q*masks, Q_targets*masks)
             critic_losses.append(critic_loss)
             Qs.append(Q[0,0].item())
-            self.critic_opts[i].zero_grad()
-            critic_loss.backward()
-            self.critic_opts[i].step()
-            #complete_loss += self.args.critic_scaler * critic_loss
+            if(self.args.train_together):
+                complete_loss += self.args.critic_scaler * critic_loss
+            else:
+                self.critic_opts[i].zero_grad()
+                critic_loss.backward()
+                self.critic_opts[i].step()
         
             self.soft_update(self.critics[i], self.critic_targets[i], self.args.tau)
         
@@ -976,11 +978,13 @@ class Agent:
             time = duration()
             if(self.args.show_duration): print("USED ACTOR:", time - prev_time)
             prev_time = time
-
-            self.actor_opt.zero_grad()
-            actor_loss.backward()
-            self.actor_opt.step()
-            #complete_loss += self.args.actor_scaler * actor_loss 
+            
+            if(self.args.train_together):
+                complete_loss += self.args.actor_scaler * actor_loss 
+            else:
+                self.actor_opt.zero_grad()
+                actor_loss.backward()
+                self.actor_opt.step()
             
             time = duration()
             if(self.args.show_duration): print("TRAINED ACTOR:", time - prev_time)
@@ -991,9 +995,10 @@ class Agent:
             intrinsic_imitation = None
             actor_loss = None
             
-        #self.complete_opt.zero_grad()
-        #complete_loss.backward()
-        #self.complete_opt.step()
+        if(self.args.train_together):
+            self.complete_opt.zero_grad()
+            complete_loss.backward()
+            self.complete_opt.step()
         
             
             

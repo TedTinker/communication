@@ -353,7 +353,7 @@ def plot_sensors(sensor_values, sensor_positions = sensor_positions, sensor_dime
             [vertices[4], vertices[7], vertices[3], vertices[0]]
         ]
 
-        poly3d = Poly3DCollection(faces, facecolors=(1, 0, 0, value), linewidths=0.5, edgecolors=(0, 0, 0, .3))
+        poly3d = Poly3DCollection(faces, facecolors=(1, 0, 0, value), linewidths=0.5, edgecolors=(0, 0, 0, .1))
         ax.add_collection3d(poly3d)
 
     for i, (value, position, dimension) in enumerate(zip(sensor_values, sensor_positions, sensor_dimensions)):

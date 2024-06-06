@@ -72,9 +72,6 @@ class Task:
     
 
 
-# If we give this physicsClient, it's be reconstructing the arena every time!
-# Give it arenas instead.
-
 class Task_Runner:
     
     def __init__(self, task, arena_1, arena_2, args = default_args):
@@ -100,7 +97,6 @@ class Task_Runner:
                 
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
-        
         
         touched = [0] * self.args.sensors_shape
         #touching = arena.touching_any_object()
@@ -137,14 +133,15 @@ class Task_Runner:
         done = False
         
         raw_reward, distance_reward, angle_reward, win, which_goal_message_1 = self.act(action_1, verbose = verbose, sleep_time = sleep_time)
-        if(not self.parenting): 
-            raw_reward_2, distance_reward_2, angle_reward_2, win_2, which_goal_message_2 = self.act(action_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
-            raw_reward = max([raw_reward, raw_reward_2])
-            win = win or win_2
-        else:
+        if(self.parenting): 
             distance_reward_2 = 0
             angle_reward_2 = 0
             which_goal_message_2 = "      "
+            
+        else:
+            raw_reward_2, distance_reward_2, angle_reward_2, win_2, which_goal_message_2 = self.act(action_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
+            raw_reward = max([raw_reward, raw_reward_2])
+            win = win or win_2
             
         if(self.task.goal[0] == -1):
             raw_reward = 0
@@ -163,7 +160,7 @@ class Task_Runner:
                 
         if(end and not win): 
             done = True
-            if(self.task.goal[0] != -1):
+            if(self.task.goal[0] != -1 and raw_reward > 0):
                 raw_reward += self.args.step_lim_punishment
         if(win):
             done = True

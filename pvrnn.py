@@ -4,7 +4,7 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, attach_list, detach_list, dkl, duration
+from utils import default_args, attach_list, detach_list, dkl, duration, how_many_nans
 from submodule_utils import init_weights, episodes_steps, pad_zeros, var, sample, model_start, model_end
 from mtrnn import MTRNN
 from submodules import RGBD_IN, Comm_IN, Sensors_IN, Obs_IN, Obs_OUT, Action_IN, Comm_IN
@@ -119,9 +119,20 @@ class PVRNN_LAYER(nn.Module):
             kullback_leibler = kullback_leibler.reshape((episodes, steps, kullback_leibler.shape[1]))
             return(zp, zq, kullback_leibler)
         
+        how_many_nans(prev_hidden_states, "PVRNN layer, prev_hidden_states")
+        how_many_nans(rgbd, "PVRNN layer, rgbd")
+        how_many_nans(comm, "PVRNN layer, comm")
+        how_many_nans(sensors, "PVRNN layer, sensors")
+        how_many_nans(prev_actions, "PVRNN layer, prev_actions")
+        how_many_nans(prev_comms_out, "PVRNN layer, prev_comms_out")
+        
         prev_hidden_states = prev_hidden_states.to(self.args.device)
         zp_inputs = torch.cat([prev_hidden_states, prev_actions, prev_comms_out], dim=-1)
         rgbd_zq_inputs, comm_zq_inputs, sensors_zq_inputs = [torch.cat([zp_inputs, input_data], dim=-1) for input_data in (rgbd, comm, sensors)]
+        
+        how_many_nans(rgbd_zq_inputs, "PVRNN layer, rgbd_zq_inputs")
+        how_many_nans(comm_zq_inputs, "PVRNN layer, comm_zq_inputs")
+        how_many_nans(sensors_zq_inputs, "PVRNN layer, sensors_zq_inputs")
         
         episodes, steps = episodes_steps(zp_inputs)
         dtype = torch.float16 if self.args.half else None
@@ -129,6 +140,16 @@ class PVRNN_LAYER(nn.Module):
         rgbd_zp, rgbd_zq, rgbd_dkl = process_z_func_outputs(zp_inputs, rgbd_zq_inputs, self.rgbd_z, episodes, steps, dtype)
         comm_zp, comm_zq, comm_dkl = process_z_func_outputs(zp_inputs, comm_zq_inputs, self.comm_z, episodes, steps, dtype)
         sensors_zp, sensors_zq, sensors_dkl = process_z_func_outputs(zp_inputs, sensors_zq_inputs, self.sensors_z, episodes, steps, dtype)
+        
+        how_many_nans(rgbd_zp, "PVRNN layer, rgbd_zp")
+        how_many_nans(rgbd_zq, "PVRNN layer, rgbd_zq")
+        how_many_nans(rgbd_dkl, "PVRNN layer, rgbd_dkl")
+        how_many_nans(comm_zp, "PVRNN layer, comm_zp")
+        how_many_nans(comm_zq, "PVRNN layer, comm_zq")
+        how_many_nans(comm_dkl, "PVRNN layer, comm_dkl")
+        how_many_nans(sensors_zp, "PVRNN layer, sensors_zp")
+        how_many_nans(sensors_zq, "PVRNN layer, sensors_zq")
+        how_many_nans(sensors_dkl, "PVRNN layer, sensors_dkl")
         
         mtrnn_inputs_p = torch.cat([rgbd_zp, comm_zp, sensors_zp], dim=-1)
         mtrnn_inputs_q = torch.cat([rgbd_zq, comm_zq, sensors_zq], dim=-1)
@@ -138,6 +159,12 @@ class PVRNN_LAYER(nn.Module):
         
         new_hidden_states_p = self.mtrnn(mtrnn_inputs_p, prev_hidden_states)
         new_hidden_states_q = self.mtrnn(mtrnn_inputs_q, prev_hidden_states)
+        
+        how_many_nans(new_hidden_states_p, "PVRNN layer, new_hidden_states_p")
+        how_many_nans(new_hidden_states_q, "PVRNN layer, new_hidden_states_q")
+        how_many_nans(rgbd_dkl, "PVRNN layer, rgbd_dkl")
+        how_many_nans(comm_dkl, "PVRNN layer, comm_dkl")
+        how_many_nans(sensors_dkl, "PVRNN layer, sensors_dkl")
         
         return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl)
         
@@ -220,6 +247,13 @@ class PVRNN(nn.Module):
         new_hidden_states_p_list = []
         new_hidden_states_q_list = []
         
+        how_many_nans(prev_hidden_states, "PVRNN, prev_hidden_states")
+        how_many_nans(rgbd, "PVRNN, rgbd 1")
+        how_many_nans(comms_in, "PVRNN, comms_in 1")
+        how_many_nans(sensors, "PVRNN, sensors 1")
+        how_many_nans(prev_actions, "PVRNN, prev_actions 1")
+        how_many_nans(prev_comms_out, "PVRNN, prev_comms_out 1")
+        
         prev_time = duration()
                 
         episodes, steps = episodes_steps(rgbd)
@@ -230,12 +264,23 @@ class PVRNN(nn.Module):
         sensors = self.sensors_in(sensors)
         prev_actions = self.action_in(prev_actions)
         prev_comms_out = self.comm_out_in(prev_comms_out)
+        
+        how_many_nans(rgbd, "PVRNN, rgbd 2")
+        how_many_nans(comms_in, "PVRNN, comms_in 2")
+        how_many_nans(sensors, "PVRNN, sensors 2")
+        how_many_nans(prev_actions, "PVRNN, prev_actions 2")
+        how_many_nans(prev_comms_out, "PVRNN, prev_comms_out 2")
                                 
         for step in range(steps):
             new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl = \
             self.bottom_to_top_step(
                 prev_hidden_states, rgbd[:,step], comms_in[:,step], sensors[:,step], 
                 prev_actions[:,step], prev_comms_out[:,step])
+            how_many_nans(new_hidden_states_p, f"PVRNN, new_hidden_states_p step {step}")
+            how_many_nans(new_hidden_states_q, f"PVRNN, new_hidden_states_q step {step}")
+            how_many_nans(rgbd_dkl, f"PVRNN, rgbd_dkl step {step}")
+            how_many_nans(comm_dkl, f"PVRNN, comm_dkl step {step}")
+            how_many_nans(sensors_dkl, f"PVRNN, sensors_dkl step {step}")
                 
             for l, o in zip(
                 [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_dkl_list, comm_dkl_list,sensors_dkl_list],
@@ -250,6 +295,10 @@ class PVRNN(nn.Module):
         new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl = lists
                 
         pred_rgbd_q, pred_comms_q, pred_sensors_q = self.predict(new_hidden_states_q[:, :-1], prev_actions[:, 1:])
+        
+        how_many_nans(pred_rgbd_q, "PVRNN, pred_rgbd_q 2")
+        how_many_nans(pred_comms_q, "PVRNN, pred_comms_q 2")
+        how_many_nans(pred_sensors_q, "PVRNN, pred_sensors_q 2")
                 
         return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comms_q, pred_sensors_q)
         

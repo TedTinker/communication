@@ -7,7 +7,7 @@ from torch.distributions import Normal
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, detach_list, attach_list, print, duration
+from utils import default_args, detach_list, attach_list, print, duration, how_many_nans
 from submodule_utils import init_weights, episodes_steps, var, sample, model_start, model_end
 from mtrnn import MTRNN
 from submodules import Obs_IN, Action_IN, Comm_IN, Comm_OUT
@@ -75,6 +75,7 @@ class Actor(nn.Module):
         #prev_action = self.action_in(prev_action)
         #prev_comm_out_encoded = self.comm_in(prev_comm_out)
         # x = torch.cat([obs, prev_action, prev_comm_out_encoded, forward_hidden], dim = -1)
+        how_many_nans(forward_hidden, "Actor, forward_hidden")
         x = self.lin(forward_hidden)
         #x = self.mtrnn(x, action_hidden)
         #action_hidden = action_hidden[:,-1].unsqueeze(1)

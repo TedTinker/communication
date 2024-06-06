@@ -63,7 +63,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
     label_list.append("Goal:")
     
     if not step == 0:
-        which_goal_message = episode_dict[f"which_goal_message_{agent_num}"][step-1]
+        which_goal_message = episode_dict[f"which_goal_message_{agent_num}"][step]
         text_list.append(which_goal_message)
         label_list.append("Achieved goal:")
         
