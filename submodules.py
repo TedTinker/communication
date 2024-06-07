@@ -247,116 +247,7 @@ if __name__ == "__main__":
 #%%
 
 
-
-class Comm_OUT(nn.Module):
-
-    def __init__(self, actor = False, args = default_args):
-        super(Comm_OUT, self).__init__()  
-                
-        self.args = args
-        self.actor = actor
-        
-        self.a = nn.Sequential(
-            nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size, 
-                out_features = self.args.hidden_size * self.args.max_comm_len),
-            nn.PReLU(),
-            nn.Dropout(self.args.dropout))
-            
-        #self.comm_rnn = nn.GRU(
-        #    input_size = self.args.hidden_size,
-        #    hidden_size = self.args.hidden_size,
-        #    batch_first = True)
-        
-        self.b = nn.Sequential(
-            nn.Conv1d(
-                in_channels = self.args.hidden_size + self.args.max_comm_len, 
-                out_channels = self.args.hidden_size, 
-                kernel_size = 3,
-                padding = 1,
-                padding_mode = "reflect"),
-            nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(self.args.dropout))
-        
-        self.mu = nn.Sequential(
-            nn.Linear(
-                in_features = self.args.hidden_size, 
-                out_features = self.args.comm_shape))
-        
-        self.std = nn.Sequential(
-            nn.Linear(
-                in_features = self.args.hidden_size, 
-                out_features = self.args.comm_shape),
-            nn.Softplus())
-        
-        self.apply(init_weights)
-        self.to(self.args.device)
-        if(self.args.half):
-            self = self.half()
-                
-    def forward(self, h_w_action):
-        
-        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
-        
-        h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.encode_action_size)
-        a = self.a(h_w_action)
-        a = a.reshape(episodes * steps, self.args.max_comm_len, self.args.hidden_size)
-        positional_layers = generate_1d_positional_layers(episodes * steps, self.args.max_comm_len, self.args.device)
-        if(self.args.half):
-            positional_layers = positional_layers.to(dtype=torch.float16)  
-        a = torch.cat([a, positional_layers.squeeze(1)], dim = -1)
-        b = self.b(a.permute((0, 2, 1))).permute((0, 2, 1))
-        #comm_h = None
-        #comm_hs = []
-        #for i in range(self.args.max_comm_len):
-        #    comm_h, _ = self.comm_rnn(h_w_action, comm_h if comm_h == None else comm_h.permute(1, 0, 2))
-        #    comm_hs.append(comm_h)
-        #comm_h = torch.cat(comm_hs, dim = -2)
-        if(self.actor):
-            mu, std = var(b, self.mu, self.std, self.args)
-            comm = sample(mu, std, self.args.device)
-            comm_out = torch.tanh(comm)
-            log_prob = Normal(mu, std).log_prob(comm) - torch.log(1 - comm_out.pow(2) + 1e-6)
-            log_prob = torch.mean(log_prob, -1).unsqueeze(-1)
-            log_prob = log_prob.mean(-2)
-            [comm_out, log_prob] = model_end(start, episodes, steps, [(comm_out, "comm"), (log_prob, "lin")], "ACTOR_COMM_OUT" if self.args.show_duration else None)        
-            return(comm_out, log_prob)
-        else:
-            comm_pred = self.mu(b)
-            [comm_pred] = model_end(start, episodes, steps, [(comm_pred, "comm")], "COMM_OUT" if self.args.show_duration else None)        
-            return(comm_pred)
-    
-    
-    
-if __name__ == "__main__":
-    
-    comm_out = Comm_OUT(actor = False, args = args)
-        
-    print("\n\n")
-    print(comm_out)
-    print()
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            print(torch_summary(comm_out, 
-                                (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-    
-    #"""
-    comm_out = Comm_OUT(actor = True, args = args)
-    
-    print("\n\n")
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            print(torch_summary(comm_out, 
-                                (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-    #"""
-    
-#%%
-
-
-""" For some reason, these kill it all! 
+"""#For some reason, these kill it all! 
 class Comm_IN(nn.Module):
 
     def __init__(self, args = default_args):
@@ -393,11 +284,7 @@ class Comm_IN(nn.Module):
             self = self.half()
         
     def forward(self, comm):
-        start = duration()
-        if(len(comm.shape) == 2):  comm = comm.unsqueeze(0)
-        if(len(comm.shape) == 3):  comm = comm.unsqueeze(1)
-        episodes, steps = episodes_steps(comm)
-        comm = comm.reshape(episodes * steps, comm.shape[2], comm.shape[3])
+        start, episodes, steps, [comm] = model_start([(comm, "comm")], self.args.device, self.args.half)
         comm = pad_zeros(comm, self.args.max_comm_len)
         comm = torch.argmax(comm, dim = -1).int()
                 
@@ -423,13 +310,12 @@ if __name__ == "__main__":
         with record_function("model_inference"):
             print(torch_summary(comm_in, 
                                 (episodes, steps, args.max_comm_len, args.comm_shape)))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))"""
     
-"""
     
 #%%
 
-"""
+#"""
 
 class Comm_OUT(nn.Module):
 
@@ -448,23 +334,9 @@ class Comm_OUT(nn.Module):
             nn.Dropout(self.args.dropout))
             
         self.b = nn.GRU(
-            input_size = self.args.hidden_size,
+            input_size = self.args.hidden_size + self.args.max_comm_len,
             hidden_size = self.args.hidden_size,
             batch_first = True)
-        
-        self.c = nn.Sequential(
-            nn.BatchNorm1d(self.args.hidden_size + 1),
-            nn.PReLU(),
-            nn.Dropout(self.args.dropout),
-            nn.Conv1d(
-                in_channels = self.args.hidden_size + 1, 
-                out_channels = self.args.hidden_size, 
-                kernel_size = 3,
-                padding = 1,
-                padding_mode = "reflect"),
-            nn.BatchNorm1d(self.args.hidden_size),
-            nn.PReLU(),
-            nn.Dropout(self.args.dropout))
         
         self.mu = nn.Sequential(
             nn.Linear(
@@ -483,24 +355,19 @@ class Comm_OUT(nn.Module):
             self = self.half()
                 
     def forward(self, h_w_action):
-        start = duration()
-        if(len(h_w_action.shape) == 2):   h_w_action = h_w_action.unsqueeze(1)
-        #[h_w_action] = attach_list([h_w_action], self.args.device)
-        episodes, steps = episodes_steps(h_w_action)
-        h_w_action = h_w_action.reshape(episodes * steps, self.args.h_w_action_size)
-        
+        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
+                
+        h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.encode_action_size)
         a = self.a(h_w_action)
-        a = a.reshape(episodes * steps, self.args.max_comm_len, a.shape[-1] // self.args.max_comm_len)
-        
-        h, _ = self.b(a, None)
-        
-        x = generate_1d_positional_layers(episodes * steps, self.args.max_comm_len, self.args.device)
-        h = torch.cat([h, x], dim = -1)
-        c = self.c(h.permute((0, 2, 1))).permute((0, 2, 1))
-        
+        a = a.reshape(episodes * steps, self.args.max_comm_len, self.args.hidden_size)
+        positional_layers = generate_1d_positional_layers(episodes * steps, self.args.max_comm_len, self.args.device)
+        if(self.args.half):
+            positional_layers = positional_layers.to(dtype=torch.float16)  
+        a = torch.cat([a, positional_layers.squeeze(1)], dim = -1)
+        b, _ = self.b(a)
         
         if(self.actor):
-            mu, std = var(c, self.mu, self.std, self.args)
+            mu, std = var(b, self.mu, self.std, self.args)
             comm = sample(mu, std, self.args.device)
             comm_out = torch.tanh(comm)
             log_prob = Normal(mu, std).log_prob(comm) - torch.log(1 - comm_out.pow(2) + 1e-6)
@@ -511,7 +378,7 @@ class Comm_OUT(nn.Module):
             #print("COMM_OUT:", duration() - start)
             return(comm_out, log_prob)
         else:
-            comm_pred = self.mu(c)
+            comm_pred = self.mu(b)
             # Maybe softplus this?
             comm_pred = comm_pred.reshape(episodes, steps, self.args.max_comm_len, self.args.comm_shape)
             #print("COMM_OUT:", duration() - start)
@@ -532,7 +399,7 @@ if __name__ == "__main__":
                                 (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
-"""
+#"""
 
 
 #%%

@@ -262,7 +262,6 @@ def plots(plot_dicts, min_max_dict):
             sensors_dict = get_quantiles(plot_dict, "sensors_loss", levels = [1])
             accuracy_dict = get_quantiles(plot_dict, "accuracy", levels = [1])
             comp_dict = get_quantiles(plot_dict, "complexity", levels = [1])
-            min_max = many_min_max([min_max_dict["accuracy"], min_max_dict["complexity"]])
             
             handles = []
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
@@ -276,9 +275,9 @@ def plots(plot_dicts, min_max_dict):
             ax.legend(handles = handles)
             ax.set_title(plot_dict["arg_title"] + "\nForward Losses")
             divide_arenas(accuracy_dict, ax)
-            
+                        
             handles = []
-            min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["comm_loss"], min_max_dict["sensors_loss"], min_max_dict["accuracy"], min_max_dict["complexity"]])
+            min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["comm_loss"], min_max_dict["sensors_loss"], min_max_dict["accuracy"]])
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             handles.append(awesome_plot(ax, rgbd_dict, "blue", "RGBD-Loss", min_max))
             handles.append(awesome_plot(ax, comm_dict, "red", "Comm-Loss", min_max))
@@ -359,7 +358,7 @@ def plots(plot_dicts, min_max_dict):
             ax.set_ylabel("Actor Loss")
             ax.set_xlabel("Epochs")
             ax2 = ax.twinx()
-            #handles.append(awesome_plot(ax2, crit_dicts[0], "blue", "log Critic", crit_min_max))
+            handles.append(awesome_plot(ax2, crit_dicts[0], "blue", "log Critic 1", crit_min_max))
             ax2.set_ylabel("log Critic Losses")
             ax3 = ax.twinx()
             ax3.spines["right"].set_position(("axes", 1.08))

@@ -2,7 +2,8 @@
 
 # To do: most important 
 #   Make it work, and FASTER.
-#   Make comm prediction work with GRU.
+#   Make in_comm work with GRU.
+#   'pull' rewarded for backing into it!
 #   'free play' image prediction is terrible! WHY? 
 #   Trying float16 on cuda. Getting NaN.
 #   Beta values seem to harm.
@@ -10,7 +11,7 @@
 # To do: less important 
 #   Allow multiple layers in PVRNN.
 #   Try predicting multiple steps into the future.
-#   Training forward, actor, and critic losses together works, but needs fine-tuning. 
+#   Training forward, actor, and critic together works, but needs fine-tuning. 
 
 import os
 import pickle
@@ -236,9 +237,9 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
                     help='Should durations be printed?')
 
     # Things which have list-values.
-parser.add_argument('--task_list',          type=literal,    default = ["0", "1"],
+parser.add_argument('--task_list',          type=literal,    default = [0],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [5000, 5000],
+parser.add_argument('--epochs',             type=literal,    default = [5000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -280,6 +281,8 @@ parser.add_argument('--reward',             type=float,      default = 10,
                     help='Extrinsic reward for choosing correct action, shape, and color.') 
 parser.add_argument('--wrong_object_punishment', type=float, default = 0,
                     help='Extrinsic punishment for choosing any action with wrong object.') 
+parser.add_argument('--free_play_reward',   type=float,      default = 0,
+                    help='Extrinsic reward for performing any action in free play.') 
 parser.add_argument('--max_steps',          type=int,        default = 10,
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',type=float,      default = -10,

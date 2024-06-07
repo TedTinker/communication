@@ -71,7 +71,7 @@ def add_this(name, args):
                             new_value[arg_name] = condition[1]
         slurm_dict[new_key] = new_value
 
-add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
+add_this("e",   {"alpha" : "None", "normal_alpha" : .1, "task_list" : convert_list([[0], [1]])})
 add_this("n",   {"curiosity" : "prediction_error"}) #, "prediction_error_eta" : [.01, .03, .1, .3, 1, 3, 10]})
 add_this("f",   {"curiosity" : "hidden_state"}) #, "hidden_state_eta_comm" : [1, 10, 50, 100], "hidden_state_eta_sensors" : [1, 10, 50, 100]})
 add_this("i",   {"delta" : 1})

@@ -144,7 +144,6 @@ class Task_Runner:
             win = win or win_2
             
         if(self.task.goal[0] == -1):
-            raw_reward = 0
             distance_reward = 0
             angle_reward = 0
             distance_reward_2 = 0
@@ -160,8 +159,6 @@ class Task_Runner:
                 
         if(end and not win): 
             done = True
-            if(self.task.goal[0] != -1 and raw_reward > 0):
-                raw_reward += self.args.step_lim_punishment
         if(win):
             done = True
             if(verbose):

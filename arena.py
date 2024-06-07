@@ -372,7 +372,7 @@ class Arena():
             # Is the object pushed/pulled away from its starting position, relative to the agent's starting position and angle?
             if(movement_forward >= self.args.push_amount and touching):
                 pushing = True
-            if(movement_forward <= -self.args.pull_amount and touching):
+            if(movement_forward <= -self.args.pull_amount and touching and abs(angle_radians) < pi/2):
                 pulling = True
                         
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
@@ -440,7 +440,7 @@ class Arena():
                                            
         [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward] = objects_goals[(goal_color, goal_shape)]
         if(action_map[goal_action][1] == "FREE_PLAY"):
-            reward = 0
+            reward = 0 if which_goal_message == "      " else self.args.free_play_reward
             distance_reward = 0
             angle_reward = 0
             
@@ -633,7 +633,7 @@ if __name__ == "__main__":
     arena.end()
     """
     
-    """
+    #"""
     print("\nPULL")
     goal = [2, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
@@ -649,6 +649,21 @@ if __name__ == "__main__":
         if(win):
             break
     arena.end()
+    #"""
+    
+    #"""
+    print("\nPULL BACKWARD")
+    goal = [2, colors_shapes_1[0][0], colors_shapes_1[0][1]]
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(-3,0)])
+    show_them()
+    arena.rewards(verbose = True)
+    for i in range(4):
+        arena.step(-1, -1, -1, verbose = True, sleep_time = sleep_time)
+        show_them()
+        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        if(win):
+            break
+    #arena.end()
     """
     
     #"""   
