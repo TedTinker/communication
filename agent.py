@@ -385,7 +385,7 @@ class Agent:
         hq_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
         ha_1 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_1 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-        which_goal_message_1 = "      "
+        which_goal_message_1 = " " * self.args.max_comm_len
         
         to_push_list_2 = []
         prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
@@ -393,7 +393,7 @@ class Agent:
         hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
         ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-        which_goal_message_2 = "      "
+        which_goal_message_2 = " " * self.args.max_comm_len
                     
         self.task = self.task_runners[self.task_name]
         self.task.begin()    
@@ -506,14 +506,14 @@ class Agent:
         hq_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
         ha_1 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_1 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-        which_goal_message_1 = "      "
+        which_goal_message_1 = " " * self.args.max_comm_len
         
         prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
         prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
         hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
         ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-        which_goal_message_2 = "      "
+        which_goal_message_2 = " " * self.args.max_comm_len
                 
         try:
             self.task = self.task_runners[self.task_name]
@@ -612,7 +612,7 @@ class Agent:
                 hq_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
                 ha_1 = torch.zeros((1, 1, self.args.hidden_size)) 
                 hcs_1 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-                which_goal_message_1 = "      "
+                which_goal_message_1 = " " * self.args.max_comm_len
                 
                 hps_2 = []
                 hqs_2 = []
@@ -621,7 +621,7 @@ class Agent:
                 hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
                 ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
                 hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-                which_goal_message_2 = "      "
+                which_goal_message_2 = " " * self.args.max_comm_len
                  
                 episode_dict["task"] = self.task.task
                 episode_dict["goal"] = "'{}' ({})".format(self.task.task.goal_text, self.task.task.goal_human_text)

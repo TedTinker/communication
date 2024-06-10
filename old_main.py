@@ -4,7 +4,7 @@ from memory_profiler import profile
 from utils import args
 from agent import Agent
 
-args.task_list = ["0"]
+args.task_list = [0]
 args.alpha = None
 args.normal_alpha = .1
 args.curiosity = "hidden_state"

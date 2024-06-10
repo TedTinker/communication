@@ -414,7 +414,7 @@ class Arena():
                     
             objects_goals[(color_index, shape_index)] = [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward]
                         
-        which_goal_message = "      "
+        which_goal_message = " " * self.args.max_comm_len
         for (color, shape), (watching, pushing, pulling, lefting, righting, distance_reward, angle_reward) in objects_goals.items():
             if(watching or pushing or pulling or lefting or righting):
                 if(watching): action_char = action_map[0][0]
@@ -440,9 +440,13 @@ class Arena():
                                            
         [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward] = objects_goals[(goal_color, goal_shape)]
         if(action_map[goal_action][1] == "FREE_PLAY"):
-            reward = 0 if which_goal_message == "      " else self.args.free_play_reward
-            distance_reward = 0
-            angle_reward = 0
+            reward = 0 if which_goal_message == " " * self.args.max_comm_len else self.args.free_play_reward
+            if(self.args.free_play_reward_dist):
+                distance_reward = max([distance_reward for _, (_, _, _, _, _, distance_reward, _) in objects_goals.items()])
+                angle_reward = max([angle_reward for _, (_, _, _, _, _, _, angle_reward) in objects_goals.items()])
+            else:
+                distance_reward = 0
+                angle_reward = 0
             
         if(verbose):
             print("\nWhich goal message:\'" + which_goal_message, "\'")
@@ -453,7 +457,7 @@ class Arena():
             print("Angle reward:", round(angle_reward, 2))
             print("Total reward:", reward + distance_reward + angle_reward)
             print("Win:", win)
-
+            
         return(reward, distance_reward, angle_reward, win, which_goal_message)
     
     def photo_from_above(self):

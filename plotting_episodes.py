@@ -8,11 +8,10 @@ import re
 import imageio
 import numpy as np
 
-print(os.getcwd())
-
 from utils import print, args, duration, load_dicts
 from pybullet_data.robot_maker import plot_sensors
 
+print("name:\n{}\n".format(args.arg_name),)
 
 
 

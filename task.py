@@ -136,18 +136,11 @@ class Task_Runner:
         if(self.parenting): 
             distance_reward_2 = 0
             angle_reward_2 = 0
-            which_goal_message_2 = "      "
-            
+            which_goal_message_2 = " " * self.args.max_comm_len
         else:
             raw_reward_2, distance_reward_2, angle_reward_2, win_2, which_goal_message_2 = self.act(action_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
             raw_reward = max([raw_reward, raw_reward_2])
             win = win or win_2
-            
-        if(self.task.goal[0] == -1):
-            distance_reward = 0
-            angle_reward = 0
-            distance_reward_2 = 0
-            angle_reward_2 = 0
                     
         if(raw_reward > 0): 
             raw_reward *= self.args.step_cost ** (self.steps-1)
@@ -169,6 +162,7 @@ class Task_Runner:
             print("Angle reward:", angle_reward)
             if(done): 
                 print("Done.")
+                                
         return(raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win, which_goal_message_1, which_goal_message_2)
     
     def done(self):
