@@ -2,9 +2,8 @@
 
 # To do: most important 
 #   Make it work, and FASTER.
-#   Make in_comm work with GRU.
-#   'pull' rewarded for backing into it!
-#   'free play' image prediction is terrible! WHY? 
+#   Make comm_in work with GRU.
+#   'free play' image prediction is terrible! WHY?!
 #   Trying float16 on cuda. Getting NaN.
 #   Beta values seem to harm.
 
@@ -214,6 +213,7 @@ num_sensors = len(sensors)
 
 # Arguments to parse. 
 def literal(arg_string): return(ast.literal_eval(arg_string))
+
 parser = argparse.ArgumentParser()
 
     # Meta 
@@ -237,9 +237,9 @@ parser.add_argument('--show_duration',      type=bool,       default = False,
                     help='Should durations be printed?')
 
     # Things which have list-values.
-parser.add_argument('--task_list',          type=literal,    default = [0, 1],
+parser.add_argument('--task_list',          type=literal,    default = [1],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [100, 100],
+parser.add_argument('--epochs',             type=literal,    default = [100],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',        type=literal,    default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -263,7 +263,7 @@ parser.add_argument('--steps_per_step',     type=int,        default = 20,
                     help='numSubSteps in pybullet environment.')
 
     # Agent details
-parser.add_argument('--image_size',         type=int,        default = 16,
+parser.add_argument('--image_size',         type=int,        default = 20,
                     help='Dimensions of the images observed.')
 parser.add_argument('--max_speed',          type=float,      default = 10,
                     help='Max wheel speed.')
@@ -281,7 +281,7 @@ parser.add_argument('--reward',             type=float,      default = 10,
                     help='Extrinsic reward for choosing correct action, shape, and color.') 
 parser.add_argument('--wrong_object_punishment', type=float, default = 0,
                     help='Extrinsic punishment for choosing any action with wrong object.') 
-parser.add_argument('--free_play_reward',   type=float,      default = 0,
+parser.add_argument('--free_play_reward',   type=float,      default = 1,
                     help='Extrinsic reward for performing any action in free play.') 
 parser.add_argument('--free_play_reward_dist',type=literal,  default = True,
                     help='Add distance and anglular rewards for free play?') 
@@ -423,7 +423,7 @@ parser.add_argument('--std_max',            type=int,        default = exp(2),
                     help='Maximum value for standard deviation.')
 parser.add_argument("--beta_rgbd",          type=float,      default = .1,
                     help='Relative importance of complexity for rgbd.')
-parser.add_argument("--beta_comm",          type=float,      default = .1,
+parser.add_argument("--beta_comm",          type=float,      default = .3,
                     help='Relative importance of complexity for comm.')
 parser.add_argument("--beta_sensors",       type=float,      default = .1,
                     help='Relative importance of complexity for sensors.')     
@@ -457,9 +457,9 @@ parser.add_argument('--keep_data',           type=int,       default = 10,
 parser.add_argument('--epochs_per_gen_test', type=int,       default = 10,
                     help='How many epochs should pass before trying generalization test.')
 
-parser.add_argument('--epochs_per_episode_dict',type=int,    default = 2000,
+parser.add_argument('--epochs_per_episode_dict',type=int,    default = 50, # 2000
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_episode_dict',type=int,    default = 3,
+parser.add_argument('--agents_per_episode_dict',type=int,    default = 5, # 3
                     help='How many agents to save episodes.')
 parser.add_argument('--episodes_in_episode_dict',type=int,   default = 1,
                     help='How many episodes to save per agent.')
@@ -534,15 +534,16 @@ def get_args_title(default_args, args):
 
 args.arg_title = get_args_title(default_args, args)
 
-try: os.mkdir("saved")
+save_file = f"saved_{args.comp}"
+try: os.mkdir(f"{save_file}")
 except: pass
-folder = "saved/" + args.arg_name
+folder = f"{save_file}/{args.arg_name}"
 if(args.arg_title[:3] != "___" and not args.arg_name in ["default", "finishing_dictionaries", "plotting", "plotting_predictions", "plotting_positions"]):
     try: os.mkdir(folder)
     except: pass
-    try: os.mkdir("saved/thesis_pics")
+    try: os.mkdir(f"{save_file}/thesis_pics")
     except: pass
-    try: os.mkdir("saved/thesis_pics/final")
+    try: os.mkdir(f"{save_file}/thesis_pics/final")
     except: pass
 if(default_args.alpha == "None"): default_args.alpha = None
 if(args.alpha == "None"):         args.alpha = None
@@ -616,7 +617,7 @@ def how_many_nans(tensor, place = "tensor"):
     if(tensor == None):
         return
     nan_count = torch.isnan(tensor).sum().item()
-    if nan_count > 0:
+    if(nan_count > 0):
         print(f'nans in {place}: \t{nan_count}.')
 
 
@@ -739,7 +740,7 @@ short_real_names = {
 
 
 def load_dicts(args):
-    if(os.getcwd().split("/")[-1] != "saved"): os.chdir("saved")
+    if(os.getcwd().split("/")[-1] != save_file): os.chdir(save_file)
     plot_dicts = [] ; min_max_dicts = []
         
     complete_order = args.arg_title[3:-3].split("+")

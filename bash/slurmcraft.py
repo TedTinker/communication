@@ -49,7 +49,7 @@ def convert_list(input_list):
 
 
 
-slurm_dict = {"d" : {}}
+slurm_dict = {"d" : {}} #{"dist_reward" : [0, .3, 1, 3, 5], "angle_reward" : [0, .3, 1, 3, 5]}}
 
 
 
@@ -73,13 +73,14 @@ def add_this(name, args):
 
 add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
 add_this("n",   {"curiosity" : "prediction_error"}) #, "prediction_error_eta" : [.01, .03, .1, .3, 1, 3, 10]})
-add_this("f",   {"curiosity" : "hidden_state"}) #, "hidden_state_eta_comm" : [1, 10, 50, 100], "hidden_state_eta_sensors" : [1, 10, 50, 100]})
+add_this("f",   {"curiosity" : "hidden_state"})
 add_this("i",   {"delta" : 1})
 
-add_this("dont_reward_free_play",   {"free_play_reward" : 0})
-add_this("reward_free_play",   {"free_play_reward_dist" : 3})
-add_this("dont_reward_free_play_dist",   {"free_play_reward_dist" : False})
-add_this("reward_free_play_dist",   {"free_play_reward_dist" : True})
+add_this("wo_free_play",     {"task_list" : "'[1]'",    "epochs" : "'[10000]'"})
+add_this("with_free_play",   {"task_list" : "'[0, 1]'", "epochs" : "'[5000, 5000]'"})
+
+
+
 
 
 new_slurm_dict = {}
@@ -101,10 +102,10 @@ def all_like_this(this):
     elif(this[-1] != "_"):                result = [this]
     else: result = [key for key in slurm_dict.keys() if key.startswith(this) and key[len(this):].isdigit()]
     return(json.dumps(result))
+
             
 
-
-max_cpus = 30
+max_cpus = args.agents if args.agents < 30 else 30
  
 if(__name__ == "__main__" and args.arg_list == []):
     for key, value in slurm_dict.items(): print(key, ":", value,"\n")
@@ -123,8 +124,8 @@ if(__name__ == "__main__" and args.arg_list != []):
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time 5:00:00
-#SBATCH --mem=25G"""
+#SBATCH --time 0:05:00
+#SBATCH --mem=5G"""
 
     if(args.comp == "saion"):
         nv = "--nv"
@@ -143,53 +144,53 @@ if(__name__ == "__main__" and args.arg_list != []):
         else:
             with open("main_{}.slurm".format(name), "w") as f:
                 f.write(
-"""
-{}
-#SBATCH --ntasks={}
-{}
-singularity exec {} maze.sif python communication/main.py --comp {} --arg_name {} {} --agents $agents_per_job --previous_agents $previous_agents
-""".format(partition, max_cpus, module, nv, args.comp, name, get_args(name))[2:])
+f"""
+{partition}
+#SBATCH --ntasks={max_cpus}
+{module}
+singularity exec {nv} maze.sif python communication/main.py --comp {args.comp} --arg_name {name} {get_args(name)} --agents $agents_per_job --previous_agents $previous_agents
+"""[2:])
             
 
 
     with open("finish_dicts.slurm", "w") as f:
         f.write(
-"""
-{}
-{}
-singularity exec {} maze.sif python communication/finish_dicts.py --comp {} --arg_title {} --arg_name finishing_dictionaries
-""".format(partition, module, nv, args.comp, combined)[2:])
+f"""
+{partition}
+{module}
+singularity exec {nv} maze.sif python communication/finish_dicts.py --comp {args.comp} --arg_title {combined} --arg_name finishing_dictionaries
+"""[2:])
         
     with open("plotting.slurm", "w") as f:
         f.write(
-"""
-{}
-{}
-singularity exec {} maze.sif python communication/plotting.py --comp {} --arg_title {} --arg_name plotting
-""".format(partition, module, nv, args.comp, combined)[2:])
+f"""
+{partition}
+{module}
+singularity exec {nv} maze.sif python communication/plotting.py --comp {args.comp} --arg_title {combined} --arg_name plotting
+"""[2:])
         
     with open("plotting_episodes.slurm", "w") as f:
         f.write(
-"""
-{}
-{}
-singularity exec {} maze.sif python communication/plotting_episodes.py --comp {} --arg_title {} --arg_name plotting_episodes
-""".format(partition, module, nv, args.comp, combined)[2:])
+f"""
+{partition}
+{module}
+singularity exec {nv} maze.sif python communication/plotting_episodes.py --comp {args.comp} --arg_title {combined} --arg_name plotting_episodes
+"""[2:])
         
     with open("plotting_p_values.slurm", "w") as f:
         f.write(
-"""
-{}
-{}
-singularity exec {} maze.sif python communication/plotting_p_val.py --comp {} --arg_title {} --arg_name plotting_p_values
-""".format(partition, module, nv, args.comp, combined)[2:])
+f"""
+{partition}
+{module}
+singularity exec {nv} maze.sif python communication/plotting_p_val.py --comp {args.comp} --arg_title {combined} --arg_name plotting_p_values
+"""[2:])
         
     with open("combine_plots.slurm", "w") as f:
         f.write(
-"""
-{}
-{}
-singularity exec {} maze.sif python communication/combine_plots.py --comp {} --arg_title {} --arg_name combining_plots
-""".format(partition, module, nv, args.comp, combined)[2:])
+f"""
+{partition}
+{module}
+singularity exec {nv} maze.sif python communication/combine_plots.py --comp {args.comp} --arg_title {combined} --arg_name combining_plots
+"""[2:])
 # %%
 

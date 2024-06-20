@@ -391,8 +391,10 @@ def plot_sensors(sensor_values, sensor_positions = sensor_positions, sensor_dime
 
     if(show):
         plt.show()
+        plt.close()
     else:
         plt.savefig('temp_plot.png')  # Save the plot as an image file
+        plt.close()
         image = Image.open('temp_plot.png')
         image_array = np.array(image)
         os.remove('temp_plot.png')  # Delete the temporary image file

@@ -436,7 +436,7 @@ class Arena():
                         reward = self.args.reward
             else:
                 if(watching or pushing or pulling or lefting or righting):
-                    reward += self.args.wrong_object_punishment
+                    reward = self.args.wrong_object_punishment
                                            
         [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward] = objects_goals[(goal_color, goal_shape)]
         if(action_map[goal_action][1] == "FREE_PLAY"):

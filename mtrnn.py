@@ -57,6 +57,7 @@ class MTRNNCell(nn.Module):
         self.to(self.args.device)
         if(self.args.half):
             self = self.half()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
 
     def forward(self, x, h):
         #attach_list([x, h], self.args.device)
@@ -107,6 +108,7 @@ class MTRNN(nn.Module):
         self.to(self.args.device)
         if(self.args.half):
             self = self.half()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
 
     def forward(self, x, h = None):
         if(h == None):

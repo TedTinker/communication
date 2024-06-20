@@ -11,8 +11,6 @@ import numpy as np
 from utils import print, args, duration, load_dicts
 from pybullet_data.robot_maker import plot_sensors
 
-print("name:\n{}\n".format(args.arg_name),)
-
 
 
 def plot_episodes(complete_order, plot_dicts):
@@ -30,26 +28,28 @@ def plot_episodes(complete_order, plot_dicts):
                         
                         
                         
-def plot_episode(key, episode_dict, arg_name):
-    agent_num, epoch, episode_num, swapping = key.split("_")
-    try:
-        os.mkdir(f"{arg_name}/epoch_{epoch}_episode_{episode_num}_agent_{agent_num}_swapping_{swapping}")
-    except: 
-        pass
-    os.chdir(f"{arg_name}/epoch_{epoch}_episode_{episode_num}_agent_{agent_num}_swapping_{swapping}")
-    print("Plotting {}: agent {}, epoch {}, episode {}.{}".format(arg_name, agent_num, epoch, episode_num, " Swapping!" if swapping == 1 else ""))
+def plot_episode(key, episode_dict, arg_name, saving = True):
+    if(saving):
+        agent_num, epoch, episode_num, swapping = key.split("_")
+        try:
+            os.mkdir(f"{arg_name}/epoch_{epoch}_episode_{episode_num}_agent_{agent_num}_swapping_{swapping}")
+        except: 
+            pass
+        os.chdir(f"{arg_name}/epoch_{epoch}_episode_{episode_num}_agent_{agent_num}_swapping_{swapping}")
+        print("Saving {}: agent {}, epoch {}, episode {}.{}".format(arg_name, agent_num, epoch, episode_num, " Swapping!" if swapping == 1 else ""))
     steps = len(episode_dict["rgbds_1"])
     for step in range(steps):
-        plot_step(step, episode_dict, last_step = step + 1 == steps)
+        plot_step(step, episode_dict, last_step = step + 1 == steps, saving = saving)
         if(episode_dict["task"]).parenting: pass 
-        else: plot_step(step, episode_dict, agent_1 = False, last_step = step + 1 == steps)
-    print("SAVED PLOTS")
-    os.chdir('..')
-    os.chdir('..')
+        else: plot_step(step, episode_dict, agent_1 = False, last_step = step + 1 == steps, saving = saving)
+    if(saving):
+        print("SAVED PLOTS")
+        os.chdir('..')
+        os.chdir('..')
     
     
     
-def plot_step(step, episode_dict, agent_1 = True, last_step = False):
+def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = True):
     agent_num = 1 if agent_1 else 2
     
     text_list = []
@@ -62,7 +62,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
     label_list.append("Goal:")
     
     if not step == 0:
-        which_goal_message = episode_dict[f"which_goal_message_{agent_num}"][step]
+        which_goal_message = episode_dict[f"which_goal_message_{agent_num}"][step-1]
         text_list.append(which_goal_message)
         label_list.append("Achieved goal:")
         
@@ -147,16 +147,17 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         recommended_actions = episode_dict[f"recommended_{agent_num}"][step]
         text_list.append(recommended_actions)
         label_list.append(f"Recommendation ({agent_num}):")
-
-        actions = episode_dict[f"actions_{agent_num}"][step]
-        text_list.append(actions)
-        label_list.append(f"Actions ({agent_num}):")
         
-        comms_out = episode_dict[f"comms_out_{agent_num}"][step]
+    if not step == 0:
+        
+        actions = episode_dict[f"action_texts_{agent_num}"][step-1]
+        text_list.append(actions)
+        label_list.append(f"Actions Leading Here ({agent_num}):")
+        
+        comms_out = episode_dict[f"comms_out_{agent_num}"][step-1]
         text_list.append(comms_out)
         label_list.append(f"Comms Out ({agent_num}):")
         
-    if not step == 0:
         rgbd_dkls = episode_dict[f"rgbd_dkls_{agent_num}"][:step]
         text_list.append("plot")
         plot_list.append(rgbd_dkls)
@@ -173,10 +174,13 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
         label_list.append(f"Sensors DKL ({agent_num}):")
         
     fig = plt.figure(figsize=(15, 20))
+
+    
+    
     gs = gridspec.GridSpec(len(label_list), 2, height_ratios=[20 if text == "image" else 10 if text == "plot" else 1 if text.startswith("Yaw:") else 1 for text in text_list], width_ratios=[1, 4])
     images_plotted = 0
     plots_plotted = 0
-    for i, (text, label) in enumerate(zip(text_list, label_list)):
+    for i, (text, label) in enumerate(zip(text_list, label_list)):        
         ax_text = fig.add_subplot(gs[i, 0])
         ax_text.axis('off')
         ax_img = fig.add_subplot(gs[i, 1])
@@ -200,12 +204,18 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False):
             ax_img.text(0.2, 0, text, va='center', ha='left', fontsize=12)
             ax_img.axis('off')
             
-    plt.savefig(f"Step {step} Agent {agent_num}.png")
+    if(saving):
+        plt.savefig(f"Step {step} Agent {agent_num}.png")
+    else:
+        plt.show()
+        
     plt.close()
     
     
-  
-plot_dicts, min_max_dict, complete_order = load_dicts(args)
-plot_episodes(complete_order, plot_dicts)
-print("\nDuration: {}. Done!".format(duration()))
+
+if __name__ == "__main__":
+    print("name:\n{}\n".format(args.arg_name),)
+    plot_dicts, min_max_dict, complete_order = load_dicts(args)
+    plot_episodes(complete_order, plot_dicts)
+    print("\nDuration: {}. Done!".format(duration()))
 # %%

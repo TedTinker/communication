@@ -104,6 +104,7 @@ class PVRNN_LAYER(nn.Module):
         self.to(self.args.device)
         if(self.args.half):
             self = self.half()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
             
     def forward(self, prev_hidden_states, rgbd=None, comm=None, sensors=None, prev_actions=None, prev_comms_out=None):
         def reshape_and_to_dtype(inputs, episodes, steps, dtype=None):
@@ -213,6 +214,7 @@ class PVRNN(nn.Module):
         self.to(self.args.device)
         if(self.args.half):
             self = self.half()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
     def predict(self, h, action):
         h_w_actions = torch.cat([h, action], dim = -1)
@@ -220,6 +222,10 @@ class PVRNN(nn.Module):
         return(pred_rgbd, pred_comms, pred_sensors)
         
     def bottom_to_top_step(self, prev_hidden_states, rgbd = None, comm = None, sensors = None, prev_actions = None, prev_comms_out = None):
+        
+        start_time = duration()
+        prev_time = duration()
+        
         if(prev_hidden_states != None and len(prev_hidden_states.shape) == 2): 
             prev_hidden_states = prev_hidden_states.unsqueeze(1)
         if(rgbd != None and len(rgbd.shape) == 2): 
@@ -237,6 +243,10 @@ class PVRNN(nn.Module):
             self.pvrnn_layer(
                 prev_hidden_states[:,0].unsqueeze(1), 
                 rgbd, comm, sensors, prev_actions, prev_comms_out)
+            
+        time = duration()
+        if(self.args.show_duration): print("BOTTOM TO TOP STEP:", time - prev_time)
+        prev_time = time
                 
         return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl)
     

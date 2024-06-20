@@ -64,6 +64,7 @@ class Actor(nn.Module):
         self.to(self.args.device)
         if(self.args.half):
             self = self.half()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
 
     def forward(self, rgbd, comm_in, sensors, prev_action, prev_comm_out, forward_hidden, action_hidden, parenting = True):
         start, episodes, steps, [rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden] = model_start(
@@ -162,6 +163,7 @@ class Critic(nn.Module):
         self.to(self.args.device)
         if(self.args.half):
             self = self.half()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
     def forward(self, rgbd, comm_in, sensors, action, comm_out, forward_hidden, critic_hidden):        
         start, episodes, steps, [rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden] = model_start(

@@ -21,6 +21,8 @@ from task import Task, Task_Runner
 from buffer import RecurrentReplayBuffer
 from pvrnn import PVRNN
 from models import Actor, Critic
+from plotting_episodes import plot_step
+
 
 
 def print_cpu_usage(string, num):
@@ -49,10 +51,10 @@ class Agent:
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.tasks = {
-            0 : Task(actions = [-1],              objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parenting = True, args = self.args),
-            1 : Task(actions = [1],               objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0],               parenting = True, args = self.args),
-            2 : Task(actions = [3],      objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0],               parenting = True, args = self.args),
-            3 : Task(actions = [0, 1, 2, 3, 4],   objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args)}
+            0 : Task(actions = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parenting = True, args = self.args),
+            1 : Task(actions = [1],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
+            2 : Task(actions = [3],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0],               parenting = True, args = self.args),
+            3 : Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args)}
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
         physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
@@ -174,8 +176,8 @@ class Agent:
             self.training_episode()
             
             time = duration()
-            if(self.args.show_duration): print("\n\nTRAINING EPISODE:", time - prev_time)
-            if(self.args.show_duration): print(f"{self.epochs} Epochs:", time - start_time)
+            if(self.args.show_duration): print("TRAINING EPISODE:", time - prev_time)
+            if(self.args.show_duration): print(f"{self.epochs} EPOCHS:", time - start_time, "\n")
             prev_time = time
             
             percent_done = str(self.epochs / sum(self.args.epochs))
@@ -260,20 +262,19 @@ class Agent:
             parenting = self.task.task.parenting
             rgbd_1, parent_comm, sensors_1 = self.task.obs()
             rgbd_2, _, sensors_2 = self.task.obs(agent_1 = False)
-            recommended_action_1 = self.task.get_recommended_action()
-                        
+            recommended_action_1 = self.task.get_recommended_action() 
             comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.task.task.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_2
             
-            #print("which_goal_message_1:", string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0).shape)
-            #print("parent_comm:", parent_comm.unsqueeze(0).shape)
-            #print("prev_comm_out_2:", prev_comm_out_1.shape)
-                        
-            #print(f"Ending comm_in_1: '{agent_to_english(onehots_to_string(comm_in_1[0,0]))}'")
+            time = duration()
+            if(self.args.show_duration): print("STEP A:", time - start_time)
 
             hp_1, hq_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1 = self.forward.bottom_to_top_step(
                 hq_1, 
                 self.forward.rgbd_in(rgbd_1), self.forward.comm_in(comm_in_1), self.forward.sensors_in(sensors_1), 
                 self.forward.action_in(prev_action_1), self.forward.comm_out_in(prev_comm_out_1)) 
+            
+            time = duration()
+            if(self.args.show_duration): print("STEP B:", time - start_time)
 
             action_1, comm_out_1, _, _, ha_1 = self.actor(rgbd_1, comm_in_1, sensors_1, prev_action_1, prev_comm_out_1, hq_1.detach(), ha_1, parenting) 
             values_1 = []
@@ -282,6 +283,9 @@ class Agent:
                 value, hc = self.critics[i](rgbd_1, comm_in_1, sensors_1, action_1, comm_out_1, hq_1.detach(), hcs_1[i]) 
                 values_1.append(round(value.item(), 3))
                 new_hcs_1.append(hc)
+                
+            time = duration()
+            if(self.args.show_duration): print("STEP C:", time - start_time)
             
             if(parenting): 
                 action_2 = torch.zeros_like(action_1)
@@ -415,7 +419,7 @@ class Agent:
                 prev_time = duration()
                 plot_data = self.epoch(self.args.batch_size)
                 time = duration()
-                if(self.args.show_duration): print("EPOCH:", time - prev_time)
+                if(self.args.show_duration): print("\nEPOCH:", time - prev_time)
                 prev_time = time
                 if(plot_data == False): pass
                 else:
@@ -450,8 +454,8 @@ class Agent:
                         self.plot_dict["sensors_hidden_state_curiosity"].append(sensors_hidden_state_curiosity)  
                         self.plot_dict["hidden_state_curiosity"].append(hidden_state_curiosity)    
                             
-            time = duration()
-            prev_time = time
+        time = duration()
+        prev_time = time
                         
         self.task.done()
         self.plot_dict["steps"].append(steps)
@@ -497,7 +501,7 @@ class Agent:
         
         
         
-    def gen_test(self, test = True, sleep_time = None, verbose = False):
+    def gen_test(self):
         done = False
         complete_reward = 0
         
@@ -517,9 +521,7 @@ class Agent:
                 
         try:
             self.task = self.task_runners[self.task_name]
-            self.task.begin(test = test)        
-            if(verbose):
-                print(self.task.task.goal_human_text, end = " ")
+            self.task.begin(test = True)        
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
@@ -527,12 +529,10 @@ class Agent:
                         prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, which_goal_message_2, \
                             raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
-                                prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2, sleep_time)
+                                prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
                     complete_reward += total_reward
                 #print("DONE")
             self.task.done()
-            if(verbose):
-                print("\tWIN!" if win else "\tLOSE!")
             goal_action = self.task.task.goal[0]
             win_dict_list = [self.plot_dict["gen_wins_" + action_name.lower()] for action_name in action_name_list]
             for i, win_dict in enumerate(win_dict_list):
@@ -550,10 +550,10 @@ class Agent:
         
         
         
-    def save_episodes(self, swapping = False):
+    def save_episodes(self, swapping = False, test = False, sleep_time = None, for_display = False):
         with torch.no_grad():
             self.task = self.task_runners[self.task_name]
-            self.task.begin()       
+            self.task.begin(test = test)       
             comm_from_parent = self.task.task.parenting
             if(self.args.agents_per_episode_dict != -1 and self.agent_num > self.args.agents_per_episode_dict): 
                 return
@@ -564,6 +564,7 @@ class Agent:
                     "sensors_1" : [],
                     "recommended_1" : [],
                     "actions_1" : [],
+                    "action_texts_1" : [],
                     "comms_out_1" : [],
                     "birds_eye_1" : [],
                     "raw_rewards" : [],
@@ -587,6 +588,7 @@ class Agent:
                     "sensors_2" : [],
                     "recommended_2" : [],
                     "actions_2" : [],
+                    "action_texts_2" : [],
                     "comms_out_2" : [],
                     "birds_eye_2" : [],
                     "total_rewards_2" : [],
@@ -603,169 +605,143 @@ class Agent:
                     "comm_dkls_2" : [],
                     "sensors_dkls_2" : [],
                     "which_goal_message_2" : []}
+                
+                
+                episode_dict["task"] = self.task.task
+                episode_dict["goal"] = "'{}' ({})".format(self.task.task.goal_text, self.task.task.goal_human_text)
+                
                 done = False
                 
-                hps_1 = []
-                hqs_1 = []
-                prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
-                prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
+                
+                
+                hp_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
                 hq_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
                 ha_1 = torch.zeros((1, 1, self.args.hidden_size)) 
                 hcs_1 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
+                prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
+                prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
                 which_goal_message_1 = " " * self.args.max_comm_len
-                
-                hps_2 = []
-                hqs_2 = []
-                prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
-                prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
+
+                hp_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
                 hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
                 ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
                 hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
+                prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
+                prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
                 which_goal_message_2 = " " * self.args.max_comm_len
-                 
-                episode_dict["task"] = self.task.task
-                episode_dict["goal"] = "'{}' ({})".format(self.task.task.goal_text, self.task.task.goal_human_text)
-                rgbd_1, parent_comm, sensors_1 = self.task.obs()
-                rgbd_2, _, sensors_2 = self.task.obs(agent_1 = False)
-                birds_eye_1 = self.task.arena_1.photo_from_above()
-                birds_eye_2 = None if comm_from_parent else self.task.arena_2.photo_from_above()
                 
-                episode_dict["rgbds_1"].append(rgbd_1[0,:,:,0:3])
-                comm_in_1 = which_goal_message_1 if self.task.task.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
-                episode_dict["comms_in_1"].append("'{}' ({})".format(comm_in_1, self.task.task.agent_to_english(comm_in_1)))
-                episode_dict["which_goal_message_1"].append(agent_to_english(which_goal_message_1))
-                episode_dict["sensors_1"].append(sensors_1.tolist())
-                episode_dict["birds_eye_1"].append(birds_eye_1[:,:,0:3])
+                prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
+                prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
                 
-                episode_dict["rgbds_2"].append(rgbd_2[0,:,:,0:3])        
-                comm_in_2 = which_goal_message_2 if self.task.task.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_1[0,0]
-                episode_dict["comms_in_2"].append("'{}' ({})".format(comm_in_2, self.task.task.agent_to_english(comm_in_2)))
-                episode_dict["which_goal_message_2"].append(agent_to_english(which_goal_message_2))
-                episode_dict["sensors_2"].append(None if sensors_2 == None else sensors_2.tolist())
-                episode_dict["birds_eye_2"].append(None if birds_eye_2 == None else birds_eye_2[:,:,0:3])
+                prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
+                prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
                 
-                for step in range(self.args.max_steps):
-                    if(not done):
-                        recommended_1 = self.task.get_recommended_action()
-                        recommended_2 = self.task.get_recommended_action(agent_1 = False)
-                        episode_dict["recommended_1"].append(action_to_string(recommended_1))
-                        episode_dict["recommended_2"].append(None if recommended_2 == None else action_to_string(recommended_2))
+                
+                
+                def save_step(step, hp, hq, action, agent_1 = True):
+                    agent_num = 1 if agent_1 else 2
+                    
+                    recommended = self.task.get_recommended_action(agent_1 = agent_1)
+                    episode_dict[f"recommended_{agent_num}"].append(None if recommended == None else action_to_string(recommended))
+                    
+                    birds_eye = self.task.arena_1.photo_from_above() if agent_1 else self.task.arena_2.photo_from_above()
+                    rgbd, parent_comm, sensors = self.task.obs(agent_1 = agent_1)
+                    
+                    episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
+                    episode_dict[f"rgbds_{agent_num}"].append(rgbd[0,:,:,0:3])        
+                    episode_dict[f"sensors_{agent_num}"].append(sensors.tolist())
+                    
+                    if(agent_1):
+                        comm_in = which_goal_message_1 if self.task.task.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
+                    else:
+                        comm_in = which_goal_message_2 if self.task.task.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_1[0,0]
+                    episode_dict[f"comms_in_{agent_num}"].append("'{}' ({})".format(comm_in, self.task.task.agent_to_english(comm_in)))
+                    
+                    if(agent_1):
+                        which_goal_message = which_goal_message_1
+                    else:
+                        which_goal_message = which_goal_message_2
+                    episode_dict[f"which_goal_message_{agent_num}"].append(agent_to_english(which_goal_message))
+                    
+                    if(step != 0):
                         
-                        prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, which_goal_message_1, \
-                            prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, which_goal_message_2, \
-                                raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                    prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
-                                    prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
-                                
-                        episode_dict["actions_1"].append(prev_action_1)
-                        episode_dict["which_goal_message_1"].append(agent_to_english(which_goal_message_1))
-                        comm_out_1 = onehots_to_string(prev_comm_out_1)
-                        episode_dict["comms_out_1"].append("'{}' ({})".format(comm_out_1, self.task.task.agent_to_english(comm_out_1)))
-                        episode_dict["raw_rewards"].append(str(round(raw_reward, 3)))
-                        episode_dict["total_rewards_1"].append(str(round(total_reward, 3)))
-                        episode_dict["distance_rewards_1"].append(str(round(distance_reward, 3)))
-                        episode_dict["angle_rewards_1"].append(str(round(angle_reward, 3)))
-                        episode_dict["critic_predictions_1"].append(values_1)
-                        episode_dict["rgbd_dkls_1"].append(rgbd_dkls_1.sum().item())
-                        episode_dict["comm_dkls_1"].append(comm_dkls_1.sum().item())
-                        episode_dict["sensors_dkls_1"].append(sensors_dkls_1.sum().item())
-                        rgbd_1, parent_comm, sensors_1 = self.task.obs()
-                        birds_eye_1 = self.task.arena_1.photo_from_above()
-                        episode_dict["rgbds_1"].append(rgbd_1[0,:,:,0:3])
-                        comm_in_1 = which_goal_message_1 if self.task.task.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
-                        episode_dict["comms_in_1"].append("'{}' ({})".format(comm_in_1, self.task.task.agent_to_english(comm_in_1)))
-                        episode_dict["sensors_1"].append(sensors_1.tolist())
-                        episode_dict["birds_eye_1"].append(birds_eye_1[:,:,0:3])
-                        hps_1.append(hp_1.unsqueeze(0))
-                        hqs_1.append(hq_1.unsqueeze(0))
+                        pred_rgbds_p, pred_comm_in_p, pred_sensors_p = self.forward.predict(hp.unsqueeze(1), self.forward.action_in(action)) 
+                        pred_rgbds_q, pred_comm_in_q, pred_sensors_q = self.forward.predict(hq.unsqueeze(1), self.forward.action_in(action))
+
+                        episode_dict[f"prior_predicted_rgbds_{agent_num}"].append(pred_rgbds_p[0,0][:,:,0:3])
+                        prior_predicted_comms_in = onehots_to_string(pred_comm_in_p[0,0])
+                        episode_dict[f"prior_predicted_comms_in_{agent_num}"].append("'{}' ({})".format(prior_predicted_comms_in, self.task.task.agent_to_english(prior_predicted_comms_in)))
+                        episode_dict[f"prior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_p[0,0]])
                         
+                        episode_dict[f"posterior_predicted_rgbds_{agent_num}"].append(pred_rgbds_q[0,0][:,:,0:3])
+                        posterior_predicted_comms_in = onehots_to_string(pred_comm_in_q[0,0])
+                        episode_dict[f"posterior_predicted_comms_in_{agent_num}"].append("'{}' ({})".format(posterior_predicted_comms_in, self.task.task.agent_to_english(posterior_predicted_comms_in)))
+                        episode_dict[f"posterior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_q[0,0]])
+                    
+                def display(step, agent_1 = True, done = False, stopping = False, wait = True):
+                    if(for_display):
+                        print(f"\n{self.task.task.goal_human_text}", end = " ")
+                        print("STEP:", step)
+                        plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False)
+                        if(not self.task.task.parenting and not stopping):
+                            display(step, agent_1 = False, stopping = True)
+                        if(wait):
+                            WAITING = input("WAITING")
+                                        
+                           
+                
+                for step in range(self.args.max_steps + 1):
+                    save_step(step, hp_1, hq_1, action = prev_action_1, agent_1 = True)    
+                    if(not self.task.task.parenting):
+                        save_step(step, hp_2, hq_2, action = prev_action_2, agent_1 = False)  
+                        
+                    display(step)
+                    
+                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, which_goal_message_1, \
+                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, which_goal_message_2, \
+                            raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                                prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
+                                prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2, sleep_time) 
+                            
+                    episode_dict["raw_rewards"].append(str(round(raw_reward, 3)))
+                    
+                    episode_dict["actions_1"].append(prev_action_1)
+                    episode_dict["action_texts_1"].append(agent_to_english(prev_action_1))
+                    comm_out_1 = onehots_to_string(prev_comm_out_1)
+                    episode_dict["comms_out_1"].append("{} ({})".format(comm_out_1, self.task.task.agent_to_english(comm_out_1)))
+                    episode_dict["rgbd_dkls_1"].append(rgbd_dkls_1.sum().item())
+                    episode_dict["comm_dkls_1"].append(comm_dkls_1.sum().item())
+                    episode_dict["sensors_dkls_1"].append(sensors_dkls_1.sum().item())
+                    episode_dict["critic_predictions_1"].append(values_1)
+                    episode_dict["total_rewards_1"].append(str(round(total_reward, 3)))
+                    episode_dict["distance_rewards_1"].append(str(round(distance_reward, 3)))
+                    episode_dict["angle_rewards_1"].append(str(round(angle_reward, 3)))
+                        
+                    if(not self.task.task.parenting):
                         episode_dict["actions_2"].append(prev_action_2)
-                        episode_dict["which_goal_message_2"].append(agent_to_english(which_goal_message_2))
+                        episode_dict["action_texts_2"].append(agent_to_english(prev_action_2))
                         comm_out_2 = onehots_to_string(prev_comm_out_2)
-                        episode_dict["comms_out_2"].append("'{}' ({})".format(comm_out_2, self.task.task.agent_to_english(comm_out_2)))
+                        episode_dict["comms_out_2"].append("{} ({})".format(comm_out_1, self.task.task.agent_to_english(comm_out_2)))
+                        episode_dict["rgbd_dkls_2"].append(rgbd_dkls_2.sum().item())
+                        episode_dict["comm_dkls_2"].append(comm_dkls_2.sum().item())
+                        episode_dict["sensors_dkls_2"].append(sensors_dkls_2.sum().item())
+                        episode_dict["critic_predictions_2"].append(values_2)
                         episode_dict["total_rewards_2"].append(str(round(total_reward_2, 3)))
                         episode_dict["distance_rewards_2"].append(str(round(distance_reward_2, 3)))
                         episode_dict["angle_rewards_2"].append(str(round(angle_reward_2, 3)))
-                        episode_dict["critic_predictions_2"].append(values_2)
-                        episode_dict["rgbd_dkls_2"].append(rgbd_dkls_2 if rgbd_dkls_2 == None else rgbd_dkls_2.sum().item())
-                        episode_dict["comm_dkls_2"].append(comm_dkls_2 if comm_dkls_2 == None else comm_dkls_2.sum().item())
-                        episode_dict["sensors_dkls_2"].append(sensors_dkls_2 if sensors_dkls_2 == None else sensors_dkls_2.sum().item())
-                        rgbd_2, _, sensors_2 = self.task.obs(agent_1 = False)
-                        birds_eye_2 = None if comm_from_parent else self.task.arena_2.photo_from_above()
-                        episode_dict["rgbds_2"].append(rgbd_2[0,:,:,0:3])
-                        comm_in_2 = which_goal_message_2 if self.task.task.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_1[0,0]
-                        episode_dict["comms_in_2"].append("'{}' ({})".format(comm_in_2, self.task.task.agent_to_english(comm_in_2)))
-                        episode_dict["sensors_2"].append(None if sensors_2 == None else sensors_2.tolist())
-                        episode_dict["birds_eye_2"].append(None if birds_eye_2 == None else birds_eye_2[:,:,0:3])
-                        hps_2.append(hp_2 if hp_2 == None else hp_2.unsqueeze(0))
-                        hqs_2.append(hq_2 if hq_2 == None else hq_2.unsqueeze(0))
-
-                self.task.done()
-                        
-                hp_1 = torch.cat(hps_1, dim = 1)
-                hq_1 = torch.cat(hqs_1, dim = 1)
-                actions_1 = torch.cat(episode_dict["actions_1"], dim = 1)
+                    
+                    if(done):
+                        save_step(step, hp_1, hq_1, action = prev_action_1, agent_1 = True)    
+                        if(not self.task.task.parenting):
+                            save_step(step, hp_2, hq_2, action = prev_action_2, agent_1 = False) 
+                        display(step + 1, done = True, wait = False)
+                        self.task.done()
+                        break
                 
-                comm_out_1 = onehots_to_string(prev_comm_out_1)
-                episode_dict["comms_out_1"].append("{} ({})".format(comm_out_1, self.task.task.agent_to_english(comm_out_1)))
-                
-                episode_dict["actions_1"] = [action_to_string(action) for action in episode_dict["actions_1"]]
-                pred_rgbds_p, pred_comm_in_p, pred_sensors_p = self.forward.predict(hp_1, self.forward.action_in(actions_1)) 
-                pred_rgbds_q, pred_comm_in_q, pred_sensors_q = self.forward.predict(hq_1, self.forward.action_in(actions_1))
-                for step in range(pred_rgbds_p.shape[1]):
-                    episode_dict["prior_predicted_rgbds_1"].append(pred_rgbds_p[0,step][:,:,0:3])
-                    
-                    prior_predicted_comms_in_1 = onehots_to_string(pred_comm_in_p[0,step])
-                    episode_dict["prior_predicted_comms_in_1"].append("'{}' ({})".format(prior_predicted_comms_in_1, self.task.task.agent_to_english(prior_predicted_comms_in_1)))
-                    
-                    episode_dict["prior_predicted_sensors_1"].append([round(o.item(), 2) for o in pred_sensors_p[0,step]])
-                    episode_dict["posterior_predicted_rgbds_1"].append(pred_rgbds_q[0,step][:,:,0:3])
-                    
-                    posterior_predicted_comms_in_1 = onehots_to_string(pred_comm_in_q[0,step])
-                    episode_dict["posterior_predicted_comms_in_1"].append("'{}' ({})".format(posterior_predicted_comms_in_1, self.task.task.agent_to_english(posterior_predicted_comms_in_1)))
-                    
-                    episode_dict["posterior_predicted_sensors_1"].append([round(o.item(), 2) for o in pred_sensors_q[0,step]])
-                #if(self.agent_num == 1):
-                #    for step in range(hp_1.shape[1]):
-                #        print("\nIn Saving Episode:")
-                #        print("Real: ", episode_dict["comms_1"][step])
-                #        print("Prior:", episode_dict["prior_predicted_comms_1"][step])
-                #        print("Postr:", episode_dict["posterior_predicted_comms_1"][step])
-                #        print("\n")
-                
-                if(not comm_from_parent):
-                    hp_2 = torch.cat(hps_2, dim = 1)
-                    hq_2 = torch.cat(hqs_2, dim = 1)
-                    actions_2 = torch.cat(episode_dict["actions_2"], dim = 1)
-                    
-                    comm_out_2 = onehots_to_string(prev_comm_out_1)
-                    episode_dict["comms_out_2"].append("{} ({})".format(comm_out_2, self.task.task.agent_to_english(comm_out_2)))
-                    
-                    episode_dict["actions_2"] = [action_to_string(action) for action in episode_dict["actions_2"]]
-                    pred_rgbds_p, pred_comm_in_p, pred_sensors_p = self.forward.predict(hp_2, self.forward.action_in(actions_2))
-                    pred_rgbds_q, pred_comm_in_q, pred_sensors_q = self.forward.predict(hq_2, self.forward.action_in(actions_2))
-                    for step in range(pred_rgbds_p.shape[1]):
-                        episode_dict["prior_predicted_rgbds_2"].append(pred_rgbds_p[0,step][:,:,0:3])
-
-                        prior_predicted_comms_in_2 = onehots_to_string(pred_comm_in_p[0,step])
-                        episode_dict["prior_predicted_comms_in_2"].append("'{}' ({})".format(prior_predicted_comms_in_2, self.task.task.agent_to_english(prior_predicted_comms_in_2)))
-                        
-                        episode_dict["prior_predicted_sensors_2"].append([round(o.item(), 2) for o in pred_sensors_p[0,step]])
-                        episode_dict["posterior_predicted_rgbds_2"].append(pred_rgbds_q[0,step][:,:,0:3])
-                        
-                        posterior_predicted_comms_in_2 = onehots_to_string(pred_comm_in_q[0,step])
-                        episode_dict["posterior_predicted_comms_in_2"].append("'{}' ({})".format(posterior_predicted_comms_in_2, self.task.task.agent_to_english(posterior_predicted_comms_in_2)))
-                        
-                        episode_dict["posterior_predicted_sensors_2"].append([round(o.item(), 2) for o in pred_sensors_q[0,step]])
-                    #if(self.agent_num == 1):
-                    #    for step in range(hp_2.shape[1]):
-                    #        print("\nIn Saving Episode:")
-                    #        print("Real: ", episode_dict["comms_2"][step])
-                    #        print("Prior:", episode_dict["prior_predicted_comms_2"][step])
-                    #        print("Postr:", episode_dict["posterior_predicted_comms_2"][step])
-                    #        print("\n")
-                
-                self.plot_dict["episode_dicts"]["{}_{}_{}_{}".format(self.agent_num, self.epochs, episode_num, 1 if swapping else 0)] = episode_dict
+                if(for_display):
+                    return(win)
+                else:
+                    self.plot_dict["episode_dicts"]["{}_{}_{}_{}".format(self.agent_num, self.epochs, episode_num, 1 if swapping else 0)] = episode_dict
         
         
         

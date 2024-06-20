@@ -1,10 +1,10 @@
 import os, pickle
 
-from utils import duration, args, print
+from utils import duration, args, print, save_file
 
 print("name:\n{}".format(args.arg_name))
 
-os.chdir("saved")
+os.chdir(save_file)
 folders = os.listdir() ; folders.sort()
 try: folders.remove("thesis_pics")                                                                                                                                                                          
 except: pass                                                                                                                                                                                
