@@ -9,7 +9,7 @@ import imageio
 import numpy as np
 
 from utils import print, args, duration, load_dicts
-from pybullet_data.robot_maker import plot_sensors
+from pybullet_data.robot_maker import how_to_plot_sensors
 
 
 
@@ -52,164 +52,109 @@ def plot_episode(key, episode_dict, arg_name, saving = True):
 def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = True):
     agent_num = 1 if agent_1 else 2
     
-    text_list = []
-    image_list = []
-    plot_list = []
-    label_list = []
+    data = []
     
-    goal = episode_dict["goal"]
-    text_list.append(goal)
-    label_list.append("Goal:")
-    
+    data.append(["Goal", [episode_dict["goal"]], .1])
     if not step == 0:
-        which_goal_message = episode_dict[f"which_goal_message_{agent_num}"][step-1]
-        text_list.append(which_goal_message)
-        label_list.append("Achieved goal:")
+        data.append(["Acheived Goal", [episode_dict[f"which_goal_message_{agent_num}"][step-1]], .1])
         
-    birds_eye = episode_dict[f"birds_eye_{agent_num}"][step]
-    text_list.append("image")
-    image_list.append(birds_eye)
-    label_list.append(f"View Above ({agent_num}):")
-
-    rgbd = episode_dict[f"rgbds_{agent_num}"][step]
-    text_list.append("image")
-    image_list.append(rgbd)
-    label_list.append(f"RGBD ({agent_num}):")
+    data.append(["Bird's Eye View", [episode_dict[f"birds_eye_{agent_num}"][step], "image"], 1])
     
-    if not step == 0:
-
-        rgbd_p = episode_dict[f"prior_predicted_rgbds_{agent_num}"][step-1]
-        text_list.append("image")
-        image_list.append(rgbd_p)
-        label_list.append(f"Predicted RGBD (Prior) ({agent_num}):")
-        
-        rgbd_q = episode_dict[f"posterior_predicted_rgbds_{agent_num}"][step-1]
-        text_list.append("image")
-        image_list.append(rgbd_q)
-        label_list.append(f"Predicted RGBD (Posterior) ({agent_num}):")
-
-    comms_in = episode_dict[f"comms_in_{agent_num}"][step]
-    text_list.append(comms_in)
-    label_list.append(f"Comms In ({agent_num}):")
+    if(not step == 0):
+        data.append(["", ["Real"], ["Prior"], ["Posterior"], .1])
     
-    if not step == 0:
-
-        comms_in_p = episode_dict[f"prior_predicted_comms_in_{agent_num}"][step-1]
-        text_list.append(comms_in_p)
-        label_list.append(f"Predicted Comms (Prior) ({agent_num}):")
-        
-        comms_in_q = episode_dict[f"posterior_predicted_comms_in_{agent_num}"][step-1]
-        text_list.append(comms_in_q)
-        label_list.append(f"Predicted Comms (Posterior) ({agent_num}):")
-    
-    sensors = episode_dict[f"sensors_{agent_num}"][step][0]
-    text_list.append("image")
-    image_list.append(plot_sensors(sensors))
-    label_list.append(f"Sensors ({agent_num}):")
-    
-    if not step == 0:
-        
-        sensors_p = episode_dict[f"prior_predicted_sensors_{agent_num}"][step-1]
-        text_list.append("image")   
-        image_list.append(plot_sensors(sensors_p))
-        label_list.append(f"Predicted Sensors (Prior) ({agent_num}):")
-        
-        sensors_q = episode_dict[f"posterior_predicted_sensors_{agent_num}"][step-1]
-        text_list.append("image")   
-        image_list.append(plot_sensors(sensors_q))
-        label_list.append(f"Predicted Sensors (Posterior) ({agent_num}):")
-        
-        raw_rewards = episode_dict["raw_rewards"][step-1]
-        text_list.append(raw_rewards)
-        label_list.append("Raw reward:")
-        
-        distance_rewards = episode_dict[f"distance_rewards_{agent_num}"][step-1]
-        text_list.append(distance_rewards)
-        label_list.append("Distance reward:")
-        
-        angle_rewards = episode_dict[f"angle_rewards_{agent_num}"][step-1]
-        text_list.append(angle_rewards)
-        label_list.append("Angle reward:")
-        
-        total_rewards = episode_dict[f"total_rewards_{agent_num}"][step-1]
-        text_list.append(total_rewards)
-        label_list.append("Total reward:")
-        
-        values = episode_dict[f"critic_predictions_{agent_num}"][step-1]
-        values_text = ""
-        for i, value in enumerate(values):
-            values_text += "{}".format(value) + ("." if i+1 == len(values) else ", ")
-        text_list.append(values_text)
-        label_list.append(f"Predicted Values ({agent_num}):")
-    
-    if not last_step:
-        
-        recommended_actions = episode_dict[f"recommended_{agent_num}"][step]
-        text_list.append(recommended_actions)
-        label_list.append(f"Recommendation ({agent_num}):")
-        
-    if not step == 0:
-        
-        actions = episode_dict[f"action_texts_{agent_num}"][step-1]
-        text_list.append(actions)
-        label_list.append(f"Actions Leading Here ({agent_num}):")
-        
-        comms_out = episode_dict[f"comms_out_{agent_num}"][step-1]
-        text_list.append(comms_out)
-        label_list.append(f"Comms Out ({agent_num}):")
-        
-        rgbd_dkls = episode_dict[f"rgbd_dkls_{agent_num}"][:step]
-        text_list.append("plot")
-        plot_list.append(rgbd_dkls)
-        label_list.append(f"RGBD DKL ({agent_num}):")
-            
-        comm_dkls = episode_dict[f"comm_dkls_{agent_num}"][:step]
-        text_list.append("plot")
-        plot_list.append(comm_dkls)
-        label_list.append(f"Comm DKL ({agent_num}):")
-            
-        sensors_dkls = episode_dict[f"sensors_dkls_{agent_num}"][:step]
-        text_list.append("plot")
-        plot_list.append(sensors_dkls)
-        label_list.append(f"Sensors DKL ({agent_num}):")
-        
-    fig = plt.figure(figsize=(15, 20))
-
-    
-    
-    gs = gridspec.GridSpec(len(label_list), 2, height_ratios=[20 if text == "image" else 10 if text == "plot" else 1 if text.startswith("Yaw:") else 1 for text in text_list], width_ratios=[1, 4])
-    images_plotted = 0
-    plots_plotted = 0
-    for i, (text, label) in enumerate(zip(text_list, label_list)):        
-        ax_text = fig.add_subplot(gs[i, 0])
-        ax_text.axis('off')
-        ax_img = fig.add_subplot(gs[i, 1])
-        if(i == 0): 
-            ax_text.text(0.0, 1, "Step {}".format(step) if not last_step else "Step {} (Done)".format(step), 
-                    va='center', ha='left', fontsize=20, fontweight='bold')
-        ax_text.text(0.1, 0, label, va='center', ha='left', fontsize=12, fontweight='bold')
-        if(text) == "image":
-            image = image_list[images_plotted]
-            ax_img.imshow(image)
-            rect = patches.Rectangle((-.5, -.5), image.shape[1], image.shape[0], linewidth=4, edgecolor='black', facecolor='none')
-            ax_img.add_patch(rect)
-            ax_img.axis('off')
-            images_plotted += 1
-        elif(text) == "plot":
-            ax_img.plot(plot_list[plots_plotted])
-            ax_img.set_ylim(bottom=0)
-            plots_plotted += 1
-        else:
-            text = text.replace('\t', ' ') # .replace('(', ' ').replace(')', ' ')
-            ax_img.text(0.2, 0, text, va='center', ha='left', fontsize=12)
-            ax_img.axis('off')
-            
-    if(saving):
-        plt.savefig(f"Step {step} Agent {agent_num}.png")
+    if(step == 0):
+        data.append([f"RGBD ({agent_num})", [episode_dict[f"rgbds_{agent_num}"][step], "image"], 1])
+        data.append([f"Comm_In ({agent_num})", [episode_dict[f"comms_in_{agent_num}"][step]], 1])
+        data.append([f"Sensors ({agent_num})", [episode_dict[f"sensors_{agent_num}"][step], "sensors"], 1])
     else:
-        plt.show()
+        data.append(
+            [f"RGBD ({agent_num})", 
+            [episode_dict[f"rgbds_{agent_num}"][step], "image"],
+            [episode_dict[f"prior_predicted_rgbds_{agent_num}"][step-1], "image"],
+            [episode_dict[f"posterior_predicted_rgbds_{agent_num}"][step-1], "image"], 1])
+        data.append(
+            [f"Comm_In ({agent_num})",
+            [episode_dict[f"comms_in_{agent_num}"][step]],
+            ["\n\n" + episode_dict[f"prior_predicted_comms_in_{agent_num}"][step-1]],
+            ["\n\n\n\n" + episode_dict[f"posterior_predicted_comms_in_{agent_num}"][step-1]], .3])
+        data.append(
+            [f"Sensors ({agent_num})", 
+            [episode_dict[f"sensors_{agent_num}"][step], "sensors"],
+            [episode_dict[f"prior_predicted_sensors_{agent_num}"][step-1], "sensors"],
+            [episode_dict[f"posterior_predicted_sensors_{agent_num}"][step-1], "sensors"], 1])
         
-    plt.close()
+        data.append([f"Action ({agent_num})", [episode_dict[f"action_texts_{agent_num}"][step-1]], .1])
+        data.append([f"Comms Out ({agent_num})", [episode_dict[f"comms_out_{agent_num}"][step-1]], .1])
+        
+        data.append([f"RGBD DKL ({agent_num})", [episode_dict[f"rgbd_dkls_{agent_num}"][:step], "plot"], .5])
+        data.append([f"Comm DKL ({agent_num})", [episode_dict[f"comm_dkls_{agent_num}"][:step], "plot"], .5])
+        data.append([f"Sensors DKL ({agent_num})", [episode_dict[f"sensors_dkls_{agent_num}"][:step], "plot"], .5])
+        
+    max_sublist_len = 0
+    for sublist in data:
+        if(len(sublist) > max_sublist_len):
+            max_sublist_len = len(sublist)
+        
+
+
+    def plot_text(ax, value):
+        ax.text(0.1, 0.5, f"{value}", fontsize=12, verticalalignment='center', transform=ax.transAxes)
+        ax.axis('off')
+
+    def plot_image(ax, image):
+        ax.text(0.1, 0.9, "", fontsize=12, verticalalignment='center', transform=ax.transAxes)
+        ax.imshow(image, cmap='gray')
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.tick_params(axis='both', which='both', length=0)
+
+    def plot_sensors(ax, sensors_data):
+        ax.text(0.1, 0.9, "", fontsize=12, verticalalignment='center', transform=ax.transAxes)
+        sensors_image = how_to_plot_sensors(sensors_data)
+        sensors_image = sensors_image[80:-70, 125:-100]
+        ax.imshow(sensors_image)
+        ax.axis('off')
+
+    def plot_line_plot(ax, plot_data):
+        ax.text(0.1, 0.9, "", fontsize=12, verticalalignment='center', transform=ax.transAxes)
+        ax.plot(plot_data)
+        ax.axis('on')
+        
+        
+        
+    def plot_sublist(fig, gs, sublist, row):
+        ax = fig.add_subplot(gs[row, 0])
+        plot_text(ax, sublist[0] + (":" if sublist[0] != "" else ""))
+        for column, subsublist in enumerate(sublist[1:-1]):
+            ax = fig.add_subplot(gs[row, column+1])
+            if isinstance(subsublist[0], str):
+                plot_text(ax, subsublist[0])
+            elif subsublist[-1] == "image":
+                plot_image(ax, subsublist[0])
+            elif subsublist[-1] == "plot":
+                ax = fig.add_subplot(gs[row, 1:])
+                plot_line_plot(ax, subsublist[0])          
+            elif subsublist[-1] == "sensors":
+                plot_sensors(ax, subsublist[0])
+        return(1)
+        
+        
+
+    def create_plot(data):
+        fig = plt.figure(figsize=(20, 25))
+        height_ratios = [sublist[-1] for sublist in data]
+        gs = gridspec.GridSpec(len(data), max_sublist_len, figure=fig, height_ratios=height_ratios)
+        for row, sublist in enumerate(data):
+            plot_sublist(fig, gs, sublist, row)
+        #plt.tight_layout()
+        if(saving):
+            plt.savefig(f"Step {step} Agent {agent_num}.png")
+        else:
+            plt.show()
+        plt.close()
+        
+    create_plot(data)
     
     
 
@@ -218,4 +163,5 @@ if __name__ == "__main__":
     plot_dicts, min_max_dict, complete_order = load_dicts(args)
     plot_episodes(complete_order, plot_dicts)
     print("\nDuration: {}. Done!".format(duration()))
+    
 # %%

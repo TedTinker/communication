@@ -131,11 +131,13 @@ def plots(plot_dicts, min_max_dict):
     too_many_plot_dicts = len(plot_dicts) > 16
     figsize = (10, 10)
     if(not too_many_plot_dicts):
-        fig, axs = plt.subplots(37, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
+        fig, axs = plt.subplots(34, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
                 
     for i, plot_dict in enumerate(plot_dicts):
         row_num = 0
+        ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
         args = plot_dict["args"]
+        print(f"\nStarting {plot_dict['arg_name']}.")
         epochs = args.epochs
         sums = list(accumulate(epochs))
         percentages = [s / sums[-1] for s in sums][:-1]
@@ -156,6 +158,9 @@ def plots(plot_dicts, min_max_dict):
         for action_name in action_name_list:
             win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), levels = [1], adjust_xs = False, remove_none = False)
             gen_win_dict = get_quantiles(plot_dict, "gen_wins_" + action_name.lower(), levels = [1], adjust_xs = False, remove_none = False)
+            for key in gen_win_dict:
+                if key not in ["xs"]:
+                    gen_win_dict[key] = gen_win_dict[key] * args.epochs_per_gen_test
             
             win_dict = get_rolling_average(win_dict)
             gen_win_dict = get_rolling_average(gen_win_dict)
@@ -168,28 +173,28 @@ def plots(plot_dicts, min_max_dict):
                 divide_arenas([x for x in range(sum(epochs))], here)
                     
             if(not too_many_plot_dicts): 
-                ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
                 plot_rolling_average_wins(ax)
                 ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
                 plot_rolling_average_wins(ax, gen = True)
                 ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
                 
             fig2, ax2 = plt.subplots(2, 1, figsize = (20, 30))
+            fig2.suptitle(plot_dict["arg_title"])  
             plot_rolling_average_wins(ax2[0])  
             ax2[0].set_title("Rolling-Average Win-Rate")
             plot_rolling_average_wins(ax2[1], gen = True)  
             ax2[1].set_title("Rolling-Average Gen-Win-Rate")
             fig2.savefig(f"thesis_pics/win_rates_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
             plt.close(fig2)
+            
+            print(f"\tFinished {action_name} win-rates.")
                 
+        print(f"\t\tFinished win-rates.")
+            
                 
                 
         # Cumulative rewards
         rew_dict = get_quantiles(plot_dict, "rewards", levels = [1], adjust_xs = False)
-        max_reward = args.reward
-        max_rewards = [max_reward*x for x in range(rew_dict["xs"][-1])]
-        min_reward = args.step_lim_punishment
-        min_rewards = [min_reward*x for x in range(rew_dict["xs"][-1])]
         
         def plot_cumulative_rewards(here):
             awesome_plot(here, rew_dict, "turquoise", "Reward")
@@ -213,14 +218,15 @@ def plots(plot_dicts, min_max_dict):
             plot_cumulative_rewards_shared_min_max(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
         
+        print(f"\tFinished cumulative rewards.")
+
 
         
         # Cumulative generalization-test rewards
         gen_rew_dict = get_quantiles(plot_dict, "gen_rewards", levels = [1], adjust_xs = False)
-        max_reward = args.reward
-        max_rewards = [max_reward*x for x in range(gen_rew_dict["xs"][-1])]
-        min_reward = args.step_lim_punishment
-        min_rewards = [min_reward*x for x in range(gen_rew_dict["xs"][-1])]
+        for key in gen_win_dict:
+            if key not in ["xs"]:
+                gen_rew_dict[key] = gen_rew_dict[key] * args.epochs_per_gen_test
         
         def plot_cumulative_gen_rewards(here):
             awesome_plot(here, gen_rew_dict, "pink", "Reward")
@@ -245,6 +251,7 @@ def plots(plot_dicts, min_max_dict):
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             
         fig2, ax2 = plt.subplots(4, 1, figsize = (20, 60)) 
+        fig2.suptitle(plot_dict["arg_title"])  
         plot_cumulative_rewards(ax2[0])  
         ax2[0].set_title("Cumulative Rewards")
         plot_cumulative_rewards_shared_min_max(ax2[1])  
@@ -256,6 +263,8 @@ def plots(plot_dicts, min_max_dict):
         fig2.savefig(f"thesis_pics/rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
         plt.close(fig2)
             
+        print(f"\tFinished cumulative generalization-test rewards.")
+        
         
         
         # Forward Losses
@@ -297,6 +306,8 @@ def plots(plot_dicts, min_max_dict):
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             plot_forward_losses_shared_min_max(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
+            
+        print(f"\tFinished forward losses.")
         
         
         
@@ -343,6 +354,7 @@ def plots(plot_dicts, min_max_dict):
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
         
         fig2, ax2 = plt.subplots(4, 1, figsize = (20, 60)) 
+        fig2.suptitle(plot_dict["arg_title"])  
         plot_forward_losses(ax2[0])  
         ax2[0].set_title("Forward Losses")
         plot_forward_losses_shared_min_max(ax2[1])  
@@ -353,6 +365,8 @@ def plots(plot_dicts, min_max_dict):
         ax2[3].set_title("log Forward Losses, shared min/max")
         fig2.savefig(f"thesis_pics/forward_losses_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
         plt.close(fig2)
+        
+        print(f"\tFinished log forward losses.")
             
         
             
@@ -401,12 +415,15 @@ def plots(plot_dicts, min_max_dict):
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             
         fig2, ax2 = plt.subplots(2, 1, figsize = (20, 30))
+        fig2.suptitle(plot_dict["arg_title"])  
         plot_other_losses(ax2[0])  
         ax2[0].set_title("Actor, Critic Losses")
         plot_other_losses_shared_min_max(ax2[1])  
         ax2[1].set_title("Actor, Critic Losses, shared min/max")
         fig2.savefig(f"thesis_pics/actor_critic_losses_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
         plt.close(fig2)
+        
+        print(f"\tFinished other losses.")
             
         
             
@@ -475,7 +492,9 @@ def plots(plot_dicts, min_max_dict):
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             plot_extrinsic_and_intrinsic_rewards_shared_min_max(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-        
+            
+        print(f"\tFinished extrinsic and intrinsic rewards.")
+                    
         
         
         # Extrinsic and Intrinsic rewards with same dims
@@ -529,6 +548,7 @@ def plots(plot_dicts, min_max_dict):
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             
         fig2, ax2 = plt.subplots(4, 1, figsize = (20, 60)) 
+        fig2.suptitle(plot_dict["arg_title"])  
         plot_extrinsic_and_intrinsic_rewards(ax2[0])  
         ax2[0].set_title("Extrinsic and Intrinsic Rewards")
         plot_extrinsic_and_intrinsic_rewards_shared_min_max(ax2[1])  
@@ -539,6 +559,8 @@ def plots(plot_dicts, min_max_dict):
         ax2[3].set_title("Extrinsic and Intrinsic Rewards, shared min/max and dim")
         fig2.savefig(f"thesis_pics/extrinsic_and_intrinsic_rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
         plt.close(fig2)
+        
+        print(f"\tFinished extrinsic and intrinsic rewards with same dimensions.")
 
         
             
@@ -606,6 +628,8 @@ def plots(plot_dicts, min_max_dict):
             here.legend()
             here.set_title(plot_dict["arg_title"] + "\nPossible Hidden State Curiosities, shared min/max")
             divide_arenas(prediction_error_curiosity_dict, here)
+            
+        print(f"\tFinished curiosities.")
     
         
         
@@ -688,6 +712,7 @@ def plots(plot_dicts, min_max_dict):
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             
         fig2, ax2 = plt.subplots(8, 1, figsize = (20, 120)) 
+        fig2.suptitle(plot_dict["arg_title"])  
         plot_prediction_error_curiosities(ax2[0])  
         ax2[0].set_title("Possible Prediction Error Curiosities")
         plot_hidden_state_curiosities(ax2[1])  
@@ -711,7 +736,9 @@ def plots(plot_dicts, min_max_dict):
         fig2.savefig(f"thesis_pics/curiosities_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
         plt.close(fig2)
         
-        print("{}:\t{}.".format(duration(), plot_dict["arg_name"]))
+        print(f"\tFinished log curiosities.")
+        print(f"Finished {plot_dict['arg_name']}.")
+        print(f"{duration()}")
 
     
     

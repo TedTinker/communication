@@ -52,9 +52,10 @@ class Agent:
         
         self.tasks = {
             0 : Task(actions = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parenting = True, args = self.args),
-            1 : Task(actions = [1],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
-            2 : Task(actions = [3],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0],               parenting = True, args = self.args),
-            3 : Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args)}
+            1 : Task(actions = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
+            2 : Task(actions = [1],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
+            3 : Task(actions = [0, 1],              objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args)}
+            
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
         physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
@@ -649,7 +650,7 @@ class Agent:
                     
                     episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
                     episode_dict[f"rgbds_{agent_num}"].append(rgbd[0,:,:,0:3])        
-                    episode_dict[f"sensors_{agent_num}"].append(sensors.tolist())
+                    episode_dict[f"sensors_{agent_num}"].append(sensors.tolist()[0])
                     
                     if(agent_1):
                         comm_in = which_goal_message_1 if self.task.task.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
@@ -706,7 +707,7 @@ class Agent:
                     episode_dict["raw_rewards"].append(str(round(raw_reward, 3)))
                     
                     episode_dict["actions_1"].append(prev_action_1)
-                    episode_dict["action_texts_1"].append(agent_to_english(prev_action_1))
+                    episode_dict["action_texts_1"].append(action_to_string(prev_action_1))
                     comm_out_1 = onehots_to_string(prev_comm_out_1)
                     episode_dict["comms_out_1"].append("{} ({})".format(comm_out_1, self.task.task.agent_to_english(comm_out_1)))
                     episode_dict["rgbd_dkls_1"].append(rgbd_dkls_1.sum().item())
@@ -719,7 +720,7 @@ class Agent:
                         
                     if(not self.task.task.parenting):
                         episode_dict["actions_2"].append(prev_action_2)
-                        episode_dict["action_texts_2"].append(agent_to_english(prev_action_2))
+                        episode_dict["action_texts_2"].append(action_to_string(prev_action_2))
                         comm_out_2 = onehots_to_string(prev_comm_out_2)
                         episode_dict["comms_out_2"].append("{} ({})".format(comm_out_1, self.task.task.agent_to_english(comm_out_2)))
                         episode_dict["rgbd_dkls_2"].append(rgbd_dkls_2.sum().item())

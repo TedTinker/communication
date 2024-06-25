@@ -324,7 +324,7 @@ sensor_values = [0.1] * len(sensor_positions)  # Adjust values for testing
 
 
 # Plotting function
-def plot_sensors(sensor_values, sensor_positions = sensor_positions, sensor_dimensions = sensor_dimensions, show = False):
+def how_to_plot_sensors(sensor_values, sensor_positions = sensor_positions, sensor_dimensions = sensor_dimensions, show = False):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
@@ -401,4 +401,4 @@ def plot_sensors(sensor_values, sensor_positions = sensor_positions, sensor_dime
         return(image_array)
 
 if(__name__ == "__main__"):
-    plot_sensors(sensor_values, show = True)
+    how_to_plot_sensors(sensor_values, show = True)

@@ -8,6 +8,7 @@
 #   Beta values seem to harm.
 
 # To do: less important 
+#   I wish plotting-episodes put actions one step forward...
 #   Allow multiple layers in PVRNN.
 #   Try predicting multiple steps into the future.
 #   Training forward, actor, and critic together works, but needs fine-tuning. 
@@ -217,256 +218,256 @@ def literal(arg_string): return(ast.literal_eval(arg_string))
 parser = argparse.ArgumentParser()
 
     # Meta 
-parser.add_argument("--arg_title",          type=str,        default = "default",
+parser.add_argument("--arg_title",                      type=str,           default = "default",
                     help='Title of argument-set containign all non-default arguments.') 
-parser.add_argument("--arg_name",           type=str,        default = "default",
+parser.add_argument("--arg_name",                       type=str,           default = "default",
                     help='Title of argument-set for human-understanding.') 
-parser.add_argument("--agents",             type=int,        default = 36,
+parser.add_argument("--agents",                         type=int,           default = 36,
                     help='How many agents are trained in this job?')
-parser.add_argument("--previous_agents",    type=int,        default = 0,
+parser.add_argument("--previous_agents",                type=int,           default = 0,
                     help='How many agents with this argument-set are trained in previous jobs?')
-parser.add_argument("--init_seed",          type=float,      default = 777,
+parser.add_argument("--init_seed",                      type=float,         default = 777,
                     help='Random seed.')
-parser.add_argument('--comp',               type=str,        default = "deigo",
+parser.add_argument('--comp',                           type=str,           default = "deigo",
                     help='Cluster name (deigo or saion).')
-parser.add_argument('--device',             type=str,        default = device,
+parser.add_argument('--device',                         type=str,           default = device,
                     help='Which device to use for Torch.')
-parser.add_argument('--cpu',                type=int,        default = 0,
+parser.add_argument('--cpu',                            type=int,           default = 0,
                     help='Which cpu for affinity.')
-parser.add_argument('--show_duration',      type=bool,       default = False,
+parser.add_argument('--show_duration',                  type=bool,          default = False,
                     help='Should durations be printed?')
 
     # Things which have list-values.
-parser.add_argument('--task_list',          type=literal,    default = [1],
+parser.add_argument('--task_list',                      type=literal,       default = [1, 2],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',             type=literal,    default = [100],
+parser.add_argument('--epochs',                         type=literal,       default = [10000, 10000],
                     help='List of how many epochs to train in each task.')
-parser.add_argument('--time_scales',        type=literal,    default = [1],
+parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')
-parser.add_argument("--beta",               type=literal,    default = [2],
+parser.add_argument("--beta",                           type=literal,       default = [2],
                     help='Relative importance of complexity in each upper layer.')
-parser.add_argument("--hidden_state_eta",   type=literal,    default = [5],
+parser.add_argument("--hidden_state_eta",               type=literal,       default = [5],
                     help='Nonnegative values, how much to consider hidden_state curiosity in each upper layer.') 
 
     # Simulation details
-parser.add_argument('--max_object_distance',type=float,      default = 6,
+parser.add_argument('--max_object_distance',            type=float,         default = 6,
                     help='How far objects can start from the agent.')
-parser.add_argument('--min_object_separation',type=float,    default = 3,
+parser.add_argument('--min_object_separation',          type=float,         default = 3,
                     help='How far objects must start from each other.')
-parser.add_argument('--object_size',        type=float,      default = 2,
+parser.add_argument('--object_size',                    type=float,         default = 2,
                     help='How large is the agent\'s body?')    
-parser.add_argument('--body_size',          type=float,      default = 2,
+parser.add_argument('--body_size',                      type=float,         default = 2,
                     help='How large is the agent\'s body?')    
-parser.add_argument('--time_step',          type=float,      default = .2,
+parser.add_argument('--time_step',                      type=float,         default = .2,
                     help='numSubSteps in pybullet environment.')
-parser.add_argument('--steps_per_step',     type=int,        default = 20,
+parser.add_argument('--steps_per_step',                 type=int,           default = 20,
                     help='numSubSteps in pybullet environment.')
 
     # Agent details
-parser.add_argument('--image_size',         type=int,        default = 20,
+parser.add_argument('--image_size',                     type=int,           default = 16, #20,
                     help='Dimensions of the images observed.')
-parser.add_argument('--max_speed',          type=float,      default = 10,
+parser.add_argument('--max_speed',                      type=float,         default = 10,
                     help='Max wheel speed.')
-parser.add_argument('--angular_scaler',     type=float,      default = .4,
+parser.add_argument('--angular_scaler',                 type=float,         default = .4,
                     help='How to scale angular velocity vs linear velocity.')
-parser.add_argument('--min_shoulder_angle', type=float,      default = 0,
+parser.add_argument('--min_shoulder_angle',             type=float,         default = 0,
                     help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_shoulder_angle', type=float,      default = pi/2,
+parser.add_argument('--max_shoulder_angle',             type=float,         default = pi/2,
                     help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_shoulder_speed', type=float,      default = 8,
+parser.add_argument('--max_shoulder_speed',             type=float,         default = 8,
                     help='Max shoulder speed.')
 
     # Task details
-parser.add_argument('--reward',             type=float,      default = 10,
+parser.add_argument('--reward',                         type=float,         default = 10,
                     help='Extrinsic reward for choosing correct action, shape, and color.') 
-parser.add_argument('--wrong_object_punishment', type=float, default = 0,
+parser.add_argument('--wrong_object_punishment',        type=float,        default = 0,
                     help='Extrinsic punishment for choosing any action with wrong object.') 
-parser.add_argument('--free_play_reward',   type=float,      default = 1,
+parser.add_argument('--free_play_reward',               type=float,         default = 1,
                     help='Extrinsic reward for performing any action in free play.') 
-parser.add_argument('--free_play_reward_dist',type=literal,  default = True,
+parser.add_argument('--free_play_reward_dist',          type=literal,       default = True,
                     help='Add distance and anglular rewards for free play?') 
-parser.add_argument('--max_steps',          type=int,        default = 10,
+parser.add_argument('--max_steps',                      type=int,           default = 10,
                     help='How many steps the agent can make in one episode.')
-parser.add_argument('--step_lim_punishment',type=float,      default = -10,
+parser.add_argument('--step_lim_punishment',            type=float,         default = -10,
                     help='Extrinsic punishment for taking max_steps steps.')
-parser.add_argument('--step_cost',          type=float,      default = .975,
+parser.add_argument('--step_cost',                      type=float,         default = .975,
                     help='How much extrinsic rewards for exiting are reduced per step.')
-parser.add_argument('--actions',            type=int,        default = 5,
+parser.add_argument('--actions',                        type=int,           default = 5,
                     help='Maximum count of actions in one episode.')
-parser.add_argument('--objects',            type=int,        default = 2,
+parser.add_argument('--objects',                        type=int,           default = 2,
                     help='Maximum count of objects in one episode.')
-parser.add_argument('--shapes',             type=int,        default = 5,
+parser.add_argument('--shapes',                         type=int,           default = 5,
                     help='Maximum count of shapes in one episode.')
-parser.add_argument('--colors',             type=int,        default = 6,
+parser.add_argument('--colors',                         type=int,           default = 6,
                     help='Maximum count of colors in one episode.')
-parser.add_argument('--max_comm_len',       type=int,        default = 6,
+parser.add_argument('--max_comm_len',                   type=int,           default = 6,
                     help='Maximum length of communication.')
-parser.add_argument('--watch_distance',     type=float,      default = 8,
+parser.add_argument('--watch_distance',                 type=float,         default = 8,
                     help='How close must the agent watch the object to achieve watching.')
-parser.add_argument('--watch_duration',     type=int,        default = 3,
+parser.add_argument('--watch_duration',                 type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--push_amount',        type=float,      default = .75,
+parser.add_argument('--push_amount',                    type=float,         default = .75,
                     help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--pull_amount',        type=float,      default = .25,
+parser.add_argument('--pull_amount',                    type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--left_right_amount',  type=float,      default = .25,
+parser.add_argument('--left_right_amount',              type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
 
     # Rewards for distances
-parser.add_argument('--dist_reward',        type=float,      default = 3,
+parser.add_argument('--dist_reward',                    type=float,         default = .3,
                     help='Give agents a reward just for getting close to the correct object.')
-parser.add_argument('--dist_reward_min',    type=float,      default = 3.5,
+parser.add_argument('--dist_reward_min',                type=float,         default = 3.5,
                     help='If agent closer to correct object that this, rewarded.')
-parser.add_argument('--dist_reward_max',    type=float,      default = 5,
+parser.add_argument('--dist_reward_max',                type=float,         default = 5,
                     help='If agent farther to correct object that this, punished. If agent between min and max, agent relatively rewarded.')
 
     # Rewards for angles
-parser.add_argument('--angle_reward',       type=float,      default = 3,
+parser.add_argument('--angle_reward',                   type=float,         default = 1,
                     help='Give agents a reward just for pointing at the right object.')
-parser.add_argument('--angle_reward_min',   type=float,      default = 30,
+parser.add_argument('--angle_reward_min',               type=float,         default = 30,
                     help='If agent pointing at correct object that this, rewarded.')
-parser.add_argument('--angle_reward_max',   type=float,      default = 90,
+parser.add_argument('--angle_reward_max',               type=float,         default = 90,
                     help='If agent pointing farther from correct object that this, punished. If angle between min and max, agent relatively rewarded.')
 
     # Training
-parser.add_argument('--capacity',           type=int,        default = 256,
+parser.add_argument('--capacity',                       type=int,           default = 256,
                     help='How many episodes can the memory buffer contain.')
-parser.add_argument('--batch_size',         type=int,        default = 32, 
+parser.add_argument('--batch_size',                     type=int,           default = 32, 
                     help='How many episodes are sampled for each epoch.')      
-parser.add_argument('--rgbd_scaler',        type=float,      default = 5, 
+parser.add_argument('--rgbd_scaler',                    type=float,         default = 5, 
                     help='How much to consider rgbd prediction in accuracy compared to comm and sensors.')  
-parser.add_argument('--comm_scaler',        type=float,      default = 1, 
+parser.add_argument('--comm_scaler',                    type=float,         default = 1, 
                     help='How much to consider comm prediction in accuracy compared to rgbd and sensors.')       
-parser.add_argument('--sensors_scaler',     type=float,      default = 1, 
+parser.add_argument('--sensors_scaler',                 type=float,         default = 1, 
                     help='How much to consider sensors prediction in accuracy compared to rgbd and comm.')   
-parser.add_argument('--weight_decay',       type=float,      default = .00001,
+parser.add_argument('--weight_decay',                   type=float,         default = .00001,
                     help='Weight decay for modules.')       
-parser.add_argument('--forward_lr',         type=float,      default = .0003,
+parser.add_argument('--forward_lr',                     type=float,         default = .0003,
                     help='Learning rate for forward model.')
-parser.add_argument('--actor_lr',           type=float,      default = .0003,
+parser.add_argument('--actor_lr',                       type=float,         default = .0003,
                     help='Learning rate for actor model.')
-parser.add_argument('--alpha_lr',           type=float,      default = .0003,
+parser.add_argument('--alpha_lr',                       type=float,         default = .0003,
                     help='Learning rate for alpha value.') 
-parser.add_argument('--alpha_text_lr',      type=float,      default = .0003,
+parser.add_argument('--alpha_text_lr',                  type=float,         default = .0003,
                     help='Learning rate for alpha value.') 
-parser.add_argument('--critic_lr',          type=float,      default = .0003,
+parser.add_argument('--critic_lr',                      type=float,         default = .0003,
                     help='Learning rate for critic model.')
-parser.add_argument('--critics',            type=int,        default = 2,
+parser.add_argument('--critics',                        type=int,           default = 2,
                     help='How many critics?')  
-parser.add_argument('--train_together',     type=literal,    default = False,
+parser.add_argument('--train_together',                 type=literal,       default = False,
                     help='Training forward/actor/critics together, or separately?') 
-parser.add_argument('--forward_scaler',     type=float,      default = 1, 
+parser.add_argument('--forward_scaler',                 type=float,         default = 1, 
                     help='If forward/actor/critic loss are combined, consideration of forward.')  
-parser.add_argument('--actor_scaler',       type=float,      default = 1, 
+parser.add_argument('--actor_scaler',                   type=float,         default = 1, 
                     help='If forward/actor/critic loss are combined, consideration of actor.')  
-parser.add_argument('--critic_scaler',     type=float,      default = 1, 
+parser.add_argument('--critic_scaler',                  type=float,         default = 1, 
                     help='If forward/actor/critic loss are combined, consideration of critic.')  
-parser.add_argument("--tau",                type=float,      default = .1,
+parser.add_argument("--tau",                            type=float,         default = .1,
                     help='Rate at which target-critics approach critics.')      
-parser.add_argument('--GAMMA',              type=float,      default = .9,
+parser.add_argument('--GAMMA',                          type=float,         default = .9,
                     help='How heavily critics consider the future.')
-parser.add_argument("--d",                  type=int,        default = 2,
+parser.add_argument("--d",                              type=int,           default = 2,
                     help='Delay for training actors.') 
 
     # Module  
-parser.add_argument('--hidden_size',        type=int,        default = 64,
+parser.add_argument('--hidden_size',                    type=int,           default = 64,
                     help='Parameters in hidden layers.')   
-parser.add_argument('--pvrnn_mtrnn_size',   type=int,        default = 256,
+parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,
                     help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
-parser.add_argument('--rgbd_state_size',    type=int,        default = 128,
+parser.add_argument('--rgbd_state_size',                type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--comm_state_size',    type=int,        default = 128,
+parser.add_argument('--comm_state_size',                type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--sensors_state_size', type=int,        default = num_sensors,
+parser.add_argument('--sensors_state_size',             type=int,           default = num_sensors,
                     help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--encode_char_size',   type=int,        default = 8,
+parser.add_argument('--encode_char_size',               type=int,           default = 8,
                     help='Parameters in encoding.')   
-parser.add_argument('--encode_rgbd_size',   type=int,        default = 128,
+parser.add_argument('--encode_rgbd_size',               type=int,           default = 128,
                     help='Parameters in encoding image.')   
-parser.add_argument('--encode_comm_size',   type=int,        default = 128,
+parser.add_argument('--encode_comm_size',               type=int,           default = 128,
                     help='Parameters in encoding communicaiton.')   
-parser.add_argument('--encode_sensors_size',  type=int,      default = num_sensors,
+parser.add_argument('--encode_sensors_size',            type=int,           default = num_sensors,
                     help='Parameters in encoding sensors, angles, speed.')   
-parser.add_argument('--encode_action_size', type=int,        default = 8,
+parser.add_argument('--encode_action_size',             type=int,           default = 8,
                     help='Parameters in encoding action.')   
-parser.add_argument('--dropout',            type=float,      default = .001,
+parser.add_argument('--dropout',                        type=float,         default = .001,
                     help='Dropout percentage.')
-parser.add_argument('--use_hsv',            type=literal,    default = False,
+parser.add_argument('--use_hsv',                        type=literal,       default = False,
                     help='Should RGBD_In use hsv?')   
-parser.add_argument('--use_trig_pos',       type=literal,    default = True,
+parser.add_argument('--use_trig_pos',                   type=literal,       default = True,
                     help='Use trigonometric positions, or linear?') 
-parser.add_argument('--pos_channels',       type=int,        default = 2,
+parser.add_argument('--pos_channels',                   type=int,           default = 2,
                     help='How many channels for positions in rgbd?')   
-parser.add_argument('--divisions',          type=int,        default = 2,
+parser.add_argument('--divisions',                      type=int,           default = 2,
                     help='How many times should RBGD_Out double size to image-size?')
-parser.add_argument('--half',               type=literal,    default = True,
+parser.add_argument('--half',                           type=literal,       default = True,
                     help='Should the models use float16 instead of float32?')      
 
     # Entropy
-parser.add_argument("--alpha",              type=literal,    default = 0,
+parser.add_argument("--alpha",                          type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
-parser.add_argument("--target_entropy",     type=float,      default = -1,
+parser.add_argument("--target_entropy",                 type=float,         default = -1,
                     help='Target for choosing alpha if alpha set to None. Recommended: negative size of action-space.')      
-parser.add_argument("--alpha_text",         type=literal,    default = 0,
+parser.add_argument("--alpha_text",                     type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy regarding communication. Set to None to use target_entropy_text.')        
-parser.add_argument("--target_entropy_text",type=float,      default = -2,
+parser.add_argument("--target_entropy_text",            type=float,         default = -2,
                     help='Target for choosing alpha_text if alpha_text set to None. Recommended: negative size of action-space.')      
-parser.add_argument('--action_prior',       type=str,        default = "normal",
+parser.add_argument('--action_prior',                   type=str,           default = "normal",
                     help='The actor can be trained based on normal or uniform distributions.')
-parser.add_argument("--normal_alpha",       type=float,      default = 0,
+parser.add_argument("--normal_alpha",                   type=float,         default = 0,
                     help='Nonnegative value, how much to consider policy prior.') 
 
     # Complexity 
-parser.add_argument('--std_min',            type=int,        default = exp(-20),
+parser.add_argument('--std_min',                        type=int,           default = exp(-20),
                     help='Minimum value for standard deviation.')
-parser.add_argument('--std_max',            type=int,        default = exp(2),
+parser.add_argument('--std_max',                        type=int,           default = exp(2),
                     help='Maximum value for standard deviation.')
-parser.add_argument("--beta_rgbd",          type=float,      default = .1,
+parser.add_argument("--beta_rgbd",                      type=float,         default = .1,
                     help='Relative importance of complexity for rgbd.')
-parser.add_argument("--beta_comm",          type=float,      default = .3,
+parser.add_argument("--beta_comm",                      type=float,         default = .3,
                     help='Relative importance of complexity for comm.')
-parser.add_argument("--beta_sensors",       type=float,      default = .1,
+parser.add_argument("--beta_sensors",                   type=float,         default = .1,
                     help='Relative importance of complexity for sensors.')     
 
     # Curiosity
-parser.add_argument("--curiosity",          type=str,        default = "none",
+parser.add_argument("--curiosity",                      type=str,           default = "none",
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
-parser.add_argument("--dkl_max",            type=float,      default = 1,
+parser.add_argument("--dkl_max",                        type=float,         default = 1,
                     help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')        
-parser.add_argument("--prediction_error_eta_rgbd", type=float, default = 1,
+parser.add_argument("--prediction_error_eta_rgbd",      type=float,         default = 1,
                     help='Nonnegative value, how much to consider prediction_error curiosity for rgbd.')    
-parser.add_argument("--prediction_error_eta_comm", type=float, default = 1,
+parser.add_argument("--prediction_error_eta_comm",      type=float,         default = 1,
                     help='Nonnegative value, how much to consider prediction_error curiosity for comm.')    
-parser.add_argument("--prediction_error_eta_sensors", type=float, default = 1,
+parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = 1,
                     help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')    
-parser.add_argument("--hidden_state_eta_rgbd",type=float,    default = 1,
+parser.add_argument("--hidden_state_eta_rgbd",          type=float,         default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
-parser.add_argument("--hidden_state_eta_comm",type=float,    default = 1,
+parser.add_argument("--hidden_state_eta_comm",          type=float,         default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
-parser.add_argument("--hidden_state_eta_sensors",type=float, default = 1,
+parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')       
 
     # Imitation
-parser.add_argument("--delta",              type=float,      default = 0,
+parser.add_argument("--delta",                          type=float,         default = 0,
                     help='How much to consider action\'s similarity to recommended action.')  
 
     # Saving data
-parser.add_argument('--keep_data',           type=int,       default = 10,
+parser.add_argument('--keep_data',                      type=int,           default = 10,
                     help='How many epochs should pass before saving data.')
 
-parser.add_argument('--epochs_per_gen_test', type=int,       default = 10,
+parser.add_argument('--epochs_per_gen_test',            type=int,           default = 10,
                     help='How many epochs should pass before trying generalization test.')
 
-parser.add_argument('--epochs_per_episode_dict',type=int,    default = 50, # 2000
+parser.add_argument('--epochs_per_episode_dict',        type=int,           default = 2000,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_episode_dict',type=int,    default = 5, # 3
+parser.add_argument('--agents_per_episode_dict',        type=int,           default = 3,
                     help='How many agents to save episodes.')
-parser.add_argument('--episodes_in_episode_dict',type=int,   default = 1,
+parser.add_argument('--episodes_in_episode_dict',       type=int,           default = 1,
                     help='How many episodes to save per agent.')
 
-parser.add_argument('--epochs_per_agent_list',type=int,       default = 2000,
+parser.add_argument('--epochs_per_agent_list',          type=int,           default = 2000,
                     help='How many epochs should pass before saving agent model.')
-parser.add_argument('--agents_per_agent_list',type=int,       default = 3,
+parser.add_argument('--agents_per_agent_list',          type=int,           default = 3,
                     help='How many agents to save.') 
 
 try:
