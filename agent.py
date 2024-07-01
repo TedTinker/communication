@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import default_args, duration, dkl, calculate_similarity, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, action_map, action_name_list, custom_loss, print, string_to_onehots, agent_to_english
+from utils import default_args, duration, dkl, calculate_similarity, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, action_map, action_name_list, print, string_to_onehots, agent_to_english
 from submodule_utils import model_start
 from arena import Arena, get_physics
 from task import Task, Task_Runner
@@ -51,7 +51,7 @@ class Agent:
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.tasks = {
-            0 : Task(actions = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],   parenting = True, args = self.args),
+            0 : Task(actions = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
             1 : Task(actions = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
             2 : Task(actions = [1],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
             3 : Task(actions = [0, 1],              objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args)}
@@ -99,6 +99,7 @@ class Agent:
         self.complete_opt = optim.Adam(all_params, lr=self.args.forward_lr, weight_decay=self.args.weight_decay)        
         
         self.memory = RecurrentReplayBuffer(self.args)
+        self.old_memories = []
         
         self.plot_dict = {
             "args" : self.args,
@@ -158,6 +159,7 @@ class Agent:
                     
                     parenting_before = self.tasks[self.task_name].parenting
                     self.task_name = self.args.task_list[i+1] 
+                    self.old_memories.append(deepcopy(self.memory))
                     parenting_after = self.tasks[self.task_name].parenting
                     
                     if(parenting_before and not parenting_after):
@@ -174,10 +176,10 @@ class Agent:
                 
             prev_time = duration()
                 
-            self.training_episode()
+            step = self.training_episode()
             
             time = duration()
-            if(self.args.show_duration): print("TRAINING EPISODE:", time - prev_time)
+            if(self.args.show_duration): print(f"TRAINING EPISODE ({step+1} steps):", time - prev_time)
             if(self.args.show_duration): print(f"{self.epochs} EPOCHS:", time - start_time, "\n")
             prev_time = time
             
@@ -253,9 +255,6 @@ class Agent:
                         prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
                         prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2, sleep_time = None):
                     
-        #print(f"\nOriginal message: '{agent_to_english(which_goal_message_1)}'")
-        #print(f"Is this -1? {self.task.task.goal[0] == -1}")
-        
         start_time = duration()
         prev_time = duration()
         with torch.no_grad():
@@ -331,11 +330,6 @@ class Agent:
             next_comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.task.task.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
             next_comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.task.task.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
             
-            #print("which_goal_message_1:", string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0).shape)
-            #print("parent_comm:", next_parent_comm.unsqueeze(0).shape)
-            #print("prev_comm_out_2:", None if comm_out_2 == None else comm_out_2.shape)
-            #print(f"Next comm_in_1: '{agent_to_english(onehots_to_string(next_comm_in_1[0,0]))}'\n")
-            
             to_push_1 = [
                 rgbd_1,
                 comm_in_1,
@@ -375,8 +369,8 @@ class Agent:
                raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2)
             
            
-    
-    def training_episode(self):
+           
+    def start_episode(self):
         start_time = duration()
         prev_time = duration()
         
@@ -399,6 +393,17 @@ class Agent:
         ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
         which_goal_message_2 = " " * self.args.max_comm_len
+        
+        return(start_time, prev_time, done, complete_reward, steps, 
+               to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
+               to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
+           
+           
+    
+    def training_episode(self):        
+        start_time, prev_time, done, complete_reward, steps, \
+            to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1, \
+            to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2 = self.start_episode()
                     
         self.task = self.task_runners[self.task_name]
         self.task.begin()    
@@ -454,10 +459,7 @@ class Agent:
                         self.plot_dict["comm_hidden_state_curiosity"].append(comm_hidden_state_curiosity)    
                         self.plot_dict["sensors_hidden_state_curiosity"].append(sensors_hidden_state_curiosity)  
                         self.plot_dict["hidden_state_curiosity"].append(hidden_state_curiosity)    
-                            
-        time = duration()
-        prev_time = time
-                        
+                                                    
         self.task.done()
         self.plot_dict["steps"].append(steps)
         self.plot_dict["rewards"].append(complete_reward)
@@ -500,25 +502,14 @@ class Agent:
                 
         self.episodes += 1
         
+        return(step)
+        
         
         
     def gen_test(self):
-        done = False
-        complete_reward = 0
-        
-        prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
-        prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
-        hq_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
-        ha_1 = torch.zeros((1, 1, self.args.hidden_size)) 
-        hcs_1 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-        which_goal_message_1 = " " * self.args.max_comm_len
-        
-        prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
-        prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
-        hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
-        ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
-        hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-        which_goal_message_2 = " " * self.args.max_comm_len
+        start_time, prev_time, done, complete_reward, steps, \
+            to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1, \
+            to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2 = self.start_episode()
                 
         try:
             self.task = self.task_runners[self.task_name]
@@ -533,6 +524,8 @@ class Agent:
                                 prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
                     complete_reward += total_reward
                 #print("DONE")
+            time = duration()
+            if(self.args.show_duration): print(f"FULL GEN TEST EPISODE ({step + 1} steps):", time - start_time, "\n")
             self.task.done()
             goal_action = self.task.task.goal[0]
             win_dict_list = [self.plot_dict["gen_wins_" + action_name.lower()] for action_name in action_name_list]
@@ -607,38 +600,21 @@ class Agent:
                     "sensors_dkls_2" : [],
                     "which_goal_message_2" : []}
                 
-                
                 episode_dict["task"] = self.task.task
                 episode_dict["goal"] = "'{}' ({})".format(self.task.task.goal_text, self.task.task.goal_human_text)
                 
                 done = False
                 
-                
-                
+                start_time, prev_time, done, complete_reward, steps, \
+                    to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1, \
+                    to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2 = self.start_episode()
+                        
                 hp_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
                 hq_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
-                ha_1 = torch.zeros((1, 1, self.args.hidden_size)) 
-                hcs_1 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-                prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
-                prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
-                which_goal_message_1 = " " * self.args.max_comm_len
 
                 hp_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
                 hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
-                ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
-                hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-                prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
-                prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
-                which_goal_message_2 = " " * self.args.max_comm_len
-                
-                prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
-                prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
-                
-                prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
-                prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
-                
-                
-                
+                                
                 def save_step(step, hp, hq, action, agent_1 = True):
                     agent_num = 1 if agent_1 else 2
                     
@@ -688,8 +664,6 @@ class Agent:
                             display(step, agent_1 = False, stopping = True)
                         if(wait):
                             WAITING = input("WAITING")
-                                        
-                           
                 
                 for step in range(self.args.max_steps + 1):
                     save_step(step, hp_1, hq_1, action = prev_action_1, agent_1 = True)    
@@ -737,26 +711,25 @@ class Agent:
                             save_step(step, hp_2, hq_2, action = prev_action_2, agent_1 = False) 
                         display(step + 1, done = True, wait = False)
                         self.task.done()
+                        time = duration()
+                        if(self.args.show_duration): print(f"\nFULL SAVE EPISODE EPISODE ({step + 1} steps):", time - start_time, "\n")
                         break
                 
                 if(for_display):
                     return(win)
                 else:
                     self.plot_dict["episode_dicts"]["{}_{}_{}_{}".format(self.agent_num, self.epochs, episode_num, 1 if swapping else 0)] = episode_dict
-        
+                            
         
         
     def save_agent(self):
         if(self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list): return
         self.plot_dict["agent_lists"]["{}_{}".format(self.agent_num, self.epochs)] = deepcopy(self.state_dict())
-    
-    
-    
-    def epoch(self, batch_size):
-        self.train()
-        parenting = self.task.task.parenting
-                                
-        batch = self.memory.sample(batch_size)
+        
+        
+        
+    def get_batch(self, memory, batch_size):
+        batch = memory.sample(batch_size)
         if(batch == False): return(False)
         
         prev_time = duration()
@@ -786,14 +759,29 @@ class Agent:
                 comms_out.to(dtype=torch.float16), recommended_actions.to(dtype=torch.float16), rewards.to(dtype=torch.float16), dones.to(dtype=torch.float16), \
                 masks.to(dtype=torch.float16), actions.to(dtype=torch.float16), comms_out.to(dtype=torch.float16), all_masks.to(dtype=torch.float16), masks.to(dtype=torch.float16)
         
-        time = duration()
-        start_time = duration()
-        prev_time = time
-        
         #print("\n\n")
         #print("Agent {}, epoch {}. rgbds: {}. comms in: {}. actions: {}. comms out: {}. recommended actions: {}. rewards: {}. dones: {}. masks: {}.".format(
         #    self.agent_num, self.epochs, rgbds.shape, comms_in.shape, actions.shape, comms_out.shape, recommended_actions.shape, rewards.shape, dones.shape, masks.shape))
         #print("\n\n")
+        
+        return(rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, dones, actions, comms_out, masks, all_masks, episodes, steps)
+        
+    
+    
+    def epoch(self, batch_size):
+        self.train()
+        parenting = self.task.task.parenting
+                                
+        batch = self.get_batch(self.memory, batch_size)
+        if(batch == False):
+            return(False)
+        
+        rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, dones, actions, comms_out, masks, all_masks, episodes, steps = batch
+        # Also sample from old memories, and use them to keep actor and critic outputs the same.
+        
+        time = duration()
+        start_time = duration()
+        prev_time = time
                 
         # Train forward
         hps, hqs, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comms_q, pred_sensors_q = self.forward(
@@ -1024,17 +1012,6 @@ class Agent:
                 critic_losses[i] = critic_losses[i].item()
                 critic_losses[i] = log(critic_losses[i]) if critic_losses[i] > 0 else critic_losses[i]
                 
-                
-                
-        #rgbd_prediction_error_curiosity     = self.args.prediction_error_eta_rgbd       * rgbd_loss
-        #comm_prediction_error_curiosity     = self.args.prediction_error_eta_comm       * comm_loss
-        #sensors_prediction_error_curiosity  = self.args.prediction_error_eta_sensors    * sensors_loss
-        
-        #rgbd_complexity_for_hidden_state    = self.args.hidden_state_eta_rgbd       * torch.clamp(rgbd_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
-        #comm_complexity_for_hidden_state    = self.args.hidden_state_eta_comm       * torch.clamp(comm_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
-        #sensors_complexity_for_hidden_state = self.args.hidden_state_eta_sensors    * torch.clamp(sensors_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
-                
-        
         rgbd_prediction_error_curiosity = rgbd_prediction_error_curiosity.mean().item()
         comm_prediction_error_curiosity = comm_prediction_error_curiosity.mean().item()
         sensors_prediction_error_curiosity = sensors_prediction_error_curiosity.mean().item()

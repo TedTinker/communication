@@ -18,7 +18,6 @@ def get_physics(GUI, time_step, steps_per_step, w = 10, h = 10):
         physicsClient = p.connect(p.DIRECT)
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0, physicsClientId = physicsClient)
     p.setAdditionalSearchPath("pybullet_data")
-    # Consider reducing gravity.
     p.setGravity(0, 0, -100, physicsClientId = physicsClient)
     p.setTimeStep(time_step / steps_per_step, physicsClientId=physicsClient)  # More accurate time step
     p.setPhysicsEngineParameter(numSolverIterations=1, numSubSteps=1, physicsClientId=physicsClient)  # Increased solver iterations for potentially better stability
@@ -252,17 +251,6 @@ class Arena():
         return joint_state[0]
         
     def generate_positions(self, n, distence = 4):
-        """
-        positions = [(0, 0)]
-        while len(positions) < n + 1:
-            angle = uniform(0, 2 * pi)
-            radius = uniform(0, self.args.max_object_distance)
-            x = radius * cos(angle)
-            y = radius * sin(angle)
-            if all(sqrt((x - px) ** 2 + (y - py) ** 2) >= self.args.min_object_separation for px, py in positions):
-                positions.append((x, y))
-        return positions[1:]
-        """
         base_angle = uniform(0, 2 * pi)
         x1 = distence * cos(base_angle)
         y1 = distence * sin(base_angle)
@@ -275,7 +263,6 @@ class Arena():
             y = r * sin(current_angle)
             positions.append((x, y))
         return positions
-        
         
     def object_faces_up(self, object_index):
         pos, orn = p.getBasePositionAndOrientation(object_index, physicsClientId = self.physicsClient)

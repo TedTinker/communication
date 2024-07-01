@@ -99,12 +99,8 @@ class Task_Runner:
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
         
         touched = [0] * self.args.sensors_shape
-        #touching = arena.touching_any_object()
-        touching = arena.objects_touch
-        for object_key, object_dict in arena.objects_touch.items(): #arena.touching_any_object().items():
+        for object_key, object_dict in arena.objects_touch.items(): 
             for i, (link_name, value) in enumerate(object_dict.items()):
-                #if(value == True):
-                #    touched[i] = True
                 touched[i] += value
                 
         #_, _, speed = arena.get_pos_yaw_spe()

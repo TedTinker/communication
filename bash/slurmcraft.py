@@ -49,8 +49,7 @@ def convert_list(input_list):
 
 
 
-slurm_dict = {"d" : {}} #{"dist_reward" : [0, .3, 1, 3, 10], "angle_reward" : [0, .3, 1, 3, 10]}}
-
+slurm_dict = {"d" : {}}
 
 
 def add_this(name, args):
@@ -72,27 +71,27 @@ def add_this(name, args):
         slurm_dict[new_key] = new_value
 
 add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
-add_this("n",   {"curiosity" : "prediction_error"}) #, "prediction_error_eta" : [.01, .03, .1, .3, 1, 3, 10]})
-add_this("f",   {"curiosity" : "hidden_state"})
+add_this("n",   {"curiosity" : "prediction_error"})
+add_this("f",   {"curiosity" : "hidden_state", 
+                 "hidden_state_eta_comm" : [1, 3, 10], 
+                 "hidden_state_eta_sensors" : [1, 3, 10]})
 add_this("i",   {"delta" : 1})
 
-add_this("just_watch",                  {"task_list" : "'[1]'",         "epochs" : "'[20000]'"})
-add_this("just_push",                   {"task_list" : "'[2]'",         "epochs" : "'[20000]'"})
-
-add_this("watch_and_push",              {"task_list" : "'[3]'",         "epochs" : "'[20000]'"})
-
-add_this("watch_then_watch",            {"task_list" : "'[1, 1]'",      "epochs" : "'[10000, 10000]'"})
-add_this("push_then_push",              {"task_list" : "'[2, 2]'",      "epochs" : "'[10000, 10000]'"})
-
-add_this("watch_then_push",             {"task_list" : "'[1, 2]'",      "epochs" : "'[10000, 10000]'"})
-add_this("push_then_watch",             {"task_list" : "'[2, 1]'",      "epochs" : "'[10000, 10000]'"})
-
-add_this("watch_then_also_push",        {"task_list" : "'[1, 3]'",      "epochs" : "'[10000, 10000]'"})
-add_this("push_then_also_watch",        {"task_list" : "'[2, 3]'",      "epochs" : "'[10000, 10000]'"})
 
 
-add_this("wo_free_play",     {"task_list" : "'[1]'",    "epochs" : "'[10000]'"})
-add_this("with_free_play",   {"task_list" : "'[0, 1]'", "epochs" : "'[5000, 5000]'"})
+add_this("watch_then_also_push",
+         {"task_list" : "'[1, 3]'",      
+          "epochs" : "'[5000, 1000]'"})
+
+add_this("push_then_also_watch",
+         {"task_list" : "'[2, 3]'",      
+          "epochs" : "'[5000, 1000]'"})
+
+add_this("free_play_then_watch_then_also_push",            
+         {"task_list" : "'[0, 1, 3]'",      
+          "epochs" : "'[500, 500, 1000]'"})
+
+
 
 
 
@@ -124,7 +123,7 @@ max_cpus = args.agents if args.agents < 30 else 30
  
 if(__name__ == "__main__" and args.arg_list == []):
     for key, value in slurm_dict.items(): print(key, ":", value,"\n")
-    interesting = [] # [f"e_{i}" for i in [1, 2, 6, 7, 8, 12]]
+    interesting = [f"e_watch_then_also_push"]
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
 

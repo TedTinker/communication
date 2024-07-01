@@ -13,8 +13,8 @@ from torchinfo import summary as torch_summary
 
 from utils import print, default_args, how_many_nans
 from submodule_utils import model_start, model_end, generate_2d_sinusoidal_positions, generate_2d_positional_layers, generate_1d_positional_layers, \
-    Ted_Conv1d, Ted_Conv2d, ConstrainedConv1d, ConstrainedConv2d, ResidualBlock2d, ResidualBlock1d, DenseBlock, \
-    TransformerModel, ImageTransformer, init_weights, hsv_to_circular_hue, pad_zeros, var, sample
+    Ted_Conv1d, Ted_Conv2d, ConstrainedConv1d, ConstrainedConv2d,\
+    init_weights, hsv_to_circular_hue, pad_zeros, var, sample
 from mtrnn import MTRNN
 
 if __name__ == "__main__":
@@ -206,11 +206,6 @@ class Comm_IN(nn.Module):
             nn.BatchNorm1d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(self.args.dropout))
-        
-        #self.comm_rnn = nn.GRU(
-        #    input_size = self.args.hidden_size,
-        #    hidden_size = self.args.hidden_size,
-        #    batch_first = True)
                 
         self.c = nn.Sequential(
             nn.PReLU(),
@@ -231,7 +226,6 @@ class Comm_IN(nn.Module):
         comm = torch.argmax(comm, dim = -1).int()
         a = self.a(comm)
         b = self.b(a.permute((0, 2, 1))).permute((0, 2, 1))
-        #comm, _ = self.comm_rnn(comm)    
         b = b.reshape(episodes, steps, self.args.hidden_size)
         encoding = self.c(b)
         

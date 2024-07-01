@@ -6,9 +6,11 @@
 #   'free play' image prediction is terrible! WHY?!
 #   Trying float16 on cuda. Getting NaN.
 #   Beta values seem to harm.
+#   Try "forgetting" solutions. 
+#   Why do "watch" rates instantly drop after changing task?
 
 # To do: less important 
-#   I wish plotting-episodes put actions one step forward...
+#   I wish plotting-episodes put actions one step ahead...
 #   Allow multiple layers in PVRNN.
 #   Try predicting multiple steps into the future.
 #   Training forward, actor, and critic together works, but needs fine-tuning. 
@@ -238,7 +240,7 @@ parser.add_argument('--show_duration',                  type=bool,          defa
                     help='Should durations be printed?')
 
     # Things which have list-values.
-parser.add_argument('--task_list',                      type=literal,       default = [1, 2],
+parser.add_argument('--task_list',                      type=literal,       default = [1, 3],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
 parser.add_argument('--epochs',                         type=literal,       default = [10000, 10000],
                     help='List of how many epochs to train in each task.')
@@ -282,7 +284,7 @@ parser.add_argument('--reward',                         type=float,         defa
                     help='Extrinsic reward for choosing correct action, shape, and color.') 
 parser.add_argument('--wrong_object_punishment',        type=float,        default = 0,
                     help='Extrinsic punishment for choosing any action with wrong object.') 
-parser.add_argument('--free_play_reward',               type=float,         default = 1,
+parser.add_argument('--free_play_reward',               type=float,         default = 0,
                     help='Extrinsic reward for performing any action in free play.') 
 parser.add_argument('--free_play_reward_dist',          type=literal,       default = True,
                     help='Add distance and anglular rewards for free play?') 
@@ -452,20 +454,20 @@ parser.add_argument("--delta",                          type=float,         defa
                     help='How much to consider action\'s similarity to recommended action.')  
 
     # Saving data
-parser.add_argument('--keep_data',                      type=int,           default = 10,
+parser.add_argument('--keep_data',                      type=int,           default = 50,
                     help='How many epochs should pass before saving data.')
 
 parser.add_argument('--epochs_per_gen_test',            type=int,           default = 10,
                     help='How many epochs should pass before trying generalization test.')
 
-parser.add_argument('--epochs_per_episode_dict',        type=int,           default = 2000,
+parser.add_argument('--epochs_per_episode_dict',        type=int,           default = 5000,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_episode_dict',        type=int,           default = 3,
+parser.add_argument('--agents_per_episode_dict',        type=int,           default = 1,
                     help='How many agents to save episodes.')
 parser.add_argument('--episodes_in_episode_dict',       type=int,           default = 1,
                     help='How many episodes to save per agent.')
 
-parser.add_argument('--epochs_per_agent_list',          type=int,           default = 2000,
+parser.add_argument('--epochs_per_agent_list',          type=int,           default = 5000,
                     help='How many epochs should pass before saving agent model.')
 parser.add_argument('--agents_per_agent_list',          type=int,           default = 3,
                     help='How many agents to save.') 
@@ -612,8 +614,6 @@ def opposite_relative_to(this, min, max):
 
 # PyTorch functions.
 
-
-
 def how_many_nans(tensor, place = "tensor"):
     if(tensor == None):
         return
@@ -665,27 +665,6 @@ def dkl(mu_1, std_1, mu_2, std_2):
     out = (.5 * (term_1 + term_2 - term_3 - 1))
     out = torch.nan_to_num(out)
     return(out)
-    
-    
-
-def custom_loss(guess, target, max_shift=1):
-    losses = []
-    for shift in range(-max_shift, max_shift + 1):
-        if shift == 0:
-            shifted_guess = guess
-        elif shift < 0:
-            shifted_guess = guess[:, :, -shift:] 
-            zeros = torch.zeros_like(guess[:, :, :-shift])
-            shifted_guess = torch.cat((shifted_guess, zeros), dim=-1)
-        else:
-            shifted_guess = guess[:, :, :-shift] 
-            zeros = torch.zeros_like(guess[:, :, -shift:])
-            shifted_guess = torch.cat((zeros, shifted_guess), dim=-1)
-        loss = F.cross_entropy(shifted_guess, target, reduction="none") + (1.1 * abs(shift))
-        losses.append(loss)  
-    min_loss = torch.stack(losses, dim=-1)
-    min_loss = min_loss.min(dim=-1)[0]
-    return min_loss
     
     
     

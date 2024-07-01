@@ -10,7 +10,6 @@ try: folders.remove("thesis_pics")
 except: pass                                                                                                                                                                                
 print("\n{} folders.".format(len(folders)))
 
-plot_dicts = {}
 for folder in folders:
     plot_dict = {} ; min_max_dict = {}
     files = os.listdir(folder) ; files.sort()
@@ -19,7 +18,7 @@ for folder in folders:
         if(file.split("_")[0] == "plot"): d = plot_dict    ; plot = True 
         if(file.split("_")[0] == "min"):  d = min_max_dict ; plot = False
         with open(folder + "/" + file, "rb") as handle: 
-            saved_d = pickle.load(handle) ; os.remove(folder + "/" + file)              
+            saved_d = pickle.load(handle)          
         for key in saved_d.keys(): 
             if(not key in d): d[key] = []
             if(key in ["args", "arg_title", "arg_name"]): d[key] = saved_d[key]
@@ -38,19 +37,25 @@ for folder in folders:
         if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
             minimum = None ; maximum = None
             for min_max in min_max_dict[key]:
-                if(  minimum == None):      minimum = min_max[0]
-                elif(minimum > min_max[0]): minimum = min_max[0]
-                if(  maximum == None):      maximum = min_max[1]
-                elif(maximum < min_max[1]): maximum = min_max[1]
+                if(min_max[0] == None or min_max[1] == None):
+                    pass
+                else:
+                    if(  minimum == None):      minimum = min_max[0]
+                    elif(minimum > min_max[0]): minimum = min_max[0]
+                    if(  maximum == None):      maximum = min_max[1]
+                    elif(maximum < min_max[1]): maximum = min_max[1]
             min_max_dict[key] = (minimum, maximum)
+            
+    files = os.listdir(folder) ; files.sort()
+    for file in files:                
+        os.remove(folder + "/" + file)         
 
-    plot_dicts[folder] = plot_dict
     with open(folder + "/min_max_dict.pickle", "wb") as handle:
         pickle.dump(min_max_dict, handle)
             
-for folder, plot_dict in plot_dicts.items():
-    print("Saving folder {}.".format(folder))
     with open(folder + "/plot_dict.pickle", "wb") as handle:
-        pickle.dump(plot_dict, handle)
+        pickle.dump(plot_dict, handle)         
+        
+    print(f"Finished {folder}.")
     
 print("\nDuration: {}. Done!\n".format(duration()))

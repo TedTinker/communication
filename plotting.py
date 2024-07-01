@@ -135,7 +135,8 @@ def plots(plot_dicts, min_max_dict):
                 
     for i, plot_dict in enumerate(plot_dicts):
         row_num = 0
-        ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
+        if(not too_many_plot_dicts):
+            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
         args = plot_dict["args"]
         print(f"\nStarting {plot_dict['arg_name']}.")
         epochs = args.epochs
@@ -155,6 +156,11 @@ def plots(plot_dicts, min_max_dict):
             if(key.startswith("wins_")):
                 if(key[5:] != "free_play"):
                     action_name_list.append(key[5:])
+                    
+        fig2, ax2 = plt.subplots(len(action_name_list), 2, figsize = (20, 30))
+        fig2.suptitle(plot_dict["arg_title"])  
+        fig2_row_num = 0
+                    
         for action_name in action_name_list:
             win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), levels = [1], adjust_xs = False, remove_none = False)
             gen_win_dict = get_quantiles(plot_dict, "gen_wins_" + action_name.lower(), levels = [1], adjust_xs = False, remove_none = False)
@@ -178,17 +184,16 @@ def plots(plot_dicts, min_max_dict):
                 plot_rolling_average_wins(ax, gen = True)
                 ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
                 
-            fig2, ax2 = plt.subplots(2, 1, figsize = (20, 30))
-            fig2.suptitle(plot_dict["arg_title"])  
-            plot_rolling_average_wins(ax2[0])  
-            ax2[0].set_title("Rolling-Average Win-Rate")
-            plot_rolling_average_wins(ax2[1], gen = True)  
-            ax2[1].set_title("Rolling-Average Gen-Win-Rate")
-            fig2.savefig(f"thesis_pics/win_rates_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
-            plt.close(fig2)
+            plot_rolling_average_wins(ax2[fig2_row_num, 0])  
+            ax2[fig2_row_num, 0].set_title(f"Rolling-Average Win-Rate ({action_name})")
+            plot_rolling_average_wins(ax2[fig2_row_num, 1], gen = True)  
+            ax2[fig2_row_num, 1].set_title(f"Rolling-Average Gen-Win-Rate ({action_name})")
             
-            print(f"\tFinished {action_name} win-rates.")
-                
+            fig2_row_num += 1
+            print(f"\tFinished win-rates ({action_name}).")
+            
+        fig2.savefig(f"thesis_pics/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
+        plt.close(fig2)
         print(f"\t\tFinished win-rates.")
             
                 
@@ -260,7 +265,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[2].set_title("Cumulative Rewards\nin Generalization-Tests")
         plot_cumulative_gen_rewards_shared_min_max(ax2[3])  
         ax2[3].set_title("Cumulative Rewards\nin Generalization-Tests, shared min/max")
-        fig2.savefig(f"thesis_pics/rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
+        fig2.savefig(f"thesis_pics/rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
         plt.close(fig2)
             
         print(f"\tFinished cumulative generalization-test rewards.")
@@ -363,7 +368,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[2].set_title("log Forward Losses")
         plot_log_forward_losses_shared_min_max(ax2[3])  
         ax2[3].set_title("log Forward Losses, shared min/max")
-        fig2.savefig(f"thesis_pics/forward_losses_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
+        fig2.savefig(f"thesis_pics/forward_losses_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
         plt.close(fig2)
         
         print(f"\tFinished log forward losses.")
@@ -420,7 +425,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[0].set_title("Actor, Critic Losses")
         plot_other_losses_shared_min_max(ax2[1])  
         ax2[1].set_title("Actor, Critic Losses, shared min/max")
-        fig2.savefig(f"thesis_pics/actor_critic_losses_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
+        fig2.savefig(f"thesis_pics/actor_critic_losses_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
         plt.close(fig2)
         
         print(f"\tFinished other losses.")
@@ -557,7 +562,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[2].set_title("Extrinsic and Intrinsic Rewards, shared dim")
         plot_extrinsic_and_intrinsic_rewards_shared_dim_shared_min_max(ax2[3])  
         ax2[3].set_title("Extrinsic and Intrinsic Rewards, shared min/max and dim")
-        fig2.savefig(f"thesis_pics/extrinsic_and_intrinsic_rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
+        fig2.savefig(f"thesis_pics/extrinsic_and_intrinsic_rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
         plt.close(fig2)
         
         print(f"\tFinished extrinsic and intrinsic rewards with same dimensions.")
@@ -711,29 +716,29 @@ def plots(plot_dicts, min_max_dict):
             plot_log_hidden_state_curiosities_shared_min_max(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             
-        fig2, ax2 = plt.subplots(8, 1, figsize = (20, 120)) 
+        fig2, ax2 = plt.subplots(4, 2, figsize = (40, 60)) 
         fig2.suptitle(plot_dict["arg_title"])  
-        plot_prediction_error_curiosities(ax2[0])  
-        ax2[0].set_title("Possible Prediction Error Curiosities")
-        plot_hidden_state_curiosities(ax2[1])  
-        ax2[1].set_title("Possible Hidden State Curiosities")
+        plot_prediction_error_curiosities(ax2[0,0])  
+        ax2[0,0].set_title("Possible Prediction Error Curiosities")
+        plot_hidden_state_curiosities(ax2[1,0])  
+        ax2[1,0].set_title("Possible Hidden State Curiosities")
         
-        plot_log_prediction_error_curiosities(ax2[2])  
-        ax2[2].set_title("Possible log Prediction Error Curiosities")
-        plot_log_hidden_state_curiosities(ax2[3])  
-        ax2[3].set_title("Possible log Hidden State Curiosities")
+        plot_log_prediction_error_curiosities(ax2[0,1])  
+        ax2[0,1].set_title("Possible log Prediction Error Curiosities")
+        plot_log_hidden_state_curiosities(ax2[1,1])  
+        ax2[1,1].set_title("Possible log Hidden State Curiosities")
         
-        plot_prediction_error_curiosities_shared_min_max(ax2[4])  
-        ax2[4].set_title("Possible Prediction Error Curiosities, shared min/max")
-        plot_hidden_state_curiosities_shared_min_max(ax2[5])  
-        ax2[5].set_title("Possible Hidden State Curiosities, shared min/max")
+        plot_prediction_error_curiosities_shared_min_max(ax2[2,0])  
+        ax2[2,0].set_title("Possible Prediction Error Curiosities, shared min/max")
+        plot_hidden_state_curiosities_shared_min_max(ax2[3,0])  
+        ax2[3,0].set_title("Possible Hidden State Curiosities, shared min/max")
         
-        plot_log_prediction_error_curiosities_shared_min_max(ax2[6])  
-        ax2[6].set_title("Possible log Prediction Error Curiosities, shared min/max")
-        plot_log_hidden_state_curiosities_shared_min_max(ax2[7])  
-        ax2[7].set_title("Possible log Hidden State Curiosities, shared min/max")
+        plot_log_prediction_error_curiosities_shared_min_max(ax2[2,1])  
+        ax2[2,1].set_title("Possible log Prediction Error Curiosities, shared min/max")
+        plot_log_hidden_state_curiosities_shared_min_max(ax2[3,1])  
+        ax2[3,1].set_title("Possible log Hidden State Curiosities, shared min/max")
         
-        fig2.savefig(f"thesis_pics/curiosities_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=300) 
+        fig2.savefig(f"thesis_pics/curiosities_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
         plt.close(fig2)
         
         print(f"\tFinished log curiosities.")
