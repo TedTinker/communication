@@ -227,74 +227,43 @@ def plots(plot_dicts, min_max_dict):
         # Cumulative rewards
         rew_dict = get_quantiles(plot_dict, "rewards", levels = [1], adjust_xs = False)
         
-        def plot_cumulative_rewards(here):
-            awesome_plot(here, rew_dict, "turquoise", "Reward")
-            here.axhline(y = 0, color = 'black', linestyle = '--', alpha = .2)
-            here.set_ylabel("Cumulative Reward")
-            here.set_xlabel("Epochs")
-            here.set_title(plot_dict["arg_title"] + "\nCumulative Rewards")
-            divide_arenas(rew_dict, here)
-                        
-        def plot_cumulative_rewards_shared_min_max(here):
-            awesome_plot(here, rew_dict, "turquoise", "Reward", min_max_dict["rewards"])
-            here.axhline(y = 0, color = "black", linestyle = '--', alpha = .2)
-            here.set_ylabel("Cumulative Reward")
-            here.set_xlabel("Epochs")
-            here.set_title(plot_dict["arg_title"] + "\nCumulative Rewards, shared min/max")
-            divide_arenas(rew_dict, here)
-        
-        if(not too_many_plot_dicts): 
-            plot_cumulative_rewards(ax)
-            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_cumulative_rewards_shared_min_max(ax)
-            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-        
-        print(f"\tFinished cumulative rewards.")
-
-
-        
-        # Cumulative generalization-test rewards
         gen_rew_dict = get_quantiles(plot_dict, "gen_rewards", levels = [1], adjust_xs = False)
         for key in gen_win_dict:
             if key not in ["xs"]:
                 gen_rew_dict[key] = gen_rew_dict[key] 
         
-        def plot_cumulative_gen_rewards(here):
-            awesome_plot(here, gen_rew_dict, "pink", "Reward")
+        def plot_cumulative_rewards(here, gen = False, min_max = None):
+            awesome_plot(here, gen_rew_dict if gen else rew_dict, "pink" if gen else "turquoise", "Reward", min_max)
             here.axhline(y = 0, color = 'black', linestyle = '--', alpha = .2)
             here.set_ylabel("Cumulative Reward")
             here.set_xlabel("Epochs")
-            here.set_title(plot_dict["arg_title"] + "\nCumulative Rewards\nin Generalization-Tests")
-            divide_arenas(gen_rew_dict, here)
-                        
-        def plot_cumulative_gen_rewards_shared_min_max(here):
-            awesome_plot(here, gen_rew_dict, "pink", "Reward", min_max_dict["gen_rewards"])
-            here.axhline(y = 0, color = "black", linestyle = '--', alpha = .2)
-            here.set_ylabel("Cumulative Reward")
-            here.set_xlabel("Epochs")
-            here.set_title(plot_dict["arg_title"] + "\nCumulative Rewards\nin Generalization-Tests, shared min/max")
-            divide_arenas(gen_rew_dict, here)
+            here.set_title(plot_dict["arg_title"] + "\nCumulative Rewards" + ("\nin Generalization-Tests" if gen else "") + ("" if min_max == None else ", shared min/max"))
+            divide_arenas(gen_rew_dict if gen else rew_dict, here)
         
         if(not too_many_plot_dicts): 
-            plot_cumulative_gen_rewards(ax)
+            plot_cumulative_rewards(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_cumulative_gen_rewards_shared_min_max(ax)
+            plot_cumulative_rewards(ax, min_max = min_max_dict["rewards"])
+            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
+            plot_cumulative_rewards(ax, gen = True)
+            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
+            plot_cumulative_rewards(ax, gen = True, min_max = min_max_dict["gen_rewards"])
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             
         fig2, ax2 = plt.subplots(4, 1, figsize = (20, 60)) 
         fig2.suptitle(plot_dict["arg_title"])  
         plot_cumulative_rewards(ax2[0])  
         ax2[0].set_title("Cumulative Rewards")
-        plot_cumulative_rewards_shared_min_max(ax2[1])  
+        plot_cumulative_rewards(ax2[1], min_max = min_max_dict["rewards"])  
         ax2[1].set_title("Cumulative Rewards, shared_min/max")
-        plot_cumulative_gen_rewards(ax2[2])  
+        plot_cumulative_rewards(ax2[2], gen = True)  
         ax2[2].set_title("Cumulative Rewards\nin Generalization-Tests")
-        plot_cumulative_gen_rewards_shared_min_max(ax2[3])  
+        plot_cumulative_rewards(ax2[3], gen = True, min_max = min_max_dict["gen_rewards"])  
         ax2[3].set_title("Cumulative Rewards\nin Generalization-Tests, shared min/max")
         fig2.savefig(f"thesis_pics/rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
             
-        print(f"\tFinished cumulative generalization-test rewards.")
+        print(f"\tFinished cumulative rewards.")
         
         
         
@@ -304,100 +273,56 @@ def plots(plot_dicts, min_max_dict):
         sensors_dict = get_quantiles(plot_dict, "sensors_loss", levels = [1])
         accuracy_dict = get_quantiles(plot_dict, "accuracy", levels = [1])
         comp_dict = get_quantiles(plot_dict, "complexity", levels = [1])
-        min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["comm_loss"], min_max_dict["sensors_loss"], min_max_dict["accuracy"]])
-            
-        def plot_forward_losses(here):
-            handles = []
-            handles.append(awesome_plot(here, rgbd_dict, "blue", "RGBD-Loss"))
-            handles.append(awesome_plot(here, comm_dict, "red", "Comm-Loss"))
-            handles.append(awesome_plot(here, sensors_dict, "orange", "Sensors-Loss"))
-            handles.append(awesome_plot(here, accuracy_dict, "purple", "Accuracy"))
-            handles.append(awesome_plot(here, comp_dict, "green",  "Complexity"))
-            here.set_ylabel("Loss")
-            here.set_xlabel("Epochs")
-            here.legend(handles = handles)
-            here.set_title(plot_dict["arg_title"] + "\nForward Losses")
-            divide_arenas(accuracy_dict, here)
-            
-        def plot_forward_losses_shared_min_max(here):
-            handles = []
-            handles.append(awesome_plot(here, rgbd_dict, "blue", "RGBD-Loss", min_max))
-            handles.append(awesome_plot(here, comm_dict, "red", "Comm-Loss", min_max))
-            handles.append(awesome_plot(here, sensors_dict, "orange", "Sensors-Loss", min_max))
-            handles.append(awesome_plot(here, accuracy_dict, "purple", "Accuracy", min_max))
-            handles.append(awesome_plot(here, comp_dict, "green",  "Complexity", min_max))
-            here.set_ylabel("Loss")
-            here.set_xlabel("Epochs")
-            here.legend(handles = handles)
-            here.set_title(plot_dict["arg_title"] + "\nForward Losses, shared min/max")
-            divide_arenas(accuracy_dict, here)
-            
-        if(not too_many_plot_dicts): 
-            plot_forward_losses(ax)
-            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_forward_losses_shared_min_max(ax)
-            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            
-        print(f"\tFinished forward losses.")
+        forward_losses_min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["comm_loss"], min_max_dict["sensors_loss"], min_max_dict["accuracy"]])
         
-        
-        
-        # Log Forward Losses
         log_rgbd_dict = get_logs(rgbd_dict)
         log_comm_dict = get_logs(comm_dict)
         log_sensors_dict = get_logs(sensors_dict)
         log_accuracy_dict = get_logs(accuracy_dict)
         log_comp_dict = get_logs(comp_dict)
-        if(min_max[0] == 0):
-            min_max = (.01, min_max[1])
-        min_max = (log(min_max[0]), log(min_max[1]))
-        
-        def plot_log_forward_losses(here):
+        if(forward_losses_min_max[0] == 0):
+            log_forward_losses_min_max = (.01, forward_losses_min_max[1])
+        else:
+            log_forward_losses_min_max = forward_losses_min_max
+        log_forward_losses_min_max = (log(log_forward_losses_min_max[0]), log(log_forward_losses_min_max[1]))
+            
+        def plot_forward_losses(here, log = False, min_max = None):
             handles = []
-            handles.append(awesome_plot(here, log_rgbd_dict, "blue", "RGBD-Loss"))
-            handles.append(awesome_plot(here, log_comm_dict, "red", "Comm-Loss"))
-            handles.append(awesome_plot(here, log_sensors_dict, "orange", "Sensors-Loss"))
-            handles.append(awesome_plot(here, log_accuracy_dict, "purple", "Accuracy"))
-            handles.append(awesome_plot(here, log_comp_dict, "green",  "Complexity"))
+            handles.append(awesome_plot(here, log_rgbd_dict if log else rgbd_dict, "blue", "RGBD-Loss", min_max))
+            handles.append(awesome_plot(here, log_comm_dict if log else comm_dict, "red", "Comm-Loss", min_max))
+            handles.append(awesome_plot(here, log_sensors_dict if log else sensors_dict, "orange", "Sensors-Loss", min_max))
+            handles.append(awesome_plot(here, log_accuracy_dict if log else accuracy_dict, "purple", "Accuracy", min_max))
+            handles.append(awesome_plot(here, log_comp_dict if log else comp_dict, "green",  "Complexity", min_max))
             here.set_ylabel("Loss")
             here.set_xlabel("Epochs")
             here.legend(handles = handles)
-            here.set_title(plot_dict["arg_title"] + "\nlog Forward Losses")
+            here.set_title(plot_dict["arg_title"] + "\n" + ("log " if log else "") + "Forward Losses" + ("" if min_max == None else ", shared min/max"))
             divide_arenas(accuracy_dict, here)
-        
-        def plot_log_forward_losses_shared_min_max(here):
-            handles = []
-            handles.append(awesome_plot(here, log_rgbd_dict, "blue", "RGBD-Loss", min_max))
-            handles.append(awesome_plot(here, log_comm_dict, "red", "Comm-Loss", min_max))
-            handles.append(awesome_plot(here, log_sensors_dict, "orange", "Sensors-Loss", min_max))
-            handles.append(awesome_plot(here, log_accuracy_dict, "purple", "Accuracy", min_max))
-            handles.append(awesome_plot(here, log_comp_dict, "green",  "Complexity", min_max))
-            here.set_ylabel("Loss")
-            here.set_xlabel("Epochs")
-            here.legend(handles = handles)
-            here.set_title(plot_dict["arg_title"] + "\nlog Forward Losses, shared min/max")
-            divide_arenas(accuracy_dict, here)
-        
+            
         if(not too_many_plot_dicts): 
-            plot_log_forward_losses(ax)
+            plot_forward_losses(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_log_forward_losses_shared_min_max(ax)
+            plot_forward_losses(ax, min_max = forward_losses_min_max)
+            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
+            plot_forward_losses(ax, log = True)
+            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
+            plot_forward_losses(ax, log = True, min_max = log_forward_losses_min_max)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
         
         fig2, ax2 = plt.subplots(4, 1, figsize = (20, 60)) 
         fig2.suptitle(plot_dict["arg_title"])  
         plot_forward_losses(ax2[0])  
         ax2[0].set_title("Forward Losses")
-        plot_forward_losses_shared_min_max(ax2[1])  
+        plot_forward_losses(ax2[1], min_max = forward_losses_min_max)  
         ax2[1].set_title("Forward Losses, shared min/max")
-        plot_log_forward_losses(ax2[2])  
+        plot_forward_losses(ax2[2], log = True)  
         ax2[2].set_title("log Forward Losses")
-        plot_log_forward_losses_shared_min_max(ax2[3])  
+        plot_forward_losses(ax2[3], log = True, min_max = log_forward_losses_min_max)  
         ax2[3].set_title("log Forward Losses, shared min/max")
         fig2.savefig(f"thesis_pics/forward_losses_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
-        print(f"\tFinished log forward losses.")
+        print(f"\tFinished forward losses.")
             
         
             
@@ -407,49 +332,33 @@ def plots(plot_dicts, min_max_dict):
         crit_dicts = get_list_quantiles(plot_dict["critics"], plot_dict, levels = [1])
         crit_min_max = many_min_max([crit_min_max for crit_min_max in min_max_dict["critics"]])
         
-        def plot_other_losses(here):
+        def plot_other_losses(here, min_max = False):
             handles = []
-            handles.append(awesome_plot(here, actor_dict, "red", "Actor"))
+            handles.append(awesome_plot(here, actor_dict, "red", "Actor", min_max_dict["actor"] if min_max else None))
             here.set_ylabel("Actor Loss")
             ax2 = here.twinx()
-            handles.append(awesome_plot(ax2, crit_dicts[0], "blue", "log Critic 1"))
+            handles.append(awesome_plot(ax2, crit_dicts[0], "blue", "log Critic 1", crit_min_max if min_max else None ))
             ax2.set_ylabel("log Critic Losses")
             ax3 = here.twinx()
             ax3.spines["right"].set_position(("axes", 1.08))
-            handles.append(awesome_plot(ax3, alpha_dict, "black", "Alpha"))
+            handles.append(awesome_plot(ax3, alpha_dict, "black", "Alpha", min_max_dict["alpha"] if min_max else None))
             ax3.set_ylabel("Alpha Loss")
             here.set_xlabel("Epochs")
             here.legend(handles = handles)
-            here.set_title(plot_dict["arg_title"] + "\nActor, Critic Losses")
-            divide_arenas(actor_dict, here)
-        
-        def plot_other_losses_shared_min_max(here):
-            handles = []
-            handles.append(awesome_plot(here, actor_dict, "red", "Actor", min_max_dict["actor"]))
-            here.set_ylabel("Actor Loss")
-            here.set_xlabel("Epochs")
-            ax2 = here.twinx()
-            handles.append(awesome_plot(ax2, crit_dicts[0], "blue", "log Critic 1", crit_min_max))
-            ax2.set_ylabel("log Critic Losses")
-            ax3 = here.twinx()
-            ax3.spines["right"].set_position(("axes", 1.08))
-            handles.append(awesome_plot(ax3, alpha_dict, "black", "Alpha", min_max_dict["alpha"]))
-            ax3.set_ylabel("Alpha Loss")
-            here.legend(handles = handles)
-            here.set_title(plot_dict["arg_title"] + "\nActor, Critic Losses, shared min/max")
+            here.set_title(plot_dict["arg_title"] + "\nActor, Critic Losses" + (", shared min/max" if min_max else ""))
             divide_arenas(actor_dict, here)
             
         if(not too_many_plot_dicts): 
             plot_other_losses(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_other_losses_shared_min_max(ax)
+            plot_other_losses(ax, min_max = True)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             
         fig2, ax2 = plt.subplots(2, 1, figsize = (20, 30))
         fig2.suptitle(plot_dict["arg_title"])  
         plot_other_losses(ax2[0])  
         ax2[0].set_title("Actor, Critic Losses")
-        plot_other_losses_shared_min_max(ax2[1])  
+        plot_other_losses(ax2[1], min_max = True)  
         ax2[1].set_title("Actor, Critic Losses, shared min/max")
         fig2.savefig(f"thesis_pics/actor_critic_losses_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
@@ -458,6 +367,7 @@ def plots(plot_dicts, min_max_dict):
             
         
             
+        ###     Why aren't these plotting entropy values?
         # Extrinsic and Intrinsic rewards
         these_levels = [1]
         keys = \
@@ -471,142 +381,85 @@ def plots(plot_dicts, min_max_dict):
         ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", levels = these_levels)
         cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", levels = these_levels)
         imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", levels = these_levels)
+        rewards_min_max = many_min_max([min_max_dict["extrinsic"], min_max_dict["intrinsic_entropy"], min_max_dict["intrinsic_curiosity"]])
         
-        def plot_extrinsic_and_intrinsic_rewards(here):
+        def plot_extrinsic_and_intrinsic_rewards(here, min_max = False):
             handles = []
-            handles.append(awesome_plot(here, ext_dict, "red", "Extrinsic"))
+            handles.append(awesome_plot(here, ext_dict, "red", "Extrinsic", min_max_dict["extrinsic"] if min_max else None))
             here.set_ylabel("Extrinsic")
             here.set_xlabel("Epochs")
             if((ent_dict[keys[0]] != ent_dict[keys[1]]).all()):
                 ax2 = here.twinx()
-                handles.append(awesome_plot(ax2, ent_dict, "black", "Entropy"))
+                handles.append(awesome_plot(ax2, ent_dict, "black", "Entropy", min_max_dict["intrinsic_entropy"] if min_max else None))
                 ax2.set_ylabel("Entropy")
             if((cur_dict[keys[0]] != cur_dict[keys[1]]).all()):
                 ax3 = here.twinx()
                 ax3.spines["right"].set_position(("axes", 1.08))
-                handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity"))
+                handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity", min_max_dict["intrinsic_curiosity"] if min_max else None))
                 ax3.set_ylabel("Curiosity")
             if((imi_dict[keys[0]] != imi_dict[keys[1]]).all()):
                 ax4 = here.twinx()
                 ax4.spines["right"].set_position(("axes", 1.16))
-                handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation"))
+                handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation", min_max_dict["intrinsic_imitation"] if min_max else None))
                 ax4.set_ylabel("Imitation")
             here.legend(handles = handles)
-            here.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards")
-            divide_arenas(ext_dict, here)
-            
-        def plot_extrinsic_and_intrinsic_rewards_shared_min_max(here):
+            here.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards" + (", shared min/max" if min_max else ""))
+            divide_arenas(ext_dict, here)      
+        
+        def plot_extrinsic_and_intrinsic_rewards_shared_dim(here, min_max = False):
             handles = []
-            handles.append(awesome_plot(here, ext_dict, "red", "Extrinsic", min_max_dict["extrinsic"]))
-            here.set_ylabel("Extrinsic")
+            handles.append(awesome_plot(here, ext_dict, "red", "Extrinsic", rewards_min_max if min_max else None))
+            here.set_ylabel("Rewards")
             here.set_xlabel("Epochs")
             if((ent_dict[keys[0]] != ent_dict[keys[1]]).all()):
-                ax2 = here.twinx()
-                handles.append(awesome_plot(ax2, ent_dict, "black", "Entropy", min_max_dict["intrinsic_entropy"]))
-                ax2.set_ylabel("Entropy")
+                handles.append(awesome_plot(here, ent_dict, "black", "Entropy", rewards_min_max if min_max else None))
             if((cur_dict[keys[0]] != cur_dict[keys[1]]).all()):
-                ax3 = here.twinx()
-                ax3.spines["right"].set_position(("axes", 1.08))
-                handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity", min_max_dict["intrinsic_curiosity"]))
-                ax3.set_ylabel("Curiosity")
+                handles.append(awesome_plot(here, cur_dict, "green", "Curiosity", rewards_min_max if min_max else None))
             if((imi_dict[keys[0]] != imi_dict[keys[1]]).all()):
-                ax4 = here.twinx()
-                ax4.spines["right"].set_position(("axes", 1.16))
-                handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation", min_max_dict["intrinsic_imitation"]))
-                ax3.set_ylabel("Imitation")
+                handles.append(awesome_plot(here, imi_dict, "blue", "Imitation", rewards_min_max if min_max else None))
             here.legend(handles = handles)
-            here.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared min/max")
-            divide_arenas(ext_dict, here)        
-        
+            here.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared dims" + (", shared min/max" if min_max else ""))
+            divide_arenas(ext_dict, here)
+    
         if(not too_many_plot_dicts): 
             plot_extrinsic_and_intrinsic_rewards(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_extrinsic_and_intrinsic_rewards_shared_min_max(ax)
+            plot_extrinsic_and_intrinsic_rewards(ax, min_max = True)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            
-        print(f"\tFinished extrinsic and intrinsic rewards.")
-                    
-        
-        
-        # Extrinsic and Intrinsic rewards with same dims
-        these_levels = [1]
-        keys = \
-                ["min", "max"] if 5 in these_levels else \
-                ["q10", "q90"] if 4 in these_levels else \
-                ["q20", "q80"] if 3 in these_levels else \
-                ["q30", "q70"] if 2 in these_levels else \
-                ["q40", "q60"]
-        ext_dict = get_quantiles(plot_dict, "extrinsic", levels = these_levels)
-        ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", levels = these_levels)
-        cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", levels = these_levels)
-        imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", levels = these_levels)
-        min_max = many_min_max([min_max_dict["extrinsic"], min_max_dict["intrinsic_entropy"], min_max_dict["intrinsic_curiosity"]])#, min_max_dict["intrinsic_imitation"]])
-        
-        def plot_extrinsic_and_intrinsic_rewards_shared_dim(here):
-            handles = []
-            handles.append(awesome_plot(here, ext_dict, "red", "Extrinsic"))
-            here.set_ylabel("Rewards")
-            here.set_xlabel("Epochs")
-            if((ent_dict[keys[0]] != ent_dict[keys[1]]).all()):
-                handles.append(awesome_plot(here, ent_dict, "black", "Entropy"))
-            if((cur_dict[keys[0]] != cur_dict[keys[1]]).all()):
-                handles.append(awesome_plot(here, cur_dict, "green", "Curiosity"))
-            if((imi_dict[keys[0]] != imi_dict[keys[1]]).all()):
-                handles.append(awesome_plot(here, imi_dict, "blue", "Imitation"))
-            here.legend(handles = handles)
-            here.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared dims")
-            divide_arenas(ext_dict, here)
-        
-        def plot_extrinsic_and_intrinsic_rewards_shared_dim_shared_min_max(here):
-            handles = []
-            handles.append(awesome_plot(here, ext_dict, "red", "Extrinsic", min_max))
-            here.set_ylabel("Rewards")
-            here.set_xlabel("Epochs")
-            if((ent_dict[keys[0]] != ent_dict[keys[1]]).all()):
-                handles.append(awesome_plot(here, ent_dict, "black", "Entropy", min_max))
-            if((cur_dict[keys[0]] != cur_dict[keys[1]]).all()):
-                handles.append(awesome_plot(here, cur_dict, "green", "Curiosity", min_max))
-            if((imi_dict[keys[0]] != imi_dict[keys[1]]).all()):
-                handles.append(awesome_plot(here, imi_dict, "blue", "Imitation", min_max))
-            here.legend(handles = handles)
-            here.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared min/max and dim")
-            divide_arenas(ext_dict, here)
-            
-        if(not too_many_plot_dicts): 
             plot_extrinsic_and_intrinsic_rewards_shared_dim(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_extrinsic_and_intrinsic_rewards_shared_dim_shared_min_max(ax)
+            plot_extrinsic_and_intrinsic_rewards_shared_dim(ax, min_max = True)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             
         fig2, ax2 = plt.subplots(4, 1, figsize = (20, 60)) 
         fig2.suptitle(plot_dict["arg_title"])  
         plot_extrinsic_and_intrinsic_rewards(ax2[0])  
         ax2[0].set_title("Extrinsic and Intrinsic Rewards")
-        plot_extrinsic_and_intrinsic_rewards_shared_min_max(ax2[1])  
+        plot_extrinsic_and_intrinsic_rewards(ax2[1], min_max = True)  
         ax2[1].set_title("Extrinsic and Intrinsic Rewards, shared min/max")
         plot_extrinsic_and_intrinsic_rewards_shared_dim(ax2[2])  
         ax2[2].set_title("Extrinsic and Intrinsic Rewards, shared dim")
-        plot_extrinsic_and_intrinsic_rewards_shared_dim_shared_min_max(ax2[3])  
-        ax2[3].set_title("Extrinsic and Intrinsic Rewards, shared min/max and dim")
+        plot_extrinsic_and_intrinsic_rewards_shared_dim(ax2[3], min_max = True)  
+        ax2[3].set_title("Extrinsic and Intrinsic Rewards, shared dim, shared min/max")
         fig2.savefig(f"thesis_pics/extrinsic_and_intrinsic_rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
-        print(f"\tFinished extrinsic and intrinsic rewards with same dimensions.")
+        print(f"\tFinished extrinsic and intrinsic rewards.")
 
         
             
         # Curiosities
-        rgbd_prediction_error_curiosity_dict = get_quantiles(plot_dict, "rgbd_prediction_error_curiosity", levels = [])
-        comm_prediction_error_curiosity_dict = get_quantiles(plot_dict, "comm_prediction_error_curiosity", levels = [])
-        sensors_prediction_error_curiosity_dict = get_quantiles(plot_dict, "sensors_prediction_error_curiosity", levels = [])
-        prediction_error_curiosity_dict = get_quantiles(plot_dict, "prediction_error_curiosity", levels = [])
+        rgbd_prediction_error_dict = get_quantiles(plot_dict, "rgbd_prediction_error_curiosity", levels = [])
+        comm_prediction_error_dict = get_quantiles(plot_dict, "comm_prediction_error_curiosity", levels = [])
+        sensors_prediction_error_dict = get_quantiles(plot_dict, "sensors_prediction_error_curiosity", levels = [])
+        prediction_error_dict = get_quantiles(plot_dict, "prediction_error_curiosity", levels = [])
         
-        rgbd_hidden_state_curiosity_dict = get_quantiles(plot_dict, "rgbd_hidden_state_curiosity", levels = [])
-        comm_hidden_state_curiosity_dict = get_quantiles(plot_dict, "comm_hidden_state_curiosity", levels = [])
-        sensors_hidden_state_curiosity_dict = get_quantiles(plot_dict, "sensors_hidden_state_curiosity", levels = [])
-        hidden_state_curiosity_dict = get_quantiles(plot_dict, "hidden_state_curiosity", levels = [])
+        rgbd_hidden_state_dict = get_quantiles(plot_dict, "rgbd_hidden_state_curiosity", levels = [])
+        comm_hidden_state_dict = get_quantiles(plot_dict, "comm_hidden_state_curiosity", levels = [])
+        sensors_hidden_state_dict = get_quantiles(plot_dict, "sensors_hidden_state_curiosity", levels = [])
+        hidden_state_dict = get_quantiles(plot_dict, "hidden_state_curiosity", levels = [])
         
-        min_max = many_min_max(
+        curiosity_min_max = many_min_max(
             [min_max_dict["rgbd_prediction_error_curiosity"], 
             min_max_dict["comm_prediction_error_curiosity"], 
             min_max_dict["sensors_prediction_error_curiosity"],
@@ -616,130 +469,63 @@ def plots(plot_dicts, min_max_dict):
             min_max_dict["sensors_hidden_state_curiosity"],
             min_max_dict["hidden_state_curiosity"]])
         
-        def plot_prediction_error_curiosities(here):
-            awesome_plot(here, prediction_error_curiosity_dict, "green", "Total Prediction Error", linestyle = "solid")
-            awesome_plot(here, rgbd_prediction_error_curiosity_dict, "green", "RGBD", linestyle = "dotted")
-            awesome_plot(here, comm_prediction_error_curiosity_dict, "green", "Comm", linestyle = "dashed")
-            awesome_plot(here, sensors_prediction_error_curiosity_dict, "green", "Sensors", linestyle = custom_ls)
+        log_rgbd_prediction_error_dict = get_logs(rgbd_prediction_error_dict)
+        log_comm_prediction_error_dict = get_logs(comm_prediction_error_dict)
+        log_sensors_prediction_error_dict = get_logs(sensors_prediction_error_dict)
+        log_prediction_error_dict = get_logs(prediction_error_dict)
+        
+        log_rgbd_hidden_state_dict = get_logs(rgbd_hidden_state_dict)
+        log_comm_hidden_state_dict = get_logs(comm_hidden_state_dict)
+        log_sensors_hidden_state_dict = get_logs(sensors_hidden_state_dict)
+        log_hidden_state_dict = get_logs(hidden_state_dict)
+        
+        if(curiosity_min_max[0] == 0):
+            log_curiosity_min_max = (.01, curiosity_min_max[1])
+        else:
+            log_curiosity_min_max = curiosity_min_max
+        log_curiosity_min_max = (log(log_curiosity_min_max[0]), log(log_curiosity_min_max[1]))
+        
+        def plot_prediction_error_curiosities(here, log = False, min_max = False):
+            this_min_max = log_curiosity_min_max if (log and min_max) else curiosity_min_max if min_max else None
+            awesome_plot(here, log_prediction_error_dict if log else prediction_error_dict, "green", "Total " + ("log " if log else "") + "Prediction Error", min_max = this_min_max, linestyle = "solid")
+            awesome_plot(here, log_rgbd_prediction_error_dict if log else rgbd_prediction_error_dict, "green", "RGBD", min_max = this_min_max, linestyle = "dotted")
+            awesome_plot(here, log_comm_prediction_error_dict if log else comm_prediction_error_dict, "green", "Comm", min_max = this_min_max, linestyle = "dashed")
+            awesome_plot(here, log_sensors_prediction_error_dict if log else sensors_prediction_error_dict, "green", "Sensors", min_max = this_min_max, linestyle = custom_ls)
             here.set_ylabel("Prediction Error Curiosity")
             here.set_xlabel("Epochs")
             here.legend()
-            here.set_title(plot_dict["arg_title"] + "\nPossible Prediciton Error Curiosities")
-            divide_arenas(prediction_error_curiosity_dict, here)
+            here.set_title(plot_dict["arg_title"] + "\n" + ("log " if log else "") + "Possible Prediciton Error Curiosities" + (", shaped min_max" if min_max else ""))
+            divide_arenas(prediction_error_dict, here)
             
-        def plot_hidden_state_curiosities(here):
-            awesome_plot(here, hidden_state_curiosity_dict, "red", "Total Hidden State", linestyle = "solid")
-            awesome_plot(here, rgbd_hidden_state_curiosity_dict, "red", "RGBD", linestyle = "dotted")
-            awesome_plot(here, comm_hidden_state_curiosity_dict, "red", "Comm", linestyle = "dashed")
-            awesome_plot(here, sensors_hidden_state_curiosity_dict, "red", "Sensors", linestyle = custom_ls)
+        def plot_hidden_state_curiosities(here, log = False, min_max = False):
+            this_min_max = log_curiosity_min_max if (log and min_max) else curiosity_min_max if min_max else None
+            awesome_plot(here, log_hidden_state_dict if log else hidden_state_dict, "red", "Total Hidden State", min_max = this_min_max, linestyle = "solid")
+            awesome_plot(here, log_rgbd_hidden_state_dict if log else rgbd_hidden_state_dict, "red", "RGBD", min_max = this_min_max, linestyle = "dotted")
+            awesome_plot(here, log_comm_hidden_state_dict if log else comm_hidden_state_dict, "red", "Comm", min_max = this_min_max, linestyle = "dashed")
+            awesome_plot(here, log_sensors_hidden_state_dict if log else sensors_hidden_state_dict, "red", "Sensors", min_max = this_min_max, linestyle = custom_ls)
             here.set_ylabel("Hidden State Curiosity")
             here.set_xlabel("Epochs")
             here.legend()
-            here.set_title(plot_dict["arg_title"] + "\nPossible Hidden State Curiosities")
-            divide_arenas(prediction_error_curiosity_dict, here)
-            
-        def plot_prediction_error_curiosities_shared_min_max(here):
-            awesome_plot(here, prediction_error_curiosity_dict, "green", "Total Prediction Error", min_max = min_max, linestyle = "solid")
-            awesome_plot(here, rgbd_prediction_error_curiosity_dict, "green", "RGBD", min_max = min_max, linestyle = "dotted")
-            awesome_plot(here, comm_prediction_error_curiosity_dict, "green", "Comm", min_max = min_max, linestyle = "dashed")
-            awesome_plot(here, sensors_prediction_error_curiosity_dict, "green", "Sensors", min_max = min_max, linestyle = custom_ls)
-            here.set_ylabel("Prediction Error Curiosity")
-            here.set_xlabel("Epochs")
-            here.legend()
-            here.set_title(plot_dict["arg_title"] + "\nPossible Prediciton Error Curiosities, shared min/max")
-            divide_arenas(prediction_error_curiosity_dict, here)
-            
-        def plot_hidden_state_curiosities_shared_min_max(here):
-            awesome_plot(here, hidden_state_curiosity_dict, "red", "Total Hidden State", min_max = min_max, linestyle = "solid")
-            awesome_plot(here, rgbd_hidden_state_curiosity_dict, "red", "RGBD", min_max = min_max, linestyle = "dotted")
-            awesome_plot(here, comm_hidden_state_curiosity_dict, "red", "Comm", min_max = min_max, linestyle = "dashed")
-            awesome_plot(here, sensors_hidden_state_curiosity_dict, "red", "Sensors", min_max = min_max, linestyle = custom_ls)
-            here.set_ylabel("Hidden State Curiosity")
-            here.set_xlabel("Epochs")
-            here.legend()
-            here.set_title(plot_dict["arg_title"] + "\nPossible Hidden State Curiosities, shared min/max")
-            divide_arenas(prediction_error_curiosity_dict, here)
-            
-        print(f"\tFinished curiosities.")
-    
-        
-        
-        # Log Curiosities
-        log_rgbd_prediction_error_dict = get_logs(rgbd_prediction_error_curiosity_dict)
-        log_comm_prediction_error_dict = get_logs(comm_prediction_error_curiosity_dict)
-        log_sensors_prediction_error_dict = get_logs(sensors_prediction_error_curiosity_dict)
-        log_prediction_error_dict = get_logs(prediction_error_curiosity_dict)
-        
-        log_rgbd_hidden_state_dict = get_logs(rgbd_hidden_state_curiosity_dict)
-        log_comm_hidden_state_dict = get_logs(comm_hidden_state_curiosity_dict)
-        log_sensors_hidden_state_dict = get_logs(sensors_hidden_state_curiosity_dict)
-        log_hidden_state_dict = get_logs(hidden_state_curiosity_dict)
-        
-        if(min_max[0] == 0):
-            log_min_max = (.01, min_max[1])
-        log_min_max = (log(min_max[0]), log(min_max[1]))
-        
-        def plot_log_prediction_error_curiosities(here):
-            awesome_plot(here, log_prediction_error_dict, "green", "Total log Prediction Error", linestyle = "solid")
-            awesome_plot(here, log_rgbd_prediction_error_dict, "green", "RGBD", linestyle = "dotted")
-            awesome_plot(here, log_comm_prediction_error_dict, "green", "Comm", linestyle = "dashed")
-            awesome_plot(here, log_sensors_prediction_error_dict, "green", "Sensors", linestyle = custom_ls)
-            here.set_ylabel("log Prediction Error Curiosity")
-            here.set_xlabel("Epochs")
-            here.legend()
-            here.set_title(plot_dict["arg_title"] + "\nlog Prediction Error Possible Curiosities")
-            divide_arenas(prediction_error_curiosity_dict, here)
-            
-        def plot_log_hidden_state_curiosities(here):
-            awesome_plot(here, log_hidden_state_dict, "red", "Total log Hidden State", linestyle = "solid")
-            awesome_plot(here, log_rgbd_hidden_state_dict, "red", "RGBD", linestyle = "dotted")
-            awesome_plot(here, log_comm_hidden_state_dict, "red", "Comm", linestyle = "dashed")
-            awesome_plot(here, log_sensors_hidden_state_dict, "red", "Sensors", linestyle = custom_ls)
-            here.set_ylabel("log Hidden State Curiosity")
-            here.set_xlabel("Epochs")
-            here.legend()
-            here.set_title(plot_dict["arg_title"] + "\nlog Hidden State Possible Curiosities")
-            divide_arenas(prediction_error_curiosity_dict, here)
-        
-        def plot_log_prediction_error_curiosities_shared_min_max(here):
-            awesome_plot(here, log_prediction_error_dict, "green", "Total log Prediction Error", min_max = log_min_max, linestyle = "solid")
-            awesome_plot(here, log_rgbd_prediction_error_dict, "green", "RGBD", min_max = log_min_max, linestyle = "dotted")
-            awesome_plot(here, log_comm_prediction_error_dict, "green", "Comm", min_max = log_min_max, linestyle = "dashed")
-            awesome_plot(here, log_sensors_prediction_error_dict, "green", "Sensors", min_max = log_min_max, linestyle = custom_ls)
-            here.set_ylabel("log Prediction Error Curiosity")
-            here.set_xlabel("Epochs")
-            here.legend()
-            here.set_title(plot_dict["arg_title"] + "\nlog Possible Prediction Error Curiosities, shared min/max")
-            divide_arenas(prediction_error_curiosity_dict, here)
-            
-        def plot_log_hidden_state_curiosities_shared_min_max(here):
-            awesome_plot(here, log_hidden_state_dict, "red", "Total log Hidden State", min_max = log_min_max, linestyle = "solid")
-            awesome_plot(here, log_rgbd_hidden_state_dict, "red", "RGBD", min_max = log_min_max, linestyle = "dotted")
-            awesome_plot(here, log_comm_hidden_state_dict, "red", "Comm", min_max = log_min_max, linestyle = "dashed")
-            awesome_plot(here, log_sensors_hidden_state_dict, "red", "Sensors", min_max = log_min_max, linestyle = custom_ls)
-            here.set_ylabel("log Hidden State Curiosity")
-            here.set_xlabel("Epochs")
-            here.legend()
-            here.set_title(plot_dict["arg_title"] + "\nlog Hidden State Possible Curiosities, shared min/max")
-            divide_arenas(prediction_error_curiosity_dict, here)
+            here.set_title(plot_dict["arg_title"] + "\n" + ("log " if log else "") + "Possible Hidden State Curiosities" + (", shaped min_max" if min_max else ""))
+            divide_arenas(prediction_error_dict, here)
         
         if(not too_many_plot_dicts): 
             plot_prediction_error_curiosities(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             plot_hidden_state_curiosities(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_log_prediction_error_curiosities(ax)
+            plot_prediction_error_curiosities(ax, log = True)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_log_hidden_state_curiosities(ax)
+            plot_hidden_state_curiosities(ax, log = True)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             
-            plot_prediction_error_curiosities_shared_min_max(ax)
+            plot_prediction_error_curiosities(ax, min_max = True)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_hidden_state_curiosities_shared_min_max(ax)
+            plot_hidden_state_curiosities(ax, min_max = True)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_log_prediction_error_curiosities_shared_min_max(ax)
+            plot_prediction_error_curiosities(ax, log = True, min_max = True)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_log_hidden_state_curiosities_shared_min_max(ax)
+            plot_hidden_state_curiosities(ax, log = True, min_max = True)
             
         fig2, ax2 = plt.subplots(4, 2, figsize = (40, 60)) 
         fig2.suptitle(plot_dict["arg_title"])  
@@ -748,25 +534,25 @@ def plots(plot_dicts, min_max_dict):
         plot_hidden_state_curiosities(ax2[1,0])  
         ax2[1,0].set_title("Possible Hidden State Curiosities")
         
-        plot_log_prediction_error_curiosities(ax2[0,1])  
+        plot_prediction_error_curiosities(ax2[0,1], log = True)  
         ax2[0,1].set_title("Possible log Prediction Error Curiosities")
-        plot_log_hidden_state_curiosities(ax2[1,1])  
+        plot_hidden_state_curiosities(ax2[1,1], log = True)  
         ax2[1,1].set_title("Possible log Hidden State Curiosities")
         
-        plot_prediction_error_curiosities_shared_min_max(ax2[2,0])  
+        plot_prediction_error_curiosities(ax2[2,0], min_max = True)  
         ax2[2,0].set_title("Possible Prediction Error Curiosities, shared min/max")
-        plot_hidden_state_curiosities_shared_min_max(ax2[3,0])  
+        plot_hidden_state_curiosities(ax2[3,0], min_max = True)  
         ax2[3,0].set_title("Possible Hidden State Curiosities, shared min/max")
         
-        plot_log_prediction_error_curiosities_shared_min_max(ax2[2,1])  
+        plot_prediction_error_curiosities(ax2[2,1], log = True, min_max = True)  
         ax2[2,1].set_title("Possible log Prediction Error Curiosities, shared min/max")
-        plot_log_hidden_state_curiosities_shared_min_max(ax2[3,1])  
+        plot_hidden_state_curiosities(ax2[3,1], log = True, min_max = True)  
         ax2[3,1].set_title("Possible log Hidden State Curiosities, shared min/max")
         
         fig2.savefig(f"thesis_pics/curiosities_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
-        print(f"\tFinished log curiosities.")
+        print(f"\tFinished curiosities.")
         print(f"Finished {plot_dict['arg_name']}.")
         print(f"{duration()}")
 
