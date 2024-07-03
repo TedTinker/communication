@@ -7,9 +7,9 @@ from agent import Agent
 
 
 
-hyper_parameters = "e_just_push"
+hyper_parameters = "e_free_play_then_watch_then_also_push"
 agent_num = 1
-epochs = 20000
+epochs = 30000
 saved_file = "saved_deigo"
 
 
@@ -30,10 +30,11 @@ agent.actor = agent_lists["actor"]
 for i in range(agent.args.critics):
     agent.critics[i] = agent_lists["critic"]
     agent.critic_targets[i] = agent_lists["critic"]
+    
 these_parameters = agent_lists[f"{agent_num}_{epochs}"]
 agent.load_state_dict(state_dict = these_parameters)
 
-agent.tasks = {0 : Task(actions = [1], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2], parenting = True, args = agent.args)}
+agent.tasks = {0 : Task(actions = [0, 1], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2], parenting = True, args = agent.args)}
 agent.task_runners = {task_name : Task_Runner(task, agent.arena_1, agent.arena_2) for i, (task_name, task) in enumerate(agent.tasks.items())}
 agent.task_name = 0
 agent.task = agent.task_runners[agent.task_name]

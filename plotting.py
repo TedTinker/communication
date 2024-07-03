@@ -5,6 +5,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE" # Without this, pyplot crashes the ker
 
 import numpy as np
 from math import log
+from scipy import interpolate
 from itertools import accumulate
 from statistics import mode
 
@@ -12,12 +13,29 @@ from utils import args, duration, load_dicts, print, real_names
 
 print("name:\n{}\n".format(args.arg_name),)
 
+dpi = 50
 
 
-def get_quantiles(plot_dict, name, levels = [1, 2, 3, 4, 5], adjust_xs=True, remove_none = True):
+
+def clean_and_interpolate_nan(arr, xs, non_nan_mask):
+    arr = np.array(arr, dtype=np.float64)
+    if np.isnan(arr[0]):
+        arr[0] = 0.0
+    if np.isnan(arr[-1]):
+        last_valid = arr[~np.isnan(arr)][-1]
+        arr[-1] = last_valid
+    nan_mask = np.isnan(arr)
+    interpolator = interpolate.interp1d(xs[~nan_mask], arr[~nan_mask], bounds_error=False, fill_value="extrapolate")
+    arr[nan_mask] = interpolator(xs[nan_mask])
+    return arr
+
+
+
+def get_quantiles(plot_dict, name, levels = [1, 2, 3, 4, 5], adjust_xs=True):
     # Convert all None to np.nan in the dataset for uniformity
     max_len = mode([len(agent) for agent in plot_dict[name]])
-    lists = np.array([[0 if x is None else x for x in agent] for agent in plot_dict[name] if len(agent) == max_len], dtype=float)
+    lists = np.array([[np.nan if x in [None, "not_used"] else x for x in agent] for agent in plot_dict[name] if len(agent) == max_len], dtype=float)
+    non_nan_mask = ~np.isnan(lists).all(axis=0)
     
     # Adjust xs based on whether to adjust them by 'keep_data' multiplier or not
     xs = np.arange(lists.shape[1])
@@ -25,7 +43,7 @@ def get_quantiles(plot_dict, name, levels = [1, 2, 3, 4, 5], adjust_xs=True, rem
         xs = xs * plot_dict["args"].keep_data
 
     # Prepare quantile_dict with adjusted or original xs
-    quantile_dict = {"xs": xs}
+    quantile_dict = {"xs": xs}    
     
     # Calculate quantiles and other statistics only on non-nan values
     quantile_dict["med"] = np.nanquantile(lists, 0.5, axis=0)
@@ -44,19 +62,24 @@ def get_quantiles(plot_dict, name, levels = [1, 2, 3, 4, 5], adjust_xs=True, rem
     if(5 in levels):
         quantile_dict["min"] = np.nanmin(lists, axis=0)
         quantile_dict["max"] = np.nanmax(lists, axis=0)
+        
+    for key, values in quantile_dict.items():
+        if key != "xs":
+            nan_mask = np.isnan(values)
+            if np.any(nan_mask):
+                quantile_dict[key] = clean_and_interpolate_nan(values, xs, non_nan_mask) 
 
     return quantile_dict
 
-def get_list_quantiles(list_of_lists, plot_dict, levels = [1, 2, 3, 4, 5], remove_none = True):
+
+
+def get_list_quantiles(list_of_lists, plot_dict, levels = [1, 2, 3, 4, 5]):
     quantile_dicts = []
     for layer in range(len(list_of_lists[0])):
         l = [l[layer] for l in list_of_lists]
         max_len = mode(len(sublist) for sublist in l)
         lists = np.array([l[i] for i in range(len(l)) if len(l[i]) == max_len], dtype=float)   
-        if(remove_none):
-            xs = [i for i, x in enumerate(lists[0]) if x != None]
-        else:
-            xs = [i for i, x in enumerate(lists[0])] 
+        xs = [i for i, x in enumerate(lists[0])] 
         lists = lists[:,xs]
         quantile_dict = {"xs" : [x * plot_dict["args"].keep_data for x in xs]}
         quantile_dict["med"] = np.quantile(lists, 0.5, axis=0)
@@ -76,7 +99,10 @@ def get_list_quantiles(list_of_lists, plot_dict, levels = [1, 2, 3, 4, 5], remov
             quantile_dict["min"] = np.min(lists, axis=0)
             quantile_dict["max"] = np.max(lists, axis=0)
         quantile_dicts.append(quantile_dict)
+        
     return(quantile_dicts)
+
+
 
 def get_logs(quantile_dict):
     log_quantile_dict = {"xs" : quantile_dict["xs"]}
@@ -131,7 +157,7 @@ def plots(plot_dicts, min_max_dict):
     too_many_plot_dicts = len(plot_dicts) > 16
     figsize = (10, 10)
     if(not too_many_plot_dicts):
-        fig, axs = plt.subplots(34, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
+        fig, axs = plt.subplots(32, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
                 
     for i, plot_dict in enumerate(plot_dicts):
         row_num = 0
@@ -150,7 +176,7 @@ def plots(plot_dicts, min_max_dict):
                 
                 
                 
-        # Rolling win-rate
+        # Rolling win-rate (is this where win-rates seem to drop?)
         action_name_list = []
         for key in plot_dict.keys():
             if(key.startswith("wins_")):
@@ -162,11 +188,11 @@ def plots(plot_dicts, min_max_dict):
         fig2_row_num = 0
                     
         for action_name in action_name_list:
-            win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), levels = [1], adjust_xs = False, remove_none = False)
-            gen_win_dict = get_quantiles(plot_dict, "gen_wins_" + action_name.lower(), levels = [1], adjust_xs = False, remove_none = False)
+            win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), levels = [1], adjust_xs = False)
+            gen_win_dict = get_quantiles(plot_dict, "gen_wins_" + action_name.lower(), levels = [1], adjust_xs = False)
             for key in gen_win_dict:
                 if key not in ["xs"]:
-                    gen_win_dict[key] = gen_win_dict[key] * args.epochs_per_gen_test
+                    gen_win_dict[key] = gen_win_dict[key] 
             
             win_dict = get_rolling_average(win_dict)
             gen_win_dict = get_rolling_average(gen_win_dict)
@@ -192,7 +218,7 @@ def plots(plot_dicts, min_max_dict):
             fig2_row_num += 1
             print(f"\tFinished win-rates ({action_name}).")
             
-        fig2.savefig(f"thesis_pics/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
+        fig2.savefig(f"thesis_pics/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         print(f"\t\tFinished win-rates.")
             
@@ -231,7 +257,7 @@ def plots(plot_dicts, min_max_dict):
         gen_rew_dict = get_quantiles(plot_dict, "gen_rewards", levels = [1], adjust_xs = False)
         for key in gen_win_dict:
             if key not in ["xs"]:
-                gen_rew_dict[key] = gen_rew_dict[key] * args.epochs_per_gen_test
+                gen_rew_dict[key] = gen_rew_dict[key] 
         
         def plot_cumulative_gen_rewards(here):
             awesome_plot(here, gen_rew_dict, "pink", "Reward")
@@ -265,7 +291,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[2].set_title("Cumulative Rewards\nin Generalization-Tests")
         plot_cumulative_gen_rewards_shared_min_max(ax2[3])  
         ax2[3].set_title("Cumulative Rewards\nin Generalization-Tests, shared min/max")
-        fig2.savefig(f"thesis_pics/rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
+        fig2.savefig(f"thesis_pics/rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
             
         print(f"\tFinished cumulative generalization-test rewards.")
@@ -368,7 +394,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[2].set_title("log Forward Losses")
         plot_log_forward_losses_shared_min_max(ax2[3])  
         ax2[3].set_title("log Forward Losses, shared min/max")
-        fig2.savefig(f"thesis_pics/forward_losses_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
+        fig2.savefig(f"thesis_pics/forward_losses_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished log forward losses.")
@@ -425,7 +451,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[0].set_title("Actor, Critic Losses")
         plot_other_losses_shared_min_max(ax2[1])  
         ax2[1].set_title("Actor, Critic Losses, shared min/max")
-        fig2.savefig(f"thesis_pics/actor_critic_losses_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
+        fig2.savefig(f"thesis_pics/actor_critic_losses_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished other losses.")
@@ -562,7 +588,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[2].set_title("Extrinsic and Intrinsic Rewards, shared dim")
         plot_extrinsic_and_intrinsic_rewards_shared_dim_shared_min_max(ax2[3])  
         ax2[3].set_title("Extrinsic and Intrinsic Rewards, shared min/max and dim")
-        fig2.savefig(f"thesis_pics/extrinsic_and_intrinsic_rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
+        fig2.savefig(f"thesis_pics/extrinsic_and_intrinsic_rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished extrinsic and intrinsic rewards with same dimensions.")
@@ -714,7 +740,6 @@ def plots(plot_dicts, min_max_dict):
             plot_log_prediction_error_curiosities_shared_min_max(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             plot_log_hidden_state_curiosities_shared_min_max(ax)
-            ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             
         fig2, ax2 = plt.subplots(4, 2, figsize = (40, 60)) 
         fig2.suptitle(plot_dict["arg_title"])  
@@ -738,7 +763,7 @@ def plots(plot_dicts, min_max_dict):
         plot_log_hidden_state_curiosities_shared_min_max(ax2[3,1])  
         ax2[3,1].set_title("Possible log Hidden State Curiosities, shared min/max")
         
-        fig2.savefig(f"thesis_pics/curiosities_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=100) 
+        fig2.savefig(f"thesis_pics/curiosities_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished log curiosities.")

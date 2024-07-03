@@ -7,7 +7,7 @@
 #   Trying float16 on cuda. Getting NaN.
 #   Beta values seem to harm.
 #   Try "forgetting" solutions. 
-#   Why do "watch" rates instantly drop after changing task?
+#   Why do win rates instantly drop after changing task?
 
 # To do: less important 
 #   I wish plotting-episodes put actions one step ahead...
@@ -454,20 +454,20 @@ parser.add_argument("--delta",                          type=float,         defa
                     help='How much to consider action\'s similarity to recommended action.')  
 
     # Saving data
-parser.add_argument('--keep_data',                      type=int,           default = 50,
+parser.add_argument('--keep_data',                      type=int,           default = 100,
                     help='How many epochs should pass before saving data.')
 
 parser.add_argument('--epochs_per_gen_test',            type=int,           default = 10,
                     help='How many epochs should pass before trying generalization test.')
 
-parser.add_argument('--epochs_per_episode_dict',        type=int,           default = 5000,
+parser.add_argument('--epochs_per_episode_dict',        type=int,           default = 999999,
                     help='How many epochs should pass before saving an episode.')
 parser.add_argument('--agents_per_episode_dict',        type=int,           default = 1,
                     help='How many agents to save episodes.')
 parser.add_argument('--episodes_in_episode_dict',       type=int,           default = 1,
                     help='How many episodes to save per agent.')
 
-parser.add_argument('--epochs_per_agent_list',          type=int,           default = 5000,
+parser.add_argument('--epochs_per_agent_list',          type=int,           default = 999999,
                     help='How many epochs should pass before saving agent model.')
 parser.add_argument('--agents_per_agent_list',          type=int,           default = 3,
                     help='How many agents to save.') 

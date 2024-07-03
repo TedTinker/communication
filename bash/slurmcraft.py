@@ -72,16 +72,14 @@ def add_this(name, args):
 
 add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
 add_this("n",   {"curiosity" : "prediction_error"})
-add_this("f",   {"curiosity" : "hidden_state", 
-                 "hidden_state_eta_comm" : [1, 3, 10], 
-                 "hidden_state_eta_sensors" : [1, 3, 10]})
+add_this("f",   {"curiosity" : "hidden_state"})
 add_this("i",   {"delta" : 1})
 
 
 
 add_this("watch_then_also_push",
          {"task_list" : "'[1, 3]'",      
-          "epochs" : "'[5000, 1000]'"})
+          "epochs" : "'[10000, 20000]'"})
 
 add_this("push_then_also_watch",
          {"task_list" : "'[2, 3]'",      
@@ -89,7 +87,7 @@ add_this("push_then_also_watch",
 
 add_this("free_play_then_watch_then_also_push",            
          {"task_list" : "'[0, 1, 3]'",      
-          "epochs" : "'[500, 500, 1000]'"})
+          "epochs" : "'[10000, 10000, 10000]'"})
 
 
 
@@ -123,7 +121,7 @@ max_cpus = args.agents if args.agents < 30 else 30
  
 if(__name__ == "__main__" and args.arg_list == []):
     for key, value in slurm_dict.items(): print(key, ":", value,"\n")
-    interesting = [f"e_watch_then_also_push"]
+    interesting = [f"ef_watch_then_also_push_1"] + [f"ef_push_then_also_watch_{i}" for i in [1, 2, 4]]
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
 
@@ -138,7 +136,7 @@ if(__name__ == "__main__" and args.arg_list != []):
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time 24:00:00
+#SBATCH --time 9:00:00
 #SBATCH --mem=30G"""
 
     if(args.comp == "saion"):

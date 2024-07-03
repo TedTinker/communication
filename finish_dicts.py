@@ -37,7 +37,7 @@ for folder in folders:
         if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
             minimum = None ; maximum = None
             for min_max in min_max_dict[key]:
-                if(min_max[0] == None or min_max[1] == None):
+                if(any(item in [None, "not_used"] for item in min_max)): 
                     pass
                 else:
                     if(  minimum == None):      minimum = min_max[0]
