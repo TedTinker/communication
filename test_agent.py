@@ -5,9 +5,7 @@ import pickle
 from task import Task, Task_Runner
 from agent import Agent 
 
-
-
-hyper_parameters = "e_free_play_then_watch_then_also_push"
+hyper_parameters = "e_fp_then_w_then_wplr"
 agent_num = 1
 epochs = 30000
 saved_file = "saved_deigo"

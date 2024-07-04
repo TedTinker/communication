@@ -392,6 +392,8 @@ parser.add_argument('--encode_sensors_size',            type=int,           defa
                     help='Parameters in encoding sensors, angles, speed.')   
 parser.add_argument('--encode_action_size',             type=int,           default = 8,
                     help='Parameters in encoding action.')   
+parser.add_argument('--use_comm_in_gru',                type=literal,       default = False,
+                    help='Use comm_in model with gru, or not?')   
 parser.add_argument('--dropout',                        type=float,         default = .001,
                     help='Dropout percentage.')
 parser.add_argument('--use_hsv',                        type=literal,       default = False,
@@ -454,10 +456,10 @@ parser.add_argument("--delta",                          type=float,         defa
                     help='How much to consider action\'s similarity to recommended action.')  
 
     # Saving data
-parser.add_argument('--keep_data',                      type=int,           default = 100,
+parser.add_argument('--keep_data',                      type=int,           default = 250,
                     help='How many epochs should pass before saving data.')
 
-parser.add_argument('--epochs_per_gen_test',            type=int,           default = 10,
+parser.add_argument('--epochs_per_gen_test',            type=int,           default = 25,
                     help='How many epochs should pass before trying generalization test.')
 
 parser.add_argument('--epochs_per_episode_dict',        type=int,           default = 999999,

@@ -77,17 +77,47 @@ add_this("i",   {"delta" : 1})
 
 
 
-add_this("watch_then_also_push",
+# fp = free play
+# w = watch, p = push, u = pull, l = left, r = right
+# wp = watch and push
+
+add_this("wp",
+         {"task_list" : "'[3]'",      
+          "epochs" : "'[30000]'"})
+
+add_this("w_then_wp",
          {"task_list" : "'[1, 3]'",      
-          "epochs" : "'[10000, 20000]'"})
+          "epochs" : "'[5000, 25000]'"})
 
-add_this("push_then_also_watch",
-         {"task_list" : "'[2, 3]'",      
-          "epochs" : "'[5000, 1000]'"})
+add_this("fp_then_wp",
+         {"task_list" : "'[0, 3]'",      
+          "epochs" : "'[5000, 25000]'"})
 
-add_this("free_play_then_watch_then_also_push",            
+add_this("fp_then_w_then_wp",            
          {"task_list" : "'[0, 1, 3]'",      
-          "epochs" : "'[10000, 10000, 10000]'"})
+          "epochs" : "'[5000, 5000, 20000]'"})
+
+
+
+add_this("wplr",            
+         {"task_list" : "'[4]'",      
+          "epochs" : "'[30000]'"})
+
+add_this("w_then_wplr",            
+         {"task_list" : "'[1, 4]'",      
+          "epochs" : "'[5000, 25000]'"})
+
+add_this("fp_then_wplr",            
+         {"task_list" : "'[0, 4]'",      
+          "epochs" : "'[5000, 25000]'"})
+
+add_this("fp_then_w_then_wplr",            
+         {"task_list" : "'[0, 1, 4]'",      
+          "epochs" : "'[5000, 5000, 20000]'"})
+
+add_this("fp_then_w_then_wp_then_wplr",            
+         {"task_list" : "'[0, 1, 3, 4]'",      
+          "epochs" : "'[5000, 5000, 10000, 10000]'"})
 
 
 

@@ -388,16 +388,16 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(here, ext_dict, "red", "Extrinsic", min_max_dict["extrinsic"] if min_max else None))
             here.set_ylabel("Extrinsic")
             here.set_xlabel("Epochs")
-            if((ent_dict[keys[0]] != ent_dict[keys[1]]).all()):
+            if((ent_dict[keys[0]] != ent_dict[keys[1]]).any()):
                 ax2 = here.twinx()
                 handles.append(awesome_plot(ax2, ent_dict, "black", "Entropy", min_max_dict["intrinsic_entropy"] if min_max else None))
                 ax2.set_ylabel("Entropy")
-            if((cur_dict[keys[0]] != cur_dict[keys[1]]).all()):
+            if((cur_dict[keys[0]] != cur_dict[keys[1]]).any()):
                 ax3 = here.twinx()
                 ax3.spines["right"].set_position(("axes", 1.08))
                 handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity", min_max_dict["intrinsic_curiosity"] if min_max else None))
                 ax3.set_ylabel("Curiosity")
-            if((imi_dict[keys[0]] != imi_dict[keys[1]]).all()):
+            if((imi_dict[keys[0]] != imi_dict[keys[1]]).any()):
                 ax4 = here.twinx()
                 ax4.spines["right"].set_position(("axes", 1.16))
                 handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation", min_max_dict["intrinsic_imitation"] if min_max else None))
@@ -411,11 +411,11 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(here, ext_dict, "red", "Extrinsic", rewards_min_max if min_max else None))
             here.set_ylabel("Rewards")
             here.set_xlabel("Epochs")
-            if((ent_dict[keys[0]] != ent_dict[keys[1]]).all()):
+            if((ent_dict[keys[0]] != ent_dict[keys[1]]).any()):
                 handles.append(awesome_plot(here, ent_dict, "black", "Entropy", rewards_min_max if min_max else None))
-            if((cur_dict[keys[0]] != cur_dict[keys[1]]).all()):
+            if((cur_dict[keys[0]] != cur_dict[keys[1]]).any()):
                 handles.append(awesome_plot(here, cur_dict, "green", "Curiosity", rewards_min_max if min_max else None))
-            if((imi_dict[keys[0]] != imi_dict[keys[1]]).all()):
+            if((imi_dict[keys[0]] != imi_dict[keys[1]]).any()):
                 handles.append(awesome_plot(here, imi_dict, "blue", "Imitation", rewards_min_max if min_max else None))
             here.legend(handles = handles)
             here.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared dims" + (", shared min/max" if min_max else ""))
@@ -518,7 +518,6 @@ def plots(plot_dicts, min_max_dict):
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             plot_hidden_state_curiosities(ax, log = True)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            
             plot_prediction_error_curiosities(ax, min_max = True)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             plot_hidden_state_curiosities(ax, min_max = True)

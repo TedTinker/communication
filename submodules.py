@@ -250,11 +250,11 @@ if __name__ == "__main__":
 #%%
 
 
-"""#For some reason, these kill it all! 
-class Comm_IN(nn.Module):
+#"""#For some reason, these kill it all! 
+class Comm_IN_GRU(nn.Module):
 
     def __init__(self, args = default_args):
-        super(Comm_IN, self).__init__()  
+        super(Comm_IN_GRU, self).__init__()  
         
         self.args = args
         
@@ -294,37 +294,39 @@ class Comm_IN(nn.Module):
         
     def forward(self, comm):
         start, episodes, steps, [comm] = model_start([(comm, "comm")], self.args.device, self.args.half)
-        
+                
         comm = pad_zeros(comm, self.args.max_comm_len)
         comm = torch.argmax(comm, dim = -1).int()
+                
         a = self.a(comm)
         b = self.b(a.permute((0, 2, 1))).permute((0, 2, 1))
-        c, _ = self.c(comm)    
+        c, _ = self.c(b)    
         c = c.reshape(episodes, steps, self.args.hidden_size)
         encoding = self.d(c)
         
-        [encoding] = model_end(start, episodes, steps, [(encoding, "lin")], "COMM_IN" if self.args.show_duration else None)
+        [encoding] = model_end(start, episodes, steps, [(encoding, "lin")], "COMM_IN_GRU" if self.args.show_duration else None)
         return(encoding)
 
     
     
 if __name__ == "__main__":
     
-    comm_in = Comm_IN(args = args)
+    comm_in_gru = Comm_IN_GRU(args = args)
     
     print("\n\n")
-    print(comm_in)
+    print(comm_in_gru)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(torch_summary(comm_in, 
+            print(torch_summary(comm_in_gru, 
                                 (episodes, steps, args.max_comm_len, args.comm_shape)))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))"""
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+#"""
     
     
 #%%
 
-#"""
+
 
 class Comm_OUT(nn.Module):
 
@@ -408,9 +410,6 @@ if __name__ == "__main__":
             print(torch_summary(comm_out, 
                                 (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-    
-#"""
-
 
 #%%
 
@@ -512,7 +511,7 @@ class Obs_IN(nn.Module):
                 
         self.args = args
         self.rgbd_in = RGBD_IN(self.args)
-        self.comm_in = Comm_IN(self.args)
+        self.comm_in = Comm_IN_GRU(self.args) if self.args.use_comm_in_gru else Comm_IN(self.args)
         self.sensors_in = Sensors_IN(self.args)
         
         self.apply(init_weights)
