@@ -7,7 +7,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.profiler import profile, record_function, ProfilerActivity
-from kornia.color import rgb_to_hsv 
+#from kornia.color import rgb_to_hsv 
 import torchgan.layers as gg
 from torchinfo import summary as torch_summary
 
@@ -60,11 +60,11 @@ class RGBD_IN(nn.Module):
         
         how_many_nans(rgbd, "RGBD IN, rgbd start")
                 
-        if(self.args.use_hsv):
-            hsv = rgb_to_hsv(rgbd[:,:-1]) # Results in NAN
-            #print("hsv", torch.isnan(hsv).sum().item())
-            hsv = hsv_to_circular_hue(hsv)
-            rgbd = torch.cat([rgbd, hsv], dim = 1)
+        #if(self.args.use_hsv):
+        #    hsv = rgb_to_hsv(rgbd[:,:-1]) # Results in NAN
+        #    #print("hsv", torch.isnan(hsv).sum().item())
+        #    hsv = hsv_to_circular_hue(hsv)
+        #    rgbd = torch.cat([rgbd, hsv], dim = 1)
         rgbd = (rgbd * 2) - 1
         
         how_many_nans(rgbd, "RGBD IN, rgbd with hsv")

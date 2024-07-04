@@ -7,7 +7,6 @@
 #   Trying float16 on cuda. Getting NaN.
 #   Beta values seem to harm.
 #   Try "forgetting" solutions. 
-#   Why do win rates instantly drop after changing task?
 
 # To do: less important 
 #   I wish plotting-episodes put actions one step ahead...
@@ -29,7 +28,7 @@ from random import choice, randint
 import torch
 import platform
 import torch.nn.functional as F
-from kornia.color import rgb_to_hsv 
+#from kornia.color import rgb_to_hsv 
 import psutil
 from itertools import product
 
