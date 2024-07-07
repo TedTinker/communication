@@ -55,7 +55,8 @@ class Agent:
             1 : Task(actions = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
             2 : Task(actions = [1],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
             3 : Task(actions = [0, 1],              objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
-            4 : Task(actions = [0, 1, 2, 3],        objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args)}
+            4 : Task(actions = [0, 1, 3, 4],        objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
+            5 : Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args)}
             
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
@@ -180,8 +181,9 @@ class Agent:
             step = self.training_episode()
             
             time = duration()
-            if(self.args.show_duration): print(f"TRAINING EPISODE ({step+1} steps):", time - prev_time)
-            if(self.args.show_duration): print(f"{self.epochs} EPOCHS:", time - start_time, "\n")
+            if(self.args.show_duration): 
+                print(f"TRAINING EPISODE ({step+1} steps):", time - prev_time)
+                print(f"{self.epochs} EPOCHS:", time - start_time, "\n")
             prev_time = time
             
             percent_done = str(self.epochs / sum(self.args.epochs))

@@ -67,6 +67,7 @@ class Actor(nn.Module):
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
 
     def forward(self, rgbd, comm_in, sensors, prev_action, prev_comm_out, forward_hidden, action_hidden, parenting = True):
+        
         start, episodes, steps, [rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden] = model_start(
             [(rgbd, "cnn"), (comm_in, "comm"), (prev_action, "lin"), (prev_comm_out, "comm"), (forward_hidden, "lin"), (action_hidden, "lin")], device = self.args.device, half = self.args.half)
         
@@ -166,6 +167,7 @@ class Critic(nn.Module):
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
     def forward(self, rgbd, comm_in, sensors, action, comm_out, forward_hidden, critic_hidden):        
+        
         start, episodes, steps, [rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden] = model_start(
             [(rgbd, "cnn"), (comm_in, "comm"), (action, "lin"), (comm_out, "comm"), (forward_hidden, "lin"), (critic_hidden, "lin")], device = self.args.device, half = self.args.half)
                 

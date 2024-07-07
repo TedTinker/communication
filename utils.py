@@ -7,6 +7,7 @@
 #   Trying float16 on cuda. Getting NaN.
 #   Beta values seem to harm.
 #   Try "forgetting" solutions. 
+#   Maybe three comm_in, one for goal, one for parent describing acheivement, one for friend?
 
 # To do: less important 
 #   I wish plotting-episodes put actions one step ahead...
@@ -319,13 +320,13 @@ parser.add_argument('--dist_reward',                    type=float,         defa
                     help='Give agents a reward just for getting close to the correct object.')
 parser.add_argument('--dist_reward_min',                type=float,         default = 3.5,
                     help='If agent closer to correct object that this, rewarded.')
-parser.add_argument('--dist_reward_max',                type=float,         default = 5,
+parser.add_argument('--dist_reward_max',                type=float,         default = 5.5,
                     help='If agent farther to correct object that this, punished. If agent between min and max, agent relatively rewarded.')
 
     # Rewards for angles
-parser.add_argument('--angle_reward',                   type=float,         default = 1,
+parser.add_argument('--angle_reward',                   type=float,         default = .03,
                     help='Give agents a reward just for pointing at the right object.')
-parser.add_argument('--angle_reward_min',               type=float,         default = 30,
+parser.add_argument('--angle_reward_min',               type=float,         default = 15,
                     help='If agent pointing at correct object that this, rewarded.')
 parser.add_argument('--angle_reward_max',               type=float,         default = 90,
                     help='If agent pointing farther from correct object that this, punished. If angle between min and max, agent relatively rewarded.')

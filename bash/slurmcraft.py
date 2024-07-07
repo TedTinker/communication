@@ -77,47 +77,21 @@ add_this("i",   {"delta" : 1})
 
 
 
+
+
+
+
 # fp = free play
 # w = watch, p = push, u = pull, l = left, r = right
 # wp = watch and push
 
-add_this("wp",
-         {"task_list" : "'[3]'",      
-          "epochs" : "'[30000]'"})
-
-add_this("w_then_wp",
-         {"task_list" : "'[1, 3]'",      
-          "epochs" : "'[5000, 25000]'"})
-
-add_this("fp_then_wp",
-         {"task_list" : "'[0, 3]'",      
-          "epochs" : "'[5000, 25000]'"})
-
-add_this("fp_then_w_then_wp",            
-         {"task_list" : "'[0, 1, 3]'",      
-          "epochs" : "'[5000, 5000, 20000]'"})
 
 
-
-add_this("wplr",            
-         {"task_list" : "'[4]'",      
-          "epochs" : "'[30000]'"})
-
-add_this("w_then_wplr",            
-         {"task_list" : "'[1, 4]'",      
-          "epochs" : "'[5000, 25000]'"})
-
-add_this("fp_then_wplr",            
-         {"task_list" : "'[0, 4]'",      
-          "epochs" : "'[5000, 25000]'"})
-
-add_this("fp_then_w_then_wplr",            
-         {"task_list" : "'[0, 1, 4]'",      
-          "epochs" : "'[5000, 5000, 20000]'"})
-
-add_this("fp_then_w_then_wp_then_wplr",            
+add_this("fp_w_wp_wplr",            
          {"task_list" : "'[0, 1, 3, 4]'",      
           "epochs" : "'[5000, 5000, 10000, 10000]'"})
+
+
 
 
 
@@ -150,8 +124,10 @@ def all_like_this(this):
 max_cpus = args.agents if args.agents < 30 else 30
  
 if(__name__ == "__main__" and args.arg_list == []):
-    for key, value in slurm_dict.items(): print(key, ":", value,"\n")
-    interesting = [f"ef_watch_then_also_push_1"] + [f"ef_push_then_also_watch_{i}" for i in [1, 2, 4]]
+    for key, value in slurm_dict.items(): 
+    
+        print(key, ":", value,"\n")
+    interesting = [f"e_fp_w_wp_wplr_das_{i}" for i in [10, 19]]
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
 

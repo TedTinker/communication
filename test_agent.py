@@ -5,7 +5,7 @@ import pickle
 from task import Task, Task_Runner
 from agent import Agent 
 
-hyper_parameters = "e_fp_then_w_then_wplr"
+hyper_parameters = "e_fp_w_wp_wplr_das_7"
 agent_num = 1
 epochs = 30000
 saved_file = "saved_deigo"
@@ -32,7 +32,7 @@ for i in range(agent.args.critics):
 these_parameters = agent_lists[f"{agent_num}_{epochs}"]
 agent.load_state_dict(state_dict = these_parameters)
 
-agent.tasks = {0 : Task(actions = [0, 1], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2], parenting = True, args = agent.args)}
+agent.tasks = {0 : Task(actions = [0, 1, 3, 4], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2], parenting = True, args = agent.args)}
 agent.task_runners = {task_name : Task_Runner(task, agent.arena_1, agent.arena_2) for i, (task_name, task) in enumerate(agent.tasks.items())}
 agent.task_name = 0
 agent.task = agent.task_runners[agent.task_name]
