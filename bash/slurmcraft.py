@@ -77,25 +77,9 @@ add_this("i",   {"delta" : 1})
 
 
 
-
-
-
-
 # fp = free play
 # w = watch, p = push, u = pull, l = left, r = right
 # wp = watch and push
-
-
-
-add_this("fp_w_wp_wplr",            
-         {"task_list" : "'[0, 1, 3, 4]'",      
-          "epochs" : "'[5000, 5000, 10000, 10000]'"})
-
-
-
-
-
-
 
 
 
@@ -142,7 +126,7 @@ if(__name__ == "__main__" and args.arg_list != []):
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time 9:00:00
+#SBATCH --time 24:00:00
 #SBATCH --mem=30G"""
 
     if(args.comp == "saion"):

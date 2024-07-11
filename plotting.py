@@ -13,7 +13,7 @@ from utils import args, duration, load_dicts, print, real_names
 
 print("name:\n{}\n".format(args.arg_name),)
 
-dpi = 50
+dpi = 300
 
 
 
@@ -155,7 +155,7 @@ def many_min_max(min_max_list):
 
 def plots(plot_dicts, min_max_dict):
     too_many_plot_dicts = len(plot_dicts) > 16
-    figsize = (10, 10)
+    levels = [1, 2, 3, 4, 5]
     if(not too_many_plot_dicts):
         fig, axs = plt.subplots(32, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
                 
@@ -188,8 +188,8 @@ def plots(plot_dicts, min_max_dict):
         fig2_row_num = 0
                     
         for action_name in action_name_list:
-            win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), levels = [1], adjust_xs = False)
-            gen_win_dict = get_quantiles(plot_dict, "gen_wins_" + action_name.lower(), levels = [1], adjust_xs = False)
+            win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), levels = levels, adjust_xs = False)
+            gen_win_dict = get_quantiles(plot_dict, "gen_wins_" + action_name.lower(), levels = levels, adjust_xs = False)
             for key in gen_win_dict:
                 if key not in ["xs"]:
                     gen_win_dict[key] = gen_win_dict[key] 
@@ -225,12 +225,8 @@ def plots(plot_dicts, min_max_dict):
                 
                 
         # Cumulative rewards
-        rew_dict = get_quantiles(plot_dict, "rewards", levels = [1], adjust_xs = False)
-        
+        rew_dict = get_quantiles(plot_dict, "rewards", levels = levels, adjust_xs = False)
         gen_rew_dict = get_quantiles(plot_dict, "gen_rewards", levels = [1], adjust_xs = False)
-        for key in gen_win_dict:
-            if key not in ["xs"]:
-                gen_rew_dict[key] = gen_rew_dict[key] 
         
         def plot_cumulative_rewards(here, gen = False, min_max = None):
             awesome_plot(here, gen_rew_dict if gen else rew_dict, "pink" if gen else "turquoise", "Reward", min_max)
@@ -268,11 +264,11 @@ def plots(plot_dicts, min_max_dict):
         
         
         # Forward Losses
-        rgbd_dict = get_quantiles(plot_dict, "rgbd_loss", levels = [1])
-        comm_dict = get_quantiles(plot_dict, "comm_loss", levels = [1])
-        sensors_dict = get_quantiles(plot_dict, "sensors_loss", levels = [1])
-        accuracy_dict = get_quantiles(plot_dict, "accuracy", levels = [1])
-        comp_dict = get_quantiles(plot_dict, "complexity", levels = [1])
+        rgbd_dict = get_quantiles(plot_dict, "rgbd_loss", levels = levels)
+        comm_dict = get_quantiles(plot_dict, "comm_loss", levels = levels)
+        sensors_dict = get_quantiles(plot_dict, "sensors_loss", levels = levels)
+        accuracy_dict = get_quantiles(plot_dict, "accuracy", levels = levels)
+        comp_dict = get_quantiles(plot_dict, "complexity", levels = levels)
         forward_losses_min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["comm_loss"], min_max_dict["sensors_loss"], min_max_dict["accuracy"]])
         
         log_rgbd_dict = get_logs(rgbd_dict)
@@ -327,9 +323,9 @@ def plots(plot_dicts, min_max_dict):
         
             
         # Other Losses
-        alpha_dict = get_quantiles(plot_dict, "alpha", levels = [1])
-        actor_dict = get_quantiles(plot_dict, "actor", levels = [1])
-        crit_dicts = get_list_quantiles(plot_dict["critics"], plot_dict, levels = [1])
+        alpha_dict = get_quantiles(plot_dict, "alpha", levels = levels)
+        actor_dict = get_quantiles(plot_dict, "actor", levels = levels)
+        crit_dicts = get_list_quantiles(plot_dict["critics"], plot_dict, levels = levels)
         crit_min_max = many_min_max([crit_min_max for crit_min_max in min_max_dict["critics"]])
         
         def plot_other_losses(here, min_max = False):
@@ -367,9 +363,8 @@ def plots(plot_dicts, min_max_dict):
             
         
             
-        ###     Why aren't these plotting entropy values?
         # Extrinsic and Intrinsic rewards
-        these_levels = [1]
+        these_levels = levels
         keys = \
                 ["min", "max"] if 5 in these_levels else \
                 ["q10", "q90"] if 4 in these_levels else \
@@ -553,12 +548,13 @@ def plots(plot_dicts, min_max_dict):
         
         print(f"\tFinished curiosities.")
         print(f"Finished {plot_dict['arg_name']}.")
-        print(f"{duration()}")
+        print(f"Duration: {duration()}")
 
     
     
-    # Done!
+    # Finish!
     if(not too_many_plot_dicts):
+        print("\nSaving full plot...")
         fig.tight_layout(pad=1.0)
         plt.savefig("plot.png", bbox_inches = "tight")
         plt.close(fig)
@@ -567,4 +563,4 @@ def plots(plot_dicts, min_max_dict):
 
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 plots(plot_dicts, min_max_dict)
-print("\nDuration: {}. Done!".format(duration()))
+print(f"\nDuration: {duration()}. Done!")
