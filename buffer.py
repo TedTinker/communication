@@ -54,6 +54,7 @@ class RecurrentReplayBuffer:
             shape = (self.args.action_shape,), 
             args = self.args)
         self.rewards = VariableBuffer(args = self.args)
+        self.comm_curious = VariableBuffer(args = self.args)
         self.dones = VariableBuffer(args = self.args)
         self.masks = VariableBuffer(args = self.args)
 
@@ -69,6 +70,7 @@ class RecurrentReplayBuffer:
             communication_out, 
             recommended_action,
             reward, 
+            comm_curious,
             next_rgbd,
             next_communication_in, 
             next_sensors,
@@ -83,6 +85,7 @@ class RecurrentReplayBuffer:
                     self.communications_out, 
                     self.recommended_actions,
                     self.rewards, 
+                    self.comm_curious,
                     self.dones, 
                     self.masks]:
                 buffer.reset_episode(self.episode_ptr)
@@ -96,6 +99,7 @@ class RecurrentReplayBuffer:
         self.communications_out.push(self.episode_ptr, self.time_ptr, communication_out)
         self.recommended_actions.push(self.episode_ptr, self.time_ptr, recommended_action)
         self.rewards.push(self.episode_ptr, self.time_ptr, reward)
+        self.comm_curious.push(self.episode_ptr, self.time_ptr, comm_curious)
         self.dones.push(self.episode_ptr, self.time_ptr, done)
         self.masks.push(self.episode_ptr, self.time_ptr, 1.0)
 
@@ -112,26 +116,17 @@ class RecurrentReplayBuffer:
         if(self.num_episodes == 0): return(False)
         if(self.num_episodes < batch_size):
             indices = np.random.choice(self.num_episodes, self.num_episodes, replace=False)
-            batch = (
-                self.rgbds.sample(indices),
-                self.communications_in.sample(indices),
-                self.sensors.sample(indices),
-                self.actions.sample(indices),
-                self.communications_out.sample(indices),
-                self.recommended_actions.sample(indices),
-                self.rewards.sample(indices),
-                self.dones.sample(indices),
-                self.masks.sample(indices))
         else:
             indices = np.random.choice(self.num_episodes, batch_size, replace=False)
-            batch = (
-                self.rgbds.sample(indices),
-                self.communications_in.sample(indices),
-                self.sensors.sample(indices),
-                self.actions.sample(indices),
-                self.communications_out.sample(indices),
-                self.recommended_actions.sample(indices),
-                self.rewards.sample(indices),
-                self.dones.sample(indices),
-                self.masks.sample(indices))
+        batch = (
+            self.rgbds.sample(indices),
+            self.communications_in.sample(indices),
+            self.sensors.sample(indices),
+            self.actions.sample(indices),
+            self.communications_out.sample(indices),
+            self.recommended_actions.sample(indices),
+            self.rewards.sample(indices),
+            self.comm_curious.sample(indices),
+            self.dones.sample(indices),
+            self.masks.sample(indices))
         return batch

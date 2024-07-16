@@ -135,7 +135,9 @@ class Agent:
             "rgbd_hidden_state_curiosity" : [],
             "comm_hidden_state_curiosity" : [],
             "sensors_hidden_state_curiosity" : [],
-            "hidden_state_curiosity" : []}
+            "hidden_state_curiosity" : [],
+            "wins_all" : [],
+            "gen_wins_all" : []}
         for a in action_map.values():
             self.plot_dict[f"wins_{a[1].lower()}"] = []
             self.plot_dict[f"gen_wins_{a[1].lower()}"] = []
@@ -201,6 +203,7 @@ class Agent:
                 time = duration()
                 if(self.args.show_duration): print("AFTER GEN:", time - prev_time)
             else:
+                self.plot_dict["gen_wins_all"].append(None)
                 win_dict_list = [self.plot_dict["gen_wins_" + action_name.lower()] for action_name in action_name_list]
                 for i, win_dict in enumerate(win_dict_list):
                     win_dict.append(None)
@@ -335,6 +338,8 @@ class Agent:
             next_comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.task.task.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
             next_comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.task.task.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
             
+            comm_curious = True if (not parenting or self.task.task.goal[0] == -1) else False # True in free play or unparented
+            
             to_push_1 = [
                 rgbd_1,
                 comm_in_1,
@@ -343,6 +348,7 @@ class Agent:
                 comm_out_1,
                 recommended_action_1,
                 total_reward,
+                comm_curious,
                 next_rgbd_1,
                 next_comm_in_1,
                 next_sensors_1,
@@ -359,6 +365,7 @@ class Agent:
                     comm_out_2,
                     recommended_action_2,
                     total_reward,
+                    comm_curious,
                     next_rgbd_2,
                     next_comm_in_2,
                     next_sensors_2,
@@ -469,13 +476,14 @@ class Agent:
         self.plot_dict["steps"].append(steps)
         self.plot_dict["rewards"].append(complete_reward)
         goal_action = self.task.task.goal[0]
+        self.plot_dict["wins_all"].append(win)
         win_dict_list = [self.plot_dict["wins_" + action_name.lower()] for action_name in action_name_list]
         for i, win_dict in enumerate(win_dict_list):
             if(i-1 == goal_action): win_dict.append(win)
             else:                   win_dict.append(None)
                              
         for to_push in to_push_list_1:
-            rgbd, comm_in, sensors, action, comm_out, recommended_action, total_reward, next_rgbd, next_comm_in, next_sensors, done = to_push
+            rgbd, comm_in, sensors, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_comm_in, next_sensors, done = to_push
             self.memory.push(
                 rgbd.to("cpu"),
                 comm_in.to("cpu"), 
@@ -484,6 +492,7 @@ class Agent:
                 comm_out.to("cpu"),
                 recommended_action.to("cpu"),
                 total_reward, 
+                comm_curious,
                 next_rgbd.to("cpu"),
                 next_comm_in.to("cpu"), 
                 next_sensors.to("cpu"),
@@ -491,7 +500,7 @@ class Agent:
             
         for to_push in to_push_list_2:
             if(to_push != None):
-                rgbd, comm_in, sensors, action, comm_out, recommended_action, total_reward, next_rgbd, next_comm_in, next_sensors, done = to_push
+                rgbd, comm_in, sensors, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_comm_in, next_sensors, done = to_push
                 self.memory.push(
                     rgbd.to("cpu"),
                     comm_in.to("cpu"), 
@@ -500,6 +509,7 @@ class Agent:
                     comm_out.to("cpu"),
                     recommended_action.to("cpu"),
                     total_reward, 
+                    comm_curious,
                     next_rgbd.to("cpu"),
                     next_comm_in.to("cpu"), 
                     next_sensors.to("cpu"),
@@ -533,6 +543,7 @@ class Agent:
             if(self.args.show_duration): print(f"FULL GEN TEST EPISODE ({step + 1} steps):", time - start_time, "\n")
             self.task.done()
             goal_action = self.task.task.goal[0]
+            self.plot_dict["gen_wins_all"].append(win)
             win_dict_list = [self.plot_dict["gen_wins_" + action_name.lower()] for action_name in action_name_list]
             for i, win_dict in enumerate(win_dict_list):
                 if(i-1 == goal_action): 
@@ -541,6 +552,7 @@ class Agent:
         except:
             complete_reward = 0
             win = False
+            self.plot_dict["gen_wins_all"].append(win)
             win_dict_list = [self.plot_dict["gen_wins_" + action_name.lower()] for action_name in action_name_list]
             for i, win_dict in enumerate(win_dict_list):
                 win_dict.append(None)
@@ -741,7 +753,7 @@ class Agent:
                         
         self.epochs += 1
 
-        rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, dones, masks = batch
+        rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, comm_curious, dones, masks = batch
         rgbds = torch.from_numpy(rgbds).to(self.args.device)
         comms_in = torch.from_numpy(comms_in).to(self.args.device)
         sensors = torch.from_numpy(sensors).to(self.args.device)
@@ -749,6 +761,7 @@ class Agent:
         comms_out = torch.from_numpy(comms_out)
         recommended_actions = torch.from_numpy(recommended_actions).to(self.args.device)
         rewards = torch.from_numpy(rewards).to(self.args.device)
+        comm_curious = torch.from_numpy(comm_curious).to(self.args.device)
         dones = torch.from_numpy(dones).to(self.args.device)
         masks = torch.from_numpy(masks)
         actions = torch.cat([torch.zeros(actions[:,0].unsqueeze(1).shape), actions], dim = 1).to(self.args.device)
@@ -761,15 +774,15 @@ class Agent:
         if(self.args.half):
             rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, dones, masks, actions, comms_out, all_masks, masks = \
                 rgbds.to(dtype=torch.float16), comms_in.to(dtype=torch.float16), sensors.to(dtype=torch.float16), actions.to(dtype=torch.float16), \
-                comms_out.to(dtype=torch.float16), recommended_actions.to(dtype=torch.float16), rewards.to(dtype=torch.float16), dones.to(dtype=torch.float16), \
+                comms_out.to(dtype=torch.float16), recommended_actions.to(dtype=torch.float16), rewards.to(dtype=torch.float16), comm_curious.to(dtype=torch.float16), dones.to(dtype=torch.float16), \
                 masks.to(dtype=torch.float16), actions.to(dtype=torch.float16), comms_out.to(dtype=torch.float16), all_masks.to(dtype=torch.float16), masks.to(dtype=torch.float16)
         
         #print("\n\n")
-        #print("Agent {}, epoch {}. rgbds: {}. comms in: {}. actions: {}. comms out: {}. recommended actions: {}. rewards: {}. dones: {}. masks: {}.".format(
-        #    self.agent_num, self.epochs, rgbds.shape, comms_in.shape, actions.shape, comms_out.shape, recommended_actions.shape, rewards.shape, dones.shape, masks.shape))
+        #print("Agent {}, epoch {}. rgbds: {}. comms in: {}. actions: {}. comms out: {}. recommended actions: {}. rewards: {}. comm_curious: (). dones: {}. masks: {}.".format(
+        #    self.agent_num, self.epochs, rgbds.shape, comms_in.shape, actions.shape, comms_out.shape, recommended_actions.shape, rewards.shape, comm_curious.shape, dones.shape, masks.shape))
         #print("\n\n")
         
-        return(rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, dones, actions, comms_out, masks, all_masks, episodes, steps)
+        return(rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, comm_curious, dones, actions, comms_out, masks, all_masks, episodes, steps)
         
     
     
@@ -781,7 +794,7 @@ class Agent:
         if(batch == False):
             return(False)
         
-        rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, dones, actions, comms_out, masks, all_masks, episodes, steps = batch
+        rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, comm_curious, dones, actions, comms_out, masks, all_masks, episodes, steps = batch
         # Also sample from old memories, and use them to keep actor and critic outputs the same.
         
         time = duration()
@@ -842,11 +855,13 @@ class Agent:
         # Get curiosity                 
         rgbd_prediction_error_curiosity     = self.args.prediction_error_eta_rgbd       * rgbd_loss
         comm_prediction_error_curiosity     = self.args.prediction_error_eta_comm       * comm_loss
+        # Multiply this by comm_curious.
         sensors_prediction_error_curiosity  = self.args.prediction_error_eta_sensors    * sensors_loss
         prediction_error_curiosity = rgbd_prediction_error_curiosity + comm_prediction_error_curiosity + sensors_prediction_error_curiosity
         
         rgbd_hidden_state_curiosity    = self.args.hidden_state_eta_rgbd       * torch.clamp(rgbd_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
         comm_hidden_state_curiosity    = self.args.hidden_state_eta_comm       * torch.clamp(comm_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
+        # Multiply this by comm_curious.
         sensors_hidden_state_curiosity = self.args.hidden_state_eta_sensors    * torch.clamp(sensors_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
         hidden_state_curiosity = rgbd_hidden_state_curiosity + comm_hidden_state_curiosity + sensors_hidden_state_curiosity
         

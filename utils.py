@@ -1,6 +1,7 @@
 #%% 
 
 # To do: most important 
+#   Make compete-win-rate plot.
 #   Make it work, and FASTER.
 #   Make comm_in work with GRU.
 #   'free play' image prediction is terrible! WHY?!
@@ -8,6 +9,7 @@
 #   Beta values seem to harm.
 #   Try "forgetting" solutions. 
 #   "push" action detected at bad times.
+#   Try making Comm beta and hidden state only function in free mode and unparented mode.
 
 # To do: less important 
 #   I wish plotting-episodes put actions one step ahead...
@@ -242,7 +244,7 @@ parser.add_argument('--show_duration',                  type=bool,          defa
     # Things which have list-values.
 parser.add_argument('--task_list',                      type=literal,       default = ["fp", "w", "wp", "wplr", "wpulr"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [5000, 5000, 10000, 10000, 10000],
+parser.add_argument('--epochs',                         type=literal,       default = [5000, 5000, 5000, 5000, 10000], #[5000, 5000, 10000, 10000, 10000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -426,11 +428,11 @@ parser.add_argument('--std_min',                        type=int,           defa
                     help='Minimum value for standard deviation.')
 parser.add_argument('--std_max',                        type=int,           default = exp(2),
                     help='Maximum value for standard deviation.')
-parser.add_argument("--beta_rgbd",                      type=float,         default = .1,
+parser.add_argument("--beta_rgbd",                      type=float,         default = .03,
                     help='Relative importance of complexity for rgbd.')
-parser.add_argument("--beta_comm",                      type=float,         default = .3,
+parser.add_argument("--beta_comm",                      type=float,         default = .1,
                     help='Relative importance of complexity for comm.')
-parser.add_argument("--beta_sensors",                   type=float,         default = .1,
+parser.add_argument("--beta_sensors",                   type=float,         default = .3,
                     help='Relative importance of complexity for sensors.')     
 
     # Curiosity
@@ -444,11 +446,11 @@ parser.add_argument("--prediction_error_eta_comm",      type=float,         defa
                     help='Nonnegative value, how much to consider prediction_error curiosity for comm.')    
 parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = 1,
                     help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')    
-parser.add_argument("--hidden_state_eta_rgbd",          type=float,         default = 1,
+parser.add_argument("--hidden_state_eta_rgbd",          type=float,         default = .3,
                     help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
-parser.add_argument("--hidden_state_eta_comm",          type=float,         default = 1,
+parser.add_argument("--hidden_state_eta_comm",          type=float,         default = .03,
                     help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
-parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = 1,
+parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = .03,
                     help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')       
 
     # Imitation
@@ -744,7 +746,7 @@ def load_dicts(args):
                     min_max_dicts.append(pickle.load(handle)) ; got_min_max_dicts = True 
             except: 
                 print("Stuck trying to get {}'s min_max_dicts...".format(name)) ; sleep(1)
-    print("Loaded all dicts!")
+    print("Loaded all dicts! Making min/max dict...")
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():
@@ -769,6 +771,7 @@ def load_dicts(args):
                         if(  maximum == None):           maximum = mm_dict[key][1]
                         elif(maximum < mm_dict[key][1]): maximum = mm_dict[key][1]
                 min_max_dict[key] = (minimum, maximum)
+    print("Made min/max dict!")
             
     final_complete_order = [] ; final_plot_dicts = []
 

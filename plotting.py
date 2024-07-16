@@ -13,7 +13,7 @@ from utils import args, duration, load_dicts, print, real_names
 
 print("name:\n{}\n".format(args.arg_name),)
 
-dpi = 300
+dpi = 50
 
 
 
@@ -157,7 +157,7 @@ def plots(plot_dicts, min_max_dict):
     too_many_plot_dicts = len(plot_dicts) > 16
     levels = [1, 2, 3, 4, 5]
     if(not too_many_plot_dicts):
-        fig, axs = plt.subplots(32, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
+        fig, axs = plt.subplots(34, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
                 
     for i, plot_dict in enumerate(plot_dicts):
         row_num = 0
@@ -176,7 +176,7 @@ def plots(plot_dicts, min_max_dict):
                 
                 
                 
-        # Rolling win-rate (is this where win-rates seem to drop?)
+        # Rolling win-rate
         action_name_list = []
         for key in plot_dict.keys():
             if(key.startswith("wins_")):
