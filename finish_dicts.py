@@ -5,7 +5,8 @@ from utils import duration, args, print, save_file
 print("name:\n{}".format(args.arg_name))
 
 os.chdir(save_file)
-folders = os.listdir() ; folders.sort()
+folders = [item for item in os.listdir() if os.path.isdir(item)]
+folders.sort()
 try: folders.remove("thesis_pics")                                                                                                                                                                          
 except: pass                                                                                                                                                                                
 print("\n{} folders.".format(len(folders)))

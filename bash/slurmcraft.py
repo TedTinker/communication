@@ -80,41 +80,37 @@ add_this("i",   {"delta" : 1})
 # fp = free play
 # w = watch, p = push, u = pull, l = left, r = right
 # wp = watch and push
+                    
 
-"""  
-parser.add_argument("--beta_rgbd",                      type=float,         default = .1,
-                    help='Relative importance of complexity for rgbd.')
-parser.add_argument("--beta_comm",                      type=float,         default = .3,
-                    help='Relative importance of complexity for comm.')
-parser.add_argument("--beta_sensors",                   type=float,         default = .1,
-                    help='Relative importance of complexity for sensors.')  
-                    
-parser.add_argument("--hidden_state_eta_rgbd",          type=float,         default = 1,
-                    help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
-parser.add_argument("--hidden_state_eta_comm",          type=float,         default = 1,
-                    help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
-parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = 1,
-                    help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')
-"""      
-                    
+add_this("no_complexity", {
+    "beta_rgbd" : 0,
+    "beta_comm" : 0,
+    "beta_sensors" : 0})
                     
 add_this("rgbd",   {
-    "beta_rgbd" : [.03, .1, .3],
-    "hidden_state_eta_rgbd" : [.1, .3, 1, 3, 10],
+    "beta_rgbd" : [.01, .03, .1, .3],
+    "beta_comm" : 0,
+    "beta_sensors" : 0,
+    "hidden_state_eta_rgbd" : [.1, .3, 1, 3],
     "hidden_state_eta_comm" : 0,
     "hidden_state_eta_sensors" : 0})
 
 add_this("comm",   {
-    "beta_comm" : [.03, .1, .3],
+    #"selective_comm_curiosity" : ["False", "True"],
+    "beta_rgbd" : 0,
+    "beta_comm" : [.01, .03, .1],
+    "beta_sensors" : 0,
     "hidden_state_eta_rgbd" : 0,
-    "hidden_state_eta_comm" : [.01, .03, .1, .3, 1],
+    "hidden_state_eta_comm" : [.3, 1, 3],
     "hidden_state_eta_sensors" : 0})
 
 add_this("sensors",   {
+    "beta_rgbd" : 0,
+    "beta_comm" : 0,
     "beta_sensors" : [.1, .3, 1],
     "hidden_state_eta_rgbd" : 0,
     "hidden_state_eta_comm" : 0,
-    "hidden_state_eta_sensors" : [.03, .1, .3, 1, 3]})
+    "hidden_state_eta_sensors" : [.01, .03, .1, .3, 1, 3]})
 
 
 
@@ -145,11 +141,11 @@ def all_like_this(this):
 max_cpus = args.agents if args.agents < 30 else 30
  
 if(__name__ == "__main__" and args.arg_list == []):
-    for key, value in slurm_dict.items(): 
-        print(key, ":", value,"\n")
-    #interesting = [f"e_fp_w_wp_wplr_das_{i}" for i in [10, 19]]
-    #for this in interesting:
-    #    print("{} : {}".format(this,slurm_dict[this]))
+    #for key, value in slurm_dict.items(): 
+    #    print(key, ":", value,"\n")
+    interesting = [f"ef_comm_{i}" for i in [5]]
+    for this in interesting:
+        print("{} : {}".format(this,slurm_dict[this]))
 
 if(__name__ == "__main__" and args.arg_list != []):
     

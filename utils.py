@@ -430,7 +430,7 @@ parser.add_argument('--std_max',                        type=int,           defa
                     help='Maximum value for standard deviation.')
 parser.add_argument("--beta_rgbd",                      type=float,         default = .03,
                     help='Relative importance of complexity for rgbd.')
-parser.add_argument("--beta_comm",                      type=float,         default = .1,
+parser.add_argument("--beta_comm",                      type=float,         default = .03,
                     help='Relative importance of complexity for comm.')
 parser.add_argument("--beta_sensors",                   type=float,         default = .3,
                     help='Relative importance of complexity for sensors.')     
@@ -440,18 +440,20 @@ parser.add_argument("--curiosity",                      type=str,           defa
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
 parser.add_argument("--dkl_max",                        type=float,         default = 1,
                     help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')        
-parser.add_argument("--prediction_error_eta_rgbd",      type=float,         default = 1,
+parser.add_argument("--prediction_error_eta_rgbd",      type=float,         default = .3,
                     help='Nonnegative value, how much to consider prediction_error curiosity for rgbd.')    
 parser.add_argument("--prediction_error_eta_comm",      type=float,         default = 1,
                     help='Nonnegative value, how much to consider prediction_error curiosity for comm.')    
-parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = 1,
+parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = .03,
                     help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')    
 parser.add_argument("--hidden_state_eta_rgbd",          type=float,         default = .3,
                     help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
-parser.add_argument("--hidden_state_eta_comm",          type=float,         default = .03,
+parser.add_argument("--hidden_state_eta_comm",          type=float,         default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
 parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = .03,
-                    help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')       
+                    help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')   
+parser.add_argument('--selective_comm_curiosity',      type=literal,       default = True,
+                    help='Should comm_curiosity be removed when comm_in is constant?')       
 
     # Imitation
 parser.add_argument("--delta",                          type=float,         default = 0,

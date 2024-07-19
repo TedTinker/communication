@@ -338,7 +338,7 @@ class Agent:
             next_comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.task.task.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
             next_comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.task.task.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
             
-            comm_curious = True if (not parenting or self.task.task.goal[0] == -1) else False # True in free play or unparented
+            comm_curious = 1 if (not parenting or self.task.task.goal[0] == -1) else 0 # True in free play or unparented
             
             to_push_1 = [
                 rgbd_1,
@@ -772,13 +772,13 @@ class Agent:
         steps = rewards.shape[1]
         
         if(self.args.half):
-            rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, dones, masks, actions, comms_out, all_masks, masks = \
+            rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, comm_curious, dones, masks, actions, comms_out, all_masks, masks = \
                 rgbds.to(dtype=torch.float16), comms_in.to(dtype=torch.float16), sensors.to(dtype=torch.float16), actions.to(dtype=torch.float16), \
                 comms_out.to(dtype=torch.float16), recommended_actions.to(dtype=torch.float16), rewards.to(dtype=torch.float16), comm_curious.to(dtype=torch.float16), dones.to(dtype=torch.float16), \
                 masks.to(dtype=torch.float16), actions.to(dtype=torch.float16), comms_out.to(dtype=torch.float16), all_masks.to(dtype=torch.float16), masks.to(dtype=torch.float16)
         
         #print("\n\n")
-        #print("Agent {}, epoch {}. rgbds: {}. comms in: {}. actions: {}. comms out: {}. recommended actions: {}. rewards: {}. comm_curious: (). dones: {}. masks: {}.".format(
+        #print("Agent {}, epoch {}. rgbds: {}. comms in: {}. actions: {}. comms out: {}. recommended actions: {}. rewards: {}. comm_curious: {}. dones: {}. masks: {}.".format(
         #    self.agent_num, self.epochs, rgbds.shape, comms_in.shape, actions.shape, comms_out.shape, recommended_actions.shape, rewards.shape, comm_curious.shape, dones.shape, masks.shape))
         #print("\n\n")
         
@@ -813,7 +813,6 @@ class Agent:
         pred_comms = pred_comms_q.reshape((pred_comms_q.shape[0] * pred_comms_q.shape[1], self.args.max_comm_len, self.args.comm_shape))
         pred_comms = pred_comms.transpose(1,2)
     
-        #comm_loss = custom_loss(pred_comms, real_comms, max_shift = 0)    
         comm_loss = F.cross_entropy(pred_comms, real_comms, reduction = "none")
         comm_loss = comm_loss.reshape(episodes, steps, self.args.max_comm_len)
         comm_loss = comm_loss.mean(dim=2).unsqueeze(-1) * masks * self.args.comm_scaler
@@ -855,13 +854,13 @@ class Agent:
         # Get curiosity                 
         rgbd_prediction_error_curiosity     = self.args.prediction_error_eta_rgbd       * rgbd_loss
         comm_prediction_error_curiosity     = self.args.prediction_error_eta_comm       * comm_loss
-        # Multiply this by comm_curious.
+        if(self.args.selective_comm_curiosity): comm_prediction_error_curiosity         *= comm_curious
         sensors_prediction_error_curiosity  = self.args.prediction_error_eta_sensors    * sensors_loss
         prediction_error_curiosity = rgbd_prediction_error_curiosity + comm_prediction_error_curiosity + sensors_prediction_error_curiosity
         
         rgbd_hidden_state_curiosity    = self.args.hidden_state_eta_rgbd       * torch.clamp(rgbd_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
         comm_hidden_state_curiosity    = self.args.hidden_state_eta_comm       * torch.clamp(comm_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
-        # Multiply this by comm_curious.
+        if(self.args.selective_comm_curiosity): comm_hidden_state_curiosity    *= comm_curious
         sensors_hidden_state_curiosity = self.args.hidden_state_eta_sensors    * torch.clamp(sensors_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
         hidden_state_curiosity = rgbd_hidden_state_curiosity + comm_hidden_state_curiosity + sensors_hidden_state_curiosity
         
