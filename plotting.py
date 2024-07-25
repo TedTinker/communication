@@ -171,8 +171,11 @@ def plots(plot_dicts, min_max_dict):
         
         def divide_arenas(xs, here = plt):
             if(type(xs) == dict): xs = xs["xs"]
-            xs = [xs[int(round(len(xs)*p))] for p in percentages]
-            for x in xs: here.axvline(x=x, color = (0,0,0,.2))
+            these_values = [int(round(len(xs)*p)) for p in percentages]
+            these_values = [value if value < len(xs) else len(xs) - 1 for value in these_values]
+            xs = [xs[value] for value in these_values]
+            for x in xs: 
+                here.axvline(x=x, color = (0,0,0,.2))
                 
                 
                 

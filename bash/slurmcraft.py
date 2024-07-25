@@ -81,6 +81,7 @@ add_this("i",   {"delta" : 1})
 # w = watch, p = push, u = pull, l = left, r = right
 # wp = watch and push
                     
+                    
 
 add_this("no_complexity", {
     "beta_rgbd" : 0,
@@ -113,6 +114,21 @@ add_this("sensors",   {
     "hidden_state_eta_sensors" : [.01, .03, .1, .3, 1, 3]})
 
 
+
+#       ["fp",  "w",    "wp",   "wplr",     "wpulr"]
+
+add_this("new_epochs", {
+    "epochs" : convert_list([
+        [5000,  2000,   2000,   2000,       19000],   # Default right now
+        [5000,  2000,   2000,   3000,       18000],
+        
+        [5000,  0,     0,     0,          25000],
+        [5000,  2000,   0,     0,         23000],
+        [5000,  5000,   0,     0,         20000],
+        
+        [0,    0,     0,     0,         30000],
+        [0,    5000,   0,     0,        25000],
+        ])})
 
 
 

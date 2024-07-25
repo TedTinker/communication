@@ -164,7 +164,12 @@ class Agent:
                     self.save_agent()
                     
                     parenting_before = self.tasks[self.task_name].parenting
+                    # I think this line is why epochs of length 0 don't work the way I want.
                     self.task_name = self.args.task_list[i+1] 
+                    # Try replacing it with something like this.
+                    # while(epochs in task == 0 and tasks left > 0):
+                    #   self.task_name = self.args.task_list[i+1] 
+                    #   i += 1
                     self.old_memories.append(deepcopy(self.memory))
                     parenting_after = self.tasks[self.task_name].parenting
                     
@@ -178,7 +183,8 @@ class Agent:
                     time = duration()
                     if(self.args.show_duration): print("AFTER GEN, SAVE EPISODE, SAVE AGENT:", time - prev_time)
                     prev_time = time
-                    break
+                    if(epochs != 0):
+                        break
                 
             prev_time = duration()
                 
