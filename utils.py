@@ -244,7 +244,7 @@ parser.add_argument('--show_duration',                  type=bool,          defa
     # Things which have list-values.
 parser.add_argument('--task_list',                      type=literal,       default = ["fp", "w", "wp", "wplr", "wpulr"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [5000, 2000, 2000, 2000, 20000],
+parser.add_argument('--epochs',                         type=literal,       default = [5000, 5000, 0, 0, 20000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')

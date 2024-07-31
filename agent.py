@@ -183,8 +183,6 @@ class Agent:
                     time = duration()
                     if(self.args.show_duration): print("AFTER GEN, SAVE EPISODE, SAVE AGENT:", time - prev_time)
                     prev_time = time
-                    if(epochs != 0):
-                        break
                 
             prev_time = duration()
                 
