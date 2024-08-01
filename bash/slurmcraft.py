@@ -97,12 +97,11 @@ add_this("rgbd",   {
     "hidden_state_eta_sensors" : 0})
 
 add_this("comm",   {
-    #"selective_comm_curiosity" : ["False", "True"],
     "beta_rgbd" : 0,
-    "beta_comm" : [.01, .03, .1],
+    "beta_comm" : .3,
     "beta_sensors" : 0,
     "hidden_state_eta_rgbd" : 0,
-    "hidden_state_eta_comm" : [.3, 1, 3],
+    "hidden_state_eta_comm" : .3,
     "hidden_state_eta_sensors" : 0})
 
 add_this("sensors",   {
