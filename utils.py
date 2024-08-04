@@ -244,7 +244,7 @@ parser.add_argument('--show_duration',                  type=bool,          defa
     # Things which have list-values.
 parser.add_argument('--task_list',                      type=literal,       default = ["fp", "w", "wp", "wplr", "wpulr"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [5000, 5000, 0, 0, 20000],
+parser.add_argument('--epochs',                         type=literal,       default = [5000, 5000, 0, 0, 10000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -346,16 +346,8 @@ parser.add_argument('--sensors_scaler',                 type=float,         defa
                     help='How much to consider sensors prediction in accuracy compared to rgbd and comm.')   
 parser.add_argument('--weight_decay',                   type=float,         default = .00001,
                     help='Weight decay for modules.')       
-parser.add_argument('--forward_lr',                     type=float,         default = .0003,
-                    help='Learning rate for forward model.')
-parser.add_argument('--actor_lr',                       type=float,         default = .0003,
-                    help='Learning rate for actor model.')
-parser.add_argument('--alpha_lr',                       type=float,         default = .0003,
-                    help='Learning rate for alpha value.') 
-parser.add_argument('--alpha_text_lr',                  type=float,         default = .0003,
-                    help='Learning rate for alpha value.') 
-parser.add_argument('--critic_lr',                      type=float,         default = .0003,
-                    help='Learning rate for critic model.')
+parser.add_argument('--lr',                             type=float,         default = .0003,
+                    help='Learning rate.')
 parser.add_argument('--critics',                        type=int,           default = 2,
                     help='How many critics?')  
 parser.add_argument('--train_together',                 type=literal,       default = False,
@@ -430,7 +422,7 @@ parser.add_argument('--std_max',                        type=int,           defa
                     help='Maximum value for standard deviation.')
 parser.add_argument("--beta_rgbd",                      type=float,         default = .03,
                     help='Relative importance of complexity for rgbd.')
-parser.add_argument("--beta_comm",                      type=float,         default = .3,
+parser.add_argument("--beta_comm",                      type=float,         default = .1,
                     help='Relative importance of complexity for comm.')
 parser.add_argument("--beta_sensors",                   type=float,         default = .3,
                     help='Relative importance of complexity for sensors.')     
@@ -452,7 +444,7 @@ parser.add_argument("--hidden_state_eta_comm",          type=float,         defa
                     help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
 parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = .03,
                     help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')   
-parser.add_argument('--selective_comm_curiosity',      type=literal,       default = True,
+parser.add_argument('--selective_comm_curiosity',       type=literal,       default = True,
                     help='Should comm_curiosity be removed when comm_in is constant?')       
 
     # Imitation

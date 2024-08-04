@@ -58,7 +58,6 @@ class Agent:
             "wpu" :     Task(actions = [0, 1, 2],           objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
             "wplr" :    Task(actions = [0, 1, 3, 4],        objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
             "wpulr" :   Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args)}
-
             
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
@@ -70,22 +69,22 @@ class Agent:
         self.target_entropy = self.args.target_entropy
         self.alpha = 1
         self.log_alpha = torch.tensor([0.0], requires_grad=True)
-        self.alpha_opt = optim.Adam(params=[self.log_alpha], lr=self.args.alpha_lr, weight_decay = self.args.weight_decay) 
+        self.alpha_opt = optim.Adam(params=[self.log_alpha], lr=self.args.lr, weight_decay = self.args.weight_decay) 
         if(self.args.half):
             self.log_alpha = self.log_alpha.to(dtype=torch.float16)
         
         self.target_entropy_text = self.args.target_entropy_text
         self.alpha_text = 1
         self.log_alpha_text = torch.tensor([0.0], requires_grad=True)
-        self.alpha_text_opt = optim.Adam(params=[self.log_alpha_text], lr=self.args.alpha_text_lr, weight_decay = self.args.weight_decay) 
+        self.alpha_text_opt = optim.Adam(params=[self.log_alpha_text], lr=self.args.lr, weight_decay = self.args.weight_decay) 
         if(self.args.half):
             self.log_alpha_text = self.log_alpha_text.to(dtype=torch.float16)
 
         self.forward = PVRNN(self.args)
-        self.forward_opt = optim.Adam(self.forward.parameters(), lr=self.args.forward_lr, weight_decay = self.args.weight_decay)
+        self.forward_opt = optim.Adam(self.forward.parameters(), lr=self.args.lr, weight_decay = self.args.weight_decay)
                            
         self.actor = Actor(self.args)
-        self.actor_opt = optim.Adam(self.actor.parameters(), lr=self.args.actor_lr, weight_decay = self.args.weight_decay) 
+        self.actor_opt = optim.Adam(self.actor.parameters(), lr=self.args.lr, weight_decay = self.args.weight_decay) 
         
         self.critics = []
         self.critic_targets = []
@@ -94,13 +93,13 @@ class Agent:
             self.critics.append(Critic(self.args))
             self.critic_targets.append(Critic(self.args))
             self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
-            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr=self.args.critic_lr, weight_decay = self.args.weight_decay))
+            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr=self.args.lr, weight_decay = self.args.weight_decay))
             
         all_params = list(self.forward.parameters())
         all_params += list(self.actor.parameters())
         for critic in self.critics:
             all_params += list(critic.parameters())
-        self.complete_opt = optim.Adam(all_params, lr=self.args.forward_lr, weight_decay=self.args.weight_decay)        
+        self.complete_opt = optim.Adam(all_params, lr=self.args.lr, weight_decay=self.args.weight_decay)        
         
         self.memory = RecurrentReplayBuffer(self.args)
         self.old_memories = []

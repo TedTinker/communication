@@ -38,11 +38,11 @@ wins = 0
 #%%
 
 actions = [
-    0,  # Watch
+    #0,  # Watch
     #1,  # Push
     #2,  # Pull
     #3,  # Left
-    #4   # Right   
+    4   # Right   
 ]
 
 agent.tasks = {0 : Task(actions = actions, objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2], parenting = True, args = agent.args)}

@@ -74,39 +74,28 @@ add_this("e",   {"alpha" : "None", "normal_alpha" : .1})
 add_this("n",   {"curiosity" : "prediction_error"})
 add_this("f",   {"curiosity" : "hidden_state", })
 add_this("i",   {"delta" : 1})
-
-
-
-# fp = free play
-# w = watch, p = push, u = pull, l = left, r = right
-# wp = watch and push
                     
                     
-
-add_this("no_complexity", {
-    "beta_rgbd" : 0,
-    "beta_comm" : 0,
-    "beta_sensors" : 0})
                     
 add_this("rgbd",   {
     "beta_rgbd" : [.01, .03, .1, .3],
-    "beta_comm" : 0,
-    "beta_sensors" : 0,
+#    "beta_comm" : 0,
+#    "beta_sensors" : 0,
     "hidden_state_eta_rgbd" : [.1, .3, 1, 3],
     "hidden_state_eta_comm" : 0,
     "hidden_state_eta_sensors" : 0})
 
 add_this("comm",   {
-    "beta_rgbd" : 0,
-    "beta_comm" : .3,
-    "beta_sensors" : 0,
+#    "beta_rgbd" : 0,
+#    "beta_comm" : [.03, .1, .3, 1, 3],
+#    "beta_sensors" : 0,
     "hidden_state_eta_rgbd" : 0,
-    "hidden_state_eta_comm" : .3,
+#    "hidden_state_eta_comm" : [.03, .1, .3, 1, 3],
     "hidden_state_eta_sensors" : 0})
 
 add_this("sensors",   {
-    "beta_rgbd" : 0,
-    "beta_comm" : 0,
+#    "beta_rgbd" : 0,
+#    "beta_comm" : 0,
     "beta_sensors" : [.1, .3, 1],
     "hidden_state_eta_rgbd" : 0,
     "hidden_state_eta_comm" : 0,
@@ -118,10 +107,8 @@ add_this("sensors",   {
 
 add_this("new_epochs", {
     "epochs" : convert_list([
-        [0,     10000,  0,  0,  20000], 
-        [10000, 0,      0,  0,  20000], 
         [5000,  5000,   0,  0,  20000], 
-        ])})
+        [5000,  0,      0,  0,  25000]])})
 
 
 
