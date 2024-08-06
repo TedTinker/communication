@@ -249,10 +249,10 @@ parser.add_argument("--hidden_state_eta",               type=literal,       defa
                     help='Nonnegative values, how much to consider hidden_state curiosity in each upper layer.') 
 
     # Simulation details
-parser.add_argument('--max_object_distance',            type=float,         default = 6,
-                    help='How far objects can start from the agent.')
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
                     help='How far objects must start from each other.')
+parser.add_argument('--max_object_distance',            type=float,         default = 6,
+                    help='How far objects can start from the agent.')
 parser.add_argument('--object_size',                    type=float,         default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--body_size',                      type=float,         default = 2,
@@ -313,7 +313,7 @@ parser.add_argument('--left_right_amount',              type=float,         defa
                     help='Needed distance of an object for push/pull/left/right.')
 
     # Rewards for distances
-parser.add_argument('--dist_reward',                    type=float,         default = .3,
+parser.add_argument('--dist_reward',                    type=float,         default = 0,
                     help='Give agents a reward just for getting close to the correct object.')
 parser.add_argument('--dist_reward_min',                type=float,         default = 3.5,
                     help='If agent closer to correct object that this, rewarded.')
@@ -321,7 +321,7 @@ parser.add_argument('--dist_reward_max',                type=float,         defa
                     help='If agent farther to correct object that this, punished. If agent between min and max, agent relatively rewarded.')
 
     # Rewards for angles
-parser.add_argument('--angle_reward',                   type=float,         default = .03,
+parser.add_argument('--angle_reward',                   type=float,         default = 0,
                     help='Give agents a reward just for pointing at the right object.')
 parser.add_argument('--angle_reward_min',               type=float,         default = 15,
                     help='If agent pointing at correct object that this, rewarded.')
