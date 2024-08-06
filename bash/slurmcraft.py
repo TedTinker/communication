@@ -103,12 +103,16 @@ add_this("sensors",   {
 
 
 
+#free_play_reward_dist
+
 #       ["fp",  "w",    "wp",   "wplr",     "wpulr"]
 
 add_this("new_epochs", {
+    "train_together" : ["True", "False"],
+    "free_play_reward_dist" : ["True", "False"],
     "epochs" : convert_list([
-        [5000,  5000,   0,  0,  20000], 
-        [5000,  0,      0,  0,  25000]])})
+        [5000,  5000,   0,  0,  30000], 
+        [10000, 5000,   0,  0,  25000]])})
 
 
 

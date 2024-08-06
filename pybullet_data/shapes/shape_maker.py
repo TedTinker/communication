@@ -119,12 +119,21 @@ for i in range(len(shapes)):
 physicsClient = p.connect(p.GUI)
 p.setAdditionalSearchPath("pybullet_data")
 
-for i, file_name in zip([-2, -1, 0, 1, 2], file_names):
+these_colors = [
+  (1, 0, 0, 1),
+  (0, 1, 0, 1),
+  (0, 0, 1, 1),
+  (0, 1, 1, 1),
+  (1, 0, 1, 1)
+]
+
+for index, (i, file_name) in enumerate(zip([-2, -1, 0, 1, 2], file_names)):
   object_index = p.loadURDF("{}".format(file_name), (-5, 15 * i, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                               useFixedBase=False, globalScaling = 2, physicsClientId=physicsClient)
-  p.changeVisualShape(object_index, -1, rgbaColor = (1, 0, 0, 1), physicsClientId = physicsClient)
+  color = these_colors[index]
+  p.changeVisualShape(object_index, -1, rgbaColor = color, physicsClientId = physicsClient)
   for i in range(p.getNumJoints(object_index)):
-      p.changeVisualShape(object_index, i, rgbaColor=(1, 0, 0, 1), physicsClientId = physicsClient)
+      p.changeVisualShape(object_index, i, rgbaColor= color, physicsClientId = physicsClient)
   
   
   

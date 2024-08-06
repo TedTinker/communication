@@ -155,7 +155,7 @@ def many_min_max(min_max_list):
 
 def plots(plot_dicts, min_max_dict):
     too_many_plot_dicts = len(plot_dicts) > 16
-    levels = [1, 2, 3, 4, 5]
+    levels = [1, 2]
     if(not too_many_plot_dicts):
         fig, axs = plt.subplots(34, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
                 

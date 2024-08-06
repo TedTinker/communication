@@ -7,7 +7,7 @@ from agent import Agent
 
 hyper_parameters = "ef"
 agent_num = 1
-epochs = 30000
+epochs = 40000
 saved_file = "saved_deigo"
 
 
@@ -34,6 +34,8 @@ agent.load_state_dict(state_dict = these_parameters)
 
 episodes = 0
 wins = 0
+print("Ready to go!")
+
 
 #%%
 
@@ -55,6 +57,7 @@ win = agent.save_episodes(test = False, sleep_time = 1, for_display = True)
 if(win): 
     wins += 1
 print(f"\tWIN RATE: {round(100 * (wins / episodes), 2)}% \t ({wins} wins out of {episodes} episodes)")
+
 
 
 

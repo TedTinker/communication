@@ -1,15 +1,10 @@
 #%% 
 
 # To do: most important 
-#   Make compete-win-rate plot.
-#   Make it work, and FASTER.
+#   Make it work FASTER. Trying float16 on cuda. Getting NaN.
 #   Make comm_in work with GRU.
 #   'free play' image prediction is terrible! WHY?!
-#   Trying float16 on cuda. Getting NaN.
-#   Beta values seem to harm.
-#   Try "forgetting" solutions. 
-#   "push" action detected at bad times.
-#   Try making Comm beta and hidden state only function in free mode and unparented mode.
+#   "push" action detected at odd times.
 
 # To do: less important 
 #   I wish plotting-episodes put actions one step ahead...
@@ -244,7 +239,7 @@ parser.add_argument('--show_duration',                  type=bool,          defa
     # Things which have list-values.
 parser.add_argument('--task_list',                      type=literal,       default = ["fp", "w", "wp", "wplr", "wpulr"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [5000, 5000, 0, 0, 10000],
+parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 0, 0, 25000],
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -288,7 +283,7 @@ parser.add_argument('--wrong_object_punishment',        type=float,        defau
                     help='Extrinsic punishment for choosing any action with wrong object.') 
 parser.add_argument('--free_play_reward',               type=float,         default = 0,
                     help='Extrinsic reward for performing any action in free play.') 
-parser.add_argument('--free_play_reward_dist',          type=literal,       default = True,
+parser.add_argument('--free_play_reward_dist',          type=literal,       default = False,
                     help='Add distance and anglular rewards for free play?') 
 parser.add_argument('--max_steps',                      type=int,           default = 10,
                     help='How many steps the agent can make in one episode.')
@@ -300,7 +295,7 @@ parser.add_argument('--actions',                        type=int,           defa
                     help='Maximum count of actions in one episode.')
 parser.add_argument('--objects',                        type=int,           default = 2,
                     help='Maximum count of objects in one episode.')
-parser.add_argument('--shapes',                         type=int,           default = 5,
+parser.add_argument('--shapes',                         type=int,           default = 3, # 5,
                     help='Maximum count of shapes in one episode.')
 parser.add_argument('--colors',                         type=int,           default = 6,
                     help='Maximum count of colors in one episode.')
