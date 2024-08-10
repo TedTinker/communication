@@ -4,10 +4,10 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, attach_list, detach_list, dkl, duration, how_many_nans
-from submodule_utils import init_weights, episodes_steps, pad_zeros, var, sample, model_start, model_end
+from utils import default_args, dkl, duration, how_many_nans
+from submodule_utils import init_weights, episodes_steps, var, sample
 from mtrnn import MTRNN
-from submodules import RGBD_IN, Comm_IN, Sensors_IN, Obs_IN, Obs_OUT, Action_IN, Comm_IN
+from submodules import RGBD_IN, Comm_IN, Sensors_IN, Obs_OUT, Action_IN, Comm_IN_GRU
 
 
 
@@ -199,10 +199,10 @@ class PVRNN(nn.Module):
         self.args = args 
         
         self.rgbd_in = RGBD_IN(self.args)
-        self.comm_in = Comm_IN(self.args)
+        self.comm_in = Comm_IN_GRU(self.args) if self.args.use_comm_in_gru else Comm_IN(self.args)
         self.sensors_in = Sensors_IN(self.args)
         self.action_in = Action_IN(self.args)
-        self.comm_out_in = Comm_IN(self.args)
+        self.comm_out_in = Comm_IN_GRU(self.args) if self.args.use_comm_in_gru else Comm_IN(self.args)
 
         self.pvrnn_layer = PVRNN_LAYER(
             self.args.time_scales[0], 

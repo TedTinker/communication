@@ -237,9 +237,9 @@ parser.add_argument('--show_duration',                  type=bool,          defa
                     help='Should durations be printed?')
 
     # Things which have list-values.
-parser.add_argument('--task_list',                      type=literal,       default = ["fp", "w", "wp", "wplr", "wpulr"],
+parser.add_argument('--task_list',                      type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 0, 0, 25000],
+parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 15000], # 15000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -313,7 +313,7 @@ parser.add_argument('--left_right_amount',              type=float,         defa
                     help='Needed distance of an object for push/pull/left/right.')
 
     # Rewards for distances
-parser.add_argument('--dist_reward',                    type=float,         default = 0,
+parser.add_argument('--dist_reward',                    type=float,         default = .3,    # Works with 0, but much faster like this
                     help='Give agents a reward just for getting close to the correct object.')
 parser.add_argument('--dist_reward_min',                type=float,         default = 3.5,
                     help='If agent closer to correct object that this, rewarded.')
@@ -321,7 +321,7 @@ parser.add_argument('--dist_reward_max',                type=float,         defa
                     help='If agent farther to correct object that this, punished. If agent between min and max, agent relatively rewarded.')
 
     # Rewards for angles
-parser.add_argument('--angle_reward',                   type=float,         default = 0,
+parser.add_argument('--angle_reward',                   type=float,         default = .03,    # Not very important
                     help='Give agents a reward just for pointing at the right object.')
 parser.add_argument('--angle_reward_min',               type=float,         default = 15,
                     help='If agent pointing at correct object that this, rewarded.')
@@ -381,13 +381,13 @@ parser.add_argument('--encode_sensors_size',            type=int,           defa
                     help='Parameters in encoding sensors, angles, speed.')   
 parser.add_argument('--encode_action_size',             type=int,           default = 8,
                     help='Parameters in encoding action.')   
-parser.add_argument('--use_comm_in_gru',                type=literal,       default = False,
+parser.add_argument('--use_comm_in_gru',                type=literal,       default = False,  # Works as True, but much faster like this.
                     help='Use comm_in model with gru, or not?')   
 parser.add_argument('--dropout',                        type=float,         default = .001,
                     help='Dropout percentage.')
 parser.add_argument('--use_hsv',                        type=literal,       default = False,
                     help='Should RGBD_In use hsv?')   
-parser.add_argument('--use_trig_pos',                   type=literal,       default = True,
+parser.add_argument('--use_trig_pos',                   type=literal,       default = False,
                     help='Use trigonometric positions, or linear?') 
 parser.add_argument('--pos_channels',                   type=int,           default = 2,
                     help='How many channels for positions in rgbd?')   

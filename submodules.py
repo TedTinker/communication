@@ -7,7 +7,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.profiler import profile, record_function, ProfilerActivity
-#from kornia.color import rgb_to_hsv 
+from kornia.color import rgb_to_hsv 
 import torchgan.layers as gg
 from torchinfo import summary as torch_summary
 

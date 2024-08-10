@@ -49,7 +49,14 @@ def convert_list(input_list):
 
 
 
-slurm_dict = {"d" : {}}
+slurm_dict = {"d" : {}} 
+
+slurm_dict = {"hard_mode" : {               # More time, but no distance reward and using GRU comm-in
+    "epochs" : [[10000, 5000, 25000]],
+    "use_comm_in_gru" : "True",
+    "dist_reward" : .3}}
+
+
 
 
 def add_this(name, args):
@@ -150,7 +157,7 @@ if(__name__ == "__main__" and args.arg_list != []):
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
 #SBATCH --time 24:00:00
-#SBATCH --mem=30G"""
+#SBATCH --mem=50G"""
 
     if(args.comp == "saion"):
         nv = "--nv"
