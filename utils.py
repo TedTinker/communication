@@ -218,7 +218,7 @@ parser = argparse.ArgumentParser()
 
     # Meta 
 parser.add_argument("--arg_title",                      type=str,           default = "default",
-                    help='Title of argument-set containign all non-default arguments.') 
+                    help='Title of argument-set containing all non-default arguments.') 
 parser.add_argument("--arg_name",                       type=str,           default = "default",
                     help='Title of argument-set for human-understanding.') 
 parser.add_argument("--agents",                         type=int,           default = 36,
@@ -239,7 +239,7 @@ parser.add_argument('--show_duration',                  type=bool,          defa
     # Things which have list-values.
 parser.add_argument('--task_list',                      type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 15000], # 15000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 10000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -321,7 +321,7 @@ parser.add_argument('--dist_reward_max',                type=float,         defa
                     help='If agent farther to correct object that this, punished. If agent between min and max, agent relatively rewarded.')
 
     # Rewards for angles
-parser.add_argument('--angle_reward',                   type=float,         default = .03,    # Not very important
+parser.add_argument('--angle_reward',                   type=float,         default = 0,    # Not very important
                     help='Give agents a reward just for pointing at the right object.')
 parser.add_argument('--angle_reward_min',               type=float,         default = 15,
                     help='If agent pointing at correct object that this, rewarded.')
@@ -774,7 +774,9 @@ def load_dicts(args):
                     final_plot_dicts.append(plot_dict)
                     
     while(len(final_complete_order) > 0 and final_complete_order[0] in ["break", "empty_space"]): 
-        final_complete_order.pop(0)              
+        final_complete_order.pop(0)    
+        
+    print("Done with Load Dicts!")          
     
     return(final_plot_dicts, min_max_dict, complete_order)
 # %%

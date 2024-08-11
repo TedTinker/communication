@@ -51,12 +51,6 @@ def convert_list(input_list):
 
 slurm_dict = {"d" : {}} 
 
-slurm_dict = {"hard_mode" : {               # More time, but no distance reward and using GRU comm-in
-    "epochs" : [[10000, 5000, 25000]],
-    "use_comm_in_gru" : "True",
-    "dist_reward" : .3}}
-
-
 
 
 def add_this(name, args):
@@ -84,29 +78,32 @@ add_this("i",   {"delta" : 1})
                     
                     
                     
-add_this("rgbd",   {
-    "beta_rgbd" : [.01, .03, .1, .3],
+#add_this("rgbd",   {
+#    "beta_rgbd" : [.01, .03, .1, .3],
 #    "beta_comm" : 0,
 #    "beta_sensors" : 0,
-    "hidden_state_eta_rgbd" : [.1, .3, 1, 3],
-    "hidden_state_eta_comm" : 0,
-    "hidden_state_eta_sensors" : 0})
+#    "hidden_state_eta_rgbd" : [.1, .3, 1, 3],
+#    "hidden_state_eta_comm" : 0,
+#    "hidden_state_eta_sensors" : 0})
 
 add_this("comm",   {
-#    "beta_rgbd" : 0,
-#    "beta_comm" : [.03, .1, .3, 1, 3],
-#    "beta_sensors" : 0,
     "hidden_state_eta_rgbd" : 0,
-#    "hidden_state_eta_comm" : [.03, .1, .3, 1, 3],
     "hidden_state_eta_sensors" : 0})
 
-add_this("sensors",   {
+#add_this("sensors",   {
 #    "beta_rgbd" : 0,
 #    "beta_comm" : 0,
-    "beta_sensors" : [.1, .3, 1],
-    "hidden_state_eta_rgbd" : 0,
-    "hidden_state_eta_comm" : 0,
-    "hidden_state_eta_sensors" : [.01, .03, .1, .3, 1, 3]})
+#    "beta_sensors" : [.1, .3, 1],
+#    "hidden_state_eta_rgbd" : 0,
+#    "hidden_state_eta_comm" : 0,
+#    "hidden_state_eta_sensors" : [.01, .03, .1, .3, 1, 3]})
+
+
+
+add_this("hard", {               # More time, but no distance reward and using GRU comm-in
+    "epochs" : "'[10000, 5000, 25000]'",
+    "use_comm_in_gru" : "True",
+    "dist_reward" : 0})
 
 
 
@@ -139,9 +136,9 @@ def all_like_this(this):
 max_cpus = args.agents if args.agents < 30 else 30
  
 if(__name__ == "__main__" and args.arg_list == []):
-    #for key, value in slurm_dict.items(): 
-    #    print(key, ":", value,"\n")
-    interesting = [f"ef_comm_{i}" for i in [5]]
+    for key, value in slurm_dict.items(): 
+        print(key, ":", value,"\n")
+    interesting = []
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
 
