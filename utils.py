@@ -214,6 +214,8 @@ num_sensors = len(sensors)
 # Arguments to parse. 
 def literal(arg_string): return(ast.literal_eval(arg_string))
 
+
+
 parser = argparse.ArgumentParser()
 
     # Meta 
@@ -335,9 +337,9 @@ parser.add_argument('--batch_size',                     type=int,           defa
                     help='How many episodes are sampled for each epoch.')      
 parser.add_argument('--rgbd_scaler',                    type=float,         default = 5, 
                     help='How much to consider rgbd prediction in accuracy compared to comm and sensors.')  
-parser.add_argument('--comm_scaler',                    type=float,         default = 1, 
+parser.add_argument('--comm_scaler',                    type=float,         default = 3, 
                     help='How much to consider comm prediction in accuracy compared to rgbd and sensors.')       
-parser.add_argument('--sensors_scaler',                 type=float,         default = 1, 
+parser.add_argument('--sensors_scaler',                 type=float,         default = .3, 
                     help='How much to consider sensors prediction in accuracy compared to rgbd and comm.')   
 parser.add_argument('--weight_decay',                   type=float,         default = .00001,
                     help='Weight decay for modules.')       
@@ -426,21 +428,25 @@ parser.add_argument("--beta_sensors",                   type=float,         defa
 parser.add_argument("--curiosity",                      type=str,           default = "none",
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
 parser.add_argument("--dkl_max",                        type=float,         default = 1,
-                    help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')        
+                    help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')  
+parser.add_argument('--selective_comm_curiosity',       type=literal,       default = False,
+                    help='Should comm_curiosity be removed when comm_in is constant?')           
+
 parser.add_argument("--prediction_error_eta_rgbd",      type=float,         default = .3,
                     help='Nonnegative value, how much to consider prediction_error curiosity for rgbd.')    
 parser.add_argument("--prediction_error_eta_comm",      type=float,         default = 1,
                     help='Nonnegative value, how much to consider prediction_error curiosity for comm.')    
 parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = .03,
                     help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')    
+
 parser.add_argument("--hidden_state_eta_rgbd",          type=float,         default = .3,
                     help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
 parser.add_argument("--hidden_state_eta_comm",          type=float,         default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
 parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = .03,
                     help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')   
-parser.add_argument('--selective_comm_curiosity',       type=literal,       default = False,
-                    help='Should comm_curiosity be removed when comm_in is constant?')       
+ 
+ 
 
     # Imitation
 parser.add_argument("--delta",                          type=float,         default = 0,
@@ -547,7 +553,6 @@ if(args.alpha == "None"):         args.alpha = None
 if(args == default_args): print("Using default arguments.")
 else:
     for arg in vars(default_args):
-        
         default, this_time = getattr(default_args, arg), getattr(args, arg)
         if(this_time != default):
             print("{}:\n\tDefault:\t{}\n\tThis time:\t{}".format(arg, default, this_time))

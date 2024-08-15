@@ -53,11 +53,11 @@ class Agent:
         self.tasks = {
             "fp" :      Task(actions = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
             "w" :       Task(actions = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
-            "p" :       Task(actions = [1],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
-            "wp" :      Task(actions = [0, 1],              objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
-            "wpu" :     Task(actions = [0, 1, 2],           objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
-            "wplr" :    Task(actions = [0, 1, 3, 4],        objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
-            "wpulr" :   Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args)}
+            "wpulr" :   Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
+            
+            "fp5" :      Task(actions = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
+            "w5" :       Task(actions = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
+            "wpulr5" :   Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args)}
             
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
@@ -109,7 +109,7 @@ class Agent:
             "arg_title" : args.arg_title,
             "arg_name" : args.arg_name,
             "episode_dicts" : {}, 
-            "agent_lists" : {} if (self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list) else {"forward" : PVRNN(), "actor" : Actor(), "critic" : Critic()},
+            "agent_lists" : {} if (self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list) else {"forward" : PVRNN(self.args), "actor" : Actor(self.args), "critic" : Critic(self.args)},
             "rewards" : [], 
             "gen_rewards" : [], 
             "steps" : [],

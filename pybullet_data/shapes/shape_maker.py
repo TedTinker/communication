@@ -84,8 +84,8 @@ def innards(lengths, radia):
     return(text)
 
 pillar = innards([1], [max_radius])
-pole = innards([1], [.1])
-dumbbell = innards([.9, .1], [.1, max_radius])
+pole = innards([1], [.2])
+dumbbell = innards([.9, .1], [.2, max_radius])
 delta = innards([.1] * 10, [max_radius - i/18 for i in range(1, 11)])
 
 hourglass_part = [max_radius - i/11 for i in range(6)]
@@ -174,7 +174,7 @@ def plot_these(all_rgbs):
   #plt.close()
   
 
-for image_size in [8, 16, 32, 64, 360]:
+for image_size in [16]:
   all_rgbs = []
   for object_pos in [15 * i for i in [-2, -1, 0, 1, 2]]:
     rgbs = []

@@ -100,10 +100,11 @@ add_this("comm",   {
 
 
 
-add_this("hard", {               # More time, but no distance reward and using GRU comm-in
+add_this("hard", {               # More time, but no distance reward, using GRU comm-in, all 5 objects
     "epochs" : "'[10000, 5000, 25000]'",
     "use_comm_in_gru" : "True",
-    "dist_reward" : 0})
+    "dist_reward" : 0,
+    "task_list" : "\"['fp5', 'w5', 'wpulr5']\""})
 
 
 
@@ -136,8 +137,10 @@ def all_like_this(this):
 max_cpus = args.agents if args.agents < 30 else 30
  
 if(__name__ == "__main__" and args.arg_list == []):
+    print("ALL POSSIBLE HYPERPARAMETERS:")
     for key, value in slurm_dict.items(): 
-        print(key, ":", value,"\n")
+        print(key, ":", value)
+    print("\nTHESE HYPERPARAMETERS:")
     interesting = []
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
