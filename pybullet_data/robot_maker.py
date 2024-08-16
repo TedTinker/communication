@@ -158,13 +158,6 @@ f"""\n\n
 
 
 
-
-
-
-
-
-
-
 parts = [
     Part(
         name = "body", 
@@ -230,6 +223,9 @@ for part in parts:
     part.sensor_text = part.get_sensors_text(parts)
     part.joint_text = part.get_joint_text()
     
+
+
+#"""    
 arrow_base_len = .3
 arrow_base_width = .2
 arrow_base_start = .1
@@ -241,9 +237,9 @@ arrow_head_part_len = arrow_head_len/arrow_head_layers
 parts.append(Part(
     name = "arrow_base",
     mass = 0,
-    shape = (arrow_base_len, arrow_base_width, .001),
+    shape = (arrow_base_len, arrow_base_width, .02),
     joint_parent = "body", 
-    joint_origin = (-.5 + arrow_base_len/2 + arrow_base_start, 0, .50000001), 
+    joint_origin = (-.5 + arrow_base_len/2 + arrow_base_start, 0, .51), 
     joint_axis = (0, 0, 1),
     joint_type = "fixed"))
 
@@ -252,11 +248,71 @@ for i in range(arrow_head_layers):
         Part(    
             name = f"arrow_{i}",
             mass = 0,
-            shape = (arrow_head_part_len, arrow_head_width - (arrow_head_width/arrow_head_layers) * i, .001),
+            shape = (arrow_head_part_len, arrow_head_width - (arrow_head_width/arrow_head_layers) * i, .02),
             joint_parent = "arrow_base" if i == 0 else f"arrow_{i-1}", 
             joint_origin = (arrow_base_len/2 if i == 0 else arrow_head_part_len, 0, 0),    
             joint_axis = (0, 0, 1),
             joint_type = "fixed"))
+"""
+
+
+add_this = "pybullet_data/" if(os.getcwd().split("/")[-1] != "pybullet_data") else ""
+
+squares_per_side = 64
+
+image = Image.open(f"{add_this}64_front.png")
+image = image.convert("L")
+pixels = image.load()
+width, height = image.size
+front_squares = [(x, -y + squares_per_side - 1) for x in range(width) for y in range(height) if pixels[x, y] == 0]
+
+
+image = Image.open(f"{add_this}64_top.png")
+image = image.convert("L")
+pixels = image.load()
+width, height = image.size
+top_squares = [(y, x) for x in range(width) for y in range(height) if pixels[x, y] == 0]
+
+
+image = Image.open(f"{add_this}64_back.png")
+image = image.convert("L")
+pixels = image.load()
+width, height = image.size
+back_squares = [(x, -y + squares_per_side - 1) for x in range(width) for y in range(height) if pixels[x, y] == 0]
+
+
+
+i = 0
+def make_face(x_y_list, which = "front"):
+    global i
+    for x, y in x_y_list:
+        x = -.5 + (x + .5)/squares_per_side
+        y = -.5 + (y + .5)/squares_per_side
+        
+        if(which == "front"):
+            shape = (.02, 1/squares_per_side, 1/squares_per_side)
+            joint_origin = (.51, x, y)
+        if(which == "top"):
+            shape = (1/squares_per_side, 1/squares_per_side, .02)
+            joint_origin = (x, y, .51)
+        if(which == "back"):
+            shape = (.02, 1/squares_per_side, 1/squares_per_side)
+            joint_origin = (-.51, x, y)
+        parts.append(Part(
+            name = f"body_square_{i}",
+            mass = 0,
+            shape = shape,
+            joint_parent = "body", 
+            joint_origin = joint_origin, 
+            joint_axis = (0, 0, 1),
+            joint_type = "fixed"))
+        i += 1
+    
+make_face(front_squares, which = "front")
+make_face(top_squares, which = "top")
+make_face(back_squares, which = "back")
+
+"""
 
 robot = \
 """<?xml version="1.0"?>
@@ -299,7 +355,7 @@ if(__name__ == "__main__"):
         p.changeDynamics(robot_index, link_index, maxJointVelocity = 10000)
         
         if("sensor" in link_name):
-            p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, .3), physicsClientId = physicsClient)
+            p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, .15), physicsClientId = physicsClient)
         else:
             p.changeVisualShape(robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = physicsClient)
 

@@ -1,6 +1,7 @@
 #%% 
 
 # To do: most important 
+#   Consider face-pictures. For some reason, pybullet can't find its position using the nice faces.
 #   Make it work FASTER. Trying float16 on cuda. Getting NaN.
 #   Make comm_in work with GRU.
 #   'free play' image prediction is terrible! WHY?!

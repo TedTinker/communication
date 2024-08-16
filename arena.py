@@ -402,29 +402,37 @@ class Arena():
             objects_goals[(color_index, shape_index)] = [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward]
                         
         which_goal_message = " " * self.args.max_comm_len
+        failed = False
         for (color, shape), (watching, pushing, pulling, lefting, righting, distance_reward, angle_reward) in objects_goals.items():
-            if(watching or pushing or pulling or lefting or righting):
-                if(watching): action_char = action_map[0][0]
-                if(pushing):  action_char = action_map[1][0]
-                if(pulling):  action_char = action_map[2][0]
-                if(lefting):  action_char = action_map[3][0]
-                if(righting): action_char = action_map[4][0]
-                color_char = color_map[color][0]
-                shape_char = shape_map[shape][0]
-                which_goal_message = action_char + color_char + shape_char + "   "
-            if(color == goal_color and shape == goal_shape):
-                if(sum([watching, pushing, pulling, lefting, righting]) == 1):
-                    if((action_map[goal_action][1] == "WATCH" and watching) or 
-                    (action_map[goal_action][1] == "PUSH" and pushing) or
-                    (action_map[goal_action][1] == "PULL" and pulling) or
-                    (action_map[goal_action][1] == "LEFT" and lefting) or
-                    (action_map[goal_action][1] == "RIGHT" and righting)):   
-                        win = True 
-                        reward = self.args.reward
+            if(failed):
+                pass 
             else:
+                action_char = " "
                 if(watching or pushing or pulling or lefting or righting):
-                    reward = self.args.wrong_object_punishment
-                                           
+                    if(watching): action_char = action_map[0][0]
+                    if(pushing):  action_char = action_map[1][0]
+                    if(pulling):  action_char = action_map[2][0]
+                    if(lefting):  action_char = action_map[3][0]
+                    if(righting): action_char = action_map[4][0]
+                    color_char = color_map[color][0]
+                    shape_char = shape_map[shape][0]
+                    which_goal_message = action_char + color_char + shape_char + "   "
+                if(action_char != " "):
+                    if(color == goal_color and shape == goal_shape):
+                        if(sum([watching, pushing, pulling, lefting, righting]) == 1):
+                            action_name = action_map[goal_action][1]
+                            if((action_name == "WATCH" and watching) or 
+                            (action_name == "PUSH" and pushing) or
+                            (action_name == "PULL" and pulling) or
+                            (action_name == "LEFT" and lefting) or
+                            (action_name == "RIGHT" and righting)):   
+                                win = True 
+                                reward = self.args.reward
+                    else:
+                        win = False 
+                        reward = self.args.wrong_object_punishment
+                        failed = True
+                            
         [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward] = objects_goals[(goal_color, goal_shape)]
         if(action_map[goal_action][1] == "FREE_PLAY"):
             reward = 0 if which_goal_message == " " * self.args.max_comm_len else self.args.free_play_reward
