@@ -475,7 +475,7 @@ class Arena():
         pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
         x, y = cos(yaw), sin(yaw)
         view_matrix = p.computeViewMatrix(
-            cameraEyePosition = [pos[0], pos[1], 2], 
+            cameraEyePosition = [pos[0] + x*.1, pos[1] + y*.1, 2], 
             cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    
             cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
         proj_matrix = proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far)
@@ -617,7 +617,7 @@ if __name__ == "__main__":
     arena.end()
     """
     
-    """
+    #"""
     print("\nPUSH")
     goal = [1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(5,0)])
@@ -630,9 +630,9 @@ if __name__ == "__main__":
         if(win):
             break
     arena.end()
-    """
-    
     #"""
+    
+    """
     print("\nPULL")
     goal = [2, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
@@ -648,9 +648,9 @@ if __name__ == "__main__":
         if(win):
             break
     arena.end()
-    #"""
+    """
     
-    #"""
+    """
     print("\nPULL BACKWARD")
     goal = [2, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(-3,0)])

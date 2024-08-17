@@ -225,7 +225,7 @@ for part in parts:
     
 
 
-#"""    
+"""    
 arrow_base_len = .3
 arrow_base_width = .2
 arrow_base_start = .1
@@ -258,23 +258,23 @@ for i in range(arrow_head_layers):
 
 add_this = "pybullet_data/" if(os.getcwd().split("/")[-1] != "pybullet_data") else ""
 
-squares_per_side = 64
+squares_per_side = 9
 
-image = Image.open(f"{add_this}64_front.png")
+image = Image.open(f"{add_this}9_front.png")
 image = image.convert("L")
 pixels = image.load()
 width, height = image.size
 front_squares = [(x, -y + squares_per_side - 1) for x in range(width) for y in range(height) if pixels[x, y] == 0]
 
 
-image = Image.open(f"{add_this}64_top.png")
+image = Image.open(f"{add_this}9_top.png")
 image = image.convert("L")
 pixels = image.load()
 width, height = image.size
 top_squares = [(y, x) for x in range(width) for y in range(height) if pixels[x, y] == 0]
 
 
-image = Image.open(f"{add_this}64_back.png")
+image = Image.open(f"{add_this}9_back.png")
 image = image.convert("L")
 pixels = image.load()
 width, height = image.size
@@ -290,14 +290,15 @@ def make_face(x_y_list, which = "front"):
         y = -.5 + (y + .5)/squares_per_side
         
         if(which == "front"):
-            shape = (.02, 1/squares_per_side, 1/squares_per_side)
-            joint_origin = (.51, x, y)
+            shape = (.002, 1/squares_per_side, 1/squares_per_side)
+            joint_origin = (.501, x, y)
         if(which == "top"):
-            shape = (1/squares_per_side, 1/squares_per_side, .02)
-            joint_origin = (x, y, .51)
+            shape = (1/squares_per_side, 1/squares_per_side, .002)
+            joint_origin = (x, y, .501)
         if(which == "back"):
-            shape = (.02, 1/squares_per_side, 1/squares_per_side)
-            joint_origin = (-.51, x, y)
+            shape = (.002, 1/squares_per_side, 1/squares_per_side)
+            joint_origin = (-.501, x, y)
+                        
         parts.append(Part(
             name = f"body_square_{i}",
             mass = 0,
@@ -312,7 +313,7 @@ make_face(front_squares, which = "front")
 make_face(top_squares, which = "top")
 make_face(back_squares, which = "back")
 
-"""
+#"""
 
 robot = \
 """<?xml version="1.0"?>

@@ -1,11 +1,9 @@
 #%% 
 
 # To do: most important 
-#   Consider face-pictures. For some reason, pybullet can't find its position using the nice faces.
-#   Make it work FASTER. Trying float16 on cuda. Getting NaN.
-#   Make comm_in work with GRU.
+#   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   'free play' image prediction is terrible! WHY?!
-#   "push" action detected at odd times.
+#   "push" action detected at odd times. Should "left" and "right" win when object out of gaze?
 
 # To do: less important 
 #   I wish plotting-episodes put actions one step ahead...
