@@ -171,10 +171,11 @@ class Arena():
            for body_part in touch_dict.keys():
                touch_dict[body_part] = 0 
  
-        if(shoulder < 0): 
-            shoulder = -self.args.max_shoulder_speed
-        else:
-            shoulder = self.args.max_shoulder_speed
+        #if(shoulder < 0): 
+        #    shoulder = -self.args.max_shoulder_speed
+        #else:
+        #    shoulder = self.args.max_shoulder_speed
+        shoulder = relative_to(shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
         if(verbose): 
             WAITING = input("WAITING")
         for step in range(self.args.steps_per_step):
