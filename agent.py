@@ -555,7 +555,7 @@ class Agent:
         except:
             complete_reward = 0
             win = False
-            self.plot_dict["gen_wins_all"].append(win)
+            self.plot_dict["gen_wins_all"].append(None) # Changed from win
             win_dict_list = [self.plot_dict["gen_wins_" + action_name.lower()] for action_name in action_name_list]
             for i, win_dict in enumerate(win_dict_list):
                 win_dict.append(None)

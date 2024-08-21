@@ -68,8 +68,8 @@ class Actor(nn.Module):
 
     def forward(self, rgbd, comm_in, sensors, prev_action, prev_comm_out, forward_hidden, action_hidden, parenting = True):
         
-        start, episodes, steps, [rgbd, comm_in, prev_action, prev_comm_out, forward_hidden, action_hidden] = model_start(
-            [(rgbd, "cnn"), (comm_in, "comm"), (prev_action, "lin"), (prev_comm_out, "comm"), (forward_hidden, "lin"), (action_hidden, "lin")], device = self.args.device, half = self.args.half)
+        start, episodes, steps, [rgbd, comm_in, sensors, prev_action, prev_comm_out, forward_hidden, action_hidden] = model_start(
+            [(rgbd, "cnn"), (comm_in, "comm"), (sensors, "lin"), (prev_action, "lin"), (prev_comm_out, "comm"), (forward_hidden, "lin"), (action_hidden, "lin")], device = self.args.device, half = self.args.half)
         
         #print("\n\nACTOR:", torch.isnan(rgbd).sum().item(), torch.isnan(comm_in).sum().item(), torch.isnan(prev_action).sum().item(), torch.isnan(prev_comm_out).sum().item(), torch.isnan(forward_hidden).sum().item(), torch.isnan(action_hidden).sum().item(), "\n\n")
         
@@ -118,6 +118,7 @@ if __name__ == "__main__":
             print(torch_summary(actor,
                                 ((episodes, steps, args.image_size, args.image_size * 4, 4), 
                                 (episodes, steps, args.max_comm_len, args.comm_shape), 
+                                (episodes, steps, args.sensors_shape),
                                 (episodes, steps, args.action_shape),
                                 (episodes, steps, args.max_comm_len, args.comm_shape),
                                 (episodes, steps, args.pvrnn_mtrnn_size),
@@ -168,8 +169,8 @@ class Critic(nn.Module):
         
     def forward(self, rgbd, comm_in, sensors, action, comm_out, forward_hidden, critic_hidden):        
         
-        start, episodes, steps, [rgbd, comm_in, action, comm_out, forward_hidden, critic_hidden] = model_start(
-            [(rgbd, "cnn"), (comm_in, "comm"), (action, "lin"), (comm_out, "comm"), (forward_hidden, "lin"), (critic_hidden, "lin")], device = self.args.device, half = self.args.half)
+        start, episodes, steps, [rgbd, comm_in, sensors, action, comm_out, forward_hidden, critic_hidden] = model_start(
+            [(rgbd, "cnn"), (comm_in, "comm"), (sensors, "lin"), (action, "lin"), (comm_out, "comm"), (forward_hidden, "lin"), (critic_hidden, "lin")], device = self.args.device, half = self.args.half)
                 
         #obs = self.obs_in(rgbd, comm_in, sensors)
         action = self.action_in(action)
@@ -198,7 +199,8 @@ if __name__ == "__main__":
         with record_function("model_inference"):
             print(torch_summary(critic, 
                                 ((episodes, steps, args.image_size, args.image_size * 4, 4), 
-                                (episodes, steps, args.max_comm_len, args.comm_shape), 
+                                (episodes, steps, args.max_comm_len, args.comm_shape),
+                                (episodes, steps, args.sensors_shape), 
                                 (episodes, steps, args.action_shape),
                                 (episodes, steps, args.max_comm_len, args.comm_shape),
                                 (episodes, steps, args.pvrnn_mtrnn_size),

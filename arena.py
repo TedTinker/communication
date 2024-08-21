@@ -80,7 +80,7 @@ class Arena():
             
         # Place robot. 
         self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = self.physicsClient)
-        self.robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
+        self.robot_index = p.loadURDF("pybullet_data/robot_2.urdf" if self.args.two_arms else "pybullet_data/robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
         
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
         p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
@@ -126,7 +126,7 @@ class Arena():
         self.set_pos()
         self.set_yaw()
         self.set_wheel_speeds()
-        self.set_shoulder_angle()
+        self.set_shoulder_angle(self.args.max_shoulder_angle, self.args.max_shoulder_angle)
         self.set_shoulder_speed()
         self.goal = goal
         self.parenting = parenting
@@ -159,7 +159,7 @@ class Arena():
            for body_part in touch_dict.keys():
                touch_dict[body_part] = 0 
         
-    def step(self, left_wheel, right_wheel, shoulder, verbose = False, sleep_time = None):
+    def step(self, left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = False, sleep_time = None):
         
         if(sleep_time != None):
             p.setTimeStep(self.args.time_step / self.args.steps_per_step, physicsClientId=self.physicsClient)  # More accurate time step
@@ -175,21 +175,32 @@ class Arena():
         #    shoulder = -self.args.max_shoulder_speed
         #else:
         #    shoulder = self.args.max_shoulder_speed
-        shoulder = relative_to(shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
+
         if(verbose): 
             WAITING = input("WAITING")
         for step in range(self.args.steps_per_step):
-            self.set_shoulder_speed(shoulder) 
+            self.set_shoulder_speed(left_shoulder, right_shoulder) 
             self.set_wheel_speeds(left_wheel, right_wheel)
             if(sleep_time != None):
                 sleep(sleep_time / self.args.steps_per_step)
             p.stepSimulation(physicsClientId = self.physicsClient)
-            if(self.get_shoulder_angle() > self.args.max_shoulder_angle):
-                self.set_shoulder_angle(shoulder = self.args.max_shoulder_angle)
-                shoulder = 0
-            if(self.get_shoulder_angle() < self.args.min_shoulder_angle):
-                self.set_shoulder_angle(shoulder = self.args.min_shoulder_angle)
-                shoulder = 0
+            
+            left_shoulder_angle, right_shoulder_angle = self.get_shoulder_angle()
+            if(left_shoulder_angle > self.args.max_shoulder_angle):
+                self.set_shoulder_angle(left_shoulder = self.args.max_shoulder_angle)
+                left_shoulder = 0
+            if(left_shoulder_angle < self.args.min_shoulder_angle):
+                self.set_shoulder_angle(left_shoulder = self.args.min_shoulder_angle)
+                left_shoulder = 0
+                
+            if(self.args.two_arms):
+                if(right_shoulder_angle > self.args.max_shoulder_angle):
+                    self.set_shoulder_angle(right_shoulder = self.args.max_shoulder_angle)
+                    right_shoulder = 0
+                if(right_shoulder_angle < self.args.min_shoulder_angle):
+                    self.set_shoulder_angle(right_shoulder = self.args.min_shoulder_angle)
+                    right_shoulder = 0
+                
             touching_now = self.touching_any_object()
             for object_index, touch_dict in touching_now.items():
                 for body_part, value in touch_dict.items():
@@ -235,21 +246,36 @@ class Arena():
         spe = float(np.dot(velocity_vec, forward_dir))
         return(pos, yaw, spe)
     
-    def set_shoulder_speed(self, shoulder = 0):
-        joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
-        shoulder = relative_to(shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
-        p.setJointMotorControl2(self.robot_index, joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = shoulder, physicsClientId=self.physicsClient)
+    def set_shoulder_speed(self, left_shoulder = 0, right_shoulder = 0):
+        left_shoulder = relative_to(left_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
+        left_joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
+        p.setJointMotorControl2(self.robot_index, left_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = left_shoulder, physicsClientId=self.physicsClient)
+        if(self.args.two_arms):
+            right_shoulder = relative_to(right_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
+            right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
+            p.setJointMotorControl2(self.robot_index, right_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = right_shoulder, physicsClientId=self.physicsClient)
         
-    def set_shoulder_angle(self, shoulder = None):
-        if(shoulder == None):
-            shoulder = self.args.max_shoulder_angle
-        limb_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
-        p.resetJointState(self.robot_index, limb_index, shoulder, physicsClientId=self.physicsClient)
+    def set_shoulder_angle(self, left_shoulder = None, right_shoulder = None):
+        if(left_shoulder == None):
+            pass 
+        else:
+            limb_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
+            p.resetJointState(self.robot_index, limb_index, left_shoulder, physicsClientId=self.physicsClient)
+        if(right_shoulder == None or not self.args.two_arms):
+            pass 
+        else:
+            limb_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
+            p.resetJointState(self.robot_index, limb_index, right_shoulder, physicsClientId=self.physicsClient)
         
     def get_shoulder_angle(self):
-        joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
-        joint_state = p.getJointState(self.robot_index, joint_index, physicsClientId=self.physicsClient)
-        return joint_state[0]
+        left_joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
+        left_joint_state = p.getJointState(self.robot_index, left_joint_index, physicsClientId=self.physicsClient)
+        if(self.args.two_arms):
+            right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
+            right_joint_state = p.getJointState(self.robot_index, right_joint_index, physicsClientId=self.physicsClient)
+        else:
+            right_joint_state = [0]
+        return left_joint_state[0], right_joint_state[0]
         
     def generate_positions(self, n, distence = 4):
         base_angle = uniform(0, 2 * pi)
@@ -625,7 +651,7 @@ if __name__ == "__main__":
     show_them()
     arena.rewards(verbose = True)
     while(True):
-        arena.step(1, 1, 1, verbose = True, sleep_time = sleep_time)
+        arena.step(1, 1, 1, 1, verbose = True, sleep_time = sleep_time)
         show_them()
         reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
@@ -633,23 +659,23 @@ if __name__ == "__main__":
     arena.end()
     #"""
     
-    """
+    #"""
     print("\nPULL")
     goal = [2, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
     show_them()
     arena.rewards(verbose = True)
-    arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
+    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
     show_them()
     arena.rewards(verbose = True)
     while(True):
-        arena.step(-1, -1, -1, verbose = True, sleep_time = sleep_time)
+        arena.step(-1, -1, -1, -1, verbose = True, sleep_time = sleep_time)
         show_them()
         reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
             break
     arena.end()
-    """
+    #"""
     
     """
     print("\nPULL BACKWARD")
@@ -672,11 +698,11 @@ if __name__ == "__main__":
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
     show_them()
     arena.rewards(verbose = True)
-    arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
+    arena.step(0, 0, 1, -1, verbose = True, sleep_time = sleep_time)
     show_them()
     arena.rewards(verbose = True)
     while(True):
-        arena.step(-1, 1, -1, verbose = True, sleep_time = sleep_time)
+        arena.step(-1, 1, 1, -1, verbose = True, sleep_time = sleep_time)
         show_them()
         reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
@@ -690,11 +716,11 @@ if __name__ == "__main__":
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,3)])
     show_them()
     arena.rewards(verbose = True)
-    arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
+    arena.step(0, 0, 1, -1, verbose = True, sleep_time = sleep_time)
     show_them()
     arena.rewards(verbose = True)
     while(True):
-        arena.step(-1, 1, -1, verbose = True, sleep_time = sleep_time)
+        arena.step(-1, 1, 1, -1, verbose = True, sleep_time = sleep_time)
         show_them()
         reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
@@ -708,11 +734,11 @@ if __name__ == "__main__":
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
     show_them()
     arena.rewards(verbose = True)
-    arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
+    arena.step(0, 0, -1, 1, verbose = True, sleep_time = sleep_time)
     show_them()
     arena.rewards(verbose = True)
     while(True):
-        arena.step(1, -1, -1, verbose = True, sleep_time = sleep_time)
+        arena.step(1, -1, -1, 1, verbose = True, sleep_time = sleep_time)
         show_them()
         reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):

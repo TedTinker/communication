@@ -1,7 +1,14 @@
+#%%
 import os
+from copy import deepcopy
 import matplotlib.pyplot as plt 
 custom_ls = (0, (3, 5, 1, 5))
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE" # Without this, pyplot crashes the kernal
+from matplotlib.ticker import FuncFormatter
+
+# Function to convert y-axis values to percentages
+def to_percent(y, position):
+    return f'{y:.0f}%'
 
 import numpy as np
 from math import log
@@ -31,49 +38,37 @@ def clean_and_interpolate_nan(arr, xs, non_nan_mask):
 
 
 
-def get_quantiles(plot_dict, name, levels = [1, 2, 3, 4, 5], adjust_xs=True):
-    # Convert all None to np.nan in the dataset for uniformity
+def get_quantiles(plot_dict, name, levels = [99, 0], adjust_xs=True):
+    if 0 not in levels:
+        levels.append(0)
     max_len = mode([len(agent) for agent in plot_dict[name]])
     lists = np.array([[np.nan if x in [None, "not_used"] else x for x in agent] for agent in plot_dict[name] if len(agent) == max_len], dtype=float)
     non_nan_mask = ~np.isnan(lists).all(axis=0)
-    
-    # Adjust xs based on whether to adjust them by 'keep_data' multiplier or not
     xs = np.arange(lists.shape[1])
     if adjust_xs and "args" in plot_dict and hasattr(plot_dict["args"], "keep_data"):
         xs = xs * plot_dict["args"].keep_data
-
-    # Prepare quantile_dict with adjusted or original xs
     quantile_dict = {"xs": xs}    
-    
-    # Calculate quantiles and other statistics only on non-nan values
-    quantile_dict["med"] = np.nanquantile(lists, 0.5, axis=0)
-    if(1 in levels):
-        quantile_dict["q40"] = np.nanquantile(lists, 0.4, axis=0)
-        quantile_dict["q60"] = np.nanquantile(lists, 0.6, axis=0)
-    if(2 in levels):
-        quantile_dict["q30"] = np.nanquantile(lists, 0.3, axis=0)
-        quantile_dict["q70"] = np.nanquantile(lists, 0.7, axis=0)
-    if(3 in levels):
-        quantile_dict["q20"] = np.nanquantile(lists, 0.2, axis=0)
-        quantile_dict["q80"] = np.nanquantile(lists, 0.8, axis=0)
-    if(4 in levels):
-        quantile_dict["q10"] = np.nanquantile(lists, 0.1, axis=0)
-        quantile_dict["q90"] = np.nanquantile(lists, 0.9, axis=0)
-    if(5 in levels):
-        quantile_dict["min"] = np.nanmin(lists, axis=0)
-        quantile_dict["max"] = np.nanmax(lists, axis=0)
+        
+    for level in levels:
+        lower_level = ((100 - level)/2) / 100
+        upper_level = (level +  (100 - level)/2) / 100
+        quantile_dict[lower_level] = np.nanquantile(lists, lower_level, axis=0)
+        quantile_dict[upper_level] = np.nanquantile(lists, upper_level, axis=0)
         
     for key, values in quantile_dict.items():
         if key != "xs":
             nan_mask = np.isnan(values)
             if np.any(nan_mask):
                 quantile_dict[key] = clean_and_interpolate_nan(values, xs, non_nan_mask) 
+                
 
     return quantile_dict
 
 
 
-def get_list_quantiles(list_of_lists, plot_dict, levels = [1, 2, 3, 4, 5]):
+def get_list_quantiles(list_of_lists, plot_dict, levels = [99, 0]):
+    if 0 not in levels:
+        levels.append(0)
     quantile_dicts = []
     for layer in range(len(list_of_lists[0])):
         l = [l[layer] for l in list_of_lists]
@@ -82,22 +77,12 @@ def get_list_quantiles(list_of_lists, plot_dict, levels = [1, 2, 3, 4, 5]):
         xs = [i for i, x in enumerate(lists[0])] 
         lists = lists[:,xs]
         quantile_dict = {"xs" : [x * plot_dict["args"].keep_data for x in xs]}
-        quantile_dict["med"] = np.quantile(lists, 0.5, axis=0)
-        if(1 in levels):
-            quantile_dict["q40"] = np.quantile(lists, 0.4, axis=0)
-            quantile_dict["q60"] = np.quantile(lists, 0.6, axis=0)
-        if(2 in levels):
-            quantile_dict["q30"] = np.quantile(lists, 0.3, axis=0)
-            quantile_dict["q70"] = np.quantile(lists, 0.7, axis=0)
-        if(3 in levels):
-            quantile_dict["q20"] = np.quantile(lists, 0.2, axis=0)
-            quantile_dict["q80"] = np.quantile(lists, 0.8, axis=0)
-        if(4 in levels):
-            quantile_dict["q10"] = np.quantile(lists, 0.1, axis=0)
-            quantile_dict["q90"] = np.quantile(lists, 0.9, axis=0)
-        if(5 in levels):
-            quantile_dict["min"] = np.min(lists, axis=0)
-            quantile_dict["max"] = np.max(lists, axis=0)
+        
+        for level in levels:
+            lower_level = ((100 - level)/2) / 100
+            upper_level = (level +  (100 - level)/2) / 100
+            quantile_dict[lower_level] = np.nanquantile(lists, lower_level         , axis=0)
+            quantile_dict[upper_level] = np.nanquantile(lists, upper_level, axis=0)
         quantile_dicts.append(quantile_dict)
         
     return(quantile_dicts)
@@ -110,37 +95,81 @@ def get_logs(quantile_dict):
         if(key != "xs"): log_quantile_dict[key] = np.log(quantile_dict[key])
     return(log_quantile_dict)
 
-def get_rolling_average(quantile_dict, epochs = 100):
-    for key, value in quantile_dict.items():
-        if(key == "xs"):
-            pass 
-        else:
-            l = quantile_dict[key]
-            rolled_l = []
-            for i in range(len(l)):
-                if(i < epochs):
-                    rolled_l.append(sum(l[:i+1])/(i+1))
-                else:
-                    rolled_l.append(sum(l[i-epochs+1:i+1])/epochs)
-            quantile_dict[key] = rolled_l
-    return(quantile_dict)
+
+
+# This works, but it still has the instant drop in watching after introducing other actions. 
+# But it seems this function is fine, so maybe the problem is elsewhere, or maybe that's just have it works?
+def rolling_average_with_none(arr, window_size = 500):
+    def process_row(row):
+        if row[0] is None:
+            row[0] = 0
+        for i in range(1, len(row)):
+            if row[i] is None:
+                row[i] = row[i-1]
+        row = np.array(row)
+        cumsum = np.cumsum(np.insert(row, 0, 0)) 
+        rolling_avg = (cumsum[window_size:] - cumsum[:-window_size]) / window_size
+        padded_rolling_avg = np.concatenate([np.full(window_size-1, np.nan), rolling_avg])
+        if np.isnan(padded_rolling_avg[0]):
+            padded_rolling_avg[0] = 0
+        for i in range(1, len(padded_rolling_avg)):
+            if np.isnan(padded_rolling_avg[i]):
+                padded_rolling_avg[i] = padded_rolling_avg[i-1]
+        return padded_rolling_avg
+    processed_arr = np.apply_along_axis(process_row, axis=1, arr=deepcopy(arr))
+    return processed_arr
+
+
+
+example = np.array([[0, 0, 0, 0, 1, 1, 1, 1, 1, 0, None, None, None, 1, 1, 1]])
+def try_rolling(example):
+    print("\n\n")
+    rolled = rolling_average_with_none(example, 5)
+    print(example)
+    print(rolled)
+    plt.plot(example[0], color = "red")
+    plt.plot(rolled[0], color = "blue")
+    plt.show()
+    plt.close()
+    print("\n\n")
+try_rolling(example)
     
 
 
+def pair_list(nums):
+    nums.sort()
+    pairs = []
+    single = None
+    while nums:
+        if nums[-1] == .5:
+            single = nums.pop()
+        else:
+            largest = nums.pop()
+            for i in range(len(nums)):
+                if nums[i] + largest == 1:
+                    pairs.append((nums.pop(i), largest))
+                    break
+    pairs.sort(key=lambda x: abs(x[0] - x[1]), reverse=True)
+    result = pairs
+    if single is not None:
+        result.append((single,))
+    return result
+
+
+
 def awesome_plot(here, quantile_dict, color, label, min_max = None, line_transparency = .9, fill_transparency = .1, linestyle = "solid"):
-    keys = list(quantile_dict.keys())
-    if("min" in keys and "max" in keys):
-        here.fill_between(quantile_dict["xs"], quantile_dict["min"], quantile_dict["max"], color = color, alpha = fill_transparency, linewidth = 0)
-    if("q10" in keys and "q90" in keys):
-        here.fill_between(quantile_dict["xs"], quantile_dict["q10"], quantile_dict["q90"], color = color, alpha = fill_transparency, linewidth = 0)    
-    if("q20" in keys and "q80" in keys):
-        here.fill_between(quantile_dict["xs"], quantile_dict["q20"], quantile_dict["q80"], color = color, alpha = fill_transparency, linewidth = 0)
-    if("q30" in keys and "q70" in keys):
-        here.fill_between(quantile_dict["xs"], quantile_dict["q30"], quantile_dict["q70"], color = color, alpha = fill_transparency, linewidth = 0)
-    if("q40" in keys and "q60" in keys):
-        here.fill_between(quantile_dict["xs"], quantile_dict["q40"], quantile_dict["q60"], color = color, alpha = fill_transparency, linewidth = 0)
-    if("med" in keys):
-        handle, = here.plot(quantile_dict["xs"], quantile_dict["med"], color = color, alpha = line_transparency, label = label, linestyle = linestyle)
+    xs = quantile_dict["xs"]
+    keys = list(quantile_dict.keys())[1:]
+    pairs = pair_list(keys)    
+    for i, pair in enumerate(pairs):
+        if pair == (.5,):
+            handle, = here.plot(xs, quantile_dict[.5], color = color, alpha = line_transparency, label = label, linestyle = linestyle)
+        else:
+            start, stop = pair
+            transparency = line_transparency * (.05 * (i+1))
+            here.fill_between(xs, quantile_dict[start], quantile_dict[stop], color = color, alpha = fill_transparency, linewidth = 0)    
+            here.plot(xs, quantile_dict[start], color = color, alpha = transparency, label = label, linestyle = linestyle)
+            here.plot(xs, quantile_dict[stop], color = color, alpha = transparency, label = label, linestyle = linestyle)
     if(min_max != None and min_max[0] != min_max[1]): here.set_ylim([min_max[0], min_max[1]])
     return(handle)
     
@@ -155,7 +184,7 @@ def many_min_max(min_max_list):
 
 def plots(plot_dicts, min_max_dict):
     too_many_plot_dicts = len(plot_dicts) > 16
-    levels = [1, 2]
+    levels = [90, 99]
     if(not too_many_plot_dicts):
         fig, axs = plt.subplots(34, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
                 
@@ -191,18 +220,22 @@ def plots(plot_dicts, min_max_dict):
         fig2_row_num = 0
                     
         for action_name in action_name_list:
-            win_dict = get_quantiles(plot_dict, "wins_" + action_name.lower(), levels = levels, adjust_xs = False)
-            gen_win_dict = get_quantiles(plot_dict, "gen_wins_" + action_name.lower(), levels = levels, adjust_xs = False)
-            for key in gen_win_dict:
-                if key not in ["xs"]:
-                    gen_win_dict[key] = gen_win_dict[key] 
             
-            win_dict = get_rolling_average(win_dict)
-            gen_win_dict = get_rolling_average(gen_win_dict)
+            def get_rolled_wins(gen = False):
+                wins = plot_dict[f"{'gen_' if gen else ''}wins_" + action_name.lower()]
+                wins = np.array(wins)
+                wins_rolled = rolling_average_with_none(wins, 500) * 100
+                plot_dict[f"{'gen_' if gen else ''}wins_rolled_" + action_name.lower()] = wins_rolled
+                win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + action_name.lower(), levels = levels, adjust_xs = False)
+                return(win_dict)
+            
+            win_dict = get_rolled_wins()
+            gen_win_dict = get_rolled_wins(gen = True)
                 
             def plot_rolling_average_wins(here, gen = False):
-                awesome_plot(here, gen_win_dict if gen else win_dict, "pink" if gen else "turquoise", "WinRate", (0,1))
+                awesome_plot(here, gen_win_dict if gen else win_dict, "pink" if gen else "turquoise", "WinRate", (0,100))
                 here.set_ylabel((f"Rolling-Average Gen-Win-Rate" if gen else f"Rolling-Average Win-Rate"))
+                here.yaxis.set_major_formatter(FuncFormatter(to_percent))
                 here.set_xlabel("Epochs")
                 here.set_title(plot_dict["arg_title"] + (f"\nRolling-Average Gen-Win-Rate ({action_name})" if gen else f"\nRolling-Average Win-Rate ({action_name})"))
                 divide_arenas([x for x in range(sum(epochs))], here)
@@ -367,18 +400,21 @@ def plots(plot_dicts, min_max_dict):
         
             
         # Extrinsic and Intrinsic rewards
-        these_levels = levels
-        keys = \
-                ["min", "max"] if 5 in these_levels else \
-                ["q10", "q90"] if 4 in these_levels else \
-                ["q20", "q80"] if 3 in these_levels else \
-                ["q30", "q70"] if 2 in these_levels else \
-                ["q40", "q60"]
+        lowest = None 
+        highest = None
+        for level in levels:
+            lower_level = ((100 - level)/2) / 100
+            upper_level = (level +  (100 - level)/2) / 100
+            if(lowest == None or lower_level < lowest):
+                lowest = lower_level
+            if(highest == None or upper_level > highest):
+                highest = upper_level
+        keys = (lowest, highest)
                 
-        ext_dict = get_quantiles(plot_dict, "extrinsic", levels = these_levels)
-        ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", levels = these_levels)
-        cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", levels = these_levels)
-        imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", levels = these_levels)
+        ext_dict = get_quantiles(plot_dict, "extrinsic", levels = levels)
+        ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", levels = levels)
+        cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", levels = levels)
+        imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", levels = levels)
         rewards_min_max = many_min_max([min_max_dict["extrinsic"], min_max_dict["intrinsic_entropy"], min_max_dict["intrinsic_curiosity"]])
         
         def plot_extrinsic_and_intrinsic_rewards(here, min_max = False):
@@ -567,3 +603,4 @@ def plots(plot_dicts, min_max_dict):
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 plots(plot_dicts, min_max_dict)
 print(f"\nDuration: {duration()}. Done!")
+# %%

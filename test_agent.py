@@ -5,8 +5,8 @@ import pickle
 from task import Task, Task_Runner
 from agent import Agent 
 
-hyper_parameters = "ef_hard_example"
-agent_num = 1
+hyper_parameters = "ef_hard"
+agent_num = 2
 epochs = 40000
 saved_file = "saved_deigo"
 
@@ -18,6 +18,7 @@ with open(f'{saved_file}/{hyper_parameters}/plot_dict.pickle', 'rb') as file:
     agent_lists = plot_dict["agent_lists"]
     args = plot_dict["args"]
 print("Loaded!\n\n")
+args.two_arms = True
 
 print("Making arena...", end = " ")
 agent = Agent(GUI = True, args = args)
@@ -42,9 +43,9 @@ print("Ready to go!")
 actions = [
     #0,  # Watch
     #1,  # Push
-    #2,  # Pull
+    2,  # Pull
     #3,  # Left
-    4   # Right   
+    #4   # Right   
 ]
 
 agent.tasks = {0 : Task(

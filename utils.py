@@ -198,7 +198,7 @@ def cpu_memory_usage():
 
 physicsClient = p.connect(p.DIRECT)
 default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
-robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
+robot_index = p.loadURDF("pybullet_data/robot_2.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
 sensors = []
 for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
     joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
@@ -257,6 +257,8 @@ parser.add_argument('--max_object_distance',            type=float,         defa
 parser.add_argument('--object_size',                    type=float,         default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--body_size',                      type=float,         default = 2,
+                    help='How large is the agent\'s body?')    
+parser.add_argument('--two_arms',                       type=literal,       default = False,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--time_step',                      type=float,         default = .2,
                     help='numSubSteps in pybullet environment.')
@@ -493,7 +495,7 @@ for arg_set in [default_args, args]:
     arg_set.comm_shape = len(comm_map)
     arg_set.sensors_shape = num_sensors
     arg_set.sensor_names = sensors
-    arg_set.action_shape = 3
+    arg_set.action_shape = 4 if arg_set.two_arms else 3
     arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size + arg_set.encode_sensors_size
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.encode_action_size
     max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))

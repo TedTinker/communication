@@ -100,6 +100,11 @@ add_this("comm",   {
 
 
 
+add_this("two_arms",   {
+    "two_arms" : "True"})
+
+
+
 add_this("hard", {               # More time, but no distance reward, using GRU comm-in, all 5 objects
     "epochs" : "'[10000, 5000, 25000]'",
     "use_comm_in_gru" : "True",

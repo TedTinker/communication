@@ -112,15 +112,19 @@ class Task_Runner:
     def act(self, action, agent_1 = True, verbose = False, sleep_time = None):
         if(agent_1): arena = self.arena_1
         else:        arena = self.arena_2
-        left_wheel, right_wheel, shoulder = \
+        left_wheel, right_wheel, left_shoulder = \
             action[0].item(), action[1].item(), action[2].item()
+        if(self.args.two_arms):
+            right_shoulder = action[3].item()
+        else: 
+            right_shoulder = None
       
         if(verbose): 
             print("\n\nStep {}:".format(self.steps))
-            print("Left Wheel: {}. Right Wheel: {}. Shoulders: {}.".format(
-            round(left_wheel, 2), round(right_wheel, 2), round(shoulder, 2)))
+            print("Left Wheel: {}. Right Wheel: {}. Shoulders: {}, {}.".format(
+            round(left_wheel, 2), round(right_wheel, 2), round(left_shoulder, 2), round(right_shoulder, 2)))
             
-        arena.step(left_wheel, right_wheel, shoulder, verbose = verbose, sleep_time = sleep_time)
+        arena.step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = verbose, sleep_time = sleep_time)
         raw_reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards()
         return(raw_reward, distance_reward, angle_reward, win, which_goal_message)
         
@@ -206,7 +210,8 @@ class Task_Runner:
         
         left_wheel = uniform(-1, 1)
         right_wheel = uniform(-1, 1)
-        shoulder = 1 # uniform(-.1, .1)
+        left_shoulder = 1 # uniform(-.1, .1)
+        right_shoulder = 1 # uniform(-.1, .1)
         
         if(action_map[goal_action][1].upper() == "PUSH"):
             pass
@@ -219,11 +224,10 @@ class Task_Runner:
                 
         if(action_map[goal_action][1].upper() == "RIGHT"):
             pass
+        
+        recommendation = torch.tensor([left_wheel, right_wheel, left_shoulder] + ([right_shoulder] if self.args.two_arms else [])).float()
                 
-        return(torch.tensor([
-            left_wheel,
-            right_wheel,
-            shoulder]).float())
+        return(recommendation)
     
     
     
@@ -236,7 +240,7 @@ if __name__ == "__main__":
     physicsClient = get_physics(GUI = True, time_step = args.time_step, steps_per_step = args.steps_per_step)
     arena_1 = Arena(physicsClient)
     arena_2 = None
-    task_runner = Task_Runner(Task(actions = [2], objects = 3, colors = [0, 1, 2, 3, 4, 5], shapes = [0]), arena_1, arena_2)
+    task_runner = Task_Runner(Task(actions = [2], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0]), arena_1, arena_2)
     
     def get_images():
         rgba = task_runner.arena_1.photo_from_above()
@@ -258,7 +262,7 @@ if __name__ == "__main__":
         plt.show()
         plt.close()
         
-        plt.imshow(d)
+        plt.imshow(d, cmap='gray',interpolation='none')
         plt.axis('off') 
         plt.show()
         plt.close()
