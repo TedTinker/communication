@@ -118,7 +118,7 @@ class Task_Runner:
             right_shoulder = action[3].item()
         else: 
             right_shoulder = None
-      
+                  
         if(verbose): 
             print("\n\nStep {}:".format(self.steps))
             print("Left Wheel: {}. Right Wheel: {}. Shoulders: {}, {}.".format(

@@ -224,7 +224,7 @@ def plots(plot_dicts, min_max_dict):
             def get_rolled_wins(gen = False):
                 wins = plot_dict[f"{'gen_' if gen else ''}wins_" + action_name.lower()]
                 wins = np.array(wins)
-                wins_rolled = rolling_average_with_none(wins, 500) * 100
+                wins_rolled = rolling_average_with_none(wins) * 100
                 plot_dict[f"{'gen_' if gen else ''}wins_rolled_" + action_name.lower()] = wins_rolled
                 win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + action_name.lower(), levels = levels, adjust_xs = False)
                 return(win_dict)

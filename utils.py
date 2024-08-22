@@ -4,6 +4,7 @@
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   'free play' image prediction is terrible! WHY?!
 #   "push" action detected at odd times. Should "left" and "right" win when object out of gaze?
+#   Plotting sometimes shows big changes immedientely after changing epoch-list values. 
 
 # To do: less important 
 #   I wish plotting-episodes put actions one step ahead...

@@ -6,8 +6,8 @@ from task import Task, Task_Runner
 from agent import Agent 
 
 hyper_parameters = "ef_hard"
-agent_num = 2
-epochs = 40000
+agent_num = 1
+epochs = 45000
 saved_file = "saved_deigo"
 
 
@@ -18,7 +18,6 @@ with open(f'{saved_file}/{hyper_parameters}/plot_dict.pickle', 'rb') as file:
     agent_lists = plot_dict["agent_lists"]
     args = plot_dict["args"]
 print("Loaded!\n\n")
-args.two_arms = True
 
 print("Making arena...", end = " ")
 agent = Agent(GUI = True, args = args)
@@ -56,7 +55,7 @@ agent.tasks = {0 : Task(
     parenting = True, 
     args = agent.args)}
 
-agent.task_runners = {task_name : Task_Runner(task, agent.arena_1, agent.arena_2) for i, (task_name, task) in enumerate(agent.tasks.items())}
+agent.task_runners = {task_name : Task_Runner(task, agent.arena_1, agent.arena_2, agent.args) for i, (task_name, task) in enumerate(agent.tasks.items())}
 agent.task_name = 0
 agent.task = agent.task_runners[agent.task_name]
 

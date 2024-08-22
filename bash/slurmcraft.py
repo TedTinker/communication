@@ -100,16 +100,12 @@ add_this("comm",   {
 
 
 
-add_this("two_arms",   {
-    "two_arms" : "True"})
-
-
-
-add_this("hard", {               # More time, but no distance reward, using GRU comm-in, all 5 objects
-    "epochs" : "'[10000, 5000, 25000]'",
+add_this("hard", {               # More time, but harder conditions
+    "epochs" : "'[10000, 5000, 30000]'",
     "use_comm_in_gru" : "True",
     "dist_reward" : 0,
-    "task_list" : "\"['fp5', 'w5', 'wpulr5']\""})
+    "task_list" : "\"['fp5', 'w5', 'wpulr5']\"",
+    "two_arms" : "True"})
 
 
 
