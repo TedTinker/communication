@@ -121,7 +121,7 @@ def rolling_average_with_none(arr, window_size = 500):
 
 
 
-example = np.array([[0, 0, 0, 0, 1, 1, 1, 1, 1, 0, None, None, None, 1, 1, 1]])
+"""example = np.array([[0, 0, 0, 0, 1, 1, 1, 1, 1, 0, None, None, None, 1, 1, 1]])
 def try_rolling(example):
     print("\n\n")
     rolled = rolling_average_with_none(example, 5)
@@ -132,7 +132,7 @@ def try_rolling(example):
     plt.show()
     plt.close()
     print("\n\n")
-try_rolling(example)
+try_rolling(example)"""
     
 
 

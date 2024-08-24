@@ -241,7 +241,7 @@ parser.add_argument('--show_duration',                  type=bool,          defa
     # Things which have list-values.
 parser.add_argument('--task_list',                      type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 10000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -260,7 +260,9 @@ parser.add_argument('--object_size',                    type=float,         defa
 parser.add_argument('--body_size',                      type=float,         default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--two_arms',                       type=literal,       default = False,
-                    help='How large is the agent\'s body?')    
+                    help='Does the agent have two arms instead of one?')  
+parser.add_argument('--shoulder_binary',                type=literal,       default = True,
+                    help='Do agent shoulders only have two speeds?')      
 parser.add_argument('--time_step',                      type=float,         default = .2,
                     help='numSubSteps in pybullet environment.')
 parser.add_argument('--steps_per_step',                 type=int,           default = 20,

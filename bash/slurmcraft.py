@@ -100,6 +100,11 @@ add_this("comm",   {
 
 
 
+add_this("nonbin",   {
+    "shoulder_binary" : "False"})
+
+
+
 add_this("hard", {               # More time, but harder conditions
     "epochs" : "'[10000, 5000, 30000]'",
     "use_comm_in_gru" : "True",

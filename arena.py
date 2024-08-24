@@ -171,10 +171,16 @@ class Arena():
            for body_part in touch_dict.keys():
                touch_dict[body_part] = 0 
  
-        #if(shoulder < 0): 
-        #    shoulder = -self.args.max_shoulder_speed
-        #else:
-        #    shoulder = self.args.max_shoulder_speed
+        if(self.args.shoulder_binary):
+            if(left_shoulder < 0): 
+                left_shoulder = -1
+            else:
+                left_shoulder = 1
+            if(self.args.two_arms):
+                if(right_shoulder < 0):
+                    right_shoulder = -1
+                else:
+                    right_shoulder = 1
 
         if(verbose): 
             WAITING = input("WAITING")
