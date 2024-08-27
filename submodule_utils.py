@@ -22,6 +22,8 @@ def episodes_steps(this):
 # Is device used correctly here?
 def pad_zeros(value, length):
     rows_to_add = length - value.size(-2)
+    if(rows_to_add == 0):
+        return(value)
     padding_shape = list(value.shape)
     padding_shape[-2] = rows_to_add
     if(value.get_device() == -1):

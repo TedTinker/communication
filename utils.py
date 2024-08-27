@@ -65,6 +65,10 @@ shape_map = {int(num) : [l, n, f] for num, l, n, f in shape_num_letter_name_file
 max_len_shape_name = max([len(s[1]) for s in shape_map.values()])
 shape_name_list = [s[1] for s in shape_map.values()]
 
+
+print(shape_map)
+
+
 def agent_to_english(agent_string):
     if(agent_string == "NONE"):
         return("NONE")
@@ -199,7 +203,7 @@ def cpu_memory_usage():
 
 physicsClient = p.connect(p.DIRECT)
 default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
-robot_index = p.loadURDF("pybullet_data/robot_2.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
+robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
 sensors = []
 for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
     joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
@@ -251,6 +255,8 @@ parser.add_argument("--hidden_state_eta",               type=literal,       defa
                     help='Nonnegative values, how much to consider hidden_state curiosity in each upper layer.') 
 
     # Simulation details
+parser.add_argument('--cube_objects',                   type=literal,       default = False,
+                    help='How large is the agent\'s body?')    
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
                     help='How far objects must start from each other.')
 parser.add_argument('--max_object_distance',            type=float,         default = 6,
@@ -305,7 +311,7 @@ parser.add_argument('--shapes',                         type=int,           defa
                     help='Maximum count of shapes in one episode.')
 parser.add_argument('--colors',                         type=int,           default = 6,
                     help='Maximum count of colors in one episode.')
-parser.add_argument('--max_comm_len',                   type=int,           default = 6,
+parser.add_argument('--max_comm_len',                   type=int,           default = 3,
                     help='Maximum length of communication.')
 parser.add_argument('--watch_distance',                 type=float,         default = 8,
                     help='How close must the agent watch the object to achieve watching.')
@@ -395,7 +401,7 @@ parser.add_argument('--use_hsv',                        type=literal,       defa
                     help='Should RGBD_In use hsv?')   
 parser.add_argument('--use_trig_pos',                   type=literal,       default = False,
                     help='Use trigonometric positions, or linear?') 
-parser.add_argument('--pos_channels',                   type=int,           default = 2,
+parser.add_argument('--pos_channels',                   type=int,           default = 0,
                     help='How many channels for positions in rgbd?')   
 parser.add_argument('--divisions',                      type=int,           default = 2,
                     help='How many times should RBGD_Out double size to image-size?')

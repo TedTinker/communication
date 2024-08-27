@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from random import uniform
 import numpy as np
 import pybullet as p
+import math
 from math import pi, sin, cos, tan, radians, degrees, sqrt, isnan
 from time import sleep
 from skimage.transform import resize
@@ -51,7 +52,9 @@ bottom = -top
 
 agent_upper_starting_pos = 2.02
 object_upper_starting_pos = 1.12
-object_lower_start_pos = -8.85
+object_lower_starting_pos = -8.85
+cube_upper_starting_pos = 2
+cube_lower_start_pos = -8
 
 if(__name__ == "__main__"):
     sensor_alpha = .5
@@ -63,10 +66,16 @@ else:
 class Arena():
     def __init__(self, physicsClient, args = default_args):
         self.args = args
-        
         self.physicsClient = physicsClient
         self.objects_in_play = {}
         self.watching = {}
+        
+        if(self.args.cube_objects):
+            self.upper_starting_pos = cube_upper_starting_pos
+            self.lower_starting_pos = cube_lower_start_pos
+        else:
+            self.upper_starting_pos = object_upper_starting_pos
+            self.lower_starting_pos = object_lower_starting_pos
         
         # Make floor and lower level.
         plane_positions = [[0, 0]]
@@ -80,7 +89,7 @@ class Arena():
             
         # Place robot. 
         self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = self.physicsClient)
-        self.robot_index = p.loadURDF("pybullet_data/robot_2.urdf" if self.args.two_arms else "pybullet_data/robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
+        self.robot_index = p.loadURDF("pybullet_data/robot.urdf" if self.args.two_arms else "pybullet_data/easy_robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
         
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
         p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
@@ -105,14 +114,14 @@ class Arena():
         self.object_indexs = []
         for i, (shape, shape_name, shape_file) in shape_map.items():
             for j in range(self.args.objects):
-                pos = (5*i, 5*j, object_lower_start_pos)
+                pos = (5*i, 5*j, self.lower_starting_pos)
                 object_index = p.loadURDF("pybullet_data/shapes/{}".format(shape_file), pos, p.getQuaternionFromEuler([0, 0, pi/2]), 
                                           useFixedBase=False, globalScaling = self.args.object_size, physicsClientId=self.physicsClient)
                 p.changeDynamics(object_index, -1, maxJointVelocity = 10000)
                 for link_index in range(p.getNumJoints(object_index, physicsClientId = self.physicsClient)):
                     joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
                     p.changeDynamics(object_index, link_index, maxJointVelocity = 10000)
-                self.loaded[i].append((object_index, (pos[0], pos[1], object_lower_start_pos)))
+                self.loaded[i].append((object_index, (pos[0], pos[1], self.lower_starting_pos)))
                 self.object_indexs.append(object_index)
                 
     def end(self):
@@ -143,11 +152,20 @@ class Arena():
             object_index, idle_pos = self.loaded[shape_index][already_in_play[shape_index]]
             already_in_play[shape_index] += 1
             x, y = random_positions[i]
-            p.resetBasePositionAndOrientation(object_index, (x, y, object_upper_starting_pos), (0, 0, 0, 1), physicsClientId = self.physicsClient)
+            p.resetBasePositionAndOrientation(object_index, (x, y, self.upper_starting_pos), (0, 0, 0, 1), physicsClientId = self.physicsClient)
             self.object_faces_up(object_index)
-            p.changeVisualShape(object_index, -1, rgbaColor = rgba, physicsClientId = self.physicsClient)
-            for i in range(p.getNumJoints(object_index)):
-                p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId = self.physicsClient)
+            
+            if(self.args.cube_objects):
+                p.changeVisualShape(object_index, -1, rgbaColor = (1, 1, 1, 1), physicsClientId = self.physicsClient)
+                for i in range(p.getNumJoints(object_index)):
+                    joint_info = p.getJointInfo(object_index, i, physicsClientId=self.physicsClient)
+                    joint_name = joint_info[1].decode("utf-8")  # Joint name is in byte format, so decode it to a string
+                    if "base" not in joint_name.lower():  # Check if "base" is not in the joint name (case insensitive)
+                        p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId=self.physicsClient)
+            else:
+                p.changeVisualShape(object_index, -1, rgbaColor = rgba, physicsClientId = self.physicsClient)
+                for i in range(p.getNumJoints(object_index)):
+                    p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId = self.physicsClient)
             self.objects_in_play[(color_index, shape_index, idle_pos)] = object_index
             self.watching[object_index] = 0
             
@@ -296,14 +314,25 @@ class Arena():
             y = r * sin(current_angle)
             positions.append((x, y))
         return positions
-        
+            
     def object_faces_up(self, object_index):
-        pos, orn = p.getBasePositionAndOrientation(object_index, physicsClientId = self.physicsClient)
-        x = pos[0]
-        y = pos[1]
-        (a, b, c) = p.getEulerFromQuaternion(orn, physicsClientId = self.physicsClient)
-        orn = p.getQuaternionFromEuler([0, 0, c if not isnan(c) else 0])
-        p.resetBasePositionAndOrientation(object_index, (x, y, object_upper_starting_pos), orn, physicsClientId = self.physicsClient)
+        # Get the position and orientation of the object
+        obj_pos, obj_orn = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
+        
+        # Get the position of the agent (robot)
+        agent_pos, _ = p.getBasePositionAndOrientation(self.robot_index, physicsClientId=self.physicsClient)
+        
+        # Calculate the angle in the XY plane for the object to face the agent
+        delta_x = agent_pos[0] - obj_pos[0]
+        delta_y = agent_pos[1] - obj_pos[1]
+        angle_to_agent = math.atan2(delta_y, delta_x)
+        
+        # Keep the object's orientation facing up, but adjust the yaw (rotation around Z-axis)
+        (roll, pitch, _) = p.getEulerFromQuaternion(obj_orn, physicsClientId=self.physicsClient)
+        new_orn = p.getQuaternionFromEuler([0, 0, angle_to_agent if not isnan(angle_to_agent) else 0])
+        
+        # Reset the object's position and orientation
+        p.resetBasePositionAndOrientation(object_index, (obj_pos[0], obj_pos[1], self.upper_starting_pos), new_orn, physicsClientId=self.physicsClient)
             
     def touching_object(self, object_index):
         touching = {}
@@ -435,7 +464,7 @@ class Arena():
             objects_goals[(color_index, shape_index)] = [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward]
                         
         which_goal_message = " " * self.args.max_comm_len
-        failed = False
+        failed = False        
         for (color, shape), (watching, pushing, pulling, lefting, righting, distance_reward, angle_reward) in objects_goals.items():
             if(failed):
                 pass 
@@ -449,7 +478,7 @@ class Arena():
                     if(righting): action_char = action_map[4][0]
                     color_char = color_map[color][0]
                     shape_char = shape_map[shape][0]
-                    which_goal_message = action_char + color_char + shape_char + "   "
+                    which_goal_message = action_char + color_char + shape_char + (" " * (self.args.max_comm_len - 3))
                 if(action_char != " "):
                     if(color == goal_color and shape == goal_shape):
                         if(sum([watching, pushing, pulling, lefting, righting]) == 1):
@@ -574,7 +603,7 @@ if __name__ == "__main__":
         num_objects = 1,
         allowed_actions = [0],
         allowed_colors = [0],
-        allowed_shapes = [1])
+        allowed_shapes = [5])
     
     
     """    

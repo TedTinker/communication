@@ -98,19 +98,18 @@ add_this("comm",   {
 #    "hidden_state_eta_comm" : 0,
 #    "hidden_state_eta_sensors" : [.01, .03, .1, .3, 1, 3]})
 
-
-
-add_this("nonbin",   {
-    "shoulder_binary" : "False"})
-
-
-
 add_this("hard", {               # More time, but harder conditions
     "epochs" : "'[10000, 5000, 30000]'",
     "use_comm_in_gru" : "True",
     "dist_reward" : 0,
     "task_list" : "\"['fp5', 'w5', 'wpulr5']\"",
     "two_arms" : "True"})
+
+
+
+add_this("cubes", {
+    "cube_objects" : "True",
+    "task_list" : "\"['fp_cube', 'w_cube', 'wpulr_cube']\""})
 
 
 
@@ -147,7 +146,7 @@ if(__name__ == "__main__" and args.arg_list == []):
     for key, value in slurm_dict.items(): 
         print(key, ":", value)
     print("\nTHESE HYPERPARAMETERS:")
-    interesting = []
+    interesting = [f"ef_hard_stuff_{i}" for i in [1,2,3,4,5,6,7,8,9,10,11,12]]
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
 

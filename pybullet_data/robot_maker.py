@@ -158,6 +158,11 @@ f"""\n\n
 
 
 
+
+
+        
+arm_thickness = .5
+
 parts = [
     Part(
         name = "body", 
@@ -169,7 +174,7 @@ parts = [
     Part(
         name = "left_shoulder", 
         mass = .1, 
-        shape = (.4, .3, .8), 
+        shape = (.4, .3, arm_thickness), 
         joint_parent = "body", 
         joint_origin = (0, .65, 0), 
         joint_axis = (0, -1, 0),
@@ -178,7 +183,7 @@ parts = [
     Part(
         name = "left_arm", 
         mass = .1, 
-        shape = (3, .4, .8), 
+        shape = (3, .4, arm_thickness), 
         joint_parent = "left_shoulder", 
         joint_origin = (1.3, .35, 0), 
         joint_axis = (1, 0, 0),
@@ -186,37 +191,53 @@ parts = [
         sensors = 3,
         sensor_angle = 0),
     
-    Part(
-        name = "hand",
-        mass = .1,
-        shape = (.4, 1.6, .8),
-        joint_parent = "left_arm", 
-        joint_origin = (1.3, -1, 0), 
-        joint_axis = (0, 0, 0),
-        joint_type = "fixed",
-        sensors = 2,
-        sensor_angle = 1,
-        sensor_sides = ["top", "bottom", "left", "right"]),
     
     Part(
-        name = "right_arm",
+        name = "left_hand",
         mass = .1,
-        shape = (3, .4, .8),
-        joint_parent = "hand", 
-        joint_origin = (-1.3, -1, 0), 
+        shape = (.4, .7, arm_thickness),
+        joint_parent = "left_arm", 
+        joint_origin = (1.3, -.55, 0), 
+        joint_axis = (0, 0, 0),
+        joint_type = "fixed",
+        sensors = 1,
+        sensor_angle = 1,
+        sensor_sides = ["top", "bottom", "left", "right", "stop"]),
+
+        
+    Part(
+        name = "right_shoulder",
+        mass = .1,
+        shape = (.4, .3, arm_thickness),
+        joint_parent = "body", 
+        joint_origin = (0, -.65, 0), 
+        joint_axis = (0, -1, 0),
+        joint_type = "continuous"),
+    
+    Part(
+        name = "right_arm", 
+        mass = .1, 
+        shape = (3, .4, arm_thickness), 
+        joint_parent = "right_shoulder", 
+        joint_origin = (1.3, -.35, 0), 
         joint_axis = (1, 0, 0),
         joint_type = "fixed",
         sensors = 3,
         sensor_angle = 0),
     
     Part(
-        name = "right_shoulder",
+        name = "right_hand",
         mass = .1,
-        shape = (.4, .3, .8),
+        shape = (.4, .7, arm_thickness),
         joint_parent = "right_arm", 
-        joint_origin = (-1.3, .35, 0), 
-        joint_axis = (0, -1, 0),
-        joint_type = "fixed")
+        joint_origin = (1.3, .55, 0), 
+        joint_axis = (0, 0, 0),
+        joint_type = "fixed",
+        sensors = 1,
+        sensor_angle = 1,
+        sensor_sides = ["top", "bottom", "left", "right", "start"])
+    
+
 ]
 
 for part in parts:
@@ -346,7 +367,7 @@ if(__name__ == "__main__"):
     physicsClient = p.connect(p.GUI)
     p.setAdditionalSearchPath("pybullet_data")
 
-    robot_index = p.loadURDF("{}".format("robot.urdf"), (-5, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+    robot_index = p.loadURDF("{}".format("robot_2.urdf"), (-5, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                                 useFixedBase=False, globalScaling = 2, physicsClientId=physicsClient)
     p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
 

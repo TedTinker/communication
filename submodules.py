@@ -69,16 +69,17 @@ class RGBD_IN(nn.Module):
         
         how_many_nans(rgbd, "RGBD IN, rgbd with hsv")
                 
-        if(self.args.use_trig_pos):
-            positional_layers = generate_2d_sinusoidal_positions(
-                batch_size = rgbd.shape[0], image_size = rgbd.shape[2], d_model = self.args.pos_channels, device=self.args.device)
-        else:
-            positional_layers = generate_2d_positional_layers(rgbd.shape[0], rgbd.shape[2], device=self.args.device)        
-        if(self.args.half):
-            positional_layers = positional_layers.to(dtype=torch.float16)    
-        rgbd = torch.cat([rgbd, positional_layers], dim = 1)
-        
-        how_many_nans(rgbd, "RGBD IN, rgbd with positions")
+        if(self.args.pos_channels != 0):
+            if(self.args.use_trig_pos):
+                positional_layers = generate_2d_sinusoidal_positions(
+                    batch_size = rgbd.shape[0], image_size = rgbd.shape[2], d_model = self.args.pos_channels, device=self.args.device)
+            else:
+                positional_layers = generate_2d_positional_layers(rgbd.shape[0], rgbd.shape[2], device=self.args.device)        
+            if(self.args.half):
+                positional_layers = positional_layers.to(dtype=torch.float16)    
+            rgbd = torch.cat([rgbd, positional_layers], dim = 1)
+            
+            how_many_nans(rgbd, "RGBD IN, rgbd with positions")
                 
         a = self.a(rgbd).flatten(1)
         
@@ -148,17 +149,19 @@ class RGBD_OUT(nn.Module):
         
         a = self.a(h_w_action)
         a = a.reshape(episodes * steps, self.out_features_channels, self.args.image_size//self.args.divisions, self.args.image_size//self.args.divisions)
-        if(self.args.use_trig_pos):
-            positional_layers = generate_2d_sinusoidal_positions(
-                batch_size = a.shape[0], image_size = self.args.image_size//self.args.divisions, d_model = self.args.pos_channels, device=self.args.device)
-        else:
-            positional_layers = generate_2d_positional_layers(
-                a.shape[0], self.args.image_size//self.args.divisions, device=self.args.device)
-        if(self.args.half):
-            positional_layers = positional_layers.to(dtype=torch.float16)    
-            
-        a_w_positions = torch.cat([a, positional_layers], dim = 1)
-        rgbd = self.b(a_w_positions)
+        
+        if(self.args.pos_channels != 0):
+            if(self.args.use_trig_pos):
+                positional_layers = generate_2d_sinusoidal_positions(
+                    batch_size = a.shape[0], image_size = self.args.image_size//self.args.divisions, d_model = self.args.pos_channels, device=self.args.device)
+            else:
+                positional_layers = generate_2d_positional_layers(
+                    a.shape[0], self.args.image_size//self.args.divisions, device=self.args.device)
+            if(self.args.half):
+                positional_layers = positional_layers.to(dtype=torch.float16)    
+                
+            a = torch.cat([a, positional_layers], dim = 1)
+        rgbd = self.b(a)
         rgbd = (rgbd + 1) / 2
                 
         [rgbd] = model_end(start, episodes, steps, [(rgbd, "cnn")], "RGBD_OUT" if self.args.show_duration else None)        
@@ -202,7 +205,7 @@ class Comm_IN(nn.Module):
             nn.Conv1d(
                 in_channels = self.args.encode_char_size, 
                 out_channels = self.args.hidden_size, 
-                kernel_size = 6),
+                kernel_size = self.args.max_comm_len),
             nn.BatchNorm1d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(self.args.dropout))
@@ -250,7 +253,6 @@ if __name__ == "__main__":
 #%%
 
 
-#"""#For some reason, these kill it all! 
 class Comm_IN_GRU(nn.Module):
 
     def __init__(self, args = default_args):
@@ -270,7 +272,7 @@ class Comm_IN_GRU(nn.Module):
             nn.Conv1d(
                 in_channels = self.args.encode_char_size, 
                 out_channels = self.args.hidden_size, 
-                kernel_size = 6),
+                kernel_size = self.args.max_comm_len),
             nn.BatchNorm1d(self.args.hidden_size),
             nn.PReLU(),
             nn.Dropout(self.args.dropout))
@@ -321,7 +323,7 @@ if __name__ == "__main__":
             print(torch_summary(comm_in_gru, 
                                 (episodes, steps, args.max_comm_len, args.comm_shape)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-#"""
+
     
     
 #%%

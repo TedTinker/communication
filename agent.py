@@ -57,7 +57,13 @@ class Agent:
             
             "fp5" :      Task(actions = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
             "w5" :       Task(actions = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
-            "wpulr5" :   Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args)}
+            "wpulr5" :   Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
+            
+            "fp_cube" :      Task(actions = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args),
+            "w_cube" :       Task(actions = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args),
+            "wpulr_cube" :   Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args),
+            
+            }
             
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
@@ -408,7 +414,7 @@ class Agent:
         ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
         which_goal_message_2 = " " * self.args.max_comm_len
-        
+                
         return(start_time, prev_time, done, complete_reward, steps, 
                to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
                to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
