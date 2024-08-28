@@ -163,9 +163,22 @@ class Arena():
                     if "base" not in joint_name.lower():  # Check if "base" is not in the joint name (case insensitive)
                         p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId=self.physicsClient)
             else:
-                p.changeVisualShape(object_index, -1, rgbaColor = rgba, physicsClientId = self.physicsClient)
+                
+                
+                
+                link_name = p.getBodyInfo(object_index)[0].decode('utf-8')
+                if "white" not in link_name.lower():
+                    p.changeVisualShape(object_index, -1, rgbaColor = rgba, physicsClientId = self.physicsClient)
+                else:
+                    p.changeVisualShape(object_index, -1, rgbaColor = (1, 1, 1, 1), physicsClientId = self.physicsClient)
                 for i in range(p.getNumJoints(object_index)):
-                    p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId = self.physicsClient)
+                    joint_info = p.getJointInfo(object_index, i, physicsClientId=self.physicsClient)
+                    joint_name = joint_info[1].decode("utf-8") 
+                    if "white" not in joint_name.lower(): 
+                        p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId=self.physicsClient)
+                        
+                        
+                        
             self.objects_in_play[(color_index, shape_index, idle_pos)] = object_index
             self.watching[object_index] = 0
             
@@ -506,7 +519,7 @@ class Arena():
                 angle_reward = 0
             
         if(verbose):
-            print("\nWhich goal message:\'" + which_goal_message, "\'")
+            print(f"\nWhich goal message: \'{which_goal_message}\'")
             print("Raw reward:", round(reward, 2))
             print("Distance:", round(distance, 2))
             print("Distance reward:", round(distance_reward, 2))
@@ -514,7 +527,7 @@ class Arena():
             print("Angle reward:", round(angle_reward, 2))
             print("Total reward:", reward + distance_reward + angle_reward)
             print("Win:", win)
-            
+                        
         return(reward, distance_reward, angle_reward, win, which_goal_message)
     
     def photo_from_above(self):
@@ -603,7 +616,8 @@ if __name__ == "__main__":
         num_objects = 1,
         allowed_actions = [0],
         allowed_colors = [0],
-        allowed_shapes = [5])
+        
+        allowed_shapes = [3])
     
     
     """    
@@ -733,11 +747,11 @@ if __name__ == "__main__":
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
     show_them()
     arena.rewards(verbose = True)
-    arena.step(0, 0, 1, -1, verbose = True, sleep_time = sleep_time)
+    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
     show_them()
     arena.rewards(verbose = True)
     while(True):
-        arena.step(-1, 1, 1, -1, verbose = True, sleep_time = sleep_time)
+        arena.step(-1, 1, -1, -1, verbose = True, sleep_time = sleep_time)
         show_them()
         reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
@@ -751,11 +765,11 @@ if __name__ == "__main__":
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,3)])
     show_them()
     arena.rewards(verbose = True)
-    arena.step(0, 0, 1, -1, verbose = True, sleep_time = sleep_time)
+    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
     show_them()
     arena.rewards(verbose = True)
     while(True):
-        arena.step(-1, 1, 1, -1, verbose = True, sleep_time = sleep_time)
+        arena.step(-1, 1, -1, -1, verbose = True, sleep_time = sleep_time)
         show_them()
         reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
@@ -769,11 +783,11 @@ if __name__ == "__main__":
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
     show_them()
     arena.rewards(verbose = True)
-    arena.step(0, 0, -1, 1, verbose = True, sleep_time = sleep_time)
+    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
     show_them()
     arena.rewards(verbose = True)
     while(True):
-        arena.step(1, -1, -1, 1, verbose = True, sleep_time = sleep_time)
+        arena.step(1, -1, -1, -1, verbose = True, sleep_time = sleep_time)
         show_them()
         reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):

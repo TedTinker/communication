@@ -1,12 +1,13 @@
 #%% 
 
 # To do: most important 
+#   I like the objects made by shape_maker_3.py. Ask Jun about them.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
-#   'free play' image prediction is terrible! WHY?!
-#   "push" action detected at odd times. Should "left" and "right" win when object out of gaze?
-#   Plotting sometimes shows big changes immedientely after changing epoch-list values. 
+#   "push" action detected at odd times. Should "left" and "right" only win when object is in gaze?
+#   Plotting sometimes shows big changes immedietely after changing epoch-list values. 
 
 # To do: less important 
+#   Swap "default and hard" with "easy and default".
 #   I wish plotting-episodes put actions one step ahead...
 #   Allow multiple layers in PVRNN.
 #   Try predicting multiple steps into the future.
@@ -243,7 +244,7 @@ parser.add_argument('--show_duration',                  type=bool,          defa
                     help='Should durations be printed?')
 
     # Things which have list-values.
-parser.add_argument('--task_list',                      type=literal,       default = ["fp", "w", "wpulr"],
+parser.add_argument('--task_list',                      type=literal,       default = ["fp5", "w5", "wpulr5"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
 parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each task.')
@@ -265,7 +266,7 @@ parser.add_argument('--object_size',                    type=float,         defa
                     help='How large is the agent\'s body?')    
 parser.add_argument('--body_size',                      type=float,         default = 2,
                     help='How large is the agent\'s body?')    
-parser.add_argument('--two_arms',                       type=literal,       default = False,
+parser.add_argument('--two_arms',                       type=literal,       default = True,
                     help='Does the agent have two arms instead of one?')  
 parser.add_argument('--shoulder_binary',                type=literal,       default = True,
                     help='Do agent shoulders only have two speeds?')      
@@ -325,7 +326,7 @@ parser.add_argument('--left_right_amount',              type=float,         defa
                     help='Needed distance of an object for push/pull/left/right.')
 
     # Rewards for distances
-parser.add_argument('--dist_reward',                    type=float,         default = .3,    # Works with 0, but much faster like this
+parser.add_argument('--dist_reward',                    type=float,         default = 0,    # Works with 0, but much faster like this
                     help='Give agents a reward just for getting close to the correct object.')
 parser.add_argument('--dist_reward_min',                type=float,         default = 3.5,
                     help='If agent closer to correct object that this, rewarded.')
@@ -393,7 +394,7 @@ parser.add_argument('--encode_sensors_size',            type=int,           defa
                     help='Parameters in encoding sensors, angles, speed.')   
 parser.add_argument('--encode_action_size',             type=int,           default = 8,
                     help='Parameters in encoding action.')   
-parser.add_argument('--use_comm_in_gru',                type=literal,       default = False,  # Works as True, but much faster like this.
+parser.add_argument('--use_comm_in_gru',                type=literal,       default = True,  
                     help='Use comm_in model with gru, or not?')   
 parser.add_argument('--dropout',                        type=float,         default = .001,
                     help='Dropout percentage.')

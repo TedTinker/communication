@@ -98,18 +98,19 @@ add_this("comm",   {
 #    "hidden_state_eta_comm" : 0,
 #    "hidden_state_eta_sensors" : [.01, .03, .1, .3, 1, 3]})
 
-add_this("hard", {               # More time, but harder conditions
-    "epochs" : "'[10000, 5000, 30000]'",
-    "use_comm_in_gru" : "True",
-    "dist_reward" : 0,
-    "task_list" : "\"['fp5', 'w5', 'wpulr5']\"",
-    "two_arms" : "True"})
+add_this("easy", {              
+    "use_comm_in_gru" : "False",
+    "dist_reward" : .3,
+    "task_list" : "\"['fp', 'w', 'wpulr']\"",
+    "two_arms" : "False"})
 
 
 
-add_this("cubes", {
-    "cube_objects" : "True",
-    "task_list" : "\"['fp_cube', 'w_cube', 'wpulr_cube']\""})
+
+
+#add_this("cubes", {
+#    "cube_objects" : "True",
+#    "task_list" : "\"['fp_cube', 'w_cube', 'wpulr_cube']\""})
 
 
 
