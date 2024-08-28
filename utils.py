@@ -68,8 +68,6 @@ max_len_shape_name = max([len(s[1]) for s in shape_map.values()])
 shape_name_list = [s[1] for s in shape_map.values()]
 
 
-print(shape_map)
-
 
 def agent_to_english(agent_string):
     if(agent_string == "NONE"):
@@ -247,7 +245,7 @@ parser.add_argument('--show_duration',                  type=bool,          defa
     # Things which have list-values.
 parser.add_argument('--task_list',                      type=literal,       default = ["fp5", "w5", "wpulr5"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+parser.add_argument('--epochs',                         type=literal,       default = [100, 50, 300], #[10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -458,8 +456,6 @@ parser.add_argument("--hidden_state_eta_comm",          type=float,         defa
 parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = .03,
                     help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')   
  
- 
-
     # Imitation
 parser.add_argument("--delta",                          type=float,         default = 0,
                     help='How much to consider action\'s similarity to recommended action.')  
@@ -554,6 +550,8 @@ except: pass
 folder = f"{save_file}/{args.arg_name}"
 if(args.arg_title[:3] != "___" and not args.arg_name in ["default", "finishing_dictionaries", "plotting", "plotting_predictions", "plotting_positions"]):
     try: os.mkdir(folder)
+    except: pass
+    try: os.mkdir(folder + "/agents")
     except: pass
     try: os.mkdir(f"{save_file}/thesis_pics")
     except: pass

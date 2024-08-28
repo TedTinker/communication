@@ -1,4 +1,4 @@
-import os, pickle
+import os, pickle, re
 
 from utils import duration, args, print, save_file
 
@@ -11,14 +11,20 @@ try: folders.remove("thesis_pics")
 except: pass                                                                                                                                                                                
 print("\n{} folders.".format(len(folders)))
 
+plot_dict_pattern = re.compile(r'^plot_dict_\d{3}\.pickle$')
+min_max_dict_pattern = re.compile(r'^min_max_dict_\d{3}\.pickle$')
+
 for folder in folders:
     plot_dict = {} ; min_max_dict = {}
     files = os.listdir(folder) ; files.sort()
     print("{} files in folder {}.".format(len(files), folder))
-    if(len(files) == 2):
-        print("Skipping, already done.")
+    
+    filtered_files = [file for file in files if file != "agents"]
+    all_files_match = all(plot_dict_pattern.match(file) or min_max_dict_pattern.match(file) for file in filtered_files)
+    if(not all_files_match):
+        print("Skipping.")
     else:
-        for file in files:                                                                                                                                                                          
+        for file in filtered_files:                                                                                                                                                                          
             if(file.split("_")[0] == "plot"): d = plot_dict    ; plot = True 
             if(file.split("_")[0] == "min"):  d = min_max_dict ; plot = False
             with open(folder + "/" + file, "rb") as handle: 
@@ -51,7 +57,8 @@ for folder in folders:
                 min_max_dict[key] = (minimum, maximum)
                 
         files = os.listdir(folder) ; files.sort()
-        for file in files:                
+        filtered_files = [file for file in files if file != "agents"]
+        for file in filtered_files:                
             os.remove(folder + "/" + file)         
 
         with open(folder + "/min_max_dict.pickle", "wb") as handle:
