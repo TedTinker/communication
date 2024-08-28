@@ -1,6 +1,7 @@
 #%% 
 
 # To do: most important 
+#   Make it so agents can be saved/loaded.
 #   I like the objects made by shape_maker_3.py. Ask Jun about them.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   "push" action detected at odd times. Should "left" and "right" only win when object is in gaze?
