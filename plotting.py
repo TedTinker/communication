@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 custom_ls = (0, (3, 5, 1, 5))
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE" # Without this, pyplot crashes the kernal
 from matplotlib.ticker import FuncFormatter
+from itertools import accumulate
 
 # Function to convert y-axis values to percentages
 def to_percent(y, position):
@@ -38,15 +39,15 @@ def clean_and_interpolate_nan(arr, xs, non_nan_mask):
 
 
 
-def get_quantiles(plot_dict, name, levels = [99, 0], adjust_xs=True):
+def get_quantiles(plot_dict, name, levels = [99, 0], adjust_xs=None):
     if 0 not in levels:
         levels.append(0)
     max_len = mode([len(agent) for agent in plot_dict[name]])
     lists = np.array([[np.nan if x in [None, "not_used"] else x for x in agent] for agent in plot_dict[name] if len(agent) == max_len], dtype=float)
     non_nan_mask = ~np.isnan(lists).all(axis=0)
     xs = np.arange(lists.shape[1])
-    if adjust_xs and "args" in plot_dict and hasattr(plot_dict["args"], "keep_data"):
-        xs = xs * plot_dict["args"].keep_data
+    if adjust_xs != None: # and "args" in plot_dict and hasattr(plot_dict["args"], "keep_data"):
+        xs = xs * adjust_xs # adjust_xs = plot_dict["args"].keep_data
     quantile_dict = {"xs": xs}    
         
     for level in levels:
@@ -179,6 +180,10 @@ def many_min_max(min_max_list):
     mins = [min_max[0] for min_max in min_max_list if min_max[0] != None]
     maxs = [min_max[1] for min_max in min_max_list if min_max[1] != None]
     return((min(mins), max(maxs)))
+
+
+
+
     
 
 
@@ -194,16 +199,25 @@ def plots(plot_dicts, min_max_dict):
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
         args = plot_dict["args"]
         print(f"\nStarting {plot_dict['arg_name']}.")
-        epochs = args.epochs
-        sums = list(accumulate(epochs))
-        percentages = [s / sums[-1] for s in sums][:-1]
+        epochs = plot_dict["division_epochs"][0]
         
-        def divide_arenas(xs, here = plt):
+        
+        
+        def divide_arenas(xs, here):
             if(type(xs) == dict): xs = xs["xs"]
-            these_values = [int(round(len(xs)*p)) for p in percentages]
-            these_values = [value if value < len(xs) else len(xs) - 1 for value in these_values]
-            xs = [xs[value] for value in these_values]
-            for x in xs: 
+            length_xs = len(xs)
+            print("\n")
+            print(epochs, len(xs))
+            mapped_values = []
+            for epoch in epochs:
+                position = (epoch / epochs[-1]) * (length_xs - 1)
+                print(position)
+                index = round(position)
+                print(index)
+                mapped_values.append(xs[index])
+            print(mapped_values)
+            print("\n")
+            for x in mapped_values: 
                 here.axvline(x=x, color = (0,0,0,.2))
                 
                 
@@ -226,7 +240,7 @@ def plots(plot_dicts, min_max_dict):
                 wins = np.array(wins)
                 wins_rolled = rolling_average_with_none(wins) * 100
                 plot_dict[f"{'gen_' if gen else ''}wins_rolled_" + action_name.lower()] = wins_rolled
-                win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + action_name.lower(), levels = levels, adjust_xs = False)
+                win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + action_name.lower(), levels = levels, adjust_xs = None)
                 return(win_dict)
             
             win_dict = get_rolled_wins()
@@ -238,7 +252,7 @@ def plots(plot_dicts, min_max_dict):
                 here.yaxis.set_major_formatter(FuncFormatter(to_percent))
                 here.set_xlabel("Epochs")
                 here.set_title(plot_dict["arg_title"] + (f"\nRolling-Average Gen-Win-Rate ({action_name})" if gen else f"\nRolling-Average Win-Rate ({action_name})"))
-                divide_arenas([x for x in range(sum(epochs))], here)
+                divide_arenas(gen_win_dict if gen else win_dict, here)
                     
             if(not too_many_plot_dicts): 
                 plot_rolling_average_wins(ax)
@@ -260,9 +274,10 @@ def plots(plot_dicts, min_max_dict):
             
                 
                 
+        # Why is gen_rew_dict using levels = [1]?
         # Cumulative rewards
-        rew_dict = get_quantiles(plot_dict, "rewards", levels = levels, adjust_xs = False)
-        gen_rew_dict = get_quantiles(plot_dict, "gen_rewards", levels = [1], adjust_xs = False)
+        rew_dict = get_quantiles(plot_dict, "accumulated_rewards", levels = levels, adjust_xs = None)
+        gen_rew_dict = get_quantiles(plot_dict, "accumulated_gen_rewards", levels = levels, adjust_xs = plot_dict["args"].epochs_per_gen_test)
         
         def plot_cumulative_rewards(here, gen = False, min_max = None):
             awesome_plot(here, gen_rew_dict if gen else rew_dict, "pink" if gen else "turquoise", "Reward", min_max)
@@ -275,22 +290,22 @@ def plots(plot_dicts, min_max_dict):
         if(not too_many_plot_dicts): 
             plot_cumulative_rewards(ax)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_cumulative_rewards(ax, min_max = min_max_dict["rewards"])
+            plot_cumulative_rewards(ax, min_max = min_max_dict["accumulated_rewards"])
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             plot_cumulative_rewards(ax, gen = True)
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            plot_cumulative_rewards(ax, gen = True, min_max = min_max_dict["gen_rewards"])
+            plot_cumulative_rewards(ax, gen = True, min_max = min_max_dict["accumulated_gen_rewards"])
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
             
         fig2, ax2 = plt.subplots(4, 1, figsize = (20, 60)) 
         fig2.suptitle(plot_dict["arg_title"])  
         plot_cumulative_rewards(ax2[0])  
         ax2[0].set_title("Cumulative Rewards")
-        plot_cumulative_rewards(ax2[1], min_max = min_max_dict["rewards"])  
+        plot_cumulative_rewards(ax2[1], min_max = min_max_dict["accumulated_rewards"])  
         ax2[1].set_title("Cumulative Rewards, shared_min/max")
         plot_cumulative_rewards(ax2[2], gen = True)  
         ax2[2].set_title("Cumulative Rewards\nin Generalization-Tests")
-        plot_cumulative_rewards(ax2[3], gen = True, min_max = min_max_dict["gen_rewards"])  
+        plot_cumulative_rewards(ax2[3], gen = True, min_max = min_max_dict["accumulated_gen_rewards"])  
         ax2[3].set_title("Cumulative Rewards\nin Generalization-Tests, shared min/max")
         fig2.savefig(f"thesis_pics/rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
@@ -300,11 +315,11 @@ def plots(plot_dicts, min_max_dict):
         
         
         # Forward Losses
-        rgbd_dict = get_quantiles(plot_dict, "rgbd_loss", levels = levels)
-        comm_dict = get_quantiles(plot_dict, "comm_loss", levels = levels)
-        sensors_dict = get_quantiles(plot_dict, "sensors_loss", levels = levels)
-        accuracy_dict = get_quantiles(plot_dict, "accuracy", levels = levels)
-        comp_dict = get_quantiles(plot_dict, "complexity", levels = levels)
+        rgbd_dict = get_quantiles(plot_dict, "rgbd_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        comm_dict = get_quantiles(plot_dict, "comm_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        sensors_dict = get_quantiles(plot_dict, "sensors_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        accuracy_dict = get_quantiles(plot_dict, "accuracy", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        comp_dict = get_quantiles(plot_dict, "complexity", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         forward_losses_min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["comm_loss"], min_max_dict["sensors_loss"], min_max_dict["accuracy"]])
         
         log_rgbd_dict = get_logs(rgbd_dict)
@@ -359,8 +374,8 @@ def plots(plot_dicts, min_max_dict):
         
             
         # Other Losses
-        alpha_dict = get_quantiles(plot_dict, "alpha", levels = levels)
-        actor_dict = get_quantiles(plot_dict, "actor", levels = levels)
+        alpha_dict = get_quantiles(plot_dict, "alpha", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        actor_dict = get_quantiles(plot_dict, "actor", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         crit_dicts = get_list_quantiles(plot_dict["critics"], plot_dict, levels = levels)
         crit_min_max = many_min_max([crit_min_max for crit_min_max in min_max_dict["critics"]])
         
@@ -411,10 +426,10 @@ def plots(plot_dicts, min_max_dict):
                 highest = upper_level
         keys = (lowest, highest)
                 
-        ext_dict = get_quantiles(plot_dict, "extrinsic", levels = levels)
-        ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", levels = levels)
-        cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", levels = levels)
-        imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", levels = levels)
+        ext_dict = get_quantiles(plot_dict, "extrinsic", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         rewards_min_max = many_min_max([min_max_dict["extrinsic"], min_max_dict["intrinsic_entropy"], min_max_dict["intrinsic_curiosity"]])
         
         def plot_extrinsic_and_intrinsic_rewards(here, min_max = False):
@@ -483,15 +498,15 @@ def plots(plot_dicts, min_max_dict):
         
             
         # Curiosities
-        rgbd_prediction_error_dict = get_quantiles(plot_dict, "rgbd_prediction_error_curiosity", levels = [])
-        comm_prediction_error_dict = get_quantiles(plot_dict, "comm_prediction_error_curiosity", levels = [])
-        sensors_prediction_error_dict = get_quantiles(plot_dict, "sensors_prediction_error_curiosity", levels = [])
-        prediction_error_dict = get_quantiles(plot_dict, "prediction_error_curiosity", levels = [])
+        rgbd_prediction_error_dict = get_quantiles(plot_dict, "rgbd_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        comm_prediction_error_dict = get_quantiles(plot_dict, "comm_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        sensors_prediction_error_dict = get_quantiles(plot_dict, "sensors_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        prediction_error_dict = get_quantiles(plot_dict, "prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         
-        rgbd_hidden_state_dict = get_quantiles(plot_dict, "rgbd_hidden_state_curiosity", levels = [])
-        comm_hidden_state_dict = get_quantiles(plot_dict, "comm_hidden_state_curiosity", levels = [])
-        sensors_hidden_state_dict = get_quantiles(plot_dict, "sensors_hidden_state_curiosity", levels = [])
-        hidden_state_dict = get_quantiles(plot_dict, "hidden_state_curiosity", levels = [])
+        rgbd_hidden_state_dict = get_quantiles(plot_dict, "rgbd_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        comm_hidden_state_dict = get_quantiles(plot_dict, "comm_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        sensors_hidden_state_dict = get_quantiles(plot_dict, "sensors_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        hidden_state_dict = get_quantiles(plot_dict, "hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         
         curiosity_min_max = many_min_max(
             [min_max_dict["rgbd_prediction_error_curiosity"], 

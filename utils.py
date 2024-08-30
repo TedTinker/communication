@@ -241,11 +241,13 @@ parser.add_argument('--cpu',                            type=int,           defa
                     help='Which cpu for affinity.')
 parser.add_argument('--show_duration',                  type=bool,          default = False,
                     help='Should durations be printed?')
+parser.add_argument('--load_agents',                    type=literal,       default = False,
+                    help='Are we loading agents?')    
 
     # Things which have list-values.
 parser.add_argument('--task_list',                      type=literal,       default = ["fp5", "w5", "wpulr5"],
                     help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [100, 50, 300], #[10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], #[10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each task.')
 parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')

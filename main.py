@@ -33,14 +33,21 @@ def train(q, i):
     
     print(f"\nagent {i}: cpu {cpu_id}\n")
     
-    agent = Agent(i, args = args)
+    
+    
+    if(args.load_agents):
+        with open(folder + "/agents/agent_" + str(i).zfill(3) + ".pickle", "rb") as handle: 
+            agent = pickle.load(handle)   
+        agent.start_physics()
+    else:
+        agent = Agent(i, args = args)
     agent.training(q)
     with open(folder + "/plot_dict_{}.pickle".format(   str(i).zfill(3)), "wb") as handle:
         pickle.dump(agent.plot_dict, handle)
     with open(folder + "/min_max_dict_{}.pickle".format(str(i).zfill(3)), "wb") as handle:
         pickle.dump(agent.min_max_dict, handle)
     with open(folder + "/agents/agent_{}.pickle".format(str(i).zfill(3)), "wb") as handle:
-        pickle.dump(agent.state_dict, handle)
+        pickle.dump(agent, handle)
 
 if __name__ == '__main__':
     set_start_method('spawn')

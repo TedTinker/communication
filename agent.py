@@ -41,7 +41,7 @@ class Agent:
         
         self.agent_num = i
         self.args = args
-        self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
+        self.total_epochs = 0
         
         if self.args.device.type == "cuda":
             print(f"\nIN AGENT: {i} DEVICE: {self.args.device} ({torch.cuda.current_device()} out of {[j for j in range(torch.cuda.device_count())]}, {torch.cuda.get_device_name(torch.cuda.current_device())})\n")
@@ -61,16 +61,7 @@ class Agent:
             
             "fp_cube" :      Task(actions = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args),
             "w_cube" :       Task(actions = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args),
-            "wpulr_cube" :   Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args),
-            
-            }
-            
-        physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
-        self.arena_1 = Arena(physicsClient_1, args = self.args)
-        physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
-        self.arena_2 = Arena(physicsClient_2, args = self.args)
-        self.task_runners = {task_name : Task_Runner(task, self.arena_1, self.arena_2, self.args) for i, (task_name, task) in enumerate(self.tasks.items())}
-        self.task_name = self.args.task_list[0]
+            "wpulr_cube" :   Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args)}
         
         self.target_entropy = self.args.target_entropy
         self.alpha = 1
@@ -105,7 +96,9 @@ class Agent:
         all_params += list(self.actor.parameters())
         for critic in self.critics:
             all_params += list(critic.parameters())
-        self.complete_opt = optim.Adam(all_params, lr=self.args.lr, weight_decay=self.args.weight_decay)        
+        self.complete_opt = optim.Adam(all_params, lr=self.args.lr, weight_decay=self.args.weight_decay)      
+        
+        self.start_physics(GUI)  
         
         self.memory = RecurrentReplayBuffer(self.args)
         self.old_memories = []
@@ -114,6 +107,7 @@ class Agent:
             "args" : self.args,
             "arg_title" : args.arg_title,
             "arg_name" : args.arg_name,
+            "division_epochs" : [],
             "episode_dicts" : {}, 
             "agent_lists" : {} if (self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list) else {"forward" : PVRNN(self.args), "actor" : Actor(self.args), "critic" : Critic(self.args)},
             "rewards" : [], 
@@ -146,8 +140,21 @@ class Agent:
         for a in action_map.values():
             self.plot_dict[f"wins_{a[1].lower()}"] = []
             self.plot_dict[f"gen_wins_{a[1].lower()}"] = []
-                        
+            
+            
+            
+    def start_physics(self, GUI = False):
+        self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
+        physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
+        self.arena_1 = Arena(physicsClient_1, args = self.args)
+        physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
+        self.arena_2 = Arena(physicsClient_2, args = self.args)
+        self.task_runners = {task_name : Task_Runner(task, self.arena_1, self.arena_2, self.args) for i, (task_name, task) in enumerate(self.tasks.items())}
+        self.task_name = self.args.task_list[0]
+        self.give_actor_voice()
         
+    def give_actor_voice(self):
+        self.actor.comm_out.load_state_dict(self.forward.predict_obs.comm_out.state_dict())
         
     def training(self, q = None):      
         start_time = duration()
@@ -168,18 +175,9 @@ class Agent:
                     self.save_episodes(swapping = False)
                     self.save_agent()
                     
-                    parenting_before = self.tasks[self.task_name].parenting
-                    # I think this line is why epochs of length 0 don't work the way I want.
                     self.task_name = self.args.task_list[i+1] 
-                    # Try replacing it with something like this.
-                    # while(epochs in task == 0 and tasks left > 0):
-                    #   self.task_name = self.args.task_list[i+1] 
-                    #   i += 1
                     self.old_memories.append(deepcopy(self.memory))
-                    parenting_after = self.tasks[self.task_name].parenting
-                    
-                    if(parenting_before and not parenting_after):
-                        self.actor.comm_out.load_state_dict(self.forward.predict_obs.comm_out.state_dict())
+                    self.plot_dict["division_epochs"].append(self.total_epochs)
                     
                     self.gen_test()  
                     self.save_episodes(swapping = True)
@@ -203,6 +201,7 @@ class Agent:
             if(q != None):
                 q.put((self.agent_num, percent_done))
             if(self.epochs >= sum(self.args.epochs)): 
+                self.plot_dict["division_epochs"].append(self.epochs)
                 break
             
             prev_time = duration()
@@ -225,8 +224,8 @@ class Agent:
                 time = duration()
                 if(self.args.show_duration): print("AFTER SAVE AGENT:", time - prev_time)
             
-        self.plot_dict["rewards"] = list(accumulate(self.plot_dict["rewards"]))
-        self.plot_dict["gen_rewards"] = list(accumulate(self.plot_dict["gen_rewards"]))
+        self.plot_dict["accumulated_rewards"] = list(accumulate(self.plot_dict["rewards"]))
+        self.plot_dict["accumulated_gen_rewards"] = list(accumulate(self.plot_dict["gen_rewards"]))
         
         prev_time = duration()
         
@@ -760,7 +759,7 @@ class Agent:
         
         prev_time = duration()
                         
-        self.epochs += 1
+        
 
         rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, comm_curious, dones, masks = batch
         rgbds = torch.from_numpy(rgbds).to(self.args.device)
@@ -796,6 +795,8 @@ class Agent:
     
     
     def epoch(self, batch_size):
+        self.epochs += 1
+        self.total_epochs += 1
         self.train()
         parenting = self.task.task.parenting
                                 
