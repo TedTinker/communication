@@ -99,7 +99,7 @@ if last_folder == "pybullet_data":
     
   
 shapes = [pillar, pole, dumbbell, delta, hourglass]
-names = ["PILLAR2", "POLE", "DUMBBELL", "DELTA", "HOURGLASS"]
+names = ["PILLAR", "POLE", "DUMBBELL", "DELTA", "HOURGLASS"]
 letters = ["L", "M", "N", "O", "P"]
 file_names = []
 

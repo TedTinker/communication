@@ -206,17 +206,11 @@ def plots(plot_dicts, min_max_dict):
         def divide_arenas(xs, here):
             if(type(xs) == dict): xs = xs["xs"]
             length_xs = len(xs)
-            print("\n")
-            print(epochs, len(xs))
             mapped_values = []
             for epoch in epochs:
                 position = (epoch / epochs[-1]) * (length_xs - 1)
-                print(position)
                 index = round(position)
-                print(index)
                 mapped_values.append(xs[index])
-            print(mapped_values)
-            print("\n")
             for x in mapped_values: 
                 here.axvline(x=x, color = (0,0,0,.2))
                 

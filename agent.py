@@ -201,7 +201,7 @@ class Agent:
             if(q != None):
                 q.put((self.agent_num, percent_done))
             if(self.epochs >= sum(self.args.epochs)): 
-                self.plot_dict["division_epochs"].append(self.epochs)
+                self.plot_dict["division_epochs"].append(self.total_epochs) 
                 break
             
             prev_time = duration()

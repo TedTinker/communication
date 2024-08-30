@@ -86,7 +86,7 @@ f"""
 
 i = 0        
 numbers = [0, 1, 2, 3, 4]
-letters = ["L", "M", "N", "O", "P"]
+letters = ["Q", "R", "S", "T", "U"]
 shapes = [] 
 
 shapes.append(Shape(numbers[i], letters[i], "PILLAR",   
@@ -94,17 +94,17 @@ shapes.append(Shape(numbers[i], letters[i], "PILLAR",
                     radia = [max_radius],
                     whites = [False, False]))
 i += 1 
-shapes.append(Shape(numbers[i], letters[i], "POLE",     
+shapes.append(Shape(numbers[i], letters[i], "ROD",     
                     lengths = [max_height],        
                     radia = [min_radius],
                     whites = [True, False]))      
 i += 1 
-shapes.append(Shape(numbers[i], letters[i], "L", 
+shapes.append(Shape(numbers[i], letters[i], "POLE", 
                     lengths = [max_height],   
                     radia = [min_radius],
                     whites = [False, False]))     
 i += 1 
-shapes.append(Shape(numbers[i], letters[i], "T", 
+shapes.append(Shape(numbers[i], letters[i], "CROWN", 
                     lengths = [max_height - min_height, min_height],   
                     radia = [min_radius, max_radius],
                     whites = [True, False, False]))     
@@ -201,7 +201,7 @@ def plot_these(all_rgbs):
     #plt.close()
   
 
-for image_size in [16]:
+for image_size in [16, 64]:
     all_rgbs = []
     for object_pos in [15 * i for i in [-2, -1, 0, 1, 2]]:
         rgbs = []

@@ -33,12 +33,11 @@ def train(q, i):
     
     print(f"\nagent {i}: cpu {cpu_id}\n")
     
-    
-    
     if(args.load_agents):
         with open(folder + "/agents/agent_" + str(i).zfill(3) + ".pickle", "rb") as handle: 
             agent = pickle.load(handle)   
         agent.start_physics()
+        agent.args = args
     else:
         agent = Agent(i, args = args)
     agent.training(q)
