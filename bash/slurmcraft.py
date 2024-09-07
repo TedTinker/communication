@@ -49,6 +49,9 @@ def convert_list(input_list):
 
 
 
+
+
+
 slurm_dict = {"d" : {}} 
 
 
@@ -86,9 +89,17 @@ add_this("i",   {"delta" : 1})
 #    "hidden_state_eta_comm" : 0,
 #    "hidden_state_eta_sensors" : 0})
 
-add_this("comm",   {
+add_this("only_comm",   {
     "hidden_state_eta_rgbd" : 0,
     "hidden_state_eta_sensors" : 0})
+
+add_this("comm_eta",   {
+    "hidden_state_eta_rgbd" : 0,
+    "hidden_state_eta_sensors" : 0,
+    "hidden_state_eta_comm" : [.8, 1, 1.2]})
+
+add_this("comm_beta",   {
+    "beta_comm" : [.03, .06, .1]})
 
 #add_this("sensors",   {
 #    "beta_rgbd" : 0,
@@ -98,7 +109,7 @@ add_this("comm",   {
 #    "hidden_state_eta_comm" : 0,
 #    "hidden_state_eta_sensors" : [.01, .03, .1, .3, 1, 3]})
 
-add_this("easy", {              
+"""add_this("easy", {              
     "use_comm_in_gru" : "False",
     "dist_reward" : .3,
     "task_list" : "\"['fp', 'w', 'wpulr']\"",
@@ -108,9 +119,16 @@ add_this("easy", {
 
 
 
-#add_this("cubes", {
-#    "cube_objects" : "True",
-#    "task_list" : "\"['fp_cube', 'w_cube', 'wpulr_cube']\""})
+add_this("rewards", {
+    "reward" : [5, 10, 20, 30],
+    "step_lim_punishment" : [0, -3, -10, -20, -30]})"""
+
+
+
+
+add_this("wo_free_play", {
+    "task_list" : "\"['w5', 'wpulr5']\"",
+    "epochs" : "\"[15000, 30000]\""})
 
 
 
@@ -147,7 +165,7 @@ if(__name__ == "__main__" and args.arg_list == []):
     for key, value in slurm_dict.items(): 
         print(key, ":", value)
     print("\nTHESE HYPERPARAMETERS:")
-    interesting = [f"ef_hard_stuff_{i}" for i in [1,2,3,4,5,6,7,8,9,10,11,12]]
+    interesting = []
     for this in interesting:
         print("{} : {}".format(this,slurm_dict[this]))
 
@@ -205,6 +223,14 @@ f"""
 {partition}
 {module}
 singularity exec {nv} maze.sif python communication/plotting.py --comp {args.comp} --arg_title {combined} --arg_name plotting
+"""[2:])
+        
+    with open("plotting_lda.slurm", "w") as f:
+        f.write(
+f"""
+{partition}
+{module}
+singularity exec {nv} maze.sif python communication/plotting_lda.py --comp {args.comp} --arg_title {combined} --arg_name plotting_lda
 """[2:])
         
     with open("plotting_episodes.slurm", "w") as f:

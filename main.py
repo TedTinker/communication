@@ -45,8 +45,9 @@ def train(q, i):
         pickle.dump(agent.plot_dict, handle)
     with open(folder + "/min_max_dict_{}.pickle".format(str(i).zfill(3)), "wb") as handle:
         pickle.dump(agent.min_max_dict, handle)
-    with open(folder + "/agents/agent_{}.pickle".format(str(i).zfill(3)), "wb") as handle:
-        pickle.dump(agent, handle)
+    if(args.save_agents):
+        with open(folder + "/agents/agent_{}.pickle".format(str(i).zfill(3)), "wb") as handle:
+            pickle.dump(agent, handle)
 
 if __name__ == '__main__':
     set_start_method('spawn')

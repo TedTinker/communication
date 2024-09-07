@@ -149,9 +149,14 @@ class Task_Runner:
         if(angle_reward > 0):
             angle_reward *= self.args.step_cost ** (self.steps-1)
         end = self.steps >= self.args.max_steps
-                
+                                
         if(end and not win): 
             done = True
+            goal_action = self.arena_1.goal[0]
+            if(action_map[goal_action][1].upper() != "FREE_PLAY"):
+                raw_reward += self.args.step_lim_punishment # STOP THIS IN FREE PLAY!
+            if(verbose):
+                print("Episode end!", end = " ")
         if(win):
             done = True
             if(verbose):

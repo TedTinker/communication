@@ -217,6 +217,9 @@ def plots(plot_dicts, min_max_dict):
                 
                 
         # Rolling win-rate
+        try: os.mkdir("thesis_pics/rolling_win_rate")
+        except: pass
+    
         action_name_list = []
         for key in plot_dict.keys():
             if(key.startswith("wins_")):
@@ -262,14 +265,15 @@ def plots(plot_dicts, min_max_dict):
             fig2_row_num += 1
             print(f"\tFinished win-rates ({action_name}).")
             
-        fig2.savefig(f"thesis_pics/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
+        fig2.savefig(f"thesis_pics/rolling_win_rate/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         print(f"\t\tFinished win-rates.")
             
                 
                 
-        # Why is gen_rew_dict using levels = [1]?
         # Cumulative rewards
+        try: os.mkdir("thesis_pics/cumulative_rewards")
+        except: pass
         rew_dict = get_quantiles(plot_dict, "accumulated_rewards", levels = levels, adjust_xs = None)
         gen_rew_dict = get_quantiles(plot_dict, "accumulated_gen_rewards", levels = levels, adjust_xs = plot_dict["args"].epochs_per_gen_test)
         
@@ -301,7 +305,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[2].set_title("Cumulative Rewards\nin Generalization-Tests")
         plot_cumulative_rewards(ax2[3], gen = True, min_max = min_max_dict["accumulated_gen_rewards"])  
         ax2[3].set_title("Cumulative Rewards\nin Generalization-Tests, shared min/max")
-        fig2.savefig(f"thesis_pics/rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
+        fig2.savefig(f"thesis_pics/cumulative_rewards/rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
             
         print(f"\tFinished cumulative rewards.")
@@ -309,6 +313,8 @@ def plots(plot_dicts, min_max_dict):
         
         
         # Forward Losses
+        try: os.mkdir("thesis_pics/forward_losses")
+        except: pass
         rgbd_dict = get_quantiles(plot_dict, "rgbd_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         comm_dict = get_quantiles(plot_dict, "comm_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         sensors_dict = get_quantiles(plot_dict, "sensors_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
@@ -360,7 +366,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[2].set_title("log Forward Losses")
         plot_forward_losses(ax2[3], log = True, min_max = log_forward_losses_min_max)  
         ax2[3].set_title("log Forward Losses, shared min/max")
-        fig2.savefig(f"thesis_pics/forward_losses_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
+        fig2.savefig(f"thesis_pics/forward_losses/forward_losses_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished forward losses.")
@@ -368,6 +374,8 @@ def plots(plot_dicts, min_max_dict):
         
             
         # Other Losses
+        try: os.mkdir("thesis_pics/other_losses")
+        except: pass
         alpha_dict = get_quantiles(plot_dict, "alpha", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         actor_dict = get_quantiles(plot_dict, "actor", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         crit_dicts = get_list_quantiles(plot_dict["critics"], plot_dict, levels = levels)
@@ -401,7 +409,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[0].set_title("Actor, Critic Losses")
         plot_other_losses(ax2[1], min_max = True)  
         ax2[1].set_title("Actor, Critic Losses, shared min/max")
-        fig2.savefig(f"thesis_pics/actor_critic_losses_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
+        fig2.savefig(f"thesis_pics/other_losses/actor_critic_losses_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished other losses.")
@@ -409,6 +417,8 @@ def plots(plot_dicts, min_max_dict):
         
             
         # Extrinsic and Intrinsic rewards
+        try: os.mkdir("thesis_pics/rewards")
+        except: pass
         lowest = None 
         highest = None
         for level in levels:
@@ -484,7 +494,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[2].set_title("Extrinsic and Intrinsic Rewards, shared dim")
         plot_extrinsic_and_intrinsic_rewards_shared_dim(ax2[3], min_max = True)  
         ax2[3].set_title("Extrinsic and Intrinsic Rewards, shared dim, shared min/max")
-        fig2.savefig(f"thesis_pics/extrinsic_and_intrinsic_rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
+        fig2.savefig(f"thesis_pics/rewards/rewards_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished extrinsic and intrinsic rewards.")
@@ -492,6 +502,8 @@ def plots(plot_dicts, min_max_dict):
         
             
         # Curiosities
+        try: os.mkdir("thesis_pics/curiosities")
+        except: pass
         rgbd_prediction_error_dict = get_quantiles(plot_dict, "rgbd_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         comm_prediction_error_dict = get_quantiles(plot_dict, "comm_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         sensors_prediction_error_dict = get_quantiles(plot_dict, "sensors_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
@@ -591,20 +603,20 @@ def plots(plot_dicts, min_max_dict):
         plot_hidden_state_curiosities(ax2[3,1], log = True, min_max = True)  
         ax2[3,1].set_title("Possible log Hidden State Curiosities, shared min/max")
         
-        fig2.savefig(f"thesis_pics/curiosities_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
+        fig2.savefig(f"thesis_pics/curiosities/curiosities_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished curiosities.")
         print(f"Finished {plot_dict['arg_name']}.")
         print(f"Duration: {duration()}")
-
+    
     
     
     # Finish!
     if(not too_many_plot_dicts):
         print("\nSaving full plot...")
         fig.tight_layout(pad=1.0)
-        plt.savefig("plot.png", bbox_inches = "tight")
+        plt.savefig("thesis_pics/plot.png", bbox_inches = "tight")
         plt.close(fig)
     
     

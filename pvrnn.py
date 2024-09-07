@@ -4,6 +4,10 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+
 from utils import default_args, dkl, duration, how_many_nans
 from submodule_utils import init_weights, episodes_steps, var, sample
 from mtrnn import MTRNN
@@ -141,7 +145,7 @@ class PVRNN_LAYER(nn.Module):
         rgbd_zp, rgbd_zq, rgbd_dkl = process_z_func_outputs(zp_inputs, rgbd_zq_inputs, self.rgbd_z, episodes, steps, dtype)
         comm_zp, comm_zq, comm_dkl = process_z_func_outputs(zp_inputs, comm_zq_inputs, self.comm_z, episodes, steps, dtype)
         sensors_zp, sensors_zq, sensors_dkl = process_z_func_outputs(zp_inputs, sensors_zq_inputs, self.sensors_z, episodes, steps, dtype)
-        
+                
         how_many_nans(rgbd_zp, "PVRNN layer, rgbd_zp")
         how_many_nans(rgbd_zq, "PVRNN layer, rgbd_zq")
         how_many_nans(rgbd_dkl, "PVRNN layer, rgbd_dkl")
@@ -151,6 +155,16 @@ class PVRNN_LAYER(nn.Module):
         how_many_nans(sensors_zp, "PVRNN layer, sensors_zp")
         how_many_nans(sensors_zq, "PVRNN layer, sensors_zq")
         how_many_nans(sensors_dkl, "PVRNN layer, sensors_dkl")
+        
+        if(comm_zq.shape[0] > 3):
+            pca = PCA(n_components=3)
+            activations_3d_pca = pca.fit_transform(comm_zq.detach().cpu().numpy())            
+            #tsne = TSNE(n_components=3, random_state=42)
+            #activations_3d_tsne = tsne.fit_transform(comm_zq.detach().cpu().numpy())
+        else:
+            activations_3d_pca = None
+            activations_3d_tsne = None
+        activations_3d_tsne = None
         
         mtrnn_inputs_p = torch.cat([rgbd_zp, comm_zp, sensors_zp], dim=-1)
         mtrnn_inputs_q = torch.cat([rgbd_zq, comm_zq, sensors_zq], dim=-1)
@@ -167,7 +181,7 @@ class PVRNN_LAYER(nn.Module):
         how_many_nans(comm_dkl, "PVRNN layer, comm_dkl")
         how_many_nans(sensors_dkl, "PVRNN layer, sensors_dkl")
         
-        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl)
+        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, activations_3d_pca, activations_3d_tsne, comm_zq)
         
         
     
@@ -210,6 +224,8 @@ class PVRNN(nn.Module):
             
         self.predict_obs = Obs_OUT(args)
         
+        
+        
         self.apply(init_weights)
         self.to(self.args.device)
         if(self.args.half):
@@ -222,7 +238,6 @@ class PVRNN(nn.Module):
         return(pred_rgbd, pred_comms, pred_sensors)
         
     def bottom_to_top_step(self, prev_hidden_states, rgbd = None, comm = None, sensors = None, prev_actions = None, prev_comms_out = None):
-        
         start_time = duration()
         prev_time = duration()
         
@@ -239,7 +254,7 @@ class PVRNN(nn.Module):
         if(prev_comms_out != None and len(prev_comms_out.shape) == 2): 
             prev_comms_out = prev_comms_out.unsqueeze(1)
                                     
-        new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl = \
+        new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, activations_3d_pca, activations_3d_tsne, comm_zq = \
             self.pvrnn_layer(
                 prev_hidden_states[:,0].unsqueeze(1), 
                 rgbd, comm, sensors, prev_actions, prev_comms_out)
@@ -248,14 +263,21 @@ class PVRNN(nn.Module):
         if(self.args.show_duration): print("BOTTOM TO TOP STEP:", time - prev_time)
         prev_time = time
                 
-        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl)
+        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, activations_3d_pca, activations_3d_tsne, comm_zq)
     
     def forward(self, prev_hidden_states, rgbd, comms_in, sensors, prev_actions, prev_comms_out):
+        
+        action_labels = torch.argmax(comms_in[:, :, 0, :], dim=2)
+        color_labels = torch.argmax(comms_in[:, :, 1, :], dim=2)
+        shape_labels = torch.argmax(comms_in[:, :, 2, :], dim=2)
+        labels = torch.stack((action_labels, color_labels, shape_labels), dim = -1)
+        
         rgbd_dkl_list = []
         comm_dkl_list = []
         sensors_dkl_list = []
         new_hidden_states_p_list = []
         new_hidden_states_q_list = []
+        comm_zq_list = []
         
         how_many_nans(prev_hidden_states, "PVRNN, prev_hidden_states")
         how_many_nans(rgbd, "PVRNN, rgbd 1")
@@ -282,7 +304,7 @@ class PVRNN(nn.Module):
         how_many_nans(prev_comms_out, "PVRNN, prev_comms_out 2")
                                 
         for step in range(steps):
-            new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl = \
+            new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, activations_3d_pca, activations_3d_tsne, comm_zq = \
             self.bottom_to_top_step(
                 prev_hidden_states, rgbd[:,step], comms_in[:,step], sensors[:,step], 
                 prev_actions[:,step], prev_comms_out[:,step])
@@ -292,17 +314,19 @@ class PVRNN(nn.Module):
             how_many_nans(comm_dkl, f"PVRNN, comm_dkl step {step}")
             how_many_nans(sensors_dkl, f"PVRNN, sensors_dkl step {step}")
                 
+            # Also assemble pca and tsne
+                
             for l, o in zip(
-                [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_dkl_list, comm_dkl_list,sensors_dkl_list],
-                [new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl]):     
+                [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_dkl_list, comm_dkl_list, sensors_dkl_list, comm_zq_list],
+                [new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, comm_zq.unsqueeze(1)]):     
                 l.append(o)
                                 
             prev_hidden_states = new_hidden_states_q
                         
-        lists = [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_dkl_list, comm_dkl_list, sensors_dkl_list]
+        lists = [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_dkl_list, comm_dkl_list, sensors_dkl_list, comm_zq_list]
         for i in range(len(lists)):
             lists[i] = torch.cat(lists[i], dim=1)
-        new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl = lists
+        new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, comm_zq = lists
                 
         pred_rgbd_q, pred_comms_q, pred_sensors_q = self.predict(new_hidden_states_q[:, :-1], prev_actions[:, 1:])
         
@@ -310,7 +334,7 @@ class PVRNN(nn.Module):
         how_many_nans(pred_comms_q, "PVRNN, pred_comms_q 2")
         how_many_nans(pred_sensors_q, "PVRNN, pred_sensors_q 2")
                 
-        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comms_q, pred_sensors_q)
+        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comms_q, pred_sensors_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels)
         
         
         

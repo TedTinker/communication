@@ -1879,7 +1879,7 @@
     <joint name="body_body_square_10_joint" type="fixed"> 
         <parent link="body"/> 
         <child link="body_square_10"/> 
-        <origin xyz="0.2222222222222222 -0.1111111111111111 0.501" rpy="0 0 0"/> 
+        <origin xyz="0.11111111111111116 -0.1111111111111111 0.501" rpy="0 0 0"/> 
         <axis xyz="0 0 1"/> 
     </joint>
 
@@ -1910,7 +1910,7 @@
     <joint name="body_body_square_11_joint" type="fixed"> 
         <parent link="body"/> 
         <child link="body_square_11"/> 
-        <origin xyz="-0.33333333333333337 0.0 0.501" rpy="0 0 0"/> 
+        <origin xyz="0.2222222222222222 -0.1111111111111111 0.501" rpy="0 0 0"/> 
         <axis xyz="0 0 1"/> 
     </joint>
 
@@ -1941,7 +1941,7 @@
     <joint name="body_body_square_12_joint" type="fixed"> 
         <parent link="body"/> 
         <child link="body_square_12"/> 
-        <origin xyz="-0.2222222222222222 0.0 0.501" rpy="0 0 0"/> 
+        <origin xyz="-0.33333333333333337 0.0 0.501" rpy="0 0 0"/> 
         <axis xyz="0 0 1"/> 
     </joint>
 
@@ -1972,7 +1972,7 @@
     <joint name="body_body_square_13_joint" type="fixed"> 
         <parent link="body"/> 
         <child link="body_square_13"/> 
-        <origin xyz="-0.1111111111111111 0.0 0.501" rpy="0 0 0"/> 
+        <origin xyz="-0.2222222222222222 0.0 0.501" rpy="0 0 0"/> 
         <axis xyz="0 0 1"/> 
     </joint>
 
@@ -2003,7 +2003,7 @@
     <joint name="body_body_square_14_joint" type="fixed"> 
         <parent link="body"/> 
         <child link="body_square_14"/> 
-        <origin xyz="0.0 0.0 0.501" rpy="0 0 0"/> 
+        <origin xyz="-0.1111111111111111 0.0 0.501" rpy="0 0 0"/> 
         <axis xyz="0 0 1"/> 
     </joint>
 
@@ -2034,7 +2034,7 @@
     <joint name="body_body_square_15_joint" type="fixed"> 
         <parent link="body"/> 
         <child link="body_square_15"/> 
-        <origin xyz="0.11111111111111116 0.0 0.501" rpy="0 0 0"/> 
+        <origin xyz="0.0 0.0 0.501" rpy="0 0 0"/> 
         <axis xyz="0 0 1"/> 
     </joint>
 
@@ -2065,7 +2065,7 @@
     <joint name="body_body_square_16_joint" type="fixed"> 
         <parent link="body"/> 
         <child link="body_square_16"/> 
-        <origin xyz="0.2222222222222222 0.0 0.501" rpy="0 0 0"/> 
+        <origin xyz="0.11111111111111116 0.0 0.501" rpy="0 0 0"/> 
         <axis xyz="0 0 1"/> 
     </joint>
 
@@ -2096,7 +2096,7 @@
     <joint name="body_body_square_17_joint" type="fixed"> 
         <parent link="body"/> 
         <child link="body_square_17"/> 
-        <origin xyz="0.33333333333333337 0.0 0.501" rpy="0 0 0"/> 
+        <origin xyz="0.2222222222222222 0.0 0.501" rpy="0 0 0"/> 
         <axis xyz="0 0 1"/> 
     </joint>
 
@@ -2127,7 +2127,7 @@
     <joint name="body_body_square_18_joint" type="fixed"> 
         <parent link="body"/> 
         <child link="body_square_18"/> 
-        <origin xyz="0.2222222222222222 0.11111111111111116 0.501" rpy="0 0 0"/> 
+        <origin xyz="0.33333333333333337 0.0 0.501" rpy="0 0 0"/> 
         <axis xyz="0 0 1"/> 
     </joint>
 
@@ -2158,6 +2158,68 @@
     <joint name="body_body_square_19_joint" type="fixed"> 
         <parent link="body"/> 
         <child link="body_square_19"/> 
+        <origin xyz="0.11111111111111116 0.11111111111111116 0.501" rpy="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
+    </joint>
+
+
+    <!-- body_square_20 -->
+    <link name="body_square_20">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.1111111111111111 0.1111111111111111 0.002"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.1111111111111111 0.1111111111111111 0.002"/>
+            </geometry>
+        </collision>
+    </link>
+
+
+    <!-- Joint: body, body_square_20 -->
+    <joint name="body_body_square_20_joint" type="fixed"> 
+        <parent link="body"/> 
+        <child link="body_square_20"/> 
+        <origin xyz="0.2222222222222222 0.11111111111111116 0.501" rpy="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
+    </joint>
+
+
+    <!-- body_square_21 -->
+    <link name="body_square_21">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.1111111111111111 0.1111111111111111 0.002"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.1111111111111111 0.1111111111111111 0.002"/>
+            </geometry>
+        </collision>
+    </link>
+
+
+    <!-- Joint: body, body_square_21 -->
+    <joint name="body_body_square_21_joint" type="fixed"> 
+        <parent link="body"/> 
+        <child link="body_square_21"/> 
         <origin xyz="0.11111111111111116 0.2222222222222222 0.501" rpy="0 0 0"/> 
         <axis xyz="0 0 1"/> 
     </joint>

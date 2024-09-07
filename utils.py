@@ -1,17 +1,15 @@
 #%% 
 
 # To do: most important 
-#   Try zipping/unzipping saved/loaded agents. 
-#   Why the heck to win-rate plotting take SOOO LOOONG?
-#   Make it so agents can be saved/loaded.
-#   I like the objects made by shape_maker_3.py. Ask Jun about them.
+#   Instead of either goal or free play, two comm in: one for goal, one for description. 
+#   Give actions percentage chances when making a task.
+#   Plot LDA transfers.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   "push" action detected at odd times. Should "left" and "right" only win when object is in gaze?
 #   Plotting sometimes shows big changes immedietely after changing epoch-list values. 
 
 # To do: less important 
-#   Swap "default and hard" with "easy and default".
-#   I wish plotting-episodes put actions one step ahead...
+#   Why the heck to win-rate plotting take SOOO LOOONG?
 #   Allow multiple layers in PVRNN.
 #   Try predicting multiple steps into the future.
 #   Training forward, actor, and critic together works, but needs fine-tuning. 
@@ -243,7 +241,9 @@ parser.add_argument('--cpu',                            type=int,           defa
                     help='Which cpu for affinity.')
 parser.add_argument('--show_duration',                  type=bool,          default = False,
                     help='Should durations be printed?')
-parser.add_argument('--load_agents',                    type=literal,       default = True,
+parser.add_argument('--save_agents',                    type=literal,       default = False,
+                    help='Are we saving agents?')   
+parser.add_argument('--load_agents',                    type=literal,       default = False,
                     help='Are we loading agents?')    
 
     # Things which have list-values.
@@ -295,16 +295,16 @@ parser.add_argument('--max_shoulder_speed',             type=float,         defa
     # Task details
 parser.add_argument('--reward',                         type=float,         default = 10,
                     help='Extrinsic reward for choosing correct action, shape, and color.') 
-parser.add_argument('--wrong_object_punishment',        type=float,        default = 0,
+parser.add_argument('--max_steps',                      type=int,           default = 10,
+                    help='How many steps the agent can make in one episode.')
+parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
+                    help='Extrinsic punishment for taking max_steps steps.')
+parser.add_argument('--wrong_object_punishment',        type=float,         default = 0,
                     help='Extrinsic punishment for choosing any action with wrong object.') 
 parser.add_argument('--free_play_reward',               type=float,         default = 0,
                     help='Extrinsic reward for performing any action in free play.') 
 parser.add_argument('--free_play_reward_dist',          type=literal,       default = False,
                     help='Add distance and anglular rewards for free play?') 
-parser.add_argument('--max_steps',                      type=int,           default = 10,
-                    help='How many steps the agent can make in one episode.')
-parser.add_argument('--step_lim_punishment',            type=float,         default = -10,
-                    help='Extrinsic punishment for taking max_steps steps.')
 parser.add_argument('--step_cost',                      type=float,         default = .975,
                     help='How much extrinsic rewards for exiting are reduced per step.')
 parser.add_argument('--actions',                        type=int,           default = 5,
@@ -482,6 +482,11 @@ parser.add_argument('--epochs_per_agent_list',          type=int,           defa
                     help='How many epochs should pass before saving agent model.')
 parser.add_argument('--agents_per_agent_list',          type=int,           default = 3,
                     help='How many agents to save.') 
+
+parser.add_argument('--epochs_per_lda_transform',        type=int,           default = 999999,
+                    help='How many epochs should pass before saving an episode.')
+parser.add_argument('--agents_per_lda_transform',       type=int,           default = 3,
+                    help='How many agents to save episodes.')
 
 try:
     default_args = parser.parse_args([])

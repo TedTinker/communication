@@ -85,7 +85,7 @@ f"""
         
 
 i = 0        
-numbers = [0, 1, 2, 3, 4]
+numbers = [5, 6, 7, 8, 9]
 letters = ["Q", "R", "S", "T", "U"]
 shapes = [] 
 

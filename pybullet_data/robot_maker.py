@@ -367,7 +367,7 @@ if(__name__ == "__main__"):
     physicsClient = p.connect(p.GUI)
     p.setAdditionalSearchPath("pybullet_data")
 
-    robot_index = p.loadURDF("{}".format("robot_2.urdf"), (-5, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+    robot_index = p.loadURDF("{}".format("robot.urdf"), (-5, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                                 useFixedBase=False, globalScaling = 2, physicsClientId=physicsClient)
     p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
 
