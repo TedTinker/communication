@@ -334,6 +334,16 @@ class PVRNN(nn.Module):
         how_many_nans(pred_comms_q, "PVRNN, pred_comms_q 2")
         how_many_nans(pred_sensors_q, "PVRNN, pred_sensors_q 2")
                 
+        action_labels = labels[:, :, 0].clone().unsqueeze(-1)
+        color_labels = labels[:, :, 1].clone().unsqueeze(-1)
+        shape_labels = labels[:, :, 2].clone().unsqueeze(-1)
+        #action_labels[action_labels == 0] = 1
+        color_labels[color_labels != 0] = color_labels[color_labels != 0] - 5  # 6-11 -> 1-6
+        shape_labels[shape_labels != 0] = shape_labels[shape_labels != 0] - 11  # 12-16 -> 1-5
+
+        # Combine the filtered labels back into a single tensor
+        labels = torch.cat((action_labels, color_labels, shape_labels), dim=-1)
+                        
         return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comms_q, pred_sensors_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels)
         
         

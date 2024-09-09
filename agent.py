@@ -15,7 +15,7 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import default_args, duration, dkl, calculate_similarity, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, action_map, action_name_list, print, string_to_onehots, agent_to_english
+from utils import default_args, duration, dkl, calculate_similarity, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, action_map, color_map, shape_map, action_name_list, print, string_to_onehots, agent_to_english
 from submodule_utils import model_start
 from arena import Arena, get_physics
 from task import Task, Task_Runner
@@ -64,14 +64,22 @@ class Agent:
             "w_cube" :       Task(actions = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args),
             "wpulr_cube" :   Task(actions = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args)}
         
-        self.all_tasks = {f"{action}{color}{shape}" : Task(actions = [action], objects = 1, colors = [color], shapes = [shape], parenting = True, args = self.args) for action, color, shape in product([0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
+        self.all_tasks = {f"{action_map[action][1]}_{color_map[color][1]}_{shape_map[shape][1]}" : Task(actions = [action], objects = 1, colors = [color], shapes = [shape], parenting = True, args = self.args) for action, color, shape in product([0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
         all_task_names = list(self.all_tasks.keys())
-        all_task_names.sort()
+        
+        def extract_numbers(task_name):
+            action_str, color_str, shape_str = task_name.split("_")
+            action = next(idx for idx, name in action_map.items() if name[1] == action_str)
+            color = next(idx for idx, name in color_map.items() if name[1] == color_str)
+            shape = next(idx for idx, name in shape_map.items() if name[1] == shape_str)
+            return action, color, shape
+
+        all_task_names.sort(key=lambda task: extract_numbers(task))
         self.all_task_names = all_task_names
                 
-        self.lda_action = LDA(n_components=1)
-        self.lda_color = LDA(n_components=1)
-        self.lda_shape = LDA(n_components=1)
+        self.lda_action = LDA(n_components=4)
+        self.lda_color = LDA(n_components=5)
+        self.lda_shape = LDA(n_components=4)
         
         self.target_entropy = self.args.target_entropy
         self.alpha = 1
@@ -259,7 +267,7 @@ class Agent:
                 
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
-            if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps"]):
+            if(not key in ["args", "arg_title", "arg_name", "all_task_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps"]):
                 if(key == "hidden_state"):
                     min_maxes = []
                     hidden_state = deepcopy(self.plot_dict[key])
@@ -773,6 +781,7 @@ class Agent:
         adjusted_args = deepcopy(self.args)
         adjusted_args.capacity = len(self.all_tasks)
         temp_memory = RecurrentReplayBuffer(adjusted_args)
+        task_lens = []
         for task_name in self.all_task_names:
             self.task = self.all_task_runners[task_name]
             #print(self.task.task)
@@ -793,8 +802,11 @@ class Agent:
                                 prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
                                 prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
                 to_push_list_1.append(to_push_1)
+                if(done): break
             #print("DONE")
             self.task.done()
+            
+            task_lens.append(step)
                             
             for to_push in to_push_list_1:
                 rgbd, comm_in, sensors, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_comm_in, next_sensors, done = to_push
@@ -818,18 +830,38 @@ class Agent:
         hps, hqs, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comms_q, pred_sensors_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels = self.forward(
             torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), 
             rgbds, comms_in, sensors, actions, comms_out)
-                
-        comm_zq = comm_zq.reshape((comm_zq.shape[0] * comm_zq.shape[1], comm_zq.shape[2]))
-        labels = labels.reshape((labels.shape[0] * labels.shape[1], labels.shape[2]))
         
+        comm_zq = comm_zq.view(-1, 128)
+        labels = labels.view(-1, 3)   
+        all_masks = all_masks.view(-1)         
+        comm_zq = comm_zq[all_masks.bool()]
+        labels = labels[all_masks.bool()]
+                
         self.lda_action.fit(comm_zq.detach().cpu().numpy(), labels[:,0].detach().cpu().numpy())
         self.lda_color.fit(comm_zq.detach().cpu().numpy(), labels[:,1].detach().cpu().numpy())
         self.lda_shape.fit(comm_zq.detach().cpu().numpy(), labels[:,2].detach().cpu().numpy())
-        action = self.lda_action.transform(comm_zq.detach().cpu().numpy())
-        color = self.lda_color.transform(comm_zq.detach().cpu().numpy())
-        shape = self.lda_shape.transform(comm_zq.detach().cpu().numpy())
+
+        action_probs = self.lda_action.predict_proba(comm_zq.detach().cpu().numpy())
+        color_probs = self.lda_color.predict_proba(comm_zq.detach().cpu().numpy())
+        shape_probs = self.lda_shape.predict_proba(comm_zq.detach().cpu().numpy())
         
-        self.plot_dict["lda_transformations"][self.epochs] = (action, color, shape)
+        task_tensors = {}
+        start_idx = 0  
+        for name, length in zip(self.all_task_names, task_lens):
+            end_idx = start_idx + length
+            action_probs_slice = action_probs[start_idx:end_idx]
+            color_probs_slice = color_probs[start_idx:end_idx]
+            shape_probs_slice = shape_probs[start_idx:end_idx]
+            task_tensors[name] = (action_probs_slice, color_probs_slice, shape_probs_slice)
+            start_idx = end_idx
+                        
+        self.plot_dict["lda_transformations"][self.epochs] = task_tensors
+        
+        #print(f"\tAgent {self.agent_num} in Total Epochs {self.epochs}:")
+        #for epochs, task_tensors in self.plot_dict["lda_transformations"].items():
+        #    print(f"\t\tepoch {epochs}:")
+        #    for name, (action_probs, color_probs, shape_probs) in task_tensors.items():
+        #        print(f"\t\t\t{name}: action probs {action_probs.shape}, color probs {color_probs.shape}, shape_probs {shape_probs.shape}")
                         
         
         

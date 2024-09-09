@@ -1,9 +1,8 @@
 #%% 
 
 # To do: most important 
-#   Instead of either goal or free play, two comm in: one for goal, one for description. 
+#   Instead of either goal or free play, two comm in: Father for goal, Mother for description. 
 #   Give actions percentage chances when making a task.
-#   Plot LDA transfers.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   "push" action detected at odd times. Should "left" and "right" only win when object is in gaze?
 #   Plotting sometimes shows big changes immedietely after changing epoch-list values. 
@@ -483,9 +482,9 @@ parser.add_argument('--epochs_per_agent_list',          type=int,           defa
 parser.add_argument('--agents_per_agent_list',          type=int,           default = 3,
                     help='How many agents to save.') 
 
-parser.add_argument('--epochs_per_lda_transform',        type=int,           default = 999999,
+parser.add_argument('--epochs_per_lda_transform',        type=int,           default = 2500,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_lda_transform',       type=int,           default = 3,
+parser.add_argument('--agents_per_lda_transform',       type=int,           default = 1,
                     help='How many agents to save episodes.')
 
 try:
@@ -763,7 +762,7 @@ def load_dicts(args):
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():
-        if(not key in ["args", "arg_title", "arg_name", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
+        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
             if(key == "hidden_state"):
                 min_maxes = []
                 for layer in range(len(min_max_dicts[0][key])):

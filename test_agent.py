@@ -5,7 +5,7 @@ import pickle
 from task import Task, Task_Runner
 from agent import Agent 
 
-hyper_parameters = "ef_hard"
+hyper_parameters = "ef"
 agent_num = 1
 epochs = 45000
 saved_file = "saved_deigo"
