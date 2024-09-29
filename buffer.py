@@ -3,7 +3,7 @@
 import numpy as np
 
 from utils import default_args
-from submodule_utils import pad_zeros
+from utils_submodule import pad_zeros
 
 
 
@@ -50,9 +50,6 @@ class RecurrentReplayBuffer:
         self.communications_out = VariableBuffer(
             shape = (self.args.max_comm_len, self.args.comm_shape,), 
             args = self.args)
-        self.recommended_actions = VariableBuffer(
-            shape = (self.args.action_shape,), 
-            args = self.args)
         self.rewards = VariableBuffer(args = self.args)
         self.comm_curious = VariableBuffer(args = self.args)
         self.dones = VariableBuffer(args = self.args)
@@ -68,7 +65,6 @@ class RecurrentReplayBuffer:
             sensors,
             action, 
             communication_out, 
-            recommended_action,
             reward, 
             comm_curious,
             next_rgbd,
@@ -84,7 +80,6 @@ class RecurrentReplayBuffer:
                     self.sensors,
                     self.actions, 
                     self.communications_out, 
-                    self.recommended_actions,
                     self.rewards, 
                     self.comm_curious,
                     self.dones, 
@@ -98,7 +93,6 @@ class RecurrentReplayBuffer:
         self.sensors.push(self.episode_ptr, self.time_ptr, sensors)
         self.actions.push(self.episode_ptr, self.time_ptr, action)
         self.communications_out.push(self.episode_ptr, self.time_ptr, communication_out)
-        self.recommended_actions.push(self.episode_ptr, self.time_ptr, recommended_action)
         self.rewards.push(self.episode_ptr, self.time_ptr, reward)
         self.comm_curious.push(self.episode_ptr, self.time_ptr, comm_curious)
         self.dones.push(self.episode_ptr, self.time_ptr, done)
@@ -128,7 +122,6 @@ class RecurrentReplayBuffer:
             self.sensors.sample(indices),
             self.actions.sample(indices),
             self.communications_out.sample(indices),
-            self.recommended_actions.sample(indices),
             self.rewards.sample(indices),
             self.comm_curious.sample(indices),
             self.dones.sample(indices),

@@ -17,7 +17,7 @@ from scipy import interpolate
 from itertools import accumulate
 from statistics import mode
 
-from utils import args, duration, load_dicts, print, real_names
+from utils import args, duration, load_dicts, print
 
 print("name:\n{}\n".format(args.arg_name),)
 
@@ -223,7 +223,7 @@ def plots(plot_dicts, min_max_dict):
         action_name_list = []
         for key in plot_dict.keys():
             if(key.startswith("wins_")):
-                if(key[5:] != "free_play"):
+                if(key[5:] != "FREEPLAY"):
                     action_name_list.append(key[5:])
                     
         fig2, ax2 = plt.subplots(len(action_name_list), 2, figsize = (20, 30))
@@ -233,11 +233,15 @@ def plots(plot_dicts, min_max_dict):
         for action_name in action_name_list:
             
             def get_rolled_wins(gen = False):
-                wins = plot_dict[f"{'gen_' if gen else ''}wins_" + action_name.lower()]
+                print(f"{action_name}{', gen' if gen else ''}")
+                wins = plot_dict[f"{'gen_' if gen else ''}wins_" + action_name]
                 wins = np.array(wins)
+                print(wins.shape)
+                print(wins)
                 wins_rolled = rolling_average_with_none(wins) * 100
-                plot_dict[f"{'gen_' if gen else ''}wins_rolled_" + action_name.lower()] = wins_rolled
-                win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + action_name.lower(), levels = levels, adjust_xs = None)
+                print(wins_rolled)
+                plot_dict[f"{'gen_' if gen else ''}wins_rolled_" + action_name] = wins_rolled
+                win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + action_name, levels = levels, adjust_xs = None)
                 return(win_dict)
             
             win_dict = get_rolled_wins()
@@ -409,7 +413,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[0].set_title("Actor, Critic Losses")
         plot_other_losses(ax2[1], min_max = True)  
         ax2[1].set_title("Actor, Critic Losses, shared min/max")
-        fig2.savefig(f"thesis_pics/other_losses/actor_critic_losses_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
+        fig2.savefig(f"thesis_pics/other_losses/actor_critic_losses_{action_name}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished other losses.")
@@ -433,7 +437,6 @@ def plots(plot_dicts, min_max_dict):
         ext_dict = get_quantiles(plot_dict, "extrinsic", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         rewards_min_max = many_min_max([min_max_dict["extrinsic"], min_max_dict["intrinsic_entropy"], min_max_dict["intrinsic_curiosity"]])
         
         def plot_extrinsic_and_intrinsic_rewards(here, min_max = False):
@@ -450,11 +453,6 @@ def plots(plot_dicts, min_max_dict):
                 ax3.spines["right"].set_position(("axes", 1.08))
                 handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity", min_max_dict["intrinsic_curiosity"] if min_max else None))
                 ax3.set_ylabel("Curiosity")
-            if((imi_dict[keys[0]] != imi_dict[keys[1]]).any()):
-                ax4 = here.twinx()
-                ax4.spines["right"].set_position(("axes", 1.16))
-                handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation", min_max_dict["intrinsic_imitation"] if min_max else None))
-                ax4.set_ylabel("Imitation")
             here.legend(handles = handles)
             here.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards" + (", shared min/max" if min_max else ""))
             divide_arenas(ext_dict, here)      
@@ -468,8 +466,6 @@ def plots(plot_dicts, min_max_dict):
                 handles.append(awesome_plot(here, ent_dict, "black", "Entropy", rewards_min_max if min_max else None))
             if((cur_dict[keys[0]] != cur_dict[keys[1]]).any()):
                 handles.append(awesome_plot(here, cur_dict, "green", "Curiosity", rewards_min_max if min_max else None))
-            if((imi_dict[keys[0]] != imi_dict[keys[1]]).any()):
-                handles.append(awesome_plot(here, imi_dict, "blue", "Imitation", rewards_min_max if min_max else None))
             here.legend(handles = handles)
             here.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic Rewards, shared dims" + (", shared min/max" if min_max else ""))
             divide_arenas(ext_dict, here)

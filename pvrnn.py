@@ -9,9 +9,9 @@ from sklearn.manifold import TSNE
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
 from utils import default_args, dkl, duration, how_many_nans
-from submodule_utils import init_weights, episodes_steps, var, sample
+from utils_submodule import init_weights, episodes_steps, var, sample
 from mtrnn import MTRNN
-from submodules import RGBD_IN, Comm_IN, Sensors_IN, Obs_OUT, Action_IN, Comm_IN_GRU
+from submodules import RGBD_IN, Comm_IN, Sensors_IN, Obs_OUT, Action_IN
 
 
 
@@ -83,18 +83,18 @@ class PVRNN_LAYER(nn.Module):
         # Prior: Previous hidden state and action.  
         # Posterior: Include observation.
         self.rgbd_z = ZP_ZQ(
-            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size,
-            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size + self.args.encode_rgbd_size, 
+            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size,
+            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size + self.args.rgbd_encode_size, 
             out_features = self.args.rgbd_state_size, args = self.args)
         
         self.comm_z = ZP_ZQ(
-            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size,
-            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size + self.args.encode_comm_size, 
+            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size,
+            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size + self.args.comm_encode_size, 
             out_features = self.args.comm_state_size, args = self.args)
         
         self.sensors_z = ZP_ZQ(
-            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size,
-            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size + self.args.encode_sensors_size, 
+            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size,
+            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size + self.args.sensors_encode_size, 
             out_features = self.args.sensors_state_size, args = self.args)
                             
         # New hidden state: Previous hidden state, zq value, plus higher-layer hidden state if not top.
@@ -196,11 +196,11 @@ if __name__ == "__main__":
         with record_function("model_inference"):
             print(torch_summary(pvrnn_layer, 
                                 ((episodes, 1, args.pvrnn_mtrnn_size), 
-                                (episodes, 1, args.encode_rgbd_size),
-                                (episodes, 1, args.encode_comm_size),
-                                (episodes, 1, args.encode_sensors_size),
-                                (episodes, 1, args.encode_action_size),
-                                (episodes, 1, args.encode_comm_size))))
+                                (episodes, 1, args.rgbd_encode_size),
+                                (episodes, 1, args.comm_encode_size),
+                                (episodes, 1, args.sensors_encode_size),
+                                (episodes, 1, args.action_encode_size),
+                                (episodes, 1, args.comm_encode_size))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
 #%%
@@ -213,13 +213,13 @@ class PVRNN(nn.Module):
         self.args = args 
         
         self.rgbd_in = RGBD_IN(self.args)
-        self.comm_in = Comm_IN_GRU(self.args) if self.args.use_comm_in_gru else Comm_IN(self.args)
+        self.comm_in = Comm_IN(self.args)
         self.sensors_in = Sensors_IN(self.args)
         self.action_in = Action_IN(self.args)
-        self.comm_out_in = Comm_IN_GRU(self.args) if self.args.use_comm_in_gru else Comm_IN(self.args)
+        self.comm_out_in = Comm_IN(self.args)
 
         self.pvrnn_layer = PVRNN_LAYER(
-            self.args.time_scales[0], 
+            1, 
             args = self.args)
             
         self.predict_obs = Obs_OUT(args)
@@ -350,8 +350,6 @@ class PVRNN(nn.Module):
         
 if __name__ == "__main__":
     
-    args.layers = 1
-    args.time_scales = [1]
     
     pvrnn = PVRNN(args = args)
     
@@ -361,7 +359,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(pvrnn, 
-                                ((episodes, args.layers, args.pvrnn_mtrnn_size), 
+                                ((episodes, 1, args.pvrnn_mtrnn_size), 
                                 (episodes, steps+1, args.image_size, args.image_size, 4), 
                                 (episodes, steps+1, args.max_comm_len, args.comm_shape),
                                 (episodes, steps+1, args.sensors_shape),
@@ -381,7 +379,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(pvrnn, 
-                                ((episodes, args.layers, args.pvrnn_mtrnn_size), 
+                                ((episodes, 1, args.pvrnn_mtrnn_size), 
                                 (episodes, steps+1, args.image_size, args.image_size * 4, 4), 
                                 (episodes, steps+1, args.max_comm_len, args.comm_shape),
                                 (episodes, steps+1, args.sensors_shape),

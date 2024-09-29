@@ -1,17 +1,16 @@
 #%% 
 
 # To do: most important 
-#   Instead of either goal or free play, two comm in: Father for goal, Mother for description. 
+#   Look over episode and training. Are tensors passed step-by-step correctly? Is training with right tensors?
 #   Give actions percentage chances when making a task.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   "push" action detected at odd times. Should "left" and "right" only win when object is in gaze?
-#   Plotting sometimes shows big changes immedietely after changing epoch-list values. 
+#   Plotting sometimes shows big changes immediately after changing epoch-list values. 
 
 # To do: less important 
 #   Why the heck to win-rate plotting take SOOO LOOONG?
 #   Allow multiple layers in PVRNN.
 #   Try predicting multiple steps into the future.
-#   Training forward, actor, and critic together works, but needs fine-tuning. 
 
 import os
 import pickle
@@ -22,14 +21,12 @@ import builtins
 import datetime 
 import matplotlib
 import argparse, ast
-from math import exp, sqrt, log
-from random import choice, randint
+from math import exp
+from random import choice
 import torch
-import platform
-import torch.nn.functional as F
-#from kornia.color import rgb_to_hsv 
 import psutil
 from itertools import product
+from collections import namedtuple
 
 if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
 print(os.getcwd())
@@ -37,132 +34,6 @@ print(os.getcwd())
 torch.set_printoptions(precision=3, sci_mode=False)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#device = "cpu"
-
-action_map = {
-    -1: ["Z", "FREE_PLAY"],
-    0:  ["A", "WATCH"],
-    1:  ["B", "PUSH"],     
-    2:  ["C", "PULL"],   
-    3:  ["D", "LEFT"],   
-    4:  ["E", "RIGHT"]}    
-max_len_action_name = max([len(a[1]) for a in action_map.values()])
-action_name_list = [action[1] for action in action_map.values()]
-
-color_map = {
-    0: ["F", "RED",     (1,0,0,1)], 
-    1: ["G", "GREEN",   (0,1,0,1)],
-    2: ["H", "BLUE",    (0,0,1,1)],
-    3: ["I", "CYAN",    (0,1,1,1)], 
-    4: ["J", "PINK",    (1,0,1,1)], 
-    5: ["K", "YELLOW",  (1,1,0,1)]} 
-max_len_color_name = max([len(c[2]) for c in color_map.values()])
-color_name_list = [c[2] for c in color_map.values()]
-
-data_path = "pybullet_data"
-shape_files = [f.name for f in os.scandir(data_path + "/shapes") if f.name.endswith("urdf")] ; shape_files.sort()
-shape_num_letter_name_file = [[f.split("_")[0], f.split("_")[1], f.split("_")[2][:-5], f] for f in shape_files]
-shape_map = {int(num) : [l, n, f] for num, l, n, f in shape_num_letter_name_file} 
-max_len_shape_name = max([len(s[1]) for s in shape_map.values()])
-shape_name_list = [s[1] for s in shape_map.values()]
-
-
-
-def agent_to_english(agent_string):
-    if(agent_string == "NONE"):
-        return("NONE")
-    english_string = ""
-    for char in agent_string:
-        translated = False
-        for d in [action_map, color_map, shape_map]:
-            for val in d.values():
-                c = val[0]
-                n = val[1]
-                if(char == c and char != " "):
-                    english_string += n + " "
-                    translated = True
-        if(not translated):
-            if(char == " "):
-                english_string += "___ "
-            else:
-                english_string += f"_{char}_ "
-    english_string = english_string.strip()
-    return(english_string)
-
-
-
-comm_map = {
-    0: ' ', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G',
-    8: 'H', 9: 'I', 10: 'J', 11: 'K', 12: 'L', 13: 'M', 14: 'N',
-    15: 'O', 16: 'P', 17: 'Q', 18: 'R', 19: 'S', 20: 'T', 21: 'U',
-    22: 'V', 23: 'W', 24: 'X', 25: 'Y', 26: 'Z'}
-
-char_to_index = {v: k for k, v in comm_map.items()}
-
-all_combos = list(product(action_map.keys(), color_map.keys(), shape_map.keys()))
-training_combos = [(a, c, s) for (a, c, s) in all_combos if 
-                   a == -1 or
-                   (s in [0,1] and c in [0,1]) or
-                   (s == 0 or c == 0) or  
-                   ((s + c) % 2 == 0 and a % 2 == 0) or 
-                   ((s + c) % 2 == 1 and a % 2 == 1)]
-
-testing_combos = [combo for combo in all_combos if not combo in training_combos]
-
-def valid_color_shape(action_num, other_shape_colors, allowed_colors, allowed_shapes, test = False):
-    if(test):
-        these_combos = testing_combos
-    else:
-        these_combos = training_combos
-    these_combos = [combo for combo in these_combos if combo[0] == action_num]
-    these_combos = [(combo[1], combo[2]) for combo in these_combos if combo[1] in allowed_colors and combo[2] in allowed_shapes]
-    these_combos = [combo for combo in these_combos if not combo in other_shape_colors]
-    color_num, shape_num = choice(these_combos)
-    return(color_num, shape_num)
-
-def make_objects_and_action(num_objects, allowed_actions, allowed_colors, allowed_shapes, test = False):
-    action_num = choice(allowed_actions)
-    goal_object = valid_color_shape(action_num, [], allowed_colors, allowed_shapes, test = test)
-    colors_shapes_1 = [goal_object]
-    colors_shapes_2 = [goal_object]
-    for n in range(num_objects-1):
-        colors_shapes_1.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
-    for n in range(num_objects-1):
-        colors_shapes_2.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
-    return(action_num, colors_shapes_1, colors_shapes_2)
-
-
-
-if(__name__ == "__main__"):
-    import matplotlib.pyplot as plt
-    import matplotlib.gridspec as gridspec
-    import matplotlib.patches as patches
-    for a, action in action_map.items():
-        fig = plt.figure(figsize=(15, 15))
-        fig.suptitle(action[1])
-        gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
-        axs = []
-        for s in range(len(shape_map)):
-            row = []
-            for c in range(len(color_map)):
-                ax = fig.add_subplot(gs[s, c])
-                ax.axis('off')
-                if((a,c,s) in training_combos):
-                    rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
-                    ax.add_patch(rect)
-                color = list(color_map.values())[c][1]
-                shape = list(shape_map.values())[s][1]
-                ax.text(.5, .5, f"{color}\n{shape}", va='center', ha='center', fontsize=20)
-                row.append(ax)
-            axs.append(row)
-        for ax_2 in [axs[1][1], axs[2][2], axs[3][3], axs[4][5]]:
-            p0 = axs[0][0].get_position()
-            p1 = ax_2.get_position()
-            width, height = p1.x1 - p0.x0, p1.y0 - p0.y1
-            rect = patches.Rectangle((p0.x0, p0.y1), width, height, linewidth=5, edgecolor='black', facecolor='none')
-            fig.add_artist(rect)
-        plt.show()
-        plt.close()
 
 # Adjusting printing for computer-cluster.
 def print(*args, **kwargs):
@@ -198,6 +69,205 @@ def cpu_memory_usage():
     mem_usage_gb = mem_usage_bytes / (1024 ** 3)  # Convert bytes to gigabytes
     print('memory use:', mem_usage_gb, "gigabytes")
     
+    
+    
+#%%
+
+
+
+Action = namedtuple('Action', ['char', 'name'])
+action_map = {
+    0:  Action("A", "FREEPLAY"),
+    1:  Action("B", "WATCH"),
+    2:  Action("C", "PUSH"),
+    3:  Action("D", "PULL"),
+    4:  Action("E", "LEFT"),
+    5:  Action("F", "RIGHT")} 
+action_name_list = [a.name for a in action_map.values()]
+
+Color = namedtuple('Color', ['char', 'name', 'rgba'])
+color_map = {
+    0: Color("G", "RED",     (1,0,0,1)), 
+    1: Color("H", "GREEN",   (0,1,0,1)),
+    2: Color("I", "BLUE",    (0,0,1,1)),
+    3: Color("J", "CYAN",    (0,1,1,1)), 
+    4: Color("K", "PINK",    (1,0,1,1)), 
+    5: Color("L", "YELLOW",  (1,1,0,1))} 
+color_name_list = [c.name for c in color_map.values()]
+
+Shape = namedtuple('Shape', ['char', 'name', 'file'])
+data_path = "pybullet_data"
+shape_files = [f.name for f in os.scandir(data_path + "/shapes") if f.name.endswith("urdf")]
+shape_files.sort()
+shape_letter_name_file = [[f.split("_")[0], f.split("_")[1][:-5], f] for f in shape_files]
+shape_map = {int(num) : Shape(l, n, f) for num, (l, n, f) in enumerate(shape_letter_name_file)} 
+shape_name_list = [s.name for s in shape_map.values()]
+
+Object = namedtuple('Object', ['index', 'default_pos', 'color', 'shape'])
+Goal = namedtuple('Goal', ['action', 'color', 'shape', 'parenting'])
+Obs_Part = namedtuple("Obs_Part", ["in_func", "out_func", "encode_size", "state_size"])
+ZP_ZQ_DKL = namedtuple("ZP_ZQ_DKL", ["zp", "zq", "dkl"])
+To_Push = namedtuple('To_Push', ['rgbd', 'sensors', 'father_comm', 'mother_comm', 'action', 'comm_out', 'reward', 'next_rgbd', 'next_sensors', 'next_father_comm', 'next_mother_comm', 'done'])
+
+used_chars = list(
+                 [a.char for a in action_map.values()] +
+                 [c.char for c in color_map.values()] +
+                 [s.char for s in shape_map.values()])
+used_chars.sort()
+
+comm_map = {k: v for k, v in {
+    0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G',
+    7: 'H', 8: 'I', 9: 'J', 10: 'K', 11: 'L', 12: 'M', 13: 'N',
+    14: 'O', 15: 'P', 16: 'Q', 17: 'R', 18: 'S', 19: 'T', 20: 'U',
+    21: 'V', 22: 'W', 23: 'X', 24: 'Y', 25: 'Z'
+}.items() if v in used_chars}
+char_to_index = {v: k for k, v in comm_map.items()}
+
+
+
+if(__name__ == "__main__"):
+    print("Actions:")
+    for key, value in action_map.items():
+        print(f"\t{key} : \t {value}")
+    print("Colors:")
+    for key, value in color_map.items():
+        print(f"\t{key} : \t {value}")
+    print("Shapes:")
+    for key, value in shape_map.items():
+        print(f"\t{key} : \t {value}")
+        
+
+
+#%%
+
+
+
+def agent_to_english(agent_string):
+    if(agent_string == "NONE"):
+        return("NONE")
+    english_string = ""
+    for char in agent_string:
+        translated = False
+        for d in [action_map, color_map, shape_map]:
+            for val in d.values():
+                c = val.char
+                n = val.name
+                if(char == c and char != " "):
+                    english_string += n + " "
+                    translated = True
+        if(not translated):
+            english_string += f"_{char}_ "
+    english_string = english_string.strip()
+    return(english_string)
+
+if(__name__ == "__main__"):
+    print(agent_to_english("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+    
+    
+    
+#%%
+
+
+
+all_combos = list(product(action_map.keys(), color_map.keys(), shape_map.keys()))
+
+def train_or_test(a, c, s):
+    train = True
+    if(a == 0):
+        return(train)
+    if((s + c) % 2 == 0 and a % 2 == 0):
+        train = False 
+    if((s + c) % 2 == 1 and a % 2 == 1):
+        train = False
+    return(train)
+
+training_combos = []
+testing_combos = []
+for (a, c, s) in all_combos:
+    if(train_or_test(a, c, s)):
+        training_combos.append((a, c, s))
+    else:
+        testing_combos.append((a, c, s))
+
+
+
+if(__name__ == "__main__"):
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    import matplotlib.patches as patches
+    for a, action in action_map.items():
+        fig = plt.figure(figsize=(15, 15))
+        fig.suptitle(action.name)
+        gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
+        axs = []
+        for s in range(len(shape_map)):
+            row = []
+            for c in range(len(color_map)):
+                ax = fig.add_subplot(gs[s, c])
+                ax.axis('off')
+                if((a, c, s) in training_combos):
+                    rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
+                    ax.add_patch(rect)
+                color = list(color_map.values())[c].name
+                shape = list(shape_map.values())[s].name
+                ax.text(.5, .5, f"{color}\n{shape}", va='center', ha='center', fontsize=20)
+                row.append(ax)
+            axs.append(row)
+        plt.show()
+        plt.close()
+        
+        
+#%%
+
+def valid_color_shape(action_num, used_combos, allowed_colors, allowed_shapes, test = False):
+    if(test == None):
+        these_combos = testing_combos + training_combos
+    elif(test):
+        these_combos = testing_combos
+    else:
+        these_combos = training_combos
+    these_combos = [combo for combo in these_combos if combo[0] == action_num]
+    these_combos = [(combo[1], combo[2]) for combo in these_combos if combo[1] in allowed_colors and combo[2] in allowed_shapes]
+    these_combos = [combo for combo in these_combos if not combo in used_combos]
+    color_num, shape_num = choice(these_combos)
+    return(color_num, shape_num)
+
+def make_objects_and_action(num_objects, allowed_actions, allowed_colors, allowed_shapes, test = False):
+    action_num = choice(allowed_actions)
+    if(action_num == 0):
+        test = False
+    goal_object = valid_color_shape(action_num, [], allowed_colors, allowed_shapes, test = test)
+    colors_shapes_1 = [goal_object]
+    colors_shapes_2 = [goal_object]
+    for n in range(num_objects-1):
+        color_shape = valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test)
+        colors_shapes_1.append(color_shape)
+    for n in range(num_objects-1):
+        color_shape = valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test)
+        colors_shapes_2.append(color_shape)
+    action = action_map[action_num]
+    colors_shapes_1 = [(color_map[c], shape_map[s]) for (c, s) in colors_shapes_1]
+    colors_shapes_2 = [(color_map[c], shape_map[s]) for (c, s) in colors_shapes_2]
+    return(action, colors_shapes_1, colors_shapes_2)
+
+
+
+if(__name__ == "__main__"):
+    print("Train")
+    for i in range(1):
+        print(make_objects_and_action(2, [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4]))
+    print("\nTest")
+    for i in range(1):
+        print(make_objects_and_action(2, [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True))
+        
+    print(make_objects_and_action(1, [0], [0], [0]))
+
+
+
+#%%
+
+
+    
 # Checking robot parts.
 
 physicsClient = p.connect(p.DIRECT)
@@ -211,6 +281,13 @@ for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsCli
         sensors.append(link_name)
 p.disconnect(physicsClientId = physicsClient)
 num_sensors = len(sensors)
+
+if(__name__ == "__main__"):
+    print("Sensors:", num_sensors)
+
+
+
+#%%
 
 
 
@@ -245,33 +322,11 @@ parser.add_argument('--save_agents',                    type=literal,       defa
 parser.add_argument('--load_agents',                    type=literal,       default = False,
                     help='Are we loading agents?')    
 
-    # Things which have list-values.
-parser.add_argument('--task_list',                      type=literal,       default = ["fp5", "w5", "wpulr5"],
-                    help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
-                    help='List of how many epochs to train in each task.')
-parser.add_argument('--time_scales',                    type=literal,       default = [1],
-                    help='Time-scales for upper MTRNN.')
-parser.add_argument("--beta",                           type=literal,       default = [2],
-                    help='Relative importance of complexity in each upper layer.')
-parser.add_argument("--hidden_state_eta",               type=literal,       default = [5],
-                    help='Nonnegative values, how much to consider hidden_state curiosity in each upper layer.') 
-
-    # Simulation details
-parser.add_argument('--cube_objects',                   type=literal,       default = False,
-                    help='How large is the agent\'s body?')    
-parser.add_argument('--min_object_separation',          type=float,         default = 3,
-                    help='How far objects must start from each other.')
-parser.add_argument('--max_object_distance',            type=float,         default = 6,
-                    help='How far objects can start from the agent.')
-parser.add_argument('--object_size',                    type=float,         default = 2,
-                    help='How large is the agent\'s body?')    
+    # Simulation details   
 parser.add_argument('--body_size',                      type=float,         default = 2,
                     help='How large is the agent\'s body?')    
-parser.add_argument('--two_arms',                       type=literal,       default = True,
-                    help='Does the agent have two arms instead of one?')  
-parser.add_argument('--shoulder_binary',                type=literal,       default = True,
-                    help='Do agent shoulders only have two speeds?')      
+parser.add_argument('--object_size',                    type=float,         default = 2,
+                    help='How large is the are objects?') 
 parser.add_argument('--time_step',                      type=float,         default = .2,
                     help='numSubSteps in pybullet environment.')
 parser.add_argument('--steps_per_step',                 type=int,           default = 20,
@@ -280,6 +335,8 @@ parser.add_argument('--steps_per_step',                 type=int,           defa
     # Agent details
 parser.add_argument('--image_size',                     type=int,           default = 16, #20,
                     help='Dimensions of the images observed.')
+parser.add_argument('--max_comm_len',                   type=int,           default = 3,
+                    help='Maximum length of communication.')
 parser.add_argument('--max_speed',                      type=float,         default = 10,
                     help='Max wheel speed.')
 parser.add_argument('--angular_scaler',                 type=float,         default = .4,
@@ -290,6 +347,10 @@ parser.add_argument('--max_shoulder_angle',             type=float,         defa
                     help='Agent\'s maximum shoulder velocity.')
 parser.add_argument('--max_shoulder_speed',             type=float,         default = 8,
                     help='Max shoulder speed.')
+parser.add_argument('--silent_mother',                  type=literal,       default = False,
+                    help='Is the mother always silent? (No language-based curiosity.)')
+parser.add_argument('--silent_mother_outside_free_play',                  type=literal,       default = False,
+                    help='Is the mother silent outside free-play? (No language-based curiosity.)')
 
     # Task details
 parser.add_argument('--reward',                         type=float,         default = 10,
@@ -298,24 +359,8 @@ parser.add_argument('--max_steps',                      type=int,           defa
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
                     help='Extrinsic punishment for taking max_steps steps.')
-parser.add_argument('--wrong_object_punishment',        type=float,         default = 0,
-                    help='Extrinsic punishment for choosing any action with wrong object.') 
-parser.add_argument('--free_play_reward',               type=float,         default = 0,
-                    help='Extrinsic reward for performing any action in free play.') 
-parser.add_argument('--free_play_reward_dist',          type=literal,       default = False,
-                    help='Add distance and anglular rewards for free play?') 
 parser.add_argument('--step_cost',                      type=float,         default = .975,
-                    help='How much extrinsic rewards for exiting are reduced per step.')
-parser.add_argument('--actions',                        type=int,           default = 5,
-                    help='Maximum count of actions in one episode.')
-parser.add_argument('--objects',                        type=int,           default = 2,
-                    help='Maximum count of objects in one episode.')
-parser.add_argument('--shapes',                         type=int,           default = 3, # 5,
-                    help='Maximum count of shapes in one episode.')
-parser.add_argument('--colors',                         type=int,           default = 6,
-                    help='Maximum count of colors in one episode.')
-parser.add_argument('--max_comm_len',                   type=int,           default = 3,
-                    help='Maximum length of communication.')
+                    help='How positive extrinsic rewards are reduced per step.')
 parser.add_argument('--watch_distance',                 type=float,         default = 8,
                     help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--watch_duration',                 type=int,           default = 3,
@@ -327,51 +372,31 @@ parser.add_argument('--pull_amount',                    type=float,         defa
 parser.add_argument('--left_right_amount',              type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
 
-    # Rewards for distances
-parser.add_argument('--dist_reward',                    type=float,         default = 0,    # Works with 0, but much faster like this
-                    help='Give agents a reward just for getting close to the correct object.')
-parser.add_argument('--dist_reward_min',                type=float,         default = 3.5,
-                    help='If agent closer to correct object that this, rewarded.')
-parser.add_argument('--dist_reward_max',                type=float,         default = 5.5,
-                    help='If agent farther to correct object that this, punished. If agent between min and max, agent relatively rewarded.')
-
-    # Rewards for angles
-parser.add_argument('--angle_reward',                   type=float,         default = 0,    # Not very important
-                    help='Give agents a reward just for pointing at the right object.')
-parser.add_argument('--angle_reward_min',               type=float,         default = 15,
-                    help='If agent pointing at correct object that this, rewarded.')
-parser.add_argument('--angle_reward_max',               type=float,         default = 90,
-                    help='If agent pointing farther from correct object that this, punished. If angle between min and max, agent relatively rewarded.')
-
     # Training
+parser.add_argument('--tasks_epochs',                   type=literal,       default = [("f", 10000), ("w", 5000), ("wpulr", 30000)],
+                    help='Agents perform these tasks for these numbers of episodes.')
 parser.add_argument('--capacity',                       type=int,           default = 256,
-                    help='How many episodes can the memory buffer contain.')
+                    help='How many episodes the recurrent memory buffer can contain.')
 parser.add_argument('--batch_size',                     type=int,           default = 32, 
                     help='How many episodes are sampled for each epoch.')      
 parser.add_argument('--rgbd_scaler',                    type=float,         default = 5, 
-                    help='How much to consider rgbd prediction in accuracy compared to comm and sensors.')  
-parser.add_argument('--comm_scaler',                    type=float,         default = 3, 
-                    help='How much to consider comm prediction in accuracy compared to rgbd and sensors.')       
+                    help='How much to consider rgbd prediction in accuracy.')  
 parser.add_argument('--sensors_scaler',                 type=float,         default = .3, 
-                    help='How much to consider sensors prediction in accuracy compared to rgbd and comm.')   
-parser.add_argument('--weight_decay',                   type=float,         default = .00001,
-                    help='Weight decay for modules.')       
+                    help='How much to consider sensors prediction in accuracy.')   
+parser.add_argument('--father_comm_scaler',             type=float,         default = 3, 
+                    help='How much to consider comm prediction in accuracy.')       
+parser.add_argument('--mother_comm_scaler',             type=float,         default = 3, 
+                    help='How much to consider comm prediction in accuracy.')       
 parser.add_argument('--lr',                             type=float,         default = .0003,
                     help='Learning rate.')
+parser.add_argument('--weight_decay',                   type=float,         default = .00001,
+                    help='Weight decay for modules.')       
 parser.add_argument('--critics',                        type=int,           default = 2,
                     help='How many critics?')  
-parser.add_argument('--train_together',                 type=literal,       default = False,
-                    help='Training forward/actor/critics together, or separately?') 
-parser.add_argument('--forward_scaler',                 type=float,         default = 1, 
-                    help='If forward/actor/critic loss are combined, consideration of forward.')  
-parser.add_argument('--actor_scaler',                   type=float,         default = 1, 
-                    help='If forward/actor/critic loss are combined, consideration of actor.')  
-parser.add_argument('--critic_scaler',                  type=float,         default = 1, 
-                    help='If forward/actor/critic loss are combined, consideration of critic.')  
 parser.add_argument("--tau",                            type=float,         default = .1,
                     help='Rate at which target-critics approach critics.')      
 parser.add_argument('--GAMMA',                          type=float,         default = .9,
-                    help='How heavily critics consider the future.')
+                    help='How heavily bellman equations consider the future.')
 parser.add_argument("--d",                              type=int,           default = 2,
                     help='Delay for training actors.') 
 
@@ -380,50 +405,49 @@ parser.add_argument('--hidden_size',                    type=int,           defa
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,
                     help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
+parser.add_argument('--action_encode_size',             type=int,           default = 8,
+                    help='Parameters in encoding action.')   
+parser.add_argument('--mtrnn_sigmoid',                  type=literal,       default = True,
+                    help='Should mtrnn use sigmoid or tanh?')   
+
 parser.add_argument('--rgbd_state_size',                type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--comm_state_size',                type=int,           default = 128,
-                    help='Parameters in prior and posterior inner-states.')
+parser.add_argument('--rgbd_encode_size',               type=int,           default = 128,
+                    help='Parameters in encoding image.')   
+
 parser.add_argument('--sensors_state_size',             type=int,           default = num_sensors,
                     help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--encode_char_size',               type=int,           default = 8,
-                    help='Parameters in encoding.')   
-parser.add_argument('--encode_rgbd_size',               type=int,           default = 128,
-                    help='Parameters in encoding image.')   
-parser.add_argument('--encode_comm_size',               type=int,           default = 128,
-                    help='Parameters in encoding communicaiton.')   
-parser.add_argument('--encode_sensors_size',            type=int,           default = num_sensors,
+parser.add_argument('--sensors_encode_size',            type=int,           default = num_sensors,
                     help='Parameters in encoding sensors, angles, speed.')   
-parser.add_argument('--encode_action_size',             type=int,           default = 8,
-                    help='Parameters in encoding action.')   
-parser.add_argument('--use_comm_in_gru',                type=literal,       default = True,  
-                    help='Use comm_in model with gru, or not?')   
+
+parser.add_argument('--comm_state_size',                type=int,           default = 128,
+                    help='Parameters in prior and posterior inner-states.')
+parser.add_argument('--comm_encode_size',               type=int,           default = 128,
+                    help='Parameters in encoding communicaiton.')   
+parser.add_argument('--char_encode_size',               type=int,           default = 8,
+                    help='Parameters in encoding individual characters.')   
+
 parser.add_argument('--dropout',                        type=float,         default = .001,
                     help='Dropout percentage.')
-parser.add_argument('--use_hsv',                        type=literal,       default = False,
-                    help='Should RGBD_In use hsv?')   
-parser.add_argument('--use_trig_pos',                   type=literal,       default = False,
-                    help='Use trigonometric positions, or linear?') 
-parser.add_argument('--pos_channels',                   type=int,           default = 0,
-                    help='How many channels for positions in rgbd?')   
 parser.add_argument('--divisions',                      type=int,           default = 2,
                     help='How many times should RBGD_Out double size to image-size?')
 parser.add_argument('--half',                           type=literal,       default = True,
                     help='Should the models use float16 instead of float32?')      
 
     # Entropy
+parser.add_argument("--normal_alpha",                   type=float,         default = .1,
+                    help='Nonnegative value, how much to consider policy prior.') 
 parser.add_argument("--alpha",                          type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
 parser.add_argument("--target_entropy",                 type=float,         default = -1,
                     help='Target for choosing alpha if alpha set to None. Recommended: negative size of action-space.')      
+
+parser.add_argument("--normal_alpha_text",                   type=float,         default = 0,
+                    help='Nonnegative value, how much to consider policy prior.') 
 parser.add_argument("--alpha_text",                     type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy regarding communication. Set to None to use target_entropy_text.')        
 parser.add_argument("--target_entropy_text",            type=float,         default = -2,
                     help='Target for choosing alpha_text if alpha_text set to None. Recommended: negative size of action-space.')      
-parser.add_argument('--action_prior',                   type=str,           default = "normal",
-                    help='The actor can be trained based on normal or uniform distributions.')
-parser.add_argument("--normal_alpha",                   type=float,         default = 0,
-                    help='Nonnegative value, how much to consider policy prior.') 
 
     # Complexity 
 parser.add_argument('--std_min',                        type=int,           default = exp(-20),
@@ -432,36 +456,38 @@ parser.add_argument('--std_max',                        type=int,           defa
                     help='Maximum value for standard deviation.')
 parser.add_argument("--beta_rgbd",                      type=float,         default = .03,
                     help='Relative importance of complexity for rgbd.')
-parser.add_argument("--beta_comm",                      type=float,         default = .06,
-                    help='Relative importance of complexity for comm.')
 parser.add_argument("--beta_sensors",                   type=float,         default = .3,
                     help='Relative importance of complexity for sensors.')     
+parser.add_argument("--beta_father_comm",                      type=float,         default = .06,
+                    help='Relative importance of complexity for father\'s communication.')
+parser.add_argument("--beta_mother_comm",                      type=float,         default = .06,
+                    help='Relative importance of complexity for mother\'s communication.')
 
     # Curiosity
 parser.add_argument("--curiosity",                      type=str,           default = "none",
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
 parser.add_argument("--dkl_max",                        type=float,         default = 1,
-                    help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')  
-parser.add_argument('--selective_comm_curiosity',       type=literal,       default = False,
-                    help='Should comm_curiosity be removed when comm_in is constant?')           
+                    help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')         
 
 parser.add_argument("--prediction_error_eta_rgbd",      type=float,         default = .3,
                     help='Nonnegative value, how much to consider prediction_error curiosity for rgbd.')    
-parser.add_argument("--prediction_error_eta_comm",      type=float,         default = 1,
-                    help='Nonnegative value, how much to consider prediction_error curiosity for comm.')    
-parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = .03,
-                    help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')    
-
 parser.add_argument("--hidden_state_eta_rgbd",          type=float,         default = .3,
                     help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
-parser.add_argument("--hidden_state_eta_comm",          type=float,         default = 1,
-                    help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
+
+parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = .03,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')    
 parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = .03,
                     help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')   
- 
-    # Imitation
-parser.add_argument("--delta",                          type=float,         default = 0,
-                    help='How much to consider action\'s similarity to recommended action.')  
+
+parser.add_argument("--prediction_error_eta_father_comm",      type=float,         default = 1,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for father\'s communication.')   
+parser.add_argument("--hidden_state_eta_father_comm",          type=float,         default = 1,
+                    help='Nonnegative values, how much to consider hidden_state curiosity for father\'s communication.') 
+
+parser.add_argument("--prediction_error_eta_mother_comm",      type=float,         default = 1,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for mother\'s communication.')   
+parser.add_argument("--hidden_state_eta_mother_comm",          type=float,         default = 1,
+                    help='Nonnegative values, how much to consider hidden_state curiosity for mother\'s communication.') 
 
     # Saving data
 parser.add_argument('--keep_data',                      type=int,           default = 250,
@@ -482,9 +508,9 @@ parser.add_argument('--epochs_per_agent_list',          type=int,           defa
 parser.add_argument('--agents_per_agent_list',          type=int,           default = 3,
                     help='How many agents to save.') 
 
-parser.add_argument('--epochs_per_lda_transform',        type=int,           default = 2500,
+parser.add_argument('--epochs_per_values_for_composition',        type=int,           default = 5000,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_lda_transform',       type=int,           default = 1,
+parser.add_argument('--agents_per_values_for_composition',       type=int,           default = 1,
                     help='How many agents to save episodes.')
 
 try:
@@ -506,21 +532,14 @@ for arg_set in [default_args, args]:
     if(arg_set.comp == "deigo"):
         arg_set.half = False
     arg_set.steps_per_epoch = arg_set.max_steps
-    arg_set.object_shape = arg_set.shapes + arg_set.colors
     arg_set.comm_shape = len(comm_map)
     arg_set.sensors_shape = num_sensors
     arg_set.sensor_names = sensors
-    arg_set.action_shape = 4 if arg_set.two_arms else 3
-    arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size + arg_set.encode_sensors_size
-    arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.encode_action_size
-    max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
-    arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)
-    arg_set.beta = extend_list_to_match_length(arg_set.beta, max_length, 0)
-    arg_set.hidden_state_eta = extend_list_to_match_length(arg_set.hidden_state_eta, max_length, 0)
-    arg_set.layers = len(arg_set.time_scales)
-    if(arg_set.use_trig_pos):
-        arg_set.pos_channels = 2
-        
+    arg_set.action_shape = 4
+    arg_set.complete_action_encode_size = arg_set.action_encode_size + arg_set.comm_encode_size
+    arg_set.encode_obs_size = arg_set.rgbd_encode_size + arg_set.sensors_encode_size + 2 * arg_set.comm_encode_size
+    arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.action_encode_size # + arg_set.complete_action_encode_size
+
 args_not_in_title = ["arg_title", "id", "agents", "previous_agents", "init_seed", "keep_data", "epochs_per_pred_list", "episodes_in_pred_list", "agents_per_pred_list", "epochs_per_pos_list", "episodes_in_pos_list", "agents_per_pos_list"]
 def get_args_title(default_args, args):
     if(args.arg_title[:3] == "___"): return(args.arg_title)
@@ -576,26 +595,30 @@ else:
             print("{}:\n\tDefault:\t{}\n\tThis time:\t{}".format(arg, default, this_time))
         elif(arg == "device"):
             print("{}:\n\tDefault:\t{}\n\tThis time:\t{}".format(arg, default, this_time))
+            
+            
+            
+#%%
 
-
-# For printing tensors as what they represent.
-def string_to_onehots(s):
-    s = ''.join([char.upper() if char.upper() in char_to_index else ' ' for char in s])
-    onehots = []
-    for char in s:
-        tensor = torch.zeros(len(comm_map))
-        tensor[char_to_index[char]] = 1
-        onehots.append(tensor.unsqueeze(0))
-    onehots = torch.cat(onehots, dim = 0)
-    return onehots
+def action_to_string(action):
+    while(len(action.shape) > 1):
+        action = action.squeeze(0)
+    string = "Left Wheel: {} ".format(round(action[0].item(),2))
+    string += "Right Wheel: {} ".format(round(action[1].item(),2))
+    string += "Left Shoulder: {} ".format(round(action[2].item(),2))
+    string += "Right Shoulder: {} ".format(round(action[3].item(),2))
+    return(string)
 
 def onehots_to_string(onehots):
     if(onehots == None):
         return("NONE")
     string = ''
     for tensor in onehots:
-        index = torch.argmax(tensor).item()
-        string += comm_map[index]
+        if(torch.all(tensor == 0)):
+            string += "A"
+        else:
+            index = torch.argmax(tensor).item()
+            string += comm_map[index]
     return string
 
 def many_onehots_to_strings(onehots):
@@ -605,15 +628,69 @@ def many_onehots_to_strings(onehots):
         return onehots_to_string(onehots)
     else:  
         return [many_onehots_to_strings(sub_tensor) for sub_tensor in onehots]
+    
+def string_to_onehots(s):
+    s = ''.join([char.upper() if char.upper() in char_to_index else 'A' for char in s])
+    onehots = []
+    for char in s:
+        tensor = torch.zeros(len(comm_map))
+        index = char_to_index[char]
+        tensor[index] = 1
+        onehots.append(tensor.unsqueeze(0))
+    onehots = torch.cat(onehots, dim = 0)
+    return onehots
 
-def action_to_string(action):
-    while(len(action.shape) > 1):
-        action = action.squeeze(0)
-    string = "Left Wheel: {} ".format(round(action[0].item(),2))
-    string += "Right Wheel: {} ".format(round(action[1].item(),2))
-    string += "Shoulder: {} ".format(round(action[2].item(),2))
-    return(string)
+def strings_to_human(strings):
+    human_strings = []
+    for s in strings:
+        human_s = ""
+        for c in s:
+            known = False
+            for d in [action_map, color_map, shape_map]:
+                for val in d.values():
+                    if val.char == c:
+                        known = True
+                        human_s += val.name + " "
+            if(not known):
+                human_s += f"_{c}_ "
+        human_strings.append(human_s[:-1])
+    return(human_strings)
 
+def goal_to_onehots(goal):
+    if(goal.action.name == "FREEPLAY"):
+        string = "AAA"
+    else:    
+        string = goal.action.char + goal.color.char + goal.shape.char
+    return(string_to_onehots(string))
+
+def goal_to_human(goal):
+    string = goal.action.char + goal.color.char + goal.shape.char
+    if(string[0] == "AAA"):
+        for_human = "silent"
+    else:
+        for_human = strings_to_human([string][0])
+    return(for_human)
+
+
+
+if(__name__ == "__main__"):
+    action = torch.tensor((0, 0, 0, 0))
+    print("Action to string:", action_to_string(action))
+    
+    onehots = string_to_onehots("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    print("String to onehots:", onehots)
+    
+    many_onehots = torch.stack([onehots, onehots, onehots], dim = 0)
+    strings = many_onehots_to_strings(many_onehots)
+    print("Many onehots to strings:", strings)
+    
+    human_strings = strings_to_human(strings)
+    print("Strings to human:", human_strings)
+
+
+
+#%%
+        
 
 
 # Functions for relative value of actor-output to actions.
@@ -638,39 +715,6 @@ def how_many_nans(tensor, place = "tensor"):
         print(f'nans in {place}: \t{nan_count}.')
 
 
-def extract_and_concatenate(tensor, expected_len):
-    episodes, steps, _ = tensor.shape
-    all_indices = []
-    for episode in range(episodes):
-        episode_indices = []
-        for step in range(steps):
-            ones_indices = tensor[episode, step].nonzero(as_tuple=True)[0]
-            if(ones_indices.shape[0] < expected_len):
-                ones_indices = torch.zeros((expected_len,)).int()
-            episode_indices.append(ones_indices)
-        episode_tensor = torch.stack(episode_indices)
-        all_indices.append(episode_tensor)
-    final_tensor = torch.stack(all_indices, dim=0)
-    return final_tensor
-    
-def attach_list(tensor_list, device):
-    updated_list = []
-    for tensor in tensor_list:
-        if isinstance(tensor, list):
-            updated_sublist = [t.to(device) if t.device != device else t for t in tensor]
-            updated_list.append(updated_sublist)
-        else:
-            updated_tensor = tensor.to(device) if tensor.device != device else tensor
-            updated_list.append(updated_tensor)
-    return updated_list
-
-def detach_list(l): 
-    return([element.detach() for element in l])
-    
-def memory_usage(device):
-    print(device, ":", platform.node(), torch.cuda.memory_allocated(device), "out of", torch.cuda.max_memory_allocated(device))
-    
-    
 
 def dkl(mu_1, std_1, mu_2, std_2):
     std_1 = std_1**2
@@ -683,57 +727,6 @@ def dkl(mu_1, std_1, mu_2, std_2):
     return(out)
     
     
-    
-def calculate_similarity(recommended_actions, actor_actions):
-    similarities = -F.mse_loss(recommended_actions, actor_actions, reduction='none').mean(-1)
-    return similarities
-
-
-
-
-
-
-
-
-# For loading and plotting in final files.
-real_names = {
-    "d"  : "No Entropy, No Curiosity",
-    "e"  : "Entropy",
-    "n"  : "Prediction Error Curiosity",
-    "f"  : "Hidden State Curiosity",
-    "i"  : "Imitation",
-    "en" : "Entropy and Prediction Error Curiosity",
-    "ef" : "Entropy and Hidden State Curiosity",
-    "ei" : "Entropy and Imitation",
-    "ni" : "Prediction Error Curiosity and Imitation",
-    "fi" : "Hidden State Curiosity and Imitation",
-    "eni" : "Entropy, Prediction Error Curiosity, and Imitation",
-    "efi" : "Entropy, Hidden State Curiosity, and Imitation"}
-
-def add_this(name):
-    keys, values = [], []
-    for key, value in real_names.items(): keys.append(key) ; values.append(value)
-    for key, value in zip(keys, values):  
-        new_key = key + "_" + name 
-        real_names[new_key] = value
-add_this("hard")
-add_this("many")
-
-short_real_names = {
-    "d"  : "N",
-    "e"  : "E",
-    "n"  : "P",
-    "f"  : "H",
-    "i"  : "I",
-    "en" : "EP",
-    "ef" : "EH",
-    "ei" : "EI",
-    "ni" : "PI",
-    "fi" : "HI",
-    "eni" : "EPI",
-    "efi" : "EHI"}
-
-
 
 def load_dicts(args):
     if(os.getcwd().split("/")[-1] != save_file): os.chdir(save_file)
@@ -762,7 +755,7 @@ def load_dicts(args):
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():
-        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
+        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "values_for_composition", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
             if(key == "hidden_state"):
                 min_maxes = []
                 for layer in range(len(min_max_dicts[0][key])):
