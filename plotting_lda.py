@@ -10,7 +10,7 @@ print("name:\n{}\n".format(args.arg_name),)
 
 dpi = 50
 
-action_names = ['WATCH', 'PUSH', 'PULL', 'LEFT', 'RIGHT']
+action_names = ['FREEPLAY', 'WATCH', 'PUSH', 'PULL', 'LEFT', 'RIGHT']
 color_names = ['RED', 'GREEN', 'BLUE', 'CYAN', 'PINK', 'YELLOW']
 shape_names = ['PILLAR', 'POLE', 'DUMBBELL', 'DELTA', 'HOURGLASS']
 
@@ -82,9 +82,9 @@ def plot_interactive_3d(plot_dict, file_name="lda_plot.html"):
                     scene=dict(
                         xaxis=dict(
                             title='Actions', 
-                            tickvals=[0, 1, 2, 3, 4],  # Corresponding numeric values
+                            tickvals=[0, 1, 2, 3, 4, 5],  # Corresponding numeric values
                             ticktext=action_names,          # Corresponding action labels
-                            range=[-1, 5]
+                            range=[-1, 6]
                         ),
                         yaxis=dict(
                             title='Colors', 

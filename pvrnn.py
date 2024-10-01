@@ -83,18 +83,18 @@ class PVRNN_LAYER(nn.Module):
         # Prior: Previous hidden state and action.  
         # Posterior: Include observation.
         self.rgbd_z = ZP_ZQ(
-            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size,
-            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size + self.args.rgbd_encode_size, 
+            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.complete_action_encode_size,
+            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.complete_action_encode_size + self.args.rgbd_encode_size, 
             out_features = self.args.rgbd_state_size, args = self.args)
         
         self.comm_z = ZP_ZQ(
-            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size,
-            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size + self.args.comm_encode_size, 
+            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.complete_action_encode_size,
+            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.complete_action_encode_size + self.args.comm_encode_size, 
             out_features = self.args.comm_state_size, args = self.args)
         
         self.sensors_z = ZP_ZQ(
-            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size,
-            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size + self.args.sensors_encode_size, 
+            zp_in_features = self.args.pvrnn_mtrnn_size + self.args.complete_action_encode_size,
+            zq_in_features = self.args.pvrnn_mtrnn_size + self.args.complete_action_encode_size + self.args.sensors_encode_size, 
             out_features = self.args.sensors_state_size, args = self.args)
                             
         # New hidden state: Previous hidden state, zq value, plus higher-layer hidden state if not top.

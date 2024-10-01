@@ -32,28 +32,31 @@ class RecurrentReplayBuffer:
         self.max_episode_len = self.args.max_steps
         self.num_episodes = 0
 
-        self.rgbds = VariableBuffer(
+        self.rgbd = VariableBuffer(
             shape = (self.args.image_size, self.args.image_size, 4), 
-            before_and_after = True, 
-            args = self.args)
-        self.communications_in = VariableBuffer(
-            shape = (self.args.max_comm_len, self.args.comm_shape,), 
             before_and_after = True, 
             args = self.args)
         self.sensors = VariableBuffer(
             shape = (self.args.sensors_shape,), 
             before_and_after = True, 
             args = self.args)
-        self.actions = VariableBuffer(
+        self.father_comm_in = VariableBuffer(
+            shape = (self.args.max_comm_len, self.args.comm_shape,), 
+            before_and_after = True, 
+            args = self.args)
+        self.mother_comm_in = VariableBuffer(
+            shape = (self.args.max_comm_len, self.args.comm_shape,), 
+            before_and_after = True, 
+            args = self.args)
+        self.action = VariableBuffer(
             shape = (self.args.action_shape,), 
             args = self.args)
-        self.communications_out = VariableBuffer(
+        self.comm_out = VariableBuffer(
             shape = (self.args.max_comm_len, self.args.comm_shape,), 
             args = self.args)
-        self.rewards = VariableBuffer(args = self.args)
-        self.comm_curious = VariableBuffer(args = self.args)
-        self.dones = VariableBuffer(args = self.args)
-        self.masks = VariableBuffer(args = self.args)
+        self.reward = VariableBuffer(args = self.args)
+        self.done = VariableBuffer(args = self.args)
+        self.mask = VariableBuffer(args = self.args)
 
         self.episode_ptr = 0
         self.time_ptr = 0
@@ -61,48 +64,53 @@ class RecurrentReplayBuffer:
     def push(
             self, 
             rgbd,
-            communication_in, 
             sensors,
+            father_comm_in, 
+            mother_comm_in,
             action, 
-            communication_out, 
+            comm_out, 
             reward, 
-            comm_curious,
             next_rgbd,
-            next_communication_in, 
             next_sensors,
+            next_father_comm_in, 
+            next_mother_comm_in,
             done):
         
                 
         if self.time_ptr == 0:
             for buffer in [
-                    self.rgbds,
-                    self.communications_in, 
+                    self.rgbd,
                     self.sensors,
-                    self.actions, 
-                    self.communications_out, 
-                    self.rewards, 
-                    self.comm_curious,
-                    self.dones, 
-                    self.masks]:
+                    self.father_comm_in, 
+                    self.mother_comm_in,
+                    self.action, 
+                    self.comm_out, 
+                    self.reward, 
+                    self.done, 
+                    self.mask]:
                 buffer.reset_episode(self.episode_ptr)
 
-        communication_in = pad_zeros(communication_in, self.args.max_comm_len)
-        next_communication_in = pad_zeros(next_communication_in, self.args.max_comm_len)
-        self.rgbds.push(self.episode_ptr, self.time_ptr, rgbd)
-        self.communications_in.push(self.episode_ptr, self.time_ptr, communication_in)
+        father_comm_in = pad_zeros(father_comm_in, self.args.max_comm_len)
+        mother_comm_in = pad_zeros(mother_comm_in, self.args.max_comm_len)
+        next_father_comm_in = pad_zeros(next_father_comm_in, self.args.max_comm_len)
+        next_mother_comm_in = pad_zeros(next_mother_comm_in, self.args.max_comm_len)
+        
+        self.rgbd.push(self.episode_ptr, self.time_ptr, rgbd)
         self.sensors.push(self.episode_ptr, self.time_ptr, sensors)
-        self.actions.push(self.episode_ptr, self.time_ptr, action)
-        self.communications_out.push(self.episode_ptr, self.time_ptr, communication_out)
-        self.rewards.push(self.episode_ptr, self.time_ptr, reward)
-        self.comm_curious.push(self.episode_ptr, self.time_ptr, comm_curious)
-        self.dones.push(self.episode_ptr, self.time_ptr, done)
-        self.masks.push(self.episode_ptr, self.time_ptr, 1.0)
+        self.father_comm_in.push(self.episode_ptr, self.time_ptr, father_comm_in)
+        self.mother_comm_in.push(self.episode_ptr, self.time_ptr, mother_comm_in)
+        self.action.push(self.episode_ptr, self.time_ptr, action)
+        self.comm_out.push(self.episode_ptr, self.time_ptr, comm_out)
+        self.reward.push(self.episode_ptr, self.time_ptr, reward)
+        self.done.push(self.episode_ptr, self.time_ptr, done)
+        self.mask.push(self.episode_ptr, self.time_ptr, 1.0)
 
         self.time_ptr += 1
         if done or self.time_ptr >= self.max_episode_len:
-            self.rgbds.push(self.episode_ptr, self.time_ptr, next_rgbd)
-            self.communications_in.push(self.episode_ptr, self.time_ptr, next_communication_in)
+            self.rgbd.push(self.episode_ptr, self.time_ptr, next_rgbd)
             self.sensors.push(self.episode_ptr, self.time_ptr, next_sensors)
+            self.father_comm_in.push(self.episode_ptr, self.time_ptr, next_father_comm_in)
+            self.mother_comm_in.push(self.episode_ptr, self.time_ptr, next_mother_comm_in)
             self.episode_ptr = (self.episode_ptr + 1) % self.capacity
             self.time_ptr = 0
             self.num_episodes = min(self.num_episodes + 1, self.capacity)
@@ -117,13 +125,13 @@ class RecurrentReplayBuffer:
         else:
             indices = [i for i in range(batch_size)]
         batch = (
-            self.rgbds.sample(indices),
-            self.communications_in.sample(indices),
+            self.rgbd.sample(indices),
             self.sensors.sample(indices),
+            self.father_comm_in.sample(indices),
+            self.mother_comm_in.sample(indices),
             self.actions.sample(indices),
-            self.communications_out.sample(indices),
-            self.rewards.sample(indices),
-            self.comm_curious.sample(indices),
-            self.dones.sample(indices),
-            self.masks.sample(indices))
+            self.comm_out.sample(indices),
+            self.reward.sample(indices),
+            self.done.sample(indices),
+            self.mask.sample(indices))
         return batch

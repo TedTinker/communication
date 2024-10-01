@@ -56,7 +56,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
     
     data.append(["Goal", [episode_dict["goal"]], .1])
     if not step == 0:
-        data.append(["Acheived Goal", [episode_dict[f"which_goal_message_{agent_num}"][step-1]], .1])
+        data.append(["Mother Comm", [episode_dict[f"mother_comm_{agent_num}"][step-1]], .1])
         
     data.append(["Bird's Eye View", [episode_dict[f"birds_eye_{agent_num}"][step], "image"], 1])
     
@@ -74,7 +74,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
             [episode_dict[f"prior_predicted_rgbds_{agent_num}"][step-1], "image"],
             [episode_dict[f"posterior_predicted_rgbds_{agent_num}"][step-1], "image"], 1])
         data.append(
-            [f"Comm_In ({agent_num})",
+            [f"father_comm ({agent_num})",
             [episode_dict[f"comms_in_{agent_num}"][step]],
             ["\n\n" + episode_dict[f"prior_predicted_comms_in_{agent_num}"][step-1]],
             ["\n\n\n\n" + episode_dict[f"posterior_predicted_comms_in_{agent_num}"][step-1]], .3])

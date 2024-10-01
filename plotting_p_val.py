@@ -10,7 +10,11 @@ from utils import args, duration, load_dicts
 print("name:\n{}".format(args.arg_name))
     
     
-
+    
+print(os.getcwd())
+    
+    
+os.chdir("saved_deigo")
 try: os.mkdir("thesis_pics/p_values")
 except: pass
 
@@ -26,7 +30,7 @@ for plot_dict in plot_dicts:
 action_names = []
 for key in plot_dicts[0].keys():
     if(key.startswith("wins_")):
-        if(key[5:] != "free_play"):
+        if(key[5:] != "FREEPLAY"):
             action_names.append(key[5:])
             
 for plot_dict in plot_dicts:
@@ -34,15 +38,15 @@ for plot_dict in plot_dicts:
 
     # Final win-rates                 
     for action_name in action_names:
-        wins = plot_dict["wins_" + action_name.lower()]
+        wins = plot_dict["wins_" + action_name]
         wins = np.array(wins)
         wins = wins[:,-1]
-        values_to_plot[args.arg_name]["wins_" + action_name.lower()] = wins
+        values_to_plot[args.arg_name]["wins_" + action_name] = wins
         
-        gen_wins = plot_dict["gen_wins_" + action_name.lower()]
+        gen_wins = plot_dict["gen_wins_" + action_name]
         gen_wins = np.array(gen_wins)  
         gen_wins = gen_wins[:,-1]
-        values_to_plot[args.arg_name]["gen_wins_" + action_name.lower()] = wins
+        values_to_plot[args.arg_name]["gen_wins_" + action_name] = wins
         
     # Rewards
     rewards = plot_dict["rewards"]

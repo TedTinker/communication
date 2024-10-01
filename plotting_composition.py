@@ -23,8 +23,10 @@ lda_shape = LDA(n_components = len(shape_names) - 1)
 
 
 
-def color_based_on_title(task_name):    
+def color_based_on_title(task_name):
+    print(color_based_on_title)
     action_str, color_str, shape_str = task_name.split('_')
+    print(f"\n\n{action_str, action_names}")
     action_index = action_names.index(action_str)
     color_index = color_names.index(color_str)
     shape_index = shape_names.index(shape_str)

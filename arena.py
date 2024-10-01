@@ -393,6 +393,8 @@ class Arena():
                 righting = True
                     
             objects_goals[(object.color, object.shape)] = [watching, pushing, pulling, lefting, righting]
+        
+        
                         
         mother_comm = None
         for (color, shape), (watching, pushing, pulling, lefting, righting) in objects_goals.items():
