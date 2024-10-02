@@ -2,14 +2,14 @@
 import torch
 from collections import namedtuple
 
-from utils import default_args, make_objects_and_action, print, Goal, goal_to_onehots, string_to_onehots
+from utils import default_args, make_objects_and_action, print, Goal, goal_to_onehots, string_to_onehots, Whole_Obs
 from arena import Arena, get_physics
 
 
 
 Step_Results = namedtuple('Step_Results', [
     "reward", "done", "win", 
-    "obs_dict_1", "obs_dict_2"])
+    "whole_obs_1", "whole_obs_2"])
 
 
 
@@ -51,12 +51,8 @@ class Task:
         else:
             mother_comm = goal_to_onehots(mother_comm)
                             
-        obs_dict = {
-            "rgbd" : rgbd,
-            "sensors" : sensors,
-            "father_comm" : father_comm,
-            "mother_comm" : mother_comm}
-        return(obs_dict, reward, win)
+        whole_obs = Whole_Obs(rgbd, sensors, father_comm, mother_comm)
+        return(whole_obs, reward, win)
     
     def act(self, action, agent_1 = True, verbose = False, sleep_time = None):
         arena = self.choose_arena(agent_1)
@@ -76,14 +72,14 @@ class Task:
         done = False
                 
         self.act(action_1, verbose = verbose, sleep_time = sleep_time)
-        obs_dict_1, reward_1, win_1 = self.obs()
+        whole_obs_1, reward_1, win_1 = self.obs()
         if(self.parenting): 
-            obs_dict_2 = None
+            whole_obs_2 = None
             reward_2 = reward_1
             win_2 = win_1
         else:
             self.act(action_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
-            obs_dict_2, reward_2, win_2 = self.obs(agent_1 = False)
+            whole_obs_2, reward_2, win_2 = self.obs(agent_1 = False)
         reward = max([reward_1, reward_2])
         win = win_1 or win_2
         if(reward > 0): 
@@ -106,7 +102,7 @@ class Task:
                             
         return(Step_Results(
             reward, done, win, 
-            obs_dict_1, obs_dict_2))
+            whole_obs_1, whole_obs_2))
     
     def done(self):
         self.arena_1.end()

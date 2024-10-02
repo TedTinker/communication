@@ -273,11 +273,11 @@ class Agent:
                 prev_action = prev_action_1 if agent_1 else prev_action_2
                 prev_comm_out = prev_comm_out_2 if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)) if agent_1 else prev_comm_out_1
                 hq = hq_1 if agent_1 else hq_2
-                obs_dict, reward, win = self.task.obs(agent_1)
-                rgbd = obs_dict["rgbd"]
-                sensors = obs_dict["sensors"]
-                father_comm = obs_dict["father_comm"]
-                mother_comm = obs_dict["mother_comm"]
+                whole_obs, reward, win = self.task.obs(agent_1)
+                rgbd = whole_obs.rgbd
+                sensors = whole_obs.sensors
+                father_comm = whole_obs.father_comm
+                mother_comm = whole_obs.mother_comm
                 comm_in = father_comm.unsqueeze(0) if parenting else mother_comm.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else prev_comm_out
                             
                 hp, hq, rgbd_dkls, sensors_dkls, comm_dkls, comm_zq = self.forward.bottom_to_top_step(
@@ -316,9 +316,9 @@ class Agent:
             distance_reward_2 = angle_reward_2 = 0
             done = step_results.done
             win = step_results.win 
-            mother_comm_1 = step_results.obs_dict_1["mother_comm"]
-            if(step_results.obs_dict_2 != None):
-                mother_comm_2 = step_results.obs_dict_2["mother_comm"]
+            mother_comm_1 = step_results.whole_obs_1.mother_comm
+            if(step_results.whole_obs_2 != None):
+                mother_comm_2 = step_results.whole_obs_2.mother_comm
             else:
                 mother_comm_2 = mother_comm_1
             
@@ -329,16 +329,16 @@ class Agent:
             total_reward = raw_reward + distance_reward + angle_reward 
             total_reward_2 = raw_reward + distance_reward_2 + angle_reward_2
             
-            obs_dict_1, reward_1, win_1 = self.task.obs()
-            next_rgbd_1 = obs_dict_1["rgbd"]
-            next_sensors_1 = obs_dict_1["sensors"]
-            next_father_comm_1 = obs_dict_1["father_comm"]
-            next_mother_comm_1 = obs_dict_1["mother_comm"]
-            obs_dict_2, reward_2, win_2 = self.task.obs()
-            next_rgbd_2 = obs_dict_2["rgbd"]
-            next_sensors_2 = obs_dict_2["sensors"]
-            next_father_comm_2 = obs_dict_2["father_comm"]
-            next_mother_comm_2 = obs_dict_2["mother_comm"]
+            whole_obs_1, reward_1, win_1 = self.task.obs()
+            next_rgbd_1 = whole_obs_1.rgbd
+            next_sensors_1 = whole_obs_1.sensors
+            next_father_comm_1 = whole_obs_1.father_comm
+            next_mother_comm_1 = whole_obs_1.mother_comm
+            whole_obs_2, reward_2, win_2 = self.task.obs()
+            next_rgbd_2 = whole_obs_2.rgbd
+            next_sensors_2 = whole_obs_2.sensors
+            next_father_comm_2 = whole_obs_2.father_comm
+            next_mother_comm_2 = whole_obs_2.mother_comm
             
             next_comm_in_1 = next_father_comm_1.unsqueeze(0) if parenting else next_mother_comm_1.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else comm_out_2
             next_comm_in_2 = next_father_comm_2.unsqueeze(0) if parenting else next_mother_comm_2.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else comm_out_1 
@@ -563,10 +563,10 @@ class Agent:
                     agent_num = 1 if agent_1 else 2
                                         
                     birds_eye = self.task.arena_1.photo_from_above() if agent_1 else self.task.arena_2.photo_from_above()
-                    obs_dict, reward, win = self.task.obs(agent_1 = agent_1)
-                    rgbd = obs_dict["rgbd"]
-                    sensors = obs_dict["sensors"]
-                    father_comm = obs_dict["father_comm"]
+                    whole_obs, reward, win = self.task.obs(agent_1 = agent_1)
+                    rgbd = whole_obs.rgbd
+                    sensors = whole_obs.sensors
+                    father_comm = whole_obs.father_comm
                     
                     episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
                     episode_dict[f"rgbds_{agent_num}"].append(rgbd[0,:,:,0:3])        

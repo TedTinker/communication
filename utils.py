@@ -374,7 +374,7 @@ parser.add_argument('--left_right_amount',              type=float,         defa
                     help='Needed distance of an object for push/pull/left/right.')
 
     # Training
-parser.add_argument('--tasks_epochs',                   type=literal,       default = [("f", 10000), ("w", 5000), ("wpulr", 30000)],
+parser.add_argument('--tasks_epochs',                   type=literal,       default = [("f", 100), ("w", 50), ("wpulr", 300)],
                     help='Agents perform these tasks for these numbers of episodes.')
 parser.add_argument('--capacity',                       type=int,           default = 256,
                     help='How many episodes the recurrent memory buffer can contain.')
@@ -511,7 +511,7 @@ parser.add_argument('--agents_per_agent_list',          type=int,           defa
 
 parser.add_argument('--epochs_per_values_for_composition',        type=int,           default = 5000,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_values_for_composition',       type=int,           default = 1,
+parser.add_argument('--agents_per_values_for_composition',       type=int,           default = 0,
                     help='How many agents to save episodes.')
 
 try:
