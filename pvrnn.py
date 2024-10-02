@@ -88,7 +88,7 @@ class PVRNN_LAYER(nn.Module):
             zq_in_features = self.args.pvrnn_mtrnn_size + self.args.complete_action_encode_size + self.args.sensors_encode_size, 
             out_features = self.args.sensors_state_size, args = self.args)
         
-        self.comm_z = ZP_ZQ(
+        self.father_comm_z = ZP_ZQ(
             zp_in_features = self.args.pvrnn_mtrnn_size + self.args.complete_action_encode_size,
             zq_in_features = self.args.pvrnn_mtrnn_size + self.args.complete_action_encode_size + self.args.comm_encode_size, 
             out_features = self.args.comm_state_size, args = self.args)
@@ -106,7 +106,7 @@ class PVRNN_LAYER(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
             
-    def forward(self, prev_hidden_state, rgbd=None, sensors=None, comm=None, prev_action=None, prev_comm_out=None):
+    def forward(self, prev_hidden_state, rgbd=None, sensors=None, father_comm=None, prev_action=None, prev_comm_out=None):
         def reshape_and_to_dtype(inputs, episodes, steps, dtype=None):
             inputs = inputs.reshape(episodes * steps, inputs.shape[2])
             if dtype:
@@ -123,24 +123,24 @@ class PVRNN_LAYER(nn.Module):
         how_many_nans(prev_hidden_state, "PVRNN layer, prev_hidden_state")
         how_many_nans(rgbd, "PVRNN layer, rgbd")
         how_many_nans(sensors, "PVRNN layer, sensors")
-        how_many_nans(comm, "PVRNN layer, comm")
+        how_many_nans(father_comm, "PVRNN layer, father_comm")
         how_many_nans(prev_action, "PVRNN layer, prev_action")
         how_many_nans(prev_comm_out, "PVRNN layer, prev_comm_out")
         
         prev_hidden_state = prev_hidden_state.to(self.args.device)
         zp_inputs = torch.cat([prev_hidden_state, prev_action, prev_comm_out], dim=-1)
-        rgbd_zq_inputs, sensors_zq_inputs, comm_zq_inputs  = [torch.cat([zp_inputs, input_data], dim=-1) for input_data in (rgbd, sensors, comm)]
+        rgbd_zq_inputs, sensors_zq_inputs, father_comm_zq_inputs  = [torch.cat([zp_inputs, input_data], dim=-1) for input_data in (rgbd, sensors, father_comm)]
         
         how_many_nans(rgbd_zq_inputs, "PVRNN layer, rgbd_zq_inputs")
         how_many_nans(sensors_zq_inputs, "PVRNN layer, sensors_zq_inputs")
-        how_many_nans(comm_zq_inputs, "PVRNN layer, comm_zq_inputs")
+        how_many_nans(father_comm_zq_inputs, "PVRNN layer, father_comm_zq_inputs")
         
         episodes, steps = episodes_steps(zp_inputs)
         dtype = torch.float16 if self.args.half else None
         
         rgbd_zp, rgbd_zq, rgbd_dkl = process_z_func_outputs(zp_inputs, rgbd_zq_inputs, self.rgbd_z, episodes, steps, dtype)
         sensors_zp, sensors_zq, sensors_dkl = process_z_func_outputs(zp_inputs, sensors_zq_inputs, self.sensors_z, episodes, steps, dtype)
-        comm_zp, comm_zq, comm_dkl = process_z_func_outputs(zp_inputs, comm_zq_inputs, self.comm_z, episodes, steps, dtype)
+        father_comm_zp, father_comm_zq, father_comm_dkl = process_z_func_outputs(zp_inputs, father_comm_zq_inputs, self.father_comm_z, episodes, steps, dtype)
                 
         how_many_nans(rgbd_zp, "PVRNN layer, rgbd_zp")
         how_many_nans(rgbd_zq, "PVRNN layer, rgbd_zq")
@@ -148,12 +148,12 @@ class PVRNN_LAYER(nn.Module):
         how_many_nans(sensors_zp, "PVRNN layer, sensors_zp")
         how_many_nans(sensors_zq, "PVRNN layer, sensors_zq")
         how_many_nans(sensors_dkl, "PVRNN layer, sensors_dkl")
-        how_many_nans(comm_zp, "PVRNN layer, comm_zp")
-        how_many_nans(comm_zq, "PVRNN layer, comm_zq")
-        how_many_nans(comm_dkl, "PVRNN layer, comm_dkl")
+        how_many_nans(father_comm_zp, "PVRNN layer, father_comm_zp")
+        how_many_nans(father_comm_zq, "PVRNN layer, father_comm_zq")
+        how_many_nans(father_comm_dkl, "PVRNN layer, father_comm_dkl")
         
-        mtrnn_inputs_p = torch.cat([rgbd_zp, sensors_zp, comm_zp], dim=-1)
-        mtrnn_inputs_q = torch.cat([rgbd_zq, sensors_zq, comm_zq], dim=-1)
+        mtrnn_inputs_p = torch.cat([rgbd_zp, sensors_zp, father_comm_zp], dim=-1)
+        mtrnn_inputs_q = torch.cat([rgbd_zq, sensors_zq, father_comm_zq], dim=-1)
         
         mtrnn_inputs_p = mtrnn_inputs_p.reshape(episodes, steps, mtrnn_inputs_p.shape[1])
         mtrnn_inputs_q = mtrnn_inputs_q.reshape(episodes, steps, mtrnn_inputs_q.shape[1])
@@ -165,9 +165,9 @@ class PVRNN_LAYER(nn.Module):
         how_many_nans(new_hidden_state_q, "PVRNN layer, new_hidden_state_q")
         how_many_nans(sensors_dkl, "PVRNN layer, sensors_dkl")
         how_many_nans(rgbd_dkl, "PVRNN layer, rgbd_dkl")
-        how_many_nans(comm_dkl, "PVRNN layer, comm_dkl")
+        how_many_nans(father_comm_dkl, "PVRNN layer, father_comm_dkl")
         
-        return(new_hidden_state_p, new_hidden_state_q, rgbd_dkl, sensors_dkl, comm_dkl, comm_zq)
+        return(new_hidden_state_p, new_hidden_state_q, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq)
         
         
     
@@ -199,7 +199,7 @@ class PVRNN(nn.Module):
         self.args = args 
         
         self.rgbd_in = RGBD_IN(self.args)
-        self.comm_in = Comm_IN(self.args)
+        self.father_comm_in = Comm_IN(self.args)
         self.sensors_in = Sensors_IN(self.args)
         self.action_in = Action_IN(self.args)
         self.comm_out_in = Comm_IN(self.args)
@@ -220,10 +220,10 @@ class PVRNN(nn.Module):
         
     def predict(self, h, action):
         h_w_action = torch.cat([h, action], dim = -1)
-        pred_rgbd, pred_comm, pred_sensors = self.predict_obs(h_w_action)
-        return(pred_rgbd, pred_sensors, pred_comm)
+        pred_rgbd, pred_father_comm, pred_sensors = self.predict_obs(h_w_action)
+        return(pred_rgbd, pred_sensors, pred_father_comm)
         
-    def bottom_to_top_step(self, prev_hidden_state, rgbd = None, comm = None, sensors = None, prev_action = None, prev_comm_out = None):
+    def bottom_to_top_step(self, prev_hidden_state, rgbd = None, father_comm = None, sensors = None, prev_action = None, prev_comm_out = None):
         start_time = duration()
         prev_time = duration()
         
@@ -231,8 +231,8 @@ class PVRNN(nn.Module):
             prev_hidden_state = prev_hidden_state.unsqueeze(1)
         if(rgbd != None and len(rgbd.shape) == 2): 
             rgbd = rgbd.unsqueeze(1)
-        if(comm != None and len(comm.shape) == 2): 
-            comm = comm.unsqueeze(1)
+        if(father_comm != None and len(father_comm.shape) == 2): 
+            father_comm = father_comm.unsqueeze(1)
         if(sensors != None and len(sensors.shape) == 2): 
             sensors = sensors.unsqueeze(1)
         if(prev_action != None and len(prev_action.shape) == 2): 
@@ -240,35 +240,35 @@ class PVRNN(nn.Module):
         if(prev_comm_out != None and len(prev_comm_out.shape) == 2): 
             prev_comm_out = prev_comm_out.unsqueeze(1)
                                     
-        new_hidden_state_p, new_hidden_state_q, rgbd_dkl, comm_dkl, sensors_dkl, comm_zq = \
+        new_hidden_state_p, new_hidden_state_q, rgbd_dkl, father_comm_dkl, sensors_dkl, father_comm_zq = \
             self.pvrnn_layer(
                 prev_hidden_state[:,0].unsqueeze(1), 
-                rgbd, comm, sensors, prev_action, prev_comm_out)
+                rgbd, father_comm, sensors, prev_action, prev_comm_out)
             
         time = duration()
         if(self.args.show_duration): print("BOTTOM TO TOP STEP:", time - prev_time)
         prev_time = time
                 
-        return(new_hidden_state_p, new_hidden_state_q, rgbd_dkl, comm_dkl, sensors_dkl, comm_zq)
+        return(new_hidden_state_p, new_hidden_state_q, rgbd_dkl, father_comm_dkl, sensors_dkl, father_comm_zq)
     
-    def forward(self, prev_hidden_state, rgbd, sensors, comm_in, prev_action, prev_comm_out):
+    def forward(self, prev_hidden_state, rgbd, sensors, father_comm, prev_action, prev_comm_out):
                 
-        action_labels = torch.argmax(comm_in[:, :, 0, :], dim=2)
-        color_labels = torch.argmax(comm_in[:, :, 1, :], dim=2)
-        shape_labels = torch.argmax(comm_in[:, :, 2, :], dim=2)
+        action_labels = torch.argmax(father_comm[:, :, 0, :], dim=2)
+        color_labels = torch.argmax(father_comm[:, :, 1, :], dim=2)
+        shape_labels = torch.argmax(father_comm[:, :, 2, :], dim=2)
         labels = torch.stack((action_labels, color_labels, shape_labels), dim = -1)
                 
         rgbd_dkl_list = []
         sensors_dkl_list = []
-        comm_dkl_list = []
+        father_comm_dkl_list = []
         new_hidden_state_p_list = []
         new_hidden_state_q_list = []
-        comm_zq_list = []
+        father_comm_zq_list = []
         
         how_many_nans(prev_hidden_state, "PVRNN, prev_hidden_state")
         how_many_nans(rgbd, "PVRNN, rgbd 1")
         how_many_nans(sensors, "PVRNN, sensors 1")
-        how_many_nans(comm_in, "PVRNN, comm_in 1")
+        how_many_nans(father_comm, "PVRNN, father_comm 1")
         how_many_nans(prev_action, "PVRNN, prev_action 1")
         how_many_nans(prev_comm_out, "PVRNN, prev_comm_out 1")
         
@@ -279,38 +279,38 @@ class PVRNN(nn.Module):
             prev_hidden_state = torch.zeros(episodes, 1, self.args.pvrnn_mtrnn_size)
         rgbd = self.rgbd_in(rgbd)
         sensors = self.sensors_in(sensors)
-        comm_in = self.comm_in(comm_in)
+        father_comm = self.father_comm_in(father_comm)
         prev_action = self.action_in(prev_action)
         prev_comm_out = self.comm_out_in(prev_comm_out)
         
         how_many_nans(rgbd, "PVRNN, rgbd 2")
         how_many_nans(sensors, "PVRNN, sensors 2")
-        how_many_nans(comm_in, "PVRNN, comm_in 2")
+        how_many_nans(father_comm, "PVRNN, father_comm_in 2")
         how_many_nans(prev_action, "PVRNN, prev_action 2")
         how_many_nans(prev_comm_out, "PVRNN, prev_comm_out 2")
                                 
         for step in range(steps):
-            new_hidden_state_p, new_hidden_state_q, rgbd_dkl, sensors_dkl, comm_dkl, comm_zq = \
+            new_hidden_state_p, new_hidden_state_q, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq = \
             self.bottom_to_top_step(
-                prev_hidden_state, rgbd[:,step], sensors[:,step], comm_in[:,step], 
+                prev_hidden_state, rgbd[:,step], sensors[:,step], father_comm[:,step], 
                 prev_action[:,step], prev_comm_out[:,step])
             how_many_nans(new_hidden_state_p, f"PVRNN, new_hidden_state_p step {step}")
             how_many_nans(new_hidden_state_q, f"PVRNN, new_hidden_state_q step {step}")
             how_many_nans(rgbd_dkl, f"PVRNN, rgbd_dkl step {step}")
             how_many_nans(sensors_dkl, f"PVRNN, sensors_dkl step {step}")
-            how_many_nans(comm_dkl, f"PVRNN, comm_dkl step {step}")
+            how_many_nans(father_comm_dkl, f"PVRNN, father_comm_dkl step {step}")
                                 
             for l, o in zip(
-                [new_hidden_state_p_list, new_hidden_state_q_list, rgbd_dkl_list, sensors_dkl_list, comm_dkl_list, comm_zq_list],
-                [new_hidden_state_p, new_hidden_state_q, rgbd_dkl, sensors_dkl, comm_dkl, comm_zq.unsqueeze(1)]):     
+                [new_hidden_state_p_list, new_hidden_state_q_list, rgbd_dkl_list, sensors_dkl_list, father_comm_dkl_list, father_comm_zq_list],
+                [new_hidden_state_p, new_hidden_state_q, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq.unsqueeze(1)]):     
                 l.append(o)
                                 
             prev_hidden_state = new_hidden_state_q
                         
-        lists = [new_hidden_state_p_list, new_hidden_state_q_list, rgbd_dkl_list, sensors_dkl_list, comm_dkl_list, comm_zq_list]
+        lists = [new_hidden_state_p_list, new_hidden_state_q_list, rgbd_dkl_list, sensors_dkl_list, father_comm_dkl_list, father_comm_zq_list]
         for i in range(len(lists)):
             lists[i] = torch.cat(lists[i], dim=1)
-        new_hidden_state_p, new_hidden_state_q, rgbd_dkl, sensors_dkl, comm_dkl, comm_zq = lists
+        new_hidden_state_p, new_hidden_state_q, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq = lists
                 
         pred_rgbd_q, pred_sensors_q, pred_comm_q  = self.predict(new_hidden_state_q[:, :-1], prev_action[:, 1:])
         
@@ -328,7 +328,7 @@ class PVRNN(nn.Module):
         # Combine the filtered labels back into a single tensor
         labels = torch.cat((action_labels, color_labels, shape_labels), dim=-1)
                         
-        return(new_hidden_state_p, new_hidden_state_q, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels)
+        return(new_hidden_state_p, new_hidden_state_q, rgbd_dkl, sensors_dkl, father_comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, father_comm_zq, labels)
         
         
         

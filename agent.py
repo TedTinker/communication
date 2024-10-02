@@ -282,7 +282,7 @@ class Agent:
                             
                 hp, hq, rgbd_dkls, sensors_dkls, comm_dkls, comm_zq = self.forward.bottom_to_top_step(
                     hq, 
-                    self.forward.rgbd_in(rgbd), self.forward.sensors_in(sensors), self.forward.comm_in(comm_in),
+                    self.forward.rgbd_in(rgbd), self.forward.sensors_in(sensors), self.forward.father_comm_in(comm_in),
                     self.forward.action_in(prev_action), self.forward.comm_out_in(prev_comm_out)) 
             
 
