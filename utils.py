@@ -1,7 +1,7 @@
 #%% 
 
 # To do: most important 
-#   Look over episode and training. Are tensors passed step-by-step correctly? Is training with right tensors?
+#   Try old arena. 
 #   Give actions percentage chances when making a task.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   "push" action detected at odd times. Should "left" and "right" only win when object is in gaze?
@@ -105,7 +105,8 @@ shape_name_list = [s.name for s in shape_map.values()]
 
 Object = namedtuple('Object', ['index', 'default_pos', 'color', 'shape'])
 Goal = namedtuple('Goal', ['action', 'color', 'shape', 'parenting'])
-Obs_Part = namedtuple("Obs_Part", ["in_func", "out_func", "encode_size", "state_size"])
+Whole_Obs = namedtuple('Whole_Obs', ['rgbd', 'sensors', 'father_comm', 'mother_comm'])
+Agent_Action = namedtuple('Agent_Action', ['wheels', 'comm_out'])
 ZP_ZQ_DKL = namedtuple("ZP_ZQ_DKL", ["zp", "zq", "dkl"])
 To_Push = namedtuple('To_Push', ['rgbd', 'sensors', 'father_comm', 'mother_comm', 'action', 'comm_out', 'reward', 'next_rgbd', 'next_sensors', 'next_father_comm', 'next_mother_comm', 'done'])
 

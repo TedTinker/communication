@@ -61,7 +61,6 @@ class RGBD_IN(nn.Module):
         how_many_nans(rgbd, "RGBD IN, rgbd start")
                 
         rgbd = (rgbd * 2) - 1
-                
         a = self.a(rgbd).flatten(1)
         
         how_many_nans(a, "RGBD IN, after a")

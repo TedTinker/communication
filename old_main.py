@@ -8,6 +8,7 @@ args.alpha = None
 args.normal_alpha = .1
 args.curiosity = "hidden_state"
 args.tasks_epochs = [("f", 100), ("w", 100)]
+#args.agents_per_values_for_composition = 0
 #args.show_duration = True
 
 def run():

@@ -8,7 +8,6 @@ from math import log
 from itertools import accumulate, product
 from copy import deepcopy
 import matplotlib.pyplot as plt
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
 import torch
 import torch.nn.functional as F
@@ -77,14 +76,10 @@ class Agent:
         self.all_tasks = {f"{action_map[action][1]}_{color_map[color][1]}_{shape_map[shape][1]}" : 
             Task(self.arena_1, self.arena_2, actions = [action], colors = [color], shapes = [shape], num_objects = 1, parenting = True, args = self.args) 
             for action, color, shape in product([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
-            #for action, color, shape in product([0, 1, 2], [0, 1, 2], [0, 1, 2])}
+            #for action, color, shape in product([1, 2], [0, 1, 2], [0, 1, 2])}
         all_task_names = list(self.all_tasks.keys())
         all_task_names.sort(key=lambda task: extract_numbers(task))
         self.all_task_names = all_task_names
-                
-        self.lda_action = LDA(n_components=4)
-        self.lda_color = LDA(n_components=5)
-        self.lda_shape = LDA(n_components=4)
         
         self.target_entropy = self.args.target_entropy
         self.alpha = 1
@@ -132,7 +127,7 @@ class Agent:
             "division_epochs" : [],
             "episode_dicts" : {}, 
             "all_task_names" : self.all_task_names,
-            "lda_transformations" : {},
+            "values_for_composition" : {},
             "agent_lists" : {} if (self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list) else {"forward" : PVRNN(self.args), "actor" : Actor(self.args), "critic" : Critic(self.args)},
             "rewards" : [], 
             "gen_rewards" : [], 
@@ -187,7 +182,7 @@ class Agent:
     def regular_checks(self, force = False, swapping = False):
         if(force):
             self.gen_test()
-            self.LDA_transforms()
+            self.get_composition_values()
             self.save_episodes(swapping = swapping)
             self.save_agent()
             return
@@ -200,7 +195,7 @@ class Agent:
             for i, win_dict in enumerate(win_dict_list):
                 win_dict.append(None)
         if(self.epochs % self.args.epochs_per_values_for_composition == 0):
-            self.LDA_transforms()  
+            self.get_composition_values()  
         if(self.epochs % self.args.epochs_per_episode_dict == 0):
             self.save_episodes(swapping = swapping)
         if(self.epochs % self.args.epochs_per_agent_list == 0):
@@ -209,6 +204,8 @@ class Agent:
         
         
     def training(self, q = None):      
+                
+        self.q = q
                 
         for task_name, epochs in self.args.tasks_epochs: 
             self.task_name = task_name
@@ -232,7 +229,7 @@ class Agent:
                 
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
-            if(not key in ["args", "arg_title", "arg_name", "all_task_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps"]):
+            if(not key in ["args", "arg_title", "arg_name", "all_task_names", "values_for_composition", "episode_dicts", "agent_lists", "spot_names", "steps"]):
                 if(key == "hidden_state"):
                     min_maxes = []
                     hidden_state = deepcopy(self.plot_dict[key])
@@ -281,11 +278,11 @@ class Agent:
                 sensors = obs_dict["sensors"]
                 father_comm = obs_dict["father_comm"]
                 mother_comm = obs_dict["mother_comm"]
-                comm_in = mother_comm.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else father_comm.unsqueeze(0) if parenting else prev_comm_out
-            
-                hp, hq, rgbd_dkls, comm_dkls, sensors_dkls, activations_3d_pca, activations_3d_tsne, comm_zq = self.forward.bottom_to_top_step(
+                comm_in = father_comm.unsqueeze(0) if parenting else mother_comm.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else prev_comm_out
+                            
+                hp, hq, rgbd_dkls, sensors_dkls, comm_dkls, comm_zq = self.forward.bottom_to_top_step(
                     hq, 
-                    self.forward.rgbd_in(rgbd), self.forward.comm_in(comm_in), self.forward.sensors_in(sensors), 
+                    self.forward.rgbd_in(rgbd), self.forward.sensors_in(sensors), self.forward.comm_in(comm_in),
                     self.forward.action_in(prev_action), self.forward.comm_out_in(prev_comm_out)) 
             
 
@@ -343,8 +340,8 @@ class Agent:
             next_father_comm_2 = obs_dict_2["father_comm"]
             next_mother_comm_2 = obs_dict_2["mother_comm"]
             
-            next_comm_in_1 = mother_comm_1.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else next_father_comm_1.unsqueeze(0) if parenting else comm_out_2 
-            next_comm_in_2 = mother_comm_2.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else next_father_comm_2.unsqueeze(0) if parenting else comm_out_1 
+            next_comm_in_1 = next_father_comm_1.unsqueeze(0) if parenting else next_mother_comm_1.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else comm_out_2
+            next_comm_in_2 = next_father_comm_2.unsqueeze(0) if parenting else next_mother_comm_2.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else comm_out_1 
                         
             to_push_1 = To_Push(rgbd_1, sensors_1, comm_in_1, mother_comm_1, action_1, comm_out_1, reward_1, next_rgbd_1, next_sensors_1, next_comm_in_1, next_mother_comm_1, done)
             
@@ -355,15 +352,15 @@ class Agent:
 
         torch.cuda.empty_cache()
         
-        return(action_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, mother_comm_1,
-               action_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, mother_comm_2,
+        return(action_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), rgbd_dkls_1, sensors_dkls_1, comm_dkls_1, mother_comm_1,
+               action_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), rgbd_dkls_2, sensors_dkls_2, comm_dkls_2, mother_comm_2,
                raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2)
             
            
            
-    def push(self, to_push_list):
+    def push(self, to_push_list, memory):
         for to_push in to_push_list:
-            self.memory.push(
+            memory.push(
                 to_push.rgbd.to("cpu"),
                 to_push.sensors.to("cpu"),
                 to_push.father_comm.to("cpu"), 
@@ -405,7 +402,8 @@ class Agent:
            
            
     
-    def training_episode(self):        
+    def training_episode(self):       
+        self.total_episodes += 1 
         start_time, prev_time, done, complete_reward, steps, \
             to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, mother_comm_1, \
             to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
@@ -414,11 +412,12 @@ class Agent:
         self.task.begin()    
                         
         for step in range(self.args.max_steps):
-            self.steps += 1                                                                                             
+            self.steps += 1  
+            self.total_steps += 1                                                                                           
             if(not done):
                 steps += 1
-                prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, mother_comm_1, \
-                    prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, mother_comm_2, \
+                prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkls_1, sensors_dkls_1, comm_dkls_1, mother_comm_1, \
+                    prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkls_2, sensors_dkls_2, comm_dkls_2, mother_comm_2, \
                         raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_action_1, prev_comm_out_1, hq_1, mother_comm_1,
                             prev_action_2, prev_comm_out_2, hq_2, mother_comm_2)
@@ -441,10 +440,9 @@ class Agent:
             else:                           
                 win_dict.append(None)
                                              
-        self.push(to_push_list_1)
+        self.push(to_push_list_1, self.memory)
         if(to_push_list_2[0] != None):            
-            for to_push in to_push_list_2:
-                self.push(to_push_list_2)
+            self.push(to_push_list_2, self.memory)
                 
         self.episodes += 1
         
@@ -463,8 +461,8 @@ class Agent:
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
-                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, mother_comm_1, \
-                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, mother_comm_2, \
+                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkls_1, sensors_dkls_1, comm_dkls_1, mother_comm_1, \
+                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkls_2, sensors_dkls_2, comm_dkls_2, mother_comm_2, \
                             raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, prev_comm_out_1, hq_1, mother_comm_1,
                                 prev_action_2, prev_comm_out_2, hq_2, mother_comm_2)
@@ -588,8 +586,8 @@ class Agent:
                     
                     if(step != 0):
                         
-                        pred_rgbds_p, pred_comm_in_p, pred_sensors_p = self.forward.predict(hp.unsqueeze(1), self.forward.action_in(action)) 
-                        pred_rgbds_q, pred_comm_in_q, pred_sensors_q = self.forward.predict(hq.unsqueeze(1), self.forward.action_in(action))
+                        pred_rgbds_p, pred_sensors_p, pred_comm_in_p = self.forward.predict(hp.unsqueeze(1), self.forward.action_in(action)) 
+                        pred_rgbds_q, pred_sensors_q, pred_comm_in_q = self.forward.predict(hq.unsqueeze(1), self.forward.action_in(action))
 
                         episode_dict[f"prior_predicted_rgbds_{agent_num}"].append(pred_rgbds_p[0,0][:,:,0:3])
                         prior_predicted_comms_in = onehots_to_string(pred_comm_in_p[0,0])
@@ -618,8 +616,8 @@ class Agent:
                         
                     display(step)
                     
-                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, mother_comm_1, \
-                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, mother_comm_2, \
+                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkls_1, sensors_dkls_1, comm_dkls_1, mother_comm_1, \
+                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkls_2, sensors_dkls_2, comm_dkls_2, mother_comm_2, \
                             raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, prev_comm_out_1, hq_1, mother_comm_1,
                                 prev_action_2, prev_comm_out_2, hq_2, mother_comm_2, sleep_time) 
@@ -668,7 +666,7 @@ class Agent:
                     
                     
                     
-    def LDA_transforms(self):
+    def get_composition_values(self):
         if(self.args.agents_per_values_for_composition != -1 and self.agent_num > self.args.agents_per_values_for_composition): 
             return
         adjusted_args = deepcopy(self.args)
@@ -677,11 +675,7 @@ class Agent:
         task_lens = []
         for task_name in self.all_task_names:
             self.task = self.all_tasks[task_name]
-            #print(self.task)
-            try:
-                self.task.begin()    
-            except:
-                self.task.begin(test = True)    
+            self.task.begin(test = None)    
             start_time, prev_time, done, complete_reward, steps, \
                 to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, mother_comm_1, \
                 to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
@@ -689,8 +683,8 @@ class Agent:
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
-                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, mother_comm_1, \
-                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, mother_comm_2, \
+                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkls_1, sensors_dkls_1, comm_dkls_1, mother_comm_1, \
+                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkls_2, sensors_dkls_2, comm_dkls_2, mother_comm_2, \
                             raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, prev_comm_out_1, hq_1, mother_comm_1,
                                 prev_action_2, prev_comm_out_2, hq_2, mother_comm_2)
@@ -698,49 +692,24 @@ class Agent:
                 if(done): break
             #print("DONE")
             self.task.done()
-            
             task_lens.append(step)
-            
-            self.push(to_push_list_1)
-                
+            self.push(to_push_list_1, temp_memory)
+                            
         batch = self.get_batch(temp_memory, len(self.all_tasks), random_sample = False)
-        rgbds, sensors, comm_in_1, mother_comm_in_1, actions, comms_out, rewards, dones, actions, comms_out, masks, all_masks, episodes, steps = batch
-        
-        hps, hqs, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comms_q, pred_sensors_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels = self.forward(
-            torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            rgbds, comms_in, sensors, actions, comms_out)
-        
-        comm_zq = comm_zq.view(-1, 128)
-        labels = labels.view(-1, 3)   
-        all_masks = all_masks.view(-1)         
-        comm_zq = comm_zq[all_masks.bool()]
-        labels = labels[all_masks.bool()]
+        rgbd, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, mask, all_mask, episodes, steps = batch
                 
-        self.lda_action.fit(comm_zq.detach().cpu().numpy(), labels[:,0].detach().cpu().numpy())
-        self.lda_color.fit(comm_zq.detach().cpu().numpy(), labels[:,1].detach().cpu().numpy())
-        self.lda_shape.fit(comm_zq.detach().cpu().numpy(), labels[:,2].detach().cpu().numpy())
-
-        action_probs = self.lda_action.predict_proba(comm_zq.detach().cpu().numpy())
-        color_probs = self.lda_color.predict_proba(comm_zq.detach().cpu().numpy())
-        shape_probs = self.lda_shape.predict_proba(comm_zq.detach().cpu().numpy())
+        hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels = self.forward(
+            torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
+            rgbd, sensors, comm_in, action, comm_out)
         
-        task_tensors = {}
-        start_idx = 0  
-        for name, length in zip(self.all_task_names, task_lens):
-            end_idx = start_idx + length
-            action_probs_slice = action_probs[start_idx:end_idx]
-            color_probs_slice = color_probs[start_idx:end_idx]
-            shape_probs_slice = shape_probs[start_idx:end_idx]
-            task_tensors[name] = (action_probs_slice, color_probs_slice, shape_probs_slice)
-            start_idx = end_idx
-                        
-        self.plot_dict["lda_transformations"][self.epochs] = task_tensors
+        comm_zq = comm_zq.detach().cpu().numpy()
+        labels = labels.detach().cpu().numpy()
+        all_mask = all_mask.detach().cpu().numpy()   
         
-        #print(f"\tAgent {self.agent_num} in Total Epochs {self.epochs}:")
-        #for epochs, task_tensors in self.plot_dict["lda_transformations"].items():
-        #    print(f"\t\tepoch {epochs}:")
-        #    for name, (action_probs, color_probs, shape_probs) in task_tensors.items():
-        #        print(f"\t\t\t{name}: action probs {action_probs.shape}, color probs {color_probs.shape}, shape_probs {shape_probs.shape}")
+        print(f"\n\n{comm_zq.shape, labels.shape, all_mask.shape}\n\n")
+        print(labels)
+                
+        self.plot_dict["values_for_composition"][self.epochs] = (comm_zq, labels, all_mask)
                         
         
         
@@ -770,8 +739,8 @@ class Agent:
         comm_out = torch.cat([torch.zeros(comm_out[:,0].unsqueeze(1).shape), comm_out], dim = 1).to(self.args.device)
         all_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1).to(self.args.device)
         mask = mask.to(self.args.device)
-        episodes = rewards.shape[0]
-        steps = rewards.shape[1]
+        episodes = reward.shape[0]
+        steps = reward.shape[1]
         
         if(self.args.half):
             rgbd, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, mask, action, comm_out, all_mask, mask = \
@@ -780,11 +749,12 @@ class Agent:
                 mask.to(dtype=torch.float16), action.to(dtype=torch.float16), comm_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
         
         #print("\n\n")
-        #print("Agent {}, epoch {}. rgbds: {}. comms in: {}. actions: {}. comms out: {}. rewards: {}. dones: {}. masks: {}.".format(
-        #    self.agent_num, self.epochs, rgbds.shape, comms_in.shape, actions.shape, comms_out.shape, rewards.shape, dones.shape, masks.shape))
+        #print("Agent {}, epoch {}. rgbds: {}. comm in: {}. actions: {}. comm out: {}. reward: {}. done: {}. mask: {}.".format(
+        #    self.agent_num, self.epochs, rgbds.shape, comm_in.shape, actions.shape, comm_out.shape, reward.shape, done.shape, mask.shape))
         #print("\n\n")
         
-        return(rgbd, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, action, comm_out, mask, all_mask, episodes, steps)
+        #rgbd, comm_in, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, action, comm_out, mask, all_mask, episodes, steps
+        return(rgbd, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, mask, all_mask, episodes, steps)
         
     
     
@@ -799,7 +769,7 @@ class Agent:
             return(False)
         batch_size = batch[0].shape[0]
         
-        rgbd, comm_in, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, action, comm_out, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, mask, all_mask, episodes, steps = batch
         # Also sample from old memories, and use them to keep actor and critic outputs the same.
         
         time = duration()
@@ -807,9 +777,9 @@ class Agent:
         prev_time = time
                 
         # Train forward
-        hps, hqs, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comm_q, pred_sensors_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels = self.forward(
+        hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            rgbd, comm_in, sensors, action, comm_out)
+            rgbd, sensors, comm_in, action, comm_out)
                         
         rgbd_loss = F.binary_cross_entropy(pred_rgbd_q, rgbd[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.rgbd_scaler
                         
@@ -895,7 +865,7 @@ class Agent:
             else:                            alpha = self.args.alpha
             if self.args.alpha_text == None: alpha_text = self.alpha_text 
             else:                            alpha_text = self.args.alpha_text
-            Q_targets = rewards + (self.args.GAMMA * (1 - dones) * (Q_target_next - (alpha * log_pis_next) - (alpha_text * log_pis_next_text)))
+            Q_targets = reward + (self.args.GAMMA * (1 - done) * (Q_target_next - (alpha * log_pis_next) - (alpha_text * log_pis_next_text)))
             
         time = duration()
         #if(self.args.show_duration): print("USED TARGET CRITICS:", time - prev_time)
@@ -904,7 +874,7 @@ class Agent:
         critic_losses = []
         Qs = []
         for i in range(self.args.critics):
-            Q = self.critics[i](action[:,1:], comm_out[:,1:])
+            Q = self.critics[i](action[:,1:], comm_out[:,1:], hqs[:,:-1].detach())
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
             critic_losses.append(critic_loss)
             Qs.append(Q[0,0].item())
@@ -935,8 +905,8 @@ class Agent:
             n = self.args.action_shape
             scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device).float()
             policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
-            policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_actions).unsqueeze(-1)
-            intrinsic_entropy = torch.mean((alpha * log_pis - policy_prior_log_prrgbd)*masks).item()
+            policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_action).unsqueeze(-1)
+            intrinsic_entropy = torch.mean((alpha * log_pis - policy_prior_log_prrgbd)*mask).item()
                 
             Qs = []
             for i in range(self.args.critics):
@@ -971,7 +941,7 @@ class Agent:
         if self.args.alpha == None:
             _, _, log_pis, _ = self.actor(hqs[:,:-1].detach(), parenting)
             alpha_loss = -(self.log_alpha.to(self.args.device) * (log_pis + self.target_entropy))*mask
-            alpha_loss = alpha_loss.mean() / masks.mean()
+            alpha_loss = alpha_loss.mean() / mask.mean()
             self.alpha_opt.zero_grad()
             alpha_loss.backward()
             self.alpha_opt.step()
@@ -983,7 +953,7 @@ class Agent:
         if self.args.alpha_text == None:
             _, _, _, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
             alpha_text_loss = -(self.log_alpha_text.to(self.args.device) * (log_pis_text + self.target_entropy_text))*mask
-            alpha_text_loss = alpha_text_loss.mean() / masks.mean()
+            alpha_text_loss = alpha_text_loss.mean() / mask.mean()
             self.alpha_text_opt.zero_grad()
             alpha_text_loss.backward()
             self.alpha_text_opt.step()
@@ -1037,7 +1007,7 @@ class Agent:
                 self.plot_dict["critics"][layer].append(f)    
             self.plot_dict["critics"].append(critic_losses)
             self.plot_dict["extrinsic"].append(extrinsic)
-            self.plot_dict["q"].append(q)
+            self.plot_dict["q"].append("Q")
             self.plot_dict["intrinsic_curiosity"].append(intrinsic_curiosity)
             self.plot_dict["intrinsic_entropy"].append(intrinsic_entropy)
             self.plot_dict["rgbd_prediction_error_curiosity"].append(rgbd_prediction_error_curiosity)

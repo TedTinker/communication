@@ -184,7 +184,7 @@ if(__name__ == "__main__" and args.arg_list != []):
 #SBATCH --mem=50G"""
 
     if(args.comp == "saion"):
-        nv = "--nv"
+        nv = " --nv"
         module = "module load singularity cuda"
         partition = \
 """
@@ -204,7 +204,7 @@ f"""
 {partition}
 #SBATCH --ntasks={max_cpus}
 {module}
-singularity exec {nv} maze.sif python communication/main.py --comp {args.comp} --arg_name {name} {get_args(name)} --agents $agents_per_job --previous_agents $previous_agents
+singularity exec{nv} maze.sif python communication/main.py --comp {args.comp} --arg_name {name} {get_args(name)} --agents $agents_per_job --previous_agents $previous_agents
 """[2:])
             
 
@@ -225,12 +225,12 @@ f"""
 singularity exec {nv} maze.sif python communication/plotting.py --comp {args.comp} --arg_title {combined} --arg_name plotting
 """[2:])
         
-    with open("plotting_lda.slurm", "w") as f:
+    with open("plotting_composition.slurm", "w") as f:
         f.write(
 f"""
 {partition}
 {module}
-singularity exec {nv} maze.sif python communication/plotting_lda.py --comp {args.comp} --arg_title {combined} --arg_name plotting_lda
+singularity exec {nv} maze.sif python communication/plotting_composition.py --comp {args.comp} --arg_title {combined} --arg_name plotting_composition
 """[2:])
         
     with open("plotting_episodes.slurm", "w") as f:

@@ -24,9 +24,7 @@ lda_shape = LDA(n_components = len(shape_names) - 1)
 
 
 def color_based_on_title(task_name):
-    print(color_based_on_title)
     action_str, color_str, shape_str = task_name.split('_')
-    print(f"\n\n{action_str, action_names}")
     action_index = action_names.index(action_str)
     color_index = color_names.index(color_str)
     shape_index = shape_names.index(shape_str)
@@ -57,13 +55,13 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
     for agent_num, values_for_composition in enumerate(plot_dict["values_for_composition"]):
         if(values_for_composition != {}):
             print("\nAGENT NUM", agent_num)
-            for epochs, (hq, zp_zq_dkls, labels, all_mask) in values_for_composition.items():
+            for epochs, (comm_zq, labels, all_mask) in values_for_composition.items():
                 print("EPOCHS", epochs)
-                
-                freeplay_mask_for_mask = labels[:, 0, 0] != 1
-                labels = labels.view(-1, 3)
-                labels = labels[all_mask.view(-1).bool()].detach().cpu().numpy()  
-                freeplay_mask = labels[:, 0] != 1
+                              
+                freeplay_mask_for_mask = labels[:, 0, 0] != 0
+                labels = labels.reshape(-1, 3)
+                labels = labels[all_mask.reshape(-1).astype(bool)]
+                freeplay_mask = labels[:, 0] != 0
                     
                 """
                 print("1", hq.shape)
@@ -73,6 +71,10 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                 print("5", all_mask.shape)
                 print("6", labels)
                 """
+                
+                #comm_zq = comm_zq.reshape(-1, args.comm_state_size)
+                #labels = labels.reshape(-1, 3)
+                #all_mask = all_mask.reshape(-1) 
                 
                 
                                 
@@ -88,6 +90,7 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     
                     episode_indexes = [0]
                     episode_index = 0
+                                        
                     for task_name, mask in zip(all_task_names, all_mask): 
                         episode_len = int(mask.sum().item())
                         episode_indexes.append(episode_len + episode_index)
@@ -101,13 +104,13 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     for task_name, mask in zip(all_task_names_no_free_play, all_mask_no_free_play): 
                         episode_len = int(mask.sum().item())
                         episode_indexes_no_free_play.append(episode_len + episode_index_no_free_play)
-                        episode_index_no_free_play = episode_indexes_no_free_play[-1]
-                                                
-                    this = this.view(-1, this.shape[-1])
-                    this = this[all_mask.view(-1).bool()].detach().cpu().numpy()
+                        episode_index_no_free_play = episode_indexes_no_free_play[-1]                
+                                                                        
+                    this = this.reshape(-1, this.shape[-1])
+                    this = this[all_mask.reshape(-1).astype(bool)]
                     this_no_free_play = this[freeplay_mask]
                     labels_no_free_play = labels[freeplay_mask]
-                            
+                                                                    
                     lda_action.fit(this, labels[:,0])
                     lda_color.fit(this_no_free_play, labels_no_free_play[:,1])
                     lda_shape.fit(this_no_free_play, labels_no_free_play[:,2])
@@ -115,7 +118,7 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     action_probs = lda_action.predict_proba(this)
                     color_probs = lda_color.predict_proba(this_no_free_play)
                     shape_probs = lda_shape.predict_proba(this_no_free_play)
-                                                            
+                                                                                
                     all_pred_actions = []
                     all_pred_colors = []
                     all_pred_shapes = []
@@ -199,7 +202,7 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     all_pred_actions = np.array([item for sublist in all_pred_actions for item in sublist])
                     all_pred_colors = np.array([item for sublist in all_pred_colors for item in sublist])
                     all_pred_shapes = np.array([item for sublist in all_pred_shapes for item in sublist])
-                    
+                                        
                     fig, axs = plt.subplots(1, 3, figsize=(20, 7))
                     fig.suptitle(f'LDA for {args.arg_name} using {type_name} in epoch {epochs}', fontsize=16)
                     
@@ -211,6 +214,10 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     all_pred_actions = add_jitter(all_pred_actions, jitter)
                     all_pred_colors = add_jitter(all_pred_colors, jitter)
                     all_pred_shapes = add_jitter(all_pred_shapes, jitter)
+                    
+                    print("Actions:", len(labels[:,0]), all_pred_actions.shape)
+                    print("Colors:", len(labels_no_free_play[:,1]), all_pred_colors.shape)
+                    print("Shapes:", len(labels_no_free_play[:,2]), all_pred_shapes.shape)
                     
                     axs[0].scatter(labels[:,0], all_pred_actions, c = "black", s = size)
                     axs[0].set_title('Actions')
@@ -251,116 +258,9 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     
                     print(f"LDA for {args.arg_name} using {type_name} in epoch {epochs} plotted.")
                     
-                    
-                    
-                def plot_pca(this, type_name, labels=labels):
-                    
-                    try: os.mkdir(f"thesis_pics/composition/{args.arg_name}/pca")
-                    except: pass
-                    try: os.mkdir(f"thesis_pics/composition/{args.arg_name}/pca/{type_name}")
-                    except: pass
-                    
-                    all_task_names = plot_dict["all_task_names"]
-                    episode_indexes = [0]
-                    episode_index = 0
-                    for task_name, mask in zip(all_task_names, all_mask): 
-                        episode_len = int(mask.sum().item())
-                        episode_indexes.append(episode_len + episode_index)
-                        episode_index = episode_indexes[-1]
-                    
-                    # Reshape and filter the data
-                    this = this.view(-1, this.shape[-1])
-                    this = this[all_mask.view(-1).bool()].detach().cpu().numpy()
-                    
-                    # Apply PCA
-                    pca = PCA(n_components=3)
-                    pca_result = pca.fit_transform(this)
-                    
-                    # Separate the PCA components
-                    pca_action = pca_result[:, 0]  # First principal component
-                    pca_color = pca_result[:, 1]   # Second principal component
-                    pca_shape = pca_result[:, 2]   # Third principal component
-                    
-                    fig = go.Figure()
-
-                    for i, task_name in enumerate(all_task_names):
-                        
-                        start_idx = episode_indexes[i]
-                        end_idx = episode_indexes[i + 1]
-                        
-                        these_action_pca = pca_action[start_idx:end_idx]
-                        these_color_pca = pca_color[start_idx:end_idx]
-                        these_shape_pca = pca_shape[start_idx:end_idx]
-                        
-                        fig.add_trace(go.Scatter3d(
-                            x=these_action_pca, 
-                            y=these_color_pca, 
-                            z=these_shape_pca, 
-                            mode='markers',
-                            marker=dict(
-                                size=8,  # Marker size
-                                color=color_based_on_title(task_name),  # Colors can be any valid sequence
-                                opacity=0.8
-                            ),
-                            showlegend=False 
-                        ))
-
-                    # Set labels and title
-                    fig.update_layout(
-                        scene=dict(
-                            xaxis=dict(
-                                title='PCA 1', 
-                                range=[pca_action.min()-1, pca_action.max()+1]
-                            ),
-                            yaxis=dict(
-                                title='PCA 2', 
-                                range=[pca_color.min()-1, pca_color.max()+1]
-                            ),
-                            zaxis=dict(
-                                title='PCA 3', 
-                                range=[pca_shape.min()-1, pca_shape.max()+1]
-                            )
-                        ),
-                        title=f"PCA after {epochs} epochs",
-                        autosize=True,
-                        height=800,
-                        width=1000,
-                    )
-                    
-                    output_file = f"thesis_pics/composition/{args.arg_name}/pca/{type_name}/{file_name}_epoch_{epochs}_{type_name}_agent_num_{agent_num}_{args.arg_name}"
-                    output_file_2d = output_file + ".png"
-                    output_file_3d = output_file + "_3d.html"
-                    fig.write_html(output_file_3d)
-                    
-                    
-                    
-                    fig, axs = plt.subplots(1, 3, figsize=(20, 7))
-                    fig.suptitle(f'PCA for {args.arg_name} using {type_name} in epoch {epochs}', fontsize=16)
-                    
-                    size = 1 
-                    
-                    axs[0].scatter(pca_action, [0] * len(pca_action), c = "black", s = size)
-                    axs[0].set_title('Actions')
-
-                    axs[1].scatter(pca_color, [0] * len(pca_color), c = "black", s = size)
-                    axs[1].set_title('Colors')
-
-                    axs[2].scatter(pca_shape, [0] * len(pca_color), c = "black", s = size)
-                    axs[2].set_title('Shape')
-
-                    plt.tight_layout()
-                    plt.savefig(output_file_2d)
-                    plt.close()
-                    
-                    print(f"PCA for {args.arg_name} using {type_name} in epoch {epochs} plotted.")
-                    
-                    
-                    
                 print("MAKING LDA")
                 for this, type_name in [
-                    (hq, "hq"), 
-                    (zp_zq_dkls["father_comm"].zp, "father_comm_zp"),
-                    (zp_zq_dkls["father_comm"].zq, "father_comm_zq")]:
+                    (comm_zq, "father_comm_zq")]:
                     plot_lda(this, type_name)
                     
                 #print("MAKING PCA")

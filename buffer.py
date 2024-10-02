@@ -129,7 +129,7 @@ class RecurrentReplayBuffer:
             self.sensors.sample(indices),
             self.father_comm_in.sample(indices),
             self.mother_comm_in.sample(indices),
-            self.actions.sample(indices),
+            self.action.sample(indices),
             self.comm_out.sample(indices),
             self.reward.sample(indices),
             self.done.sample(indices),
