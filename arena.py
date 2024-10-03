@@ -8,7 +8,7 @@ from math import pi, sin, cos, tan, radians, degrees, isnan
 from time import sleep
 from skimage.transform import resize
 
-from utils import default_args, Object, Goal, action_map, shape_map, relative_to, make_objects_and_action
+from utils import default_args, Object, Goal, task_map, shape_map, relative_to, make_objects_and_task
 
 
 
@@ -399,35 +399,35 @@ class Arena():
         mother_comm = None
         for (color, shape), (watching, pushing, pulling, lefting, righting) in objects_goals.items():
             #print(f"watching {watching}, pushing {pushing}, pulling {pulling}, lefting {lefting}, righting {righting}")
-            num_actions_performed = sum([watching, pushing, pulling, lefting, righting]) 
-            # If no action performed, don't bother with this object.
-            if(num_actions_performed == 0):
+            num_tasks_performed = sum([watching, pushing, pulling, lefting, righting]) 
+            # If no task performed, don't bother with this object.
+            if(num_tasks_performed == 0):
                 pass
             else:
-                # If multiple actions performed, stop, it's a fail
-                #if(num_actions_performed > 1):
+                # If multiple tasks performed, stop, it's a fail
+                #if(num_tasks_performed > 1):
                 #    win = False 
                 #    reward = 0
                 #    break
-                # If one action is occuring, find if it's the goal.
-                if(watching): action = action_map[1]
-                if(pushing):  action = action_map[2]
-                if(pulling):  action = action_map[3]
-                if(lefting):  action = action_map[4]
-                if(righting): action = action_map[5]
+                # If one task is occuring, find if it's the goal.
+                if(watching): task = task_map[1]
+                if(pushing):  task = task_map[2]
+                if(pulling):  task = task_map[3]
+                if(lefting):  task = task_map[4]
+                if(righting): task = task_map[5]
                 
-                mother_comm = Goal(action, color, shape, self.goal.parenting)
+                mother_comm = Goal(task, color, shape, self.goal.parenting)
                 # If the goal, reward.
-                if(action == self.goal.action and color == self.goal.color and shape == self.goal.shape):
+                if(task == self.goal.task and color == self.goal.color and shape == self.goal.shape):
                     win = True 
                     reward = self.args.reward
-                ## If an action is occuring to the wrong object, stop, it's a fail.
+                ## If an task is occuring to the wrong object, stop, it's a fail.
                 #else:
                 #    win = False 
                 #    reward = 0
                 #    break
                 
-        if(self.goal.action.name == "FREEPLAY"):
+        if(self.goal.task.name == "FREEPLAY"):
             reward = 0
             win = None
         elif(self.args.silent_mother_outside_free_play):
@@ -498,17 +498,17 @@ if __name__ == "__main__":
         
         
         
-    action, colors_shapes_1, colors_shapes_2 = make_objects_and_action(1, [0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])
+    task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(1, [0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])
         
 
 
-    print(f"\n\n{action_map.keys()}\n\n")
+    print(f"\n\n{task_map.keys()}\n\n")
 
 
     
     #"""
     print("\nWATCH")
-    goal = Goal(action_map[1], colors_shapes_1[0][0], colors_shapes_1[0][1], True)    
+    goal = Goal(task_map[1], colors_shapes_1[0][0], colors_shapes_1[0][1], True)    
     arena.begin(colors_shapes_1, goal, set_positions = [(6,0)])
     show_them()
     reward, win, mother_comm = arena.rewards(verbose = True)
@@ -523,7 +523,7 @@ if __name__ == "__main__":
     
     #"""
     print("\nPUSH")
-    goal = Goal(action_map[2], colors_shapes_1[0][0], colors_shapes_1[0][1], True)    
+    goal = Goal(task_map[2], colors_shapes_1[0][0], colors_shapes_1[0][1], True)    
     arena.begin(colors_shapes_1, goal, set_positions = [(5,0)])
     show_them()
     arena.rewards(verbose = True)
@@ -538,7 +538,7 @@ if __name__ == "__main__":
     
     #"""
     print("\nPULL")
-    goal = Goal(action_map[3], colors_shapes_1[0][0], colors_shapes_1[0][1], True)    
+    goal = Goal(task_map[3], colors_shapes_1[0][0], colors_shapes_1[0][1], True)    
     arena.begin(colors_shapes_1, goal, set_positions = [(3,0)])
     show_them()
     arena.rewards(verbose = True)
@@ -556,7 +556,7 @@ if __name__ == "__main__":
     
     #"""
     print("\nPULL BACKWARD")
-    goal = Goal(action_map[3], colors_shapes_1[0][0], colors_shapes_1[0][1], True)
+    goal = Goal(task_map[3], colors_shapes_1[0][0], colors_shapes_1[0][1], True)
     arena.begin(colors_shapes_1, goal, set_positions = [(-3,0)])
     show_them()
     arena.rewards(verbose = True)
@@ -571,7 +571,7 @@ if __name__ == "__main__":
     
     #"""   
     print("\nLEFT")
-    goal = Goal(action_map[4], colors_shapes_1[0][0], colors_shapes_1[0][1], True)
+    goal = Goal(task_map[4], colors_shapes_1[0][0], colors_shapes_1[0][1], True)
     arena.begin(colors_shapes_1, goal, set_positions = [(3,0)])
     show_them()
     arena.rewards(verbose = True)
@@ -589,7 +589,7 @@ if __name__ == "__main__":
     
     """   
     print("\nLEFT AGAIN")
-    goal = Goal(action_map[4], colors_shapes_1[0][0], colors_shapes_1[0][1], True)
+    goal = Goal(task_map[4], colors_shapes_1[0][0], colors_shapes_1[0][1], True)
     arena.begin(colors_shapes_1, goal, set_positions = [(2,4)])
     show_them()
     arena.rewards(verbose = True)
@@ -607,7 +607,7 @@ if __name__ == "__main__":
     
     #"""
     print("\nRIGHT")
-    goal = Goal(action_map[5], colors_shapes_1[0][0], colors_shapes_1[0][1], True)
+    goal = Goal(task_map[5], colors_shapes_1[0][0], colors_shapes_1[0][1], True)
     arena.begin(colors_shapes_1, goal, set_positions = [(3,0)])
     show_them()
     arena.rewards(verbose = True)

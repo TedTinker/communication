@@ -31,7 +31,7 @@ for folder in folders:
                 saved_d = pickle.load(handle)          
             for key in saved_d.keys(): 
                 if(not key in d): d[key] = []
-                if(key in ["args", "arg_title", "arg_name", "all_task_names"]): d[key] = saved_d[key]
+                if(key in ["args", "arg_title", "arg_name", "all_processor_names"]): d[key] = saved_d[key]
                 else:  d[key].append(saved_d[key])
                 
         episode_dicts = {}
@@ -44,7 +44,7 @@ for folder in folders:
         plot_dict["agent_lists"] = agent_lists
             
         for key in min_max_dict.keys():
-            if(not key in ["args", "arg_title", "arg_name", "all_task_names", "values_for_composition", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
+            if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "values_for_composition", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task"]):
                 minimum = None ; maximum = None
                 for min_max in min_max_dict[key]:
                     if(any(item in [None, "not_used"] for item in min_max)): 

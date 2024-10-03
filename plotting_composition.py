@@ -7,33 +7,33 @@ import matplotlib.pyplot as plt
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import PCA
 
-from utils import args, duration, load_dicts, print, action_map, color_map, shape_map
+from utils import args, duration, load_dicts, print, task_map, color_map, shape_map
 
 print("name:\n{}\n".format(args.arg_name),)
 
 dpi = 50
 
-action_names = ['FREEPLAY', 'WATCH', 'PUSH', 'PULL', 'LEFT', 'RIGHT']
+task_names = ['FREEPLAY', 'WATCH', 'PUSH', 'PULL', 'LEFT', 'RIGHT']
 color_names = ['RED', 'GREEN', 'BLUE', 'CYAN', 'PINK', 'YELLOW']
 shape_names = ['PILLAR', 'POLE', 'DUMBBELL', 'DELTA', 'HOURGLASS']
 
-lda_action = LDA(n_components = len(action_names) - 1)
+lda_task = LDA(n_components = len(task_names) - 1)
 lda_color = LDA(n_components = len(color_names) - 1)
 lda_shape = LDA(n_components = len(shape_names) - 1)
 
 
 
 def color_based_on_title(task_name):
-    action_str, color_str, shape_str = task_name.split('_')
-    action_index = action_names.index(action_str)
+    task_str, color_str, shape_str = task_name.split('_')
+    task_index = task_names.index(task_str)
     color_index = color_names.index(color_str)
     shape_index = shape_names.index(shape_str)
     
-    action_normalized = action_index / (len(action_names) - 1)
+    task_normalized = task_index / (len(task_names) - 1)
     color_normalized = color_index / (len(color_names) - 1)
     shape_normalized = shape_index / (len(shape_names) - 1)
     
-    r = int(action_normalized * 255)
+    r = int(task_normalized * 255)
     g = int(color_normalized * 255)
     b = int(shape_normalized * 255)
     
@@ -86,22 +86,22 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     except: pass
                     
                     # PROBLEM: NEED TO TRACK FREE-PLAY! 
-                    all_task_names = plot_dict["all_task_names"]
+                    all_processor_names = plot_dict["all_processor_names"]
                     
                     episode_indexes = [0]
                     episode_index = 0
                                         
-                    for task_name, mask in zip(all_task_names, all_mask): 
+                    for processor_name, mask in zip(all_processor_names, all_mask): 
                         episode_len = int(mask.sum().item())
                         episode_indexes.append(episode_len + episode_index)
                         episode_index = episode_indexes[-1]
                         
-                    all_task_names_no_free_play = [task_name for task_name in all_task_names if task_name.split("_")[0] != "FREEPLAY"]
+                    all_processor_names_no_free_play = [processor_name for processor_name in all_processor_names if processor_name.split("_")[0] != "FREEPLAY"]
                     all_mask_no_free_play = all_mask[freeplay_mask_for_mask]
                     
                     episode_indexes_no_free_play = [0]
                     episode_index_no_free_play = 0
-                    for task_name, mask in zip(all_task_names_no_free_play, all_mask_no_free_play): 
+                    for processor_name, mask in zip(all_processor_names_no_free_play, all_mask_no_free_play): 
                         episode_len = int(mask.sum().item())
                         episode_indexes_no_free_play.append(episode_len + episode_index_no_free_play)
                         episode_index_no_free_play = episode_indexes_no_free_play[-1]                
@@ -111,28 +111,28 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     this_no_free_play = this[freeplay_mask]
                     labels_no_free_play = labels[freeplay_mask]
                                                                     
-                    lda_action.fit(this, labels[:,0])
+                    lda_task.fit(this, labels[:,0])
                     lda_color.fit(this_no_free_play, labels_no_free_play[:,1])
                     lda_shape.fit(this_no_free_play, labels_no_free_play[:,2])
                     
-                    action_probs = lda_action.predict_proba(this)
+                    task_probs = lda_task.predict_proba(this)
                     color_probs = lda_color.predict_proba(this_no_free_play)
                     shape_probs = lda_shape.predict_proba(this_no_free_play)
                                                                                 
-                    all_pred_actions = []
+                    all_pred_tasks = []
                     all_pred_colors = []
                     all_pred_shapes = []
                     
                     fig = go.Figure()
                 
-                    for i, task_name in enumerate(all_task_names):
+                    for i, processor_name in enumerate(all_processor_names):
                         start_idx = episode_indexes[i]
                         end_idx = episode_indexes[i + 1]
-                        these_action_probs = action_probs[start_idx:end_idx]
-                        pred_actions = np.argmax(these_action_probs, axis = 1)
-                        all_pred_actions.append(pred_actions)
+                        these_task_probs = task_probs[start_idx:end_idx]
+                        pred_tasks = np.argmax(these_task_probs, axis = 1)
+                        all_pred_tasks.append(pred_tasks)
                         
-                    for i, task_name in enumerate(all_task_names_no_free_play):               
+                    for i, processor_name in enumerate(all_processor_names_no_free_play):               
                         start_idx = episode_indexes_no_free_play[i]
                         end_idx = episode_indexes_no_free_play[i + 1]
                         
@@ -145,22 +145,22 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                         all_pred_shapes.append(pred_shapes)
                                             
                     non_freeplay_index = 0
-                    for i, task_name in enumerate(all_task_names):
-                        if(task_name.split("_")[0] != "FREEPLAY"):
+                    for i, processor_name in enumerate(all_processor_names):
+                        if(processor_name.split("_")[0] != "FREEPLAY"):
                             
-                            pred_actions = all_pred_actions[i]
+                            pred_tasks = all_pred_tasks[i]
                             pred_colors = all_pred_colors[non_freeplay_index]
                             pred_shapes = all_pred_shapes[non_freeplay_index]
                             non_freeplay_index += 1
                                                     
                             fig.add_trace(go.Scatter3d(
-                                x=pred_actions, 
+                                x=pred_tasks, 
                                 y=pred_colors, 
                                 z=pred_shapes, 
                                 mode='markers',
                                 marker=dict(
                                     size=8,  # Marker size
-                                    color=color_based_on_title(task_name),  # Colors can be any valid sequence
+                                    color=color_based_on_title(processor_name),  # Colors can be any valid sequence
                                     opacity=0.8
                                 ),
                             showlegend=False 
@@ -170,9 +170,9 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     fig.update_layout(
                         scene=dict(
                             xaxis=dict(
-                                title='Actions', 
+                                title='Tasks', 
                                 tickvals=[0, 1, 2, 3, 4],  # Corresponding numeric values
-                                ticktext=action_names,          # Corresponding action labels
+                                ticktext=task_names,          # Corresponding task labels
                                 range=[-1, 6]
                             ),
                             yaxis=dict(
@@ -199,7 +199,7 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     output_file_3d = output_file + "_3d.html"
                     fig.write_html(output_file_3d)
                     
-                    all_pred_actions = np.array([item for sublist in all_pred_actions for item in sublist])
+                    all_pred_tasks = np.array([item for sublist in all_pred_tasks for item in sublist])
                     all_pred_colors = np.array([item for sublist in all_pred_colors for item in sublist])
                     all_pred_shapes = np.array([item for sublist in all_pred_shapes for item in sublist])
                                         
@@ -211,22 +211,22 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     
                     labels = add_jitter(labels, jitter)
                     labels_no_free_play = add_jitter(labels_no_free_play, jitter)
-                    all_pred_actions = add_jitter(all_pred_actions, jitter)
+                    all_pred_tasks = add_jitter(all_pred_tasks, jitter)
                     all_pred_colors = add_jitter(all_pred_colors, jitter)
                     all_pred_shapes = add_jitter(all_pred_shapes, jitter)
                     
-                    print("Actions:", len(labels[:,0]), all_pred_actions.shape)
+                    print("Tasks:", len(labels[:,0]), all_pred_tasks.shape)
                     print("Colors:", len(labels_no_free_play[:,1]), all_pred_colors.shape)
                     print("Shapes:", len(labels_no_free_play[:,2]), all_pred_shapes.shape)
                     
-                    axs[0].scatter(labels[:,0], all_pred_actions, c = "black", s = size)
-                    axs[0].set_title('Actions')
+                    axs[0].scatter(labels[:,0], all_pred_tasks, c = "black", s = size)
+                    axs[0].set_title('Tasks')
                     axs[0].set_xlabel('Real Labels')
                     axs[0].set_ylabel('LDA Predictions')
                     axs[0].set_xticks([1, 2, 3, 4, 5, 6])  
-                    axs[0].set_xticklabels(action_names)  
+                    axs[0].set_xticklabels(task_names)  
                     axs[0].set_yticks([0, 1, 2, 3, 4, 5]) 
-                    axs[0].set_yticklabels(action_names) 
+                    axs[0].set_yticklabels(task_names) 
                     plt.setp(axs[0].get_xticklabels(), rotation=45, ha="right")
                     plt.setp(axs[0].get_yticklabels(), rotation=0, ha="right")
 

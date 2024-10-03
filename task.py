@@ -2,7 +2,7 @@
 import torch
 from collections import namedtuple
 
-from utils import default_args, make_objects_and_action, print, Goal, goal_to_onehots, string_to_onehots, Whole_Obs
+from utils import default_args, make_objects_and_task, print, Goal, goal_to_onehots, string_to_onehots, Whole_Obs
 from arena import Arena, get_physics
 
 
@@ -13,16 +13,16 @@ Step_Results = namedtuple('Step_Results', [
 
 
 
-class Task:
+class Processor:
     
-    def __init__(self, arena_1, arena_2, actions = [0, 1, 2, 3, 4, 5], colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args): 
+    def __init__(self, arena_1, arena_2, tasks = [0, 1, 2, 3, 4, 5], colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args): 
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
     def begin(self, test = False):
         self.steps = 0
-        action, colors_shapes_1, colors_shapes_2 = make_objects_and_action(
-            self.num_objects, self.actions, self.colors, self.shapes, test = test)
-        self.goal = Goal(action, colors_shapes_1[0][0], colors_shapes_1[0][1], self.parenting)   
+        task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
+            self.num_objects, self.tasks, self.colors, self.shapes, test = test)
+        self.goal = Goal(task, colors_shapes_1[0][0], colors_shapes_1[0][1], self.parenting)   
         self.arena_1.begin(colors_shapes_1, self.goal)
         if(not self.parenting): 
             self.arena_2.begin(colors_shapes_2, self.goal)
@@ -115,8 +115,8 @@ if __name__ == "__main__":
     args = default_args
     physicsClient_1 = get_physics(GUI = False, time_step = args.time_step, steps_per_step = args.steps_per_step)
     physicsClient_2 = get_physics(GUI = True, time_step = args.time_step, steps_per_step = args.steps_per_step)
-    task = Task(Arena(physicsClient_1), Arena(physicsClient_2), parenting = False)
-    task.begin()
+    processor = Processor(Arena(physicsClient_1), Arena(physicsClient_2), parenting = False)
+    processor.begin()
     for i in range(10):
-        step_results = task.step(torch.rand(4), torch.rand(4), verbose = True, sleep_time = 1)
-    task.done()
+        step_results = processor.step(torch.rand(4), torch.rand(4), verbose = True, sleep_time = 1)
+    processor.done()

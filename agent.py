@@ -15,10 +15,10 @@ from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
 from utils import default_args, duration, dkl, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, \
-    action_map, color_map, shape_map, print, string_to_onehots, agent_to_english, goal_to_human, strings_to_human, To_Push
+    task_map, color_map, shape_map, print, string_to_onehots, agent_to_english, goal_to_human, strings_to_human, To_Push
 from utils_submodule import model_start
 from arena import Arena, get_physics
-from task import Task
+from task import Processor
 from buffer import RecurrentReplayBuffer
 from pvrnn import PVRNN
 from models import Actor, Critic
@@ -58,28 +58,28 @@ class Agent:
         physicsClient_2    = get_physics(GUI = False,  time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_2 = Arena(physicsClient_2,   args = self.args)
         
-        self.tasks = {
-            "f" :       Task(self.arena_1, self.arena_2, actions = [0],                 colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args),
-            "fw" :      Task(self.arena_1, self.arena_2, actions = [0, 1],              colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args),
-            "fwpulr" :  Task(self.arena_1, self.arena_2, actions = [0, 1, 2, 3, 4, 5],  colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args),
-            "w" :       Task(self.arena_1, self.arena_2, actions = [1],                 colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args),
-            "wpulr" :   Task(self.arena_1, self.arena_2, actions = [1, 2, 3, 4, 5],     colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args)}
-        self.task = self.tasks[self.args.tasks_epochs[0][0]]
+        self.processors = {
+            "f" :       Processor(self.arena_1, self.arena_2, tasks = [0],                 colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args),
+            "fw" :      Processor(self.arena_1, self.arena_2, tasks = [0, 1],              colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args),
+            "fwpulr" :  Processor(self.arena_1, self.arena_2, tasks = [0, 1, 2, 3, 4, 5],  colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args),
+            "w" :       Processor(self.arena_1, self.arena_2, tasks = [1],                 colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args),
+            "wpulr" :   Processor(self.arena_1, self.arena_2, tasks = [1, 2, 3, 4, 5],     colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, num_objects = 2, args = default_args)}
+        self.processo = self.processors[self.args.processors_epochs[0][0]]
         
         def extract_numbers(task_name):
-            action_str, color_str, shape_str = task_name.split("_")
-            action = next(idx for idx, name in action_map.items() if name[1] == action_str)
+            task_str, color_str, shape_str = task_name.split("_")
+            task = next(idx for idx, name in task_map.items() if name[1] == task_str)
             color = next(idx for idx, name in color_map.items() if name[1] == color_str)
             shape = next(idx for idx, name in shape_map.items() if name[1] == shape_str)
-            return action, color, shape
+            return task, color, shape
         
-        self.all_tasks = {f"{action_map[action][1]}_{color_map[color][1]}_{shape_map[shape][1]}" : 
-            Task(self.arena_1, self.arena_2, actions = [action], colors = [color], shapes = [shape], num_objects = 1, parenting = True, args = self.args) 
-            for action, color, shape in product([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
-            #for action, color, shape in product([1, 2], [0, 1, 2], [0, 1, 2])}
-        all_task_names = list(self.all_tasks.keys())
-        all_task_names.sort(key=lambda task: extract_numbers(task))
-        self.all_task_names = all_task_names
+        self.all_processors = {f"{task_map[task][1]}_{color_map[color][1]}_{shape_map[shape][1]}" : 
+            Processor(self.arena_1, self.arena_2, tasks = [task], colors = [color], shapes = [shape], num_objects = 1, parenting = True, args = self.args) 
+            for task, color, shape in product([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
+            #for task, color, shape in product([1, 2], [0, 1, 2], [0, 1, 2])}
+        all_processor_names = list(self.all_processors.keys())
+        all_processor_names.sort(key=lambda processor: extract_numbers(processor))
+        self.all_processor_names = all_processor_names
         
         self.target_entropy = self.args.target_entropy
         self.alpha = 1
@@ -126,7 +126,7 @@ class Agent:
             "arg_name" : args.arg_name,
             "division_epochs" : [],
             "episode_dicts" : {}, 
-            "all_task_names" : self.all_task_names,
+            "all_processor_names" : self.all_processor_names,
             "values_for_composition" : {},
             "agent_lists" : {} if (self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list) else {"forward" : PVRNN(self.args), "actor" : Actor(self.args), "critic" : Critic(self.args)},
             "rewards" : [], 
@@ -155,9 +155,9 @@ class Agent:
             "hidden_state_curiosity" : [],
             "wins_all" : [],
             "gen_wins_all" : []}
-        for action in action_map.values():
-            self.plot_dict[f"wins_{action.name}"] = []
-            self.plot_dict[f"gen_wins_{action.name}"] = []
+        for task in task_map.values():
+            self.plot_dict[f"wins_{task.name}"] = []
+            self.plot_dict[f"gen_wins_{task.name}"] = []
             
             
             
@@ -169,7 +169,7 @@ class Agent:
         self.arena_1 = Arena(physicsClient_1, args = self.args)
         physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_2 = Arena(physicsClient_2, args = self.args)
-        self.task_name = self.args.tasks_epochs[0][0]
+        self.processor_name = self.args.processors_epochs[0][0]
         self.give_actor_voice()
         
         
@@ -191,7 +191,7 @@ class Agent:
             self.gen_test()  
         else:
             self.plot_dict["gen_wins_all"].append(None)
-            win_dict_list = [self.plot_dict["gen_wins_" + action.name] for action in action_map.values()]
+            win_dict_list = [self.plot_dict["gen_wins_" + task.name] for task in task_map.values()]
             for i, win_dict in enumerate(win_dict_list):
                 win_dict.append(None)
         if(self.epochs % self.args.epochs_per_values_for_composition == 0):
@@ -207,15 +207,15 @@ class Agent:
                 
         self.q = q
                 
-        for task_name, epochs in self.args.tasks_epochs: 
-            self.task_name = task_name
+        for processor_name, epochs in self.args.processors_epochs: 
+            self.processor_name = processor_name
             self.plot_dict["division_epochs"].append(self.total_epochs)
             
             self.regular_checks(force = True, swapping = True)
             
             for e in range(epochs):  
                 step = self.training_episode()
-                total_epochs = sum([epoch for task_name, epoch in self.args.tasks_epochs])
+                total_epochs = sum([epoch for processor_name, epoch in self.args.processors_epochs])
                 percent_done = str(self.epochs / total_epochs)
                 if(q != None):
                     q.put((self.agent_num, percent_done))
@@ -229,7 +229,7 @@ class Agent:
                 
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
-            if(not key in ["args", "arg_title", "arg_name", "all_task_names", "values_for_composition", "episode_dicts", "agent_lists", "spot_names", "steps"]):
+            if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "values_for_composition", "episode_dicts", "agent_lists", "spot_names", "steps"]):
                 if(key == "hidden_state"):
                     min_maxes = []
                     hidden_state = deepcopy(self.plot_dict[key])
@@ -265,7 +265,7 @@ class Agent:
         prev_time = duration()
         with torch.no_grad():
             self.eval()
-            parenting = self.task.parenting
+            parenting = self.processor.parenting
             
             
             
@@ -273,12 +273,14 @@ class Agent:
                 prev_action = prev_action_1 if agent_1 else prev_action_2
                 prev_comm_out = prev_comm_out_2 if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)) if agent_1 else prev_comm_out_1
                 hq = hq_1 if agent_1 else hq_2
-                whole_obs, reward, win = self.task.obs(agent_1)
+                whole_obs, reward, win = self.processor.obs(agent_1)
                 rgbd = whole_obs.rgbd
                 sensors = whole_obs.sensors
                 father_comm = whole_obs.father_comm
                 mother_comm = whole_obs.mother_comm
-                comm_in = father_comm.unsqueeze(0) if parenting else mother_comm.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else prev_comm_out
+                comm_in = father_comm.unsqueeze(0) if parenting else mother_comm.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else prev_comm_out
+                
+                #whole_obs.father_comm = comm_in
                             
                 hp, hq, rgbd_dkls, sensors_dkls, comm_dkls, comm_zq = self.forward.bottom_to_top_step(
                     hq, 
@@ -309,7 +311,7 @@ class Agent:
                 comm_dkls_2 = None
                 sensors_dkls_2 = None
             
-            step_results = self.task.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
+            step_results = self.processor.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
             
             raw_reward = step_results.reward 
             distance_reward = angle_reward = 0
@@ -329,19 +331,19 @@ class Agent:
             total_reward = raw_reward + distance_reward + angle_reward 
             total_reward_2 = raw_reward + distance_reward_2 + angle_reward_2
             
-            whole_obs_1, reward_1, win_1 = self.task.obs()
+            whole_obs_1, reward_1, win_1 = self.processor.obs()
             next_rgbd_1 = whole_obs_1.rgbd
             next_sensors_1 = whole_obs_1.sensors
             next_father_comm_1 = whole_obs_1.father_comm
             next_mother_comm_1 = whole_obs_1.mother_comm
-            whole_obs_2, reward_2, win_2 = self.task.obs()
+            whole_obs_2, reward_2, win_2 = self.processor.obs()
             next_rgbd_2 = whole_obs_2.rgbd
             next_sensors_2 = whole_obs_2.sensors
             next_father_comm_2 = whole_obs_2.father_comm
             next_mother_comm_2 = whole_obs_2.mother_comm
             
-            next_comm_in_1 = next_father_comm_1.unsqueeze(0) if parenting else next_mother_comm_1.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else comm_out_2
-            next_comm_in_2 = next_father_comm_2.unsqueeze(0) if parenting else next_mother_comm_2.unsqueeze(0).unsqueeze(0) if self.task.goal.action.name == "FREEPLAY" else comm_out_1 
+            next_comm_in_1 = next_father_comm_1.unsqueeze(0) if parenting else next_mother_comm_1.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else comm_out_2
+            next_comm_in_2 = next_father_comm_2.unsqueeze(0) if parenting else next_mother_comm_2.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else comm_out_1 
                         
             to_push_1 = To_Push(rgbd_1, sensors_1, comm_in_1, mother_comm_1, action_1, comm_out_1, reward_1, next_rgbd_1, next_sensors_1, next_comm_in_1, next_mother_comm_1, done)
             
@@ -408,8 +410,8 @@ class Agent:
             to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, mother_comm_1, \
             to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
                     
-        self.task = self.tasks[self.task_name]
-        self.task.begin()    
+        self.processor = self.processors[self.processor_name]
+        self.processor.begin()    
                         
         for step in range(self.args.max_steps):
             self.steps += 1  
@@ -428,14 +430,14 @@ class Agent:
             if(self.steps % self.args.steps_per_epoch == 0):
                 self.epoch(self.args.batch_size)
                                                     
-        self.task.done()
+        self.processor.done()
         self.plot_dict["steps"].append(steps)
         self.plot_dict["rewards"].append(complete_reward)
-        goal_action = self.task.goal.action.name
+        goal_task = self.processor.goal.task.name
         self.plot_dict["wins_all"].append(win)
-        win_dict_list = [self.plot_dict["wins_" + action.name] for action in action_map.values()]
-        for action, win_dict in zip(action_map.values(), win_dict_list):
-            if(action.name == goal_action): 
+        win_dict_list = [self.plot_dict["wins_" + task.name] for task in task_map.values()]
+        for task, win_dict in zip(task_map.values(), win_dict_list):
+            if(task.name == goal_task): 
                 win_dict.append(win)
             else:                           
                 win_dict.append(None)
@@ -456,8 +458,8 @@ class Agent:
             to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
                 
         try:
-            self.task = self.tasks[self.task_name]
-            self.task.begin(test = True)        
+            self.processor = self.processors[self.processor_name]
+            self.processor.begin(test = True)        
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
@@ -470,19 +472,19 @@ class Agent:
                 #print("DONE")
             time = duration()
             if(self.args.show_duration): print(f"FULL GEN TEST EPISODE ({step + 1} steps):", time - start_time, "\n")
-            self.task.done()
-            goal_action = self.task.goal.action.name
+            self.processor.done()
+            goal_task = self.processor.goal.task.name
             self.plot_dict["gen_wins_all"].append(win)
-            win_dict_list = [self.plot_dict["gen_wins_" + action.name] for action in action_map.values()]
-            for action, win_dict in zip(action_map.values, win_dict_list):
-                if(action.name == goal_action): 
+            win_dict_list = [self.plot_dict["gen_wins_" + task.name] for task in task_map.values()]
+            for task, win_dict in zip(task_map.values, win_dict_list):
+                if(task.name == goal_task): 
                     win_dict.append(win)
                 else: win_dict.append(None)
         except:
             complete_reward = 0
             win = False
             self.plot_dict["gen_wins_all"].append(None) # Changed from win
-            win_dict_list = [self.plot_dict["gen_wins_" + action.name] for action in action_map.values()]
+            win_dict_list = [self.plot_dict["gen_wins_" + task.name] for task in task_map.values()]
             for i, win_dict in enumerate(win_dict_list):
                 win_dict.append(None)
         self.plot_dict["gen_rewards"].append(complete_reward)
@@ -492,9 +494,9 @@ class Agent:
         
     def save_episodes(self, swapping = False, test = False, sleep_time = None, for_display = False):        
         with torch.no_grad():
-            self.task = self.tasks[self.task_name]
-            self.task.begin(test = test)       
-            comm_from_parent = self.task.parenting
+            self.processor = self.processors[self.processor_name]
+            self.processor.begin(test = test)       
+            comm_from_parent = self.processor.parenting
             if(self.args.agents_per_episode_dict != -1 and self.agent_num > self.args.agents_per_episode_dict): 
                 return
             for episode_num in range(self.args.episodes_in_episode_dict):
@@ -544,8 +546,8 @@ class Agent:
                     "sensors_dkls_2" : [],
                     "mother_comm_2" : []}
                 
-                episode_dict["task"] = self.task
-                episode_dict["goal"] = goal_to_human(self.task.goal)
+                episode_dict["processor"] = self.processor
+                episode_dict["goal"] = goal_to_human(self.processor.goal)
                 
                 done = False
                 
@@ -562,8 +564,8 @@ class Agent:
                 def save_step(step, hp, hq, action, agent_1 = True):
                     agent_num = 1 if agent_1 else 2
                                         
-                    birds_eye = self.task.arena_1.photo_from_above() if agent_1 else self.task.arena_2.photo_from_above()
-                    whole_obs, reward, win = self.task.obs(agent_1 = agent_1)
+                    birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
+                    whole_obs, reward, win = self.processor.obs(agent_1 = agent_1)
                     rgbd = whole_obs.rgbd
                     sensors = whole_obs.sensors
                     father_comm = whole_obs.father_comm
@@ -573,9 +575,9 @@ class Agent:
                     episode_dict[f"sensors_{agent_num}"].append(sensors.tolist()[0])
                     
                     if(agent_1):
-                        comm_in = onehots_to_string(mother_comm_1) if self.task.goal.action.name == "FREEPLAY" else onehots_to_string(father_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
+                        comm_in = onehots_to_string(mother_comm_1) if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(father_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
                     else:
-                        comm_in = onehots_to_string(mother_comm_2) if self.task.goal.action.name == "FREEPLAY" else onehots_to_string(father_comm[0]) if comm_from_parent else prev_comm_out_1[0,0]
+                        comm_in = onehots_to_string(mother_comm_2) if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(father_comm[0]) if comm_from_parent else prev_comm_out_1[0,0]
                     episode_dict[f"comms_in_{agent_num}"].append("'{}' ({})".format(comm_in, strings_to_human(comm_in)))
                     
                     if(agent_1):
@@ -601,17 +603,17 @@ class Agent:
                     
                 def display(step, agent_1 = True, done = False, stopping = False, wait = True):
                     if(for_display):
-                        print(f"\n{self.task.goal_human_text}", end = " ")
+                        print(f"\n{self.processor.goal_human_text}", end = " ")
                         print("STEP:", step)
                         plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False)
-                        if(not self.task.parenting and not stopping):
+                        if(not self.processor.parenting and not stopping):
                             display(step, agent_1 = False, stopping = True)
                         if(wait):
                             WAITING = input("WAITING")
                 
                 for step in range(self.args.max_steps + 1):
                     save_step(step, hp_1, hq_1, action = prev_action_1, agent_1 = True)    
-                    if(not self.task.parenting):
+                    if(not self.processor.parenting):
                         save_step(step, hp_2, hq_2, action = prev_action_2, agent_1 = False)  
                         
                     display(step)
@@ -636,7 +638,7 @@ class Agent:
                     episode_dict["distance_rewards_1"].append(str(round(distance_reward, 3)))
                     episode_dict["angle_rewards_1"].append(str(round(angle_reward, 3)))
                         
-                    if(not self.task.parenting):
+                    if(not self.processor.parenting):
                         episode_dict["actions_2"].append(prev_action_2)
                         episode_dict["action_texts_2"].append(action_to_string(prev_action_2))
                         comm_out_2 = onehots_to_string(prev_comm_out_2)
@@ -651,10 +653,10 @@ class Agent:
                     
                     if(done):
                         save_step(step, hp_1, hq_1, action = prev_action_1, agent_1 = True)    
-                        if(not self.task.parenting):
+                        if(not self.processor.parenting):
                             save_step(step, hp_2, hq_2, action = prev_action_2, agent_1 = False) 
                         display(step + 1, done = True, wait = False)
-                        self.task.done()
+                        self.processor.done()
                         time = duration()
                         if(self.args.show_duration): print(f"\nFULL SAVE EPISODE EPISODE ({step + 1} steps):", time - start_time, "\n")
                         break
@@ -670,12 +672,12 @@ class Agent:
         if(self.args.agents_per_values_for_composition != -1 and self.agent_num > self.args.agents_per_values_for_composition): 
             return
         adjusted_args = deepcopy(self.args)
-        adjusted_args.capacity = len(self.all_tasks)
+        adjusted_args.capacity = len(self.all_processors)
         temp_memory = RecurrentReplayBuffer(adjusted_args)
-        task_lens = []
-        for task_name in self.all_task_names:
-            self.task = self.all_tasks[task_name]
-            self.task.begin(test = None)    
+        processor_lens = []
+        for processor_name in self.all_processor_names:
+            self.processor = self.all_processors[processor_name]
+            self.processor.begin(test = None)    
             start_time, prev_time, done, complete_reward, steps, \
                 to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, mother_comm_1, \
                 to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
@@ -691,11 +693,11 @@ class Agent:
                 to_push_list_1.append(to_push_1)
                 if(done): break
             #print("DONE")
-            self.task.done()
-            task_lens.append(step)
+            self.processor.done()
+            processor_lens.append(step)
             self.push(to_push_list_1, temp_memory)
                             
-        batch = self.get_batch(temp_memory, len(self.all_tasks), random_sample = False)
+        batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
         rgbd, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, mask, all_mask, episodes, steps = batch
                 
         hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels = self.forward(
@@ -705,9 +707,6 @@ class Agent:
         comm_zq = comm_zq.detach().cpu().numpy()
         labels = labels.detach().cpu().numpy()
         all_mask = all_mask.detach().cpu().numpy()   
-        
-        print(f"\n\n{comm_zq.shape, labels.shape, all_mask.shape}\n\n")
-        print(labels)
                 
         self.plot_dict["values_for_composition"][self.epochs] = (comm_zq, labels, all_mask)
                         
@@ -762,7 +761,7 @@ class Agent:
         self.epochs += 1
         self.total_epochs += 1
         self.train()
-        parenting = self.task.parenting
+        parenting = self.processor.parenting
                                 
         batch = self.get_batch(self.memory, batch_size)
         if(batch == False):
@@ -993,7 +992,7 @@ class Agent:
         prediction_error_curiosity = prediction_error_curiosity.mean().item()
         hidden_state_curiosity = hidden_state_curiosity.mean().item()
 
-        total_epochs = sum([epoch for task_name, epoch in self.args.tasks_epochs])
+        total_epochs = sum([epoch for processor_name, epoch in self.args.processors_epochs])
         if(self.epochs == 1 or self.epochs >= total_epochs or self.epochs % self.args.keep_data == 0):
             self.plot_dict["accuracy"].append(accuracy)
             self.plot_dict["rgbd_loss"].append(rgbd_loss)

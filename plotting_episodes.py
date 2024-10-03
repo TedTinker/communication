@@ -40,7 +40,7 @@ def plot_episode(key, episode_dict, arg_name, saving = True):
     steps = len(episode_dict["rgbds_1"])
     for step in range(steps):
         plot_step(step, episode_dict, last_step = step + 1 == steps, saving = saving)
-        if(episode_dict["task"]).parenting: pass 
+        if(episode_dict["processor"]).parenting: pass 
         else: plot_step(step, episode_dict, agent_1 = False, last_step = step + 1 == steps, saving = saving)
     if(saving):
         print("SAVED PLOTS")

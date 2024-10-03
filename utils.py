@@ -1,10 +1,11 @@
 #%% 
 
 # To do: most important 
+#   You notice, not all objects allowed in freeplay
 #   Try old arena. 
 #   Give actions percentage chances when making a task.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
-#   "push" action detected at odd times. Should "left" and "right" only win when object is in gaze?
+#   "push" task detected at odd times. Should "left" and "right" only win when object is in gaze?
 #   Plotting sometimes shows big changes immediately after changing epoch-list values. 
 
 # To do: less important 
@@ -75,15 +76,15 @@ def cpu_memory_usage():
 
 
 
-Action = namedtuple('Action', ['char', 'name'])
-action_map = {
-    0:  Action("A", "FREEPLAY"),
-    1:  Action("B", "WATCH"),
-    2:  Action("C", "PUSH"),
-    3:  Action("D", "PULL"),
-    4:  Action("E", "LEFT"),
-    5:  Action("F", "RIGHT")} 
-action_name_list = [a.name for a in action_map.values()]
+Task = namedtuple('Task', ['char', 'name'])
+task_map = {
+    0:  Task("A", "FREEPLAY"),
+    1:  Task("B", "WATCH"),
+    2:  Task("C", "PUSH"),
+    3:  Task("D", "PULL"),
+    4:  Task("E", "LEFT"),
+    5:  Task("F", "RIGHT")} 
+task_name_list = [a.name for a in task_map.values()]
 
 Color = namedtuple('Color', ['char', 'name', 'rgba'])
 color_map = {
@@ -104,14 +105,14 @@ shape_map = {int(num) : Shape(l, n, f) for num, (l, n, f) in enumerate(shape_let
 shape_name_list = [s.name for s in shape_map.values()]
 
 Object = namedtuple('Object', ['index', 'default_pos', 'color', 'shape'])
-Goal = namedtuple('Goal', ['action', 'color', 'shape', 'parenting'])
+Goal = namedtuple('Goal', ['task', 'color', 'shape', 'parenting'])
 Whole_Obs = namedtuple('Whole_Obs', ['rgbd', 'sensors', 'father_comm', 'mother_comm'])
-Agent_Action = namedtuple('Agent_Action', ['wheels', 'comm_out'])
+Action = namedtuple('Action', ['wheels', 'comm_out'])
 ZP_ZQ_DKL = namedtuple("ZP_ZQ_DKL", ["zp", "zq", "dkl"])
 To_Push = namedtuple('To_Push', ['rgbd', 'sensors', 'father_comm', 'mother_comm', 'action', 'comm_out', 'reward', 'next_rgbd', 'next_sensors', 'next_father_comm', 'next_mother_comm', 'done'])
 
 used_chars = list(
-                 [a.char for a in action_map.values()] +
+                 [a.char for a in task_map.values()] +
                  [c.char for c in color_map.values()] +
                  [s.char for s in shape_map.values()])
 used_chars.sort()
@@ -127,8 +128,8 @@ char_to_index = {v: k for k, v in comm_map.items()}
 
 
 if(__name__ == "__main__"):
-    print("Actions:")
-    for key, value in action_map.items():
+    print("Tasks:")
+    for key, value in task_map.items():
         print(f"\t{key} : \t {value}")
     print("Colors:")
     for key, value in color_map.items():
@@ -149,7 +150,7 @@ def agent_to_english(agent_string):
     english_string = ""
     for char in agent_string:
         translated = False
-        for d in [action_map, color_map, shape_map]:
+        for d in [task_map, color_map, shape_map]:
             for val in d.values():
                 c = val.char
                 n = val.name
@@ -170,7 +171,7 @@ if(__name__ == "__main__"):
 
 
 
-all_combos = list(product(action_map.keys(), color_map.keys(), shape_map.keys()))
+all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
 
 def train_or_test(a, c, s):
     train = True
@@ -196,9 +197,9 @@ if(__name__ == "__main__"):
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
     import matplotlib.patches as patches
-    for a, action in action_map.items():
+    for t, task in task_map.items():
         fig = plt.figure(figsize=(15, 15))
-        fig.suptitle(action.name)
+        fig.suptitle(task.name)
         gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
         axs = []
         for s in range(len(shape_map)):
@@ -220,48 +221,48 @@ if(__name__ == "__main__"):
         
 #%%
 
-def valid_color_shape(action_num, used_combos, allowed_colors, allowed_shapes, test = False):
+def valid_color_shape(task_num, used_combos, allowed_colors, allowed_shapes, test = False):
     if(test == None):
         these_combos = testing_combos + training_combos
     elif(test):
         these_combos = testing_combos
     else:
         these_combos = training_combos
-    these_combos = [combo for combo in these_combos if combo[0] == action_num]
+    these_combos = [combo for combo in these_combos if combo[0] == task_num]
     these_combos = [(combo[1], combo[2]) for combo in these_combos if combo[1] in allowed_colors and combo[2] in allowed_shapes]
     these_combos = [combo for combo in these_combos if not combo in used_combos]
     color_num, shape_num = choice(these_combos)
     return(color_num, shape_num)
 
-def make_objects_and_action(num_objects, allowed_actions, allowed_colors, allowed_shapes, test = False):
-    action_num = choice(allowed_actions)
-    if(action_num == 0):
+def make_objects_and_task(num_objects, allowed_tasks, allowed_colors, allowed_shapes, test = False):
+    task_num = choice(allowed_tasks)
+    if(task_num == 0):
         test = False
-    goal_object = valid_color_shape(action_num, [], allowed_colors, allowed_shapes, test = test)
+    goal_object = valid_color_shape(task_num, [], allowed_colors, allowed_shapes, test = test)
     colors_shapes_1 = [goal_object]
     colors_shapes_2 = [goal_object]
     for n in range(num_objects-1):
-        color_shape = valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test)
+        color_shape = valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test)
         colors_shapes_1.append(color_shape)
     for n in range(num_objects-1):
-        color_shape = valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test)
+        color_shape = valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test)
         colors_shapes_2.append(color_shape)
-    action = action_map[action_num]
+    task = task_map[task_num]
     colors_shapes_1 = [(color_map[c], shape_map[s]) for (c, s) in colors_shapes_1]
     colors_shapes_2 = [(color_map[c], shape_map[s]) for (c, s) in colors_shapes_2]
-    return(action, colors_shapes_1, colors_shapes_2)
+    return(task, colors_shapes_1, colors_shapes_2)
 
 
 
 if(__name__ == "__main__"):
     print("Train")
     for i in range(1):
-        print(make_objects_and_action(2, [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4]))
+        print(make_objects_and_task(2, [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4]))
     print("\nTest")
     for i in range(1):
-        print(make_objects_and_action(2, [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True))
+        print(make_objects_and_task(2, [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True))
         
-    print(make_objects_and_action(1, [0], [0], [0]))
+    print(make_objects_and_task(1, [0], [0], [0]))
 
 
 
@@ -355,7 +356,7 @@ parser.add_argument('--silent_mother_outside_free_play',                  type=l
 
     # Task details
 parser.add_argument('--reward',                         type=float,         default = 10,
-                    help='Extrinsic reward for choosing correct action, shape, and color.') 
+                    help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--max_steps',                      type=int,           default = 10,
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
@@ -374,7 +375,7 @@ parser.add_argument('--left_right_amount',              type=float,         defa
                     help='Needed distance of an object for push/pull/left/right.')
 
     # Training
-parser.add_argument('--tasks_epochs',                   type=literal,       default = [("f", 10000), ("w", 5000), ("wpulr", 30000)],
+parser.add_argument('--processors_epochs',              type=literal,       default = [("f", 100), ("w", 50), ("wpulr", 300)],
                     help='Agents perform these tasks for these numbers of episodes.')
 parser.add_argument('--capacity',                       type=int,           default = 256,
                     help='How many episodes the recurrent memory buffer can contain.')
@@ -407,7 +408,7 @@ parser.add_argument('--hidden_size',                    type=int,           defa
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,
                     help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
 parser.add_argument('--action_encode_size',             type=int,           default = 8,
-                    help='Parameters in encoding action.')   
+                    help='Parameters in encoding agent\'s action.')   
 parser.add_argument('--mtrnn_sigmoid',                  type=literal,       default = True,
                     help='Should mtrnn use sigmoid or tanh?')   
 
@@ -511,7 +512,7 @@ parser.add_argument('--agents_per_agent_list',          type=int,           defa
 
 parser.add_argument('--epochs_per_values_for_composition',        type=int,           default = 5000,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_values_for_composition',       type=int,           default = 0,
+parser.add_argument('--agents_per_values_for_composition',       type=int,           default = 1,
                     help='How many agents to save episodes.')
 
 try:
@@ -601,13 +602,13 @@ else:
             
 #%%
 
-def action_to_string(action):
-    while(len(action.shape) > 1):
-        action = action.squeeze(0)
-    string = "Left Wheel: {} ".format(round(action[0].item(),2))
-    string += "Right Wheel: {} ".format(round(action[1].item(),2))
-    string += "Left Shoulder: {} ".format(round(action[2].item(),2))
-    string += "Right Shoulder: {} ".format(round(action[3].item(),2))
+def action_to_string(task):
+    while(len(task.shape) > 1):
+        task = task.squeeze(0)
+    string = "Left Wheel: {} ".format(round(task[0].item(),2))
+    string += "Right Wheel: {} ".format(round(task[1].item(),2))
+    string += "Left Shoulder: {} ".format(round(task[2].item(),2))
+    string += "Right Shoulder: {} ".format(round(task[3].item(),2))
     return(string)
 
 def onehots_to_string(onehots):
@@ -647,7 +648,7 @@ def strings_to_human(strings):
         human_s = ""
         for c in s:
             known = False
-            for d in [action_map, color_map, shape_map]:
+            for d in [task_map, color_map, shape_map]:
                 for val in d.values():
                     if val.char == c:
                         known = True
@@ -658,14 +659,14 @@ def strings_to_human(strings):
     return(human_strings)
 
 def goal_to_onehots(goal):
-    if(goal.action.name == "FREEPLAY"):
+    if(goal.task.name == "FREEPLAY"):
         string = "AAA"
     else:    
-        string = goal.action.char + goal.color.char + goal.shape.char
+        string = goal.task.char + goal.color.char + goal.shape.char
     return(string_to_onehots(string))
 
 def goal_to_human(goal):
-    string = goal.action.char + goal.color.char + goal.shape.char
+    string = goal.task.char + goal.color.char + goal.shape.char
     if(string[0] == "AAA"):
         for_human = "silent"
     else:
@@ -675,8 +676,8 @@ def goal_to_human(goal):
 
 
 if(__name__ == "__main__"):
-    action = torch.tensor((0, 0, 0, 0))
-    print("Action to string:", action_to_string(action))
+    task = torch.tensor((0, 0, 0, 0))
+    print("Task to string:", task_to_string(task))
     
     onehots = string_to_onehots("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     print("String to onehots:", onehots)
@@ -756,7 +757,7 @@ def load_dicts(args):
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():
-        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "values_for_composition", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
+        if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "values_for_composition", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task"]):
             if(key == "hidden_state"):
                 min_maxes = []
                 for layer in range(len(min_max_dicts[0][key])):

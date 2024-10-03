@@ -4,7 +4,7 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, dkl, duration, how_many_nans
+from utils import default_args, dkl, duration, how_many_nans, Whole_Obs
 from utils_submodule import init_weights, episodes_steps, var, sample
 from mtrnn import MTRNN
 from submodules import RGBD_IN, Comm_IN, Sensors_IN, Obs_OUT, Action_IN
@@ -217,6 +217,14 @@ class PVRNN(nn.Module):
         if(self.args.half):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
+            
+    def whole_ops_in(self, whole_obs):
+        rgbd = self.rgbd_in(whole_obs.rgbd)
+        sensors = self.sensors_in(whole_obs.sensors)
+        father_comm = self.father_comm_in(whole_obs.father_comm)
+        #mother_comm = self.mother_comm_in(whole_obs.mother_comm)
+        mother_comm = None
+        return(Whole_Obs(rgbd, sensors, father_comm, mother_comm))
         
     def predict(self, h, action):
         h_w_action = torch.cat([h, action], dim = -1)
