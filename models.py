@@ -7,10 +7,10 @@ from torch.distributions import Normal
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, print, duration, how_many_nans
+from utils import default_args, print, duration, how_many_nans, Action
 from utils_submodule import init_weights, episodes_steps, var, sample, model_start, model_end
 from mtrnn import MTRNN
-from submodules import Obs_IN, Action_IN, Comm_IN, Comm_OUT
+from submodules import Obs_IN, Wheels_Shoulders_IN, Comm_IN, Comm_OUT
 
 
 
@@ -28,7 +28,7 @@ class Actor(nn.Module):
         
         self.args = args
         
-        self.action_in = Action_IN(self.args)
+        self.wheels_shoulders_in = Wheels_Shoulders_IN(self.args)
 
         self.lin = nn.Sequential(
             nn.Linear(
@@ -45,11 +45,11 @@ class Actor(nn.Module):
         self.mu = nn.Sequential(
             nn.Linear(
                 in_features = args.hidden_size, 
-                out_features = self.args.action_shape))
+                out_features = self.args.wheels_shoulders_shape))
         self.std = nn.Sequential(
             nn.Linear(
                 in_features = args.hidden_size, 
-                out_features = self.args.action_shape),
+                out_features = self.args.wheels_shoulders_shape),
             nn.Softplus())
 
         self.apply(init_weights)
@@ -71,11 +71,11 @@ class Actor(nn.Module):
         sampled = sample(mu, std, self.args.device)
         if(self.args.half):
             sampled = sampled.to(dtype=torch.float16)
-        action = torch.tanh(sampled)
-        log_prob = Normal(mu, std).log_prob(sampled) - torch.log(1 - action.pow(2) + 1e-6)
+        wheels_shoulders = torch.tanh(sampled)
+        log_prob = Normal(mu, std).log_prob(sampled) - torch.log(1 - wheels_shoulders.pow(2) + 1e-6)
         log_prob = torch.mean(log_prob, -1).unsqueeze(-1)
         
-        comm_out, comm_log_prob = self.comm_out(torch.cat([forward_hidden, self.action_in(action).squeeze(1)], dim = -1))
+        comm_out, comm_log_prob = self.comm_out(torch.cat([forward_hidden, self.wheels_shoulders_in(wheels_shoulders).squeeze(1)], dim = -1))
         comm_out = comm_out.squeeze(1)
         if(parenting):
             comm_out = torch.zeros_like(comm_out)
@@ -84,9 +84,9 @@ class Actor(nn.Module):
             comm_out = comm_out.to(dtype=torch.float16)
             comm_log_prob = comm_log_prob.to(dtype=torch.float16)
                             
-        [action, comm_out, log_prob, comm_log_prob] = model_end(start, episodes, steps, 
-            [(action, "lin"), (comm_out, "comm"), (log_prob, "lin"), (comm_log_prob, "lin")], "ACTOR" if self.args.show_duration else None)
-        return action, comm_out, log_prob, comm_log_prob
+        [wheels_shoulders, comm_out, log_prob, comm_log_prob] = model_end(start, episodes, steps, 
+            [(wheels_shoulders, "lin"), (comm_out, "comm"), (log_prob, "lin"), (comm_log_prob, "lin")], "ACTOR" if self.args.show_duration else None)
+        return Action(wheels_shoulders, comm_out), log_prob, comm_log_prob
     
     
     
@@ -114,12 +114,12 @@ class Critic(nn.Module):
         
         self.args = args
         
-        self.action_in = Action_IN(self.args)
+        self.wheels_shoulders_in = Wheels_Shoulders_IN(self.args)
         self.comm_in = Comm_IN(self.args)
         
         self.lin = nn.Sequential(
             nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + self.args.action_encode_size + self.args.comm_encode_size,
+                in_features = self.args.pvrnn_mtrnn_size + self.args.wheels_shoulders_encode_size + self.args.comm_encode_size,
                 out_features = self.args.hidden_size),
             nn.PReLU())
         
@@ -138,14 +138,17 @@ class Critic(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, action, comm_out, forward_hidden):        
+    def forward(self, action, forward_hidden):        
         
-        start, episodes, steps, [action, comm_out, forward_hidden] = model_start(
-            [(action, "lin"), (comm_out, "comm"), (forward_hidden, "lin")], device = self.args.device, half = self.args.half)
+        wheels_shoulders = action.wheels_shoulders
+        comm_out = action.comm_out
+        
+        start, episodes, steps, [wheels_shoulders, comm_out, forward_hidden] = model_start(
+            [(wheels_shoulders, "lin"), (comm_out, "comm"), (forward_hidden, "lin")], device = self.args.device, half = self.args.half)
                 
-        action = self.action_in(action)
+        wheels_shoulders = self.wheels_shoulders_in(wheels_shoulders)
         comm_out = self.comm_in(comm_out)
-        x = torch.cat([forward_hidden, action.squeeze(1), comm_out.squeeze(1)], dim=-1)
+        x = torch.cat([forward_hidden, wheels_shoulders.squeeze(1), comm_out.squeeze(1)], dim=-1)
         x = self.lin(x)
         value = self.value(x)
                 
@@ -167,7 +170,7 @@ if __name__ == "__main__":
         with record_function("model_inference"):
             print(torch_summary(critic, 
                                 (
-                                (episodes, steps, args.action_shape),
+                                (episodes, steps, args.wheels_shoulders_shape),
                                 (episodes, steps, args.max_comm_len, args.comm_shape),
                                 (episodes, steps, args.pvrnn_mtrnn_size))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))

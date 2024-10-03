@@ -107,9 +107,9 @@ shape_name_list = [s.name for s in shape_map.values()]
 Object = namedtuple('Object', ['index', 'default_pos', 'color', 'shape'])
 Goal = namedtuple('Goal', ['task', 'color', 'shape', 'parenting'])
 Whole_Obs = namedtuple('Whole_Obs', ['rgbd', 'sensors', 'father_comm', 'mother_comm'])
-Action = namedtuple('Action', ['wheels', 'comm_out'])
+Action = namedtuple('Action', ['wheels_shoulders', 'comm_out'])
 ZP_ZQ_DKL = namedtuple("ZP_ZQ_DKL", ["zp", "zq", "dkl"])
-To_Push = namedtuple('To_Push', ['rgbd', 'sensors', 'father_comm', 'mother_comm', 'action', 'comm_out', 'reward', 'next_rgbd', 'next_sensors', 'next_father_comm', 'next_mother_comm', 'done'])
+To_Push = namedtuple('To_Push', ['rgbd', 'sensors', 'father_comm', 'mother_comm', 'wheels_shoulders', 'comm_out', 'reward', 'next_rgbd', 'next_sensors', 'next_father_comm', 'next_mother_comm', 'done'])
 
 used_chars = list(
                  [a.char for a in task_map.values()] +
@@ -407,8 +407,8 @@ parser.add_argument('--hidden_size',                    type=int,           defa
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,
                     help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
-parser.add_argument('--action_encode_size',             type=int,           default = 8,
-                    help='Parameters in encoding agent\'s action.')   
+parser.add_argument('--wheels_shoulders_encode_size',             type=int,           default = 8,
+                    help='Parameters in encoding agent\'s wheels/shoulders action.')   
 parser.add_argument('--mtrnn_sigmoid',                  type=literal,       default = True,
                     help='Should mtrnn use sigmoid or tanh?')   
 
@@ -512,7 +512,7 @@ parser.add_argument('--agents_per_agent_list',          type=int,           defa
 
 parser.add_argument('--epochs_per_values_for_composition',        type=int,           default = 5000,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_values_for_composition',       type=int,           default = 0,
+parser.add_argument('--agents_per_values_for_composition',       type=int,           default = 1,
                     help='How many agents to save episodes.')
 
 try:
@@ -537,10 +537,10 @@ for arg_set in [default_args, args]:
     arg_set.comm_shape = len(comm_map)
     arg_set.sensors_shape = num_sensors
     arg_set.sensor_names = sensors
-    arg_set.action_shape = 4
-    arg_set.complete_action_encode_size = arg_set.action_encode_size + arg_set.comm_encode_size
+    arg_set.wheels_shoulders_shape = 4
+    arg_set.complete_action_encode_size = arg_set.wheels_shoulders_encode_size + arg_set.comm_encode_size
     arg_set.encode_obs_size = arg_set.rgbd_encode_size + arg_set.sensors_encode_size + 2 * arg_set.comm_encode_size
-    arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.action_encode_size # + arg_set.complete_action_encode_size
+    arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_shoulders_encode_size # + arg_set.complete_action_encode_size
 
 args_not_in_title = ["arg_title", "id", "agents", "previous_agents", "init_seed", "keep_data", "epochs_per_pred_list", "episodes_in_pred_list", "agents_per_pred_list", "epochs_per_pos_list", "episodes_in_pos_list", "agents_per_pos_list"]
 def get_args_title(default_args, args):
@@ -602,7 +602,7 @@ else:
             
 #%%
 
-def action_to_string(task):
+def wheels_shoulders_to_string(task):
     while(len(task.shape) > 1):
         task = task.squeeze(0)
     string = "Left Wheel: {} ".format(round(task[0].item(),2))
@@ -676,8 +676,8 @@ def goal_to_human(goal):
 
 
 if(__name__ == "__main__"):
-    task = torch.tensor((0, 0, 0, 0))
-    print("Task to string:", task_to_string(task))
+    #task = torch.tensor((0, 0, 0, 0))
+    #print("Task to string:", task_to_string(task))
     
     onehots = string_to_onehots("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     print("String to onehots:", onehots)

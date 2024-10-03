@@ -14,8 +14,8 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import default_args, duration, dkl, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, \
-    task_map, color_map, shape_map, print, string_to_onehots, agent_to_english, goal_to_human, strings_to_human, To_Push, Whole_Obs
+from utils import default_args, duration, dkl, onehots_to_string, many_onehots_to_strings, wheels_shoulders_to_string, cpu_memory_usage, \
+    task_map, color_map, shape_map, print, string_to_onehots, agent_to_english, goal_to_human, strings_to_human, To_Push, Whole_Obs, Action
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from task import Processor
@@ -285,25 +285,27 @@ class Agent:
                 hp, hq, rgbd_dkls, sensors_dkls, comm_dkls, comm_zq = self.forward.bottom_to_top_step(
                     hq, 
                     self.forward.whole_obs_in(Whole_Obs(rgbd, sensors, comm_in, mother_comm)),
-                    self.forward.action_in(prev_action), 
-                    self.forward.comm_out_in(prev_comm_out)) 
+                    self.forward.action_in(Action(prev_action, prev_comm_out)))
             
 
-                action, comm_out, _, _ = self.actor(hq.detach(), parenting) 
+                action, _, _ = self.actor(hq.detach(), parenting) 
                 values = []
                 for i in range(self.args.critics):
-                    value = self.critics[i](action, comm_out, hq.detach()) 
+                    value = self.critics[i](action, hq.detach()) 
                     values.append(round(value.item(), 3))
                     
-                return(rgbd, rgbd_dkls, sensors, sensors_dkls, father_comm, comm_dkls, mother_comm, comm_in, hp, hq, action, comm_out, values)
+                wheels_shoulders = action.wheels_shoulders
+                comm_out = action.comm_out
+                    
+                return(rgbd, rgbd_dkls, sensors, sensors_dkls, father_comm, comm_dkls, mother_comm, comm_in, hp, hq, wheels_shoulders, comm_out, values)
             
             
             
-            rgbd_1, rgbd_dkls_1, sensors_1, sensors_dkls_1, father_comm_1, comm_dkls_1, mother_comm_1, comm_in_1, hp_1, hq_1, action_1, comm_out_1, values_1 = agent_step()
+            rgbd_1, rgbd_dkls_1, sensors_1, sensors_dkls_1, father_comm_1, comm_dkls_1, mother_comm_1, comm_in_1, hp_1, hq_1, wheels_shoulders_1, comm_out_1, values_1 = agent_step()
             if(not parenting):
-                rgbd_2, rgbd_dkls_2, sensors_2, sensors_dkls_2, father_comm_2, comm_dkls_2, mother_comm_2, comm_in_2, hp_2, hq_2, action_2, comm_out_2, values_2 = agent_step(agent_1 = False)
+                rgbd_2, rgbd_dkls_2, sensors_2, sensors_dkls_2, father_comm_2, comm_dkls_2, mother_comm_2, comm_in_2, hp_2, hq_2, wheels_shoulders_2, comm_out_2, values_2 = agent_step(agent_1 = False)
             else: 
-                action_2 = torch.zeros_like(action_1)
+                wheels_shoulders_2 = torch.zeros_like(wheels_shoulders_1)
                 comm_out_2 = None
                 hp_2 = None
                 hq_2 = None
@@ -312,7 +314,10 @@ class Agent:
                 comm_dkls_2 = None
                 sensors_dkls_2 = None
             
-            step_results = self.processor.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
+            step_results = self.processor.step(
+                Action(wheels_shoulders_1[0,0].clone(), comm_out_1), 
+                Action(wheels_shoulders_2[0,0].clone(), comm_out_2),
+                sleep_time = sleep_time)
             
             raw_reward = step_results.reward 
             distance_reward = angle_reward = 0
@@ -346,17 +351,17 @@ class Agent:
             next_comm_in_1 = next_father_comm_1.unsqueeze(0) if parenting else next_mother_comm_1.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else comm_out_2
             next_comm_in_2 = next_father_comm_2.unsqueeze(0) if parenting else next_mother_comm_2.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else comm_out_1 
                         
-            to_push_1 = To_Push(rgbd_1, sensors_1, comm_in_1, mother_comm_1, action_1, comm_out_1, reward_1, next_rgbd_1, next_sensors_1, next_comm_in_1, next_mother_comm_1, done)
+            to_push_1 = To_Push(rgbd_1, sensors_1, comm_in_1, mother_comm_1, wheels_shoulders_1, comm_out_1, reward_1, next_rgbd_1, next_sensors_1, next_comm_in_1, next_mother_comm_1, done)
             
             if(parenting): 
                 to_push_2 = None
             else:
-                to_push_2 = To_Push(rgbd_2, sensors_2, comm_in_2, mother_comm_2, action_2, comm_out_2, reward_2, next_rgbd_2, next_sensors_2, next_comm_in_2, next_mother_comm_2, done)
+                to_push_2 = To_Push(rgbd_2, sensors_2, comm_in_2, mother_comm_2, wheels_shoulders_2, comm_out_2, reward_2, next_rgbd_2, next_sensors_2, next_comm_in_2, next_mother_comm_2, done)
 
         torch.cuda.empty_cache()
         
-        return(action_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), rgbd_dkls_1, sensors_dkls_1, comm_dkls_1, mother_comm_1,
-               action_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), rgbd_dkls_2, sensors_dkls_2, comm_dkls_2, mother_comm_2,
+        return(wheels_shoulders_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), rgbd_dkls_1, sensors_dkls_1, comm_dkls_1, mother_comm_1,
+               wheels_shoulders_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), rgbd_dkls_2, sensors_dkls_2, comm_dkls_2, mother_comm_2,
                raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2)
             
            
@@ -368,7 +373,7 @@ class Agent:
                 to_push.sensors.to("cpu"),
                 to_push.father_comm.to("cpu"), 
                 to_push.mother_comm.to("cpu"), 
-                to_push.action.to("cpu"), 
+                to_push.wheels_shoulders.to("cpu"), 
                 to_push.comm_out.to("cpu"),
                 to_push.reward, 
                 to_push.next_rgbd.to("cpu"),
@@ -388,13 +393,13 @@ class Agent:
         steps = 0
                 
         to_push_list_1 = []
-        prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
+        prev_action_1 = torch.zeros((1, 1, self.args.wheels_shoulders_shape))
         prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
         hq_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
         mother_comm_1 = string_to_onehots(["AAA"])[0]
         
         to_push_list_2 = []
-        prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
+        prev_action_2 = torch.zeros((1, 1, self.args.wheels_shoulders_shape))
         prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
         hq_2 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
         mother_comm_2 = " " * self.args.max_comm_len
@@ -589,8 +594,10 @@ class Agent:
                     
                     if(step != 0):
                         
-                        pred_rgbds_p, pred_sensors_p, pred_comm_in_p = self.forward.predict(hp.unsqueeze(1), self.forward.action_in(action)) 
-                        pred_rgbds_q, pred_sensors_q, pred_comm_in_q = self.forward.predict(hq.unsqueeze(1), self.forward.action_in(action))
+                        pred_rgbds_p, pred_sensors_p, pred_comm_in_p = self.forward.predict(
+                            hp.unsqueeze(1), self.forward.action_in(action)) 
+                        pred_rgbds_q, pred_sensors_q, pred_comm_in_q = self.forward.predict(
+                            hq.unsqueeze(1), self.forward.action_in(action))
 
                         episode_dict[f"prior_predicted_rgbds_{agent_num}"].append(pred_rgbds_p[0,0][:,:,0:3])
                         prior_predicted_comms_in = onehots_to_string(pred_comm_in_p[0,0])
@@ -613,9 +620,9 @@ class Agent:
                             WAITING = input("WAITING")
                 
                 for step in range(self.args.max_steps + 1):
-                    save_step(step, hp_1, hq_1, action = prev_action_1, agent_1 = True)    
+                    save_step(step, hp_1, hq_1, action = Action(prev_action_1, prev_comm_out_1), agent_1 = True)    
                     if(not self.processor.parenting):
-                        save_step(step, hp_2, hq_2, action = prev_action_2, agent_1 = False)  
+                        save_step(step, hp_2, hq_2, action = Action(prev_action_2, prev_comm_out_2), agent_1 = False)  
                         
                     display(step)
                     
@@ -628,7 +635,7 @@ class Agent:
                     episode_dict["raw_rewards"].append(str(round(raw_reward, 3)))
                     
                     episode_dict["actions_1"].append(prev_action_1)
-                    episode_dict["action_texts_1"].append(action_to_string(prev_action_1))
+                    episode_dict["action_texts_1"].append(wheels_shoulders_to_string(prev_action_1))
                     comm_out_1 = onehots_to_string(prev_comm_out_1)
                     episode_dict["comms_out_1"].append("{} ({})".format(comm_out_1, strings_to_human(comm_out_1)))
                     episode_dict["rgbd_dkls_1"].append(rgbd_dkls_1.sum().item())
@@ -653,9 +660,9 @@ class Agent:
                         episode_dict["angle_rewards_2"].append(str(round(angle_reward_2, 3)))
                     
                     if(done):
-                        save_step(step, hp_1, hq_1, action = prev_action_1, agent_1 = True)    
+                        save_step(step, hp_1, hq_1, action = Action(prev_action_1, prev_comm_out_1), agent_1 = True)    
                         if(not self.processor.parenting):
-                            save_step(step, hp_2, hq_2, action = prev_action_2, agent_1 = False) 
+                            save_step(step, hp_2, hq_2, action = Action(prev_action_2, prev_comm_out_2), agent_1 = False) 
                         display(step + 1, done = True, wait = False)
                         self.processor.done()
                         time = duration()
@@ -699,11 +706,11 @@ class Agent:
             self.push(to_push_list_1, temp_memory)
                             
         batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
-        rgbd, sensors, comm_in, mother_comm, action, comm_out, reward, done, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps = batch
                 
         hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            Whole_Obs(rgbd, sensors, comm_in, mother_comm), action, comm_out)
+            Whole_Obs(rgbd, sensors, comm_in, mother_comm), Action(wheels_shoulders, comm_out))
         
         comm_zq = comm_zq.detach().cpu().numpy()
         labels = labels.detach().cpu().numpy()
@@ -725,17 +732,17 @@ class Agent:
         
         prev_time = duration()
 
-        rgbd, sensors, comm_in, mother_comm, action, comm_out, reward, done, mask = batch
+        rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask = batch
         rgbd = torch.from_numpy(rgbd).to(self.args.device)
         sensors = torch.from_numpy(sensors).to(self.args.device)
         comm_in = torch.from_numpy(comm_in).to(self.args.device)
         mother_comm = torch.from_numpy(mother_comm).to(self.args.device)
-        action = torch.from_numpy(action)
+        wheels_shoulders = torch.from_numpy(wheels_shoulders)
         comm_out = torch.from_numpy(comm_out)
         reward = torch.from_numpy(reward).to(self.args.device)
         done = torch.from_numpy(done).to(self.args.device)
         mask = torch.from_numpy(mask)
-        action = torch.cat([torch.zeros(action[:,0].unsqueeze(1).shape), action], dim = 1).to(self.args.device)
+        wheels_shoulders = torch.cat([torch.zeros(wheels_shoulders[:,0].unsqueeze(1).shape), wheels_shoulders], dim = 1).to(self.args.device)
         comm_out = torch.cat([torch.zeros(comm_out[:,0].unsqueeze(1).shape), comm_out], dim = 1).to(self.args.device)
         all_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1).to(self.args.device)
         mask = mask.to(self.args.device)
@@ -743,18 +750,18 @@ class Agent:
         steps = reward.shape[1]
         
         if(self.args.half):
-            rgbd, sensors, comm_in, mother_comm, action, comm_out, reward, done, mask, action, comm_out, all_mask, mask = \
-                rgbd.to(dtype=torch.float16), sensors.to(dtype=torch.float16), comm_in.to(dtype=torch.float16), mother_comm.to(dtype=torch.float16), action.to(dtype=torch.float16), \
+            rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask, wheels_shoulders, comm_out, all_mask, mask = \
+                rgbd.to(dtype=torch.float16), sensors.to(dtype=torch.float16), comm_in.to(dtype=torch.float16), mother_comm.to(dtype=torch.float16), wheels_shoulders.to(dtype=torch.float16), \
                 comm_out.to(dtype=torch.float16), reward.to(dtype=torch.float16), done.to(dtype=torch.float16), \
-                mask.to(dtype=torch.float16), action.to(dtype=torch.float16), comm_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
+                mask.to(dtype=torch.float16), wheels_shoulders.to(dtype=torch.float16), comm_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
         
         #print("\n\n")
-        #print("Agent {}, epoch {}. rgbds: {}. comm in: {}. actions: {}. comm out: {}. reward: {}. done: {}. mask: {}.".format(
-        #    self.agent_num, self.epochs, rgbds.shape, comm_in.shape, actions.shape, comm_out.shape, reward.shape, done.shape, mask.shape))
+        #print("Agent {}, epoch {}. rgbds: {}. comm in: {}. wheels_shoulders: {}. comm out: {}. reward: {}. done: {}. mask: {}.".format(
+        #    self.agent_num, self.epochs, rgbds.shape, comm_in.shape, wheels_shoulders.shape, comm_out.shape, reward.shape, done.shape, mask.shape))
         #print("\n\n")
         
-        #rgbd, comm_in, sensors, comm_in, mother_comm, action, comm_out, reward, done, action, comm_out, mask, all_mask, episodes, steps
-        return(rgbd, sensors, comm_in, mother_comm, action, comm_out, reward, done, mask, all_mask, episodes, steps)
+        #rgbd, comm_in, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps
+        return(rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps)
         
     
     
@@ -769,8 +776,11 @@ class Agent:
             return(False)
         batch_size = batch[0].shape[0]
         
-        rgbd, sensors, comm_in, mother_comm, action, comm_out, reward, done, mask, all_mask, episodes, steps = batch
-        # Also sample from old memories, and use them to keep actor and critic outputs the same.
+        rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps = batch
+        
+        whole_obs = Whole_Obs(rgbd, sensors, comm_in, mother_comm)
+        action = Action(wheels_shoulders, comm_out)
+        next_action = Action(wheels_shoulders[:,1:], comm_out[:,1:])
         
         time = duration()
         start_time = duration()
@@ -779,7 +789,7 @@ class Agent:
         # Train forward
         hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            Whole_Obs(rgbd, sensors, comm_in, mother_comm), action, comm_out)
+            whole_obs, action)
                         
         rgbd_loss = F.binary_cross_entropy(pred_rgbd_q, rgbd[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.rgbd_scaler
                         
@@ -848,11 +858,11 @@ class Agent:
                 
         # Train critics
         with torch.no_grad():
-            new_action, new_comm_out, log_pis_next, log_pis_next_text = \
+            new_action, log_pis_next, log_pis_next_text = \
                 self.actor(hqs.detach(), parenting)
             Q_target_nexts = []
             for i in range(self.args.critics):
-                Q_target_next = self.critic_targets[i](new_action, new_comm_out, hqs.detach())
+                Q_target_next = self.critic_targets[i](new_action, hqs.detach())
                 Q_target_next[:,1:]
                 Q_target_nexts.append(Q_target_next)                
             log_pis_next = log_pis_next[:,1:]
@@ -874,7 +884,7 @@ class Agent:
         critic_losses = []
         Qs = []
         for i in range(self.args.critics):
-            Q = self.critics[i](action[:,1:], comm_out[:,1:], hqs[:,:-1].detach())
+            Q = self.critics[i](next_action, hqs[:,:-1].detach())
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
             critic_losses.append(critic_loss)
             Qs.append(Q[0,0].item())
@@ -899,18 +909,20 @@ class Agent:
             else:                            alpha = self.args.alpha
             if self.args.alpha_text == None: alpha_text = self.alpha_text 
             else:                            alpha_text = self.args.alpha_text
-            new_action, new_comm_out, log_pis, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
+            new_action, log_pis, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
             
-            loc = torch.zeros(self.args.action_shape, dtype=torch.float64).to(self.args.device).float()
-            n = self.args.action_shape
+            new_wheels_shoulders = new_action.wheels_shoulders
+            
+            loc = torch.zeros(self.args.wheels_shoulders_shape, dtype=torch.float64).to(self.args.device).float()
+            n = self.args.wheels_shoulders_shape
             scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device).float()
             policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
-            policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_action).unsqueeze(-1)
+            policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_wheels_shoulders).unsqueeze(-1)
             intrinsic_entropy = torch.mean((alpha * log_pis - policy_prior_log_prrgbd)*mask).item()
                 
             Qs = []
             for i in range(self.args.critics):
-                Q = self.critics[i](new_action, new_comm_out, hqs[:,:-1].detach())
+                Q = self.critics[i](new_action, hqs[:,:-1].detach())
                 Qs.append(Q)
             Qs_stacked = torch.stack(Qs, dim=0)
             Q, _ = torch.min(Qs_stacked, dim=0)
@@ -939,7 +951,7 @@ class Agent:
             
         # Train alpha
         if self.args.alpha == None:
-            _, _, log_pis, _ = self.actor(hqs[:,:-1].detach(), parenting)
+            _, log_pis, _ = self.actor(hqs[:,:-1].detach(), parenting)
             alpha_loss = -(self.log_alpha.to(self.args.device) * (log_pis + self.target_entropy))*mask
             alpha_loss = alpha_loss.mean() / mask.mean()
             self.alpha_opt.zero_grad()
@@ -951,7 +963,7 @@ class Agent:
             alpha_loss = None
             
         if self.args.alpha_text == None:
-            _, _, _, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
+            _, _, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
             alpha_text_loss = -(self.log_alpha_text.to(self.args.device) * (log_pis_text + self.target_entropy_text))*mask
             alpha_text_loss = alpha_text_loss.mean() / mask.mean()
             self.alpha_text_opt.zero_grad()

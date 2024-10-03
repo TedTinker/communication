@@ -2,7 +2,7 @@
 import torch
 from collections import namedtuple
 
-from utils import default_args, make_objects_and_task, print, Goal, goal_to_onehots, string_to_onehots, Whole_Obs
+from utils import default_args, make_objects_and_task, print, Goal, goal_to_onehots, string_to_onehots, Whole_Obs, Action
 from arena import Arena, get_physics
 
 
@@ -57,10 +57,14 @@ class Processor:
     def act(self, action, agent_1 = True, verbose = False, sleep_time = None):
         arena = self.choose_arena(agent_1)
         if(arena == None): return
-        while(len(action.shape) != 1):
-            action = action.squeeze(0)
+        
+        wheels_shoulders = action.wheels_shoulders
+        while(len(wheels_shoulders.shape) != 1):
+            wheels_shoulders = wheels_shoulders.squeeze(0)
+            
         left_wheel, right_wheel, left_shoulder, right_shoulder = \
-            action[0].item(), action[1].item(), action[2].item(), action[3].item() 
+            wheels_shoulders[0].item(), wheels_shoulders[1].item(), wheels_shoulders[2].item(), wheels_shoulders[3].item() 
+            
         arena.step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = verbose, sleep_time = sleep_time)
         if(verbose): 
             print("\n\nStep {}, agent {}:".format(self.steps, 1 if agent_1 else 2))
@@ -118,5 +122,7 @@ if __name__ == "__main__":
     processor = Processor(Arena(physicsClient_1), Arena(physicsClient_2), parenting = False)
     processor.begin()
     for i in range(10):
-        step_results = processor.step(torch.rand(4), torch.rand(4), verbose = True, sleep_time = 1)
+        action_1 = Action(torch.rand(4), torch.rand(args.max_comm_len, args.comm_shape))
+        action_2 = Action(torch.rand(4), torch.rand(args.max_comm_len, args.comm_shape))
+        step_results = processor.step(action_1, action_2, verbose = True, sleep_time = 1)
     processor.done()

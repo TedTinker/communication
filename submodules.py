@@ -148,7 +148,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(rgbd_out, 
-                                (episodes, steps, args.pvrnn_mtrnn_size + args.action_encode_size)))
+                                (episodes, steps, args.pvrnn_mtrnn_size + args.wheels_shoulders_encode_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
 #%%
@@ -273,7 +273,7 @@ class Comm_OUT(nn.Module):
     def forward(self, h_w_action):
         start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
                 
-        h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.action_encode_size)
+        h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.wheels_shoulders_encode_size)
         a = self.a(h_w_action)
         a = a.reshape(episodes * steps, self.args.max_comm_len, self.args.hidden_size)
         positional_layers = generate_1d_positional_layers(episodes * steps, self.args.max_comm_len, self.args.device)
@@ -312,7 +312,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(comm_out, 
-                                (episodes, steps, args.pvrnn_mtrnn_size + args.action_encode_size)))
+                                (episodes, steps, args.pvrnn_mtrnn_size + args.wheels_shoulders_encode_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 
 #%%
@@ -402,7 +402,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(sensors_out, 
-                                (episodes, steps, args.pvrnn_mtrnn_size + args.action_encode_size)))
+                                (episodes, steps, args.pvrnn_mtrnn_size + args.wheels_shoulders_encode_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 #%%
     
@@ -485,25 +485,25 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(obs_out, 
-                                (episodes, steps, args.pvrnn_mtrnn_size + args.action_encode_size)))
+                                (episodes, steps, args.pvrnn_mtrnn_size + args.wheels_shoulders_encode_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
 #%%
     
     
     
-class Action_IN(nn.Module):
+class Wheels_Shoulders_IN(nn.Module):
     
     def __init__(self, args = default_args):
-        super(Action_IN, self).__init__()
+        super(Wheels_Shoulders_IN, self).__init__()
         
         self.args = args 
         
         self.a = nn.Sequential(
             nn.Linear(
-                in_features = self.args.action_shape, 
-                out_features = self.args.action_encode_size),
-            #nn.BatchNorm1d(self.args.action_encode_size),
+                in_features = self.args.wheels_shoulders_shape, 
+                out_features = self.args.wheels_shoulders_encode_size),
+            #nn.BatchNorm1d(self.args.wheels_shoulders_encode_size),
             nn.PReLU())
         
         self.apply(init_weights)
@@ -512,10 +512,10 @@ class Action_IN(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, action):
-        start, episodes, steps, [action] = model_start([(action, "lin")], self.args.device, self.args.half)
-        encoded = self.a(action)
-        [encoded] = model_end(start, episodes, steps, [(encoded, "lin")], "ACTION_IN" if self.args.show_duration else None)
+    def forward(self, wheels_shoulders):
+        start, episodes, steps, [wheels_shoulders] = model_start([(wheels_shoulders, "lin")], self.args.device, self.args.half)
+        encoded = self.a(wheels_shoulders)
+        [encoded] = model_end(start, episodes, steps, [(encoded, "lin")], "WHEELS_SHOULDERS_IN" if self.args.show_duration else None)
 
         return(encoded)
     
@@ -523,14 +523,14 @@ class Action_IN(nn.Module):
     
 if __name__ == "__main__":
     
-    action_in = Action_IN(args = args)
+    wheels_shoulders_in = Wheels_Shoulders_IN(args = args)
     
     print("\n\n")
-    print(action_in)
+    print(wheels_shoulders_in)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(torch_summary(action_in, 
-                                (episodes, steps, args.action_shape)))
+            print(torch_summary(wheels_shoulders_in, 
+                                (episodes, steps, args.wheels_shoulders_shape)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 # %%
