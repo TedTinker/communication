@@ -425,39 +425,31 @@ class Arena():
                         
         which_goal_message = None
         for (color, shape), (watching, pushing, pulling, lefting, righting) in objects_goals.items():
-            print(color, shape)
             task = None
-            # If an task is occuring, find the task/color/shape.
+            color = color_map[color]
+            shape = shape_map[shape]
+            print(color, shape)
+            # If an task is occuring, find the task.
             if(watching or pushing or pulling or lefting or righting):
-                if(watching): task_char = task_map[0][0]
-                if(pushing):  task_char = task_map[1][0]
-                if(pulling):  task_char = task_map[2][0]
-                if(lefting):  task_char = task_map[3][0]
-                if(righting): task_char = task_map[4][0]
-                color_char = color_map[color][0]
-                shape_char = shape_map[shape][0]
-                which_goal_message = task_char + color_char + shape_char + (" " * (self.args.max_comm_len - 3))
+                if(watching): task = task_map[0]
+                if(pushing):  task = task_map[1]
+                if(pulling):  task = task_map[2]
+                if(lefting):  task = task_map[3]
+                if(righting): task = task_map[4]
+                which_goal_message = Goal(task, color, shape, self.goal.parenting)
             # If an task is occuring, check if that's the correct color/shape.
             # For some reason, this part seems to be a little iffy.
-            if(task_char != None):
-                if(color == goal_color and shape == goal_shape):
-                    # If the correct object, check the task.
+            if(task != None):
+                if(task == goal_task and color == goal_color and shape == goal_shape):
                     if(sum([watching, pushing, pulling, lefting, righting]) == 1):
-                        task_name = task_map[goal_task][1]
-                        if((task_name == "WATCH" and watching) or 
-                        (task_name == "PUSH" and pushing) or
-                        (task_name == "PULL" and pulling) or
-                        (task_name == "LEFT" and lefting) or
-                        (task_name == "RIGHT" and righting)):   
-                            win = True 
-                            reward = self.args.reward
+                        win = True 
+                        reward = self.args.reward
                 # If an task is occuring to the wrong object, stop.
                 else:
                     win = False 
-                    reward = self.args.wrong_object_punishment
                     break
                             
-        
+        print(f"\n\nHERE:\n\t{self.goal} \n\t{which_goal_message}\n\n")
                 
         if(goal_task.name == "FREEPLAY"):
             reward = 0

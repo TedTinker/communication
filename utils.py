@@ -512,7 +512,7 @@ parser.add_argument('--agents_per_agent_list',          type=int,           defa
 
 parser.add_argument('--epochs_per_values_for_composition',        type=int,           default = 5000,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_values_for_composition',       type=int,           default = 1,
+parser.add_argument('--agents_per_values_for_composition',       type=int,           default = 0,
                     help='How many agents to save episodes.')
 
 try:
