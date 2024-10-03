@@ -35,6 +35,7 @@ for folder in folders:
                 else:  d[key].append(saved_d[key])
                 
         episode_dicts = {}
+        print(f"\n{list(plot_dict.keys())}\n")
         for d in plot_dict["episode_dicts"]: 
             episode_dicts.update(d)
         plot_dict["episode_dicts"] = episode_dicts

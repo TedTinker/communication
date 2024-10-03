@@ -15,7 +15,7 @@ from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
 from utils import default_args, duration, dkl, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, \
-    task_map, color_map, shape_map, print, string_to_onehots, agent_to_english, goal_to_human, strings_to_human, To_Push
+    task_map, color_map, shape_map, print, string_to_onehots, agent_to_english, goal_to_human, strings_to_human, To_Push, Whole_Obs
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from task import Processor
@@ -284,8 +284,9 @@ class Agent:
                             
                 hp, hq, rgbd_dkls, sensors_dkls, comm_dkls, comm_zq = self.forward.bottom_to_top_step(
                     hq, 
-                    self.forward.rgbd_in(rgbd), self.forward.sensors_in(sensors), self.forward.father_comm_in(comm_in),
-                    self.forward.action_in(prev_action), self.forward.comm_out_in(prev_comm_out)) 
+                    self.forward.whole_obs_in(Whole_Obs(rgbd, sensors, comm_in, mother_comm)),
+                    self.forward.action_in(prev_action), 
+                    self.forward.comm_out_in(prev_comm_out)) 
             
 
                 action, comm_out, _, _ = self.actor(hq.detach(), parenting) 
@@ -698,11 +699,11 @@ class Agent:
             self.push(to_push_list_1, temp_memory)
                             
         batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
-        rgbd, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, comm_in, mother_comm, action, comm_out, reward, done, mask, all_mask, episodes, steps = batch
                 
         hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            rgbd, sensors, comm_in, action, comm_out)
+            Whole_Obs(rgbd, sensors, comm_in, mother_comm), action, comm_out)
         
         comm_zq = comm_zq.detach().cpu().numpy()
         labels = labels.detach().cpu().numpy()
@@ -724,11 +725,11 @@ class Agent:
         
         prev_time = duration()
 
-        rgbd, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, mask = batch
+        rgbd, sensors, comm_in, mother_comm, action, comm_out, reward, done, mask = batch
         rgbd = torch.from_numpy(rgbd).to(self.args.device)
         sensors = torch.from_numpy(sensors).to(self.args.device)
         comm_in = torch.from_numpy(comm_in).to(self.args.device)
-        mother_comm_in = torch.from_numpy(mother_comm_in).to(self.args.device)
+        mother_comm = torch.from_numpy(mother_comm).to(self.args.device)
         action = torch.from_numpy(action)
         comm_out = torch.from_numpy(comm_out)
         reward = torch.from_numpy(reward).to(self.args.device)
@@ -742,8 +743,8 @@ class Agent:
         steps = reward.shape[1]
         
         if(self.args.half):
-            rgbd, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, mask, action, comm_out, all_mask, mask = \
-                rgbd.to(dtype=torch.float16), sensors.to(dtype=torch.float16), comm_in.to(dtype=torch.float16), mother_comm_in.to(dtype=torch.float16), action.to(dtype=torch.float16), \
+            rgbd, sensors, comm_in, mother_comm, action, comm_out, reward, done, mask, action, comm_out, all_mask, mask = \
+                rgbd.to(dtype=torch.float16), sensors.to(dtype=torch.float16), comm_in.to(dtype=torch.float16), mother_comm.to(dtype=torch.float16), action.to(dtype=torch.float16), \
                 comm_out.to(dtype=torch.float16), reward.to(dtype=torch.float16), done.to(dtype=torch.float16), \
                 mask.to(dtype=torch.float16), action.to(dtype=torch.float16), comm_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
         
@@ -752,8 +753,8 @@ class Agent:
         #    self.agent_num, self.epochs, rgbds.shape, comm_in.shape, actions.shape, comm_out.shape, reward.shape, done.shape, mask.shape))
         #print("\n\n")
         
-        #rgbd, comm_in, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, action, comm_out, mask, all_mask, episodes, steps
-        return(rgbd, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, mask, all_mask, episodes, steps)
+        #rgbd, comm_in, sensors, comm_in, mother_comm, action, comm_out, reward, done, action, comm_out, mask, all_mask, episodes, steps
+        return(rgbd, sensors, comm_in, mother_comm, action, comm_out, reward, done, mask, all_mask, episodes, steps)
         
     
     
@@ -768,7 +769,7 @@ class Agent:
             return(False)
         batch_size = batch[0].shape[0]
         
-        rgbd, sensors, comm_in, mother_comm_in, action, comm_out, reward, done, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, comm_in, mother_comm, action, comm_out, reward, done, mask, all_mask, episodes, steps = batch
         # Also sample from old memories, and use them to keep actor and critic outputs the same.
         
         time = duration()
@@ -778,7 +779,7 @@ class Agent:
         # Train forward
         hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            rgbd, sensors, comm_in, action, comm_out)
+            Whole_Obs(rgbd, sensors, comm_in, mother_comm), action, comm_out)
                         
         rgbd_loss = F.binary_cross_entropy(pred_rgbd_q, rgbd[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.rgbd_scaler
                         

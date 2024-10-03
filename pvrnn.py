@@ -106,7 +106,12 @@ class PVRNN_LAYER(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
             
-    def forward(self, prev_hidden_state, rgbd=None, sensors=None, father_comm=None, prev_action=None, prev_comm_out=None):
+    def forward(self, prev_hidden_state, whole_obs = None, prev_action=None, prev_comm_out=None):
+        
+        rgbd = whole_obs.rgbd 
+        sensors = whole_obs.sensors 
+        father_comm = whole_obs.father_comm
+        
         def reshape_and_to_dtype(inputs, episodes, steps, dtype=None):
             inputs = inputs.reshape(episodes * steps, inputs.shape[2])
             if dtype:
@@ -218,7 +223,7 @@ class PVRNN(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
             
-    def whole_ops_in(self, whole_obs):
+    def whole_obs_in(self, whole_obs):
         rgbd = self.rgbd_in(whole_obs.rgbd)
         sensors = self.sensors_in(whole_obs.sensors)
         father_comm = self.father_comm_in(whole_obs.father_comm)
@@ -231,27 +236,33 @@ class PVRNN(nn.Module):
         pred_rgbd, pred_father_comm, pred_sensors = self.predict_obs(h_w_action)
         return(pred_rgbd, pred_sensors, pred_father_comm)
         
-    def bottom_to_top_step(self, prev_hidden_state, rgbd = None, father_comm = None, sensors = None, prev_action = None, prev_comm_out = None):
+    def bottom_to_top_step(self, prev_hidden_state, whole_obs = None, prev_action = None, prev_comm_out = None):
         start_time = duration()
         prev_time = duration()
+        
+        rgbd = whole_obs.rgbd 
+        sensors = whole_obs.sensors 
+        father_comm = whole_obs.father_comm
         
         if(prev_hidden_state != None and len(prev_hidden_state.shape) == 2): 
             prev_hidden_state = prev_hidden_state.unsqueeze(1)
         if(rgbd != None and len(rgbd.shape) == 2): 
             rgbd = rgbd.unsqueeze(1)
-        if(father_comm != None and len(father_comm.shape) == 2): 
-            father_comm = father_comm.unsqueeze(1)
         if(sensors != None and len(sensors.shape) == 2): 
             sensors = sensors.unsqueeze(1)
+        if(father_comm != None and len(father_comm.shape) == 2): 
+            father_comm = father_comm.unsqueeze(1)
         if(prev_action != None and len(prev_action.shape) == 2): 
             prev_action = prev_action.unsqueeze(1)
         if(prev_comm_out != None and len(prev_comm_out.shape) == 2): 
             prev_comm_out = prev_comm_out.unsqueeze(1)
+            
+        whole_obs = Whole_Obs(rgbd, sensors, father_comm, None)
                                     
         new_hidden_state_p, new_hidden_state_q, rgbd_dkl, father_comm_dkl, sensors_dkl, father_comm_zq = \
             self.pvrnn_layer(
                 prev_hidden_state[:,0].unsqueeze(1), 
-                rgbd, father_comm, sensors, prev_action, prev_comm_out)
+                whole_obs, prev_action, prev_comm_out)
             
         time = duration()
         if(self.args.show_duration): print("BOTTOM TO TOP STEP:", time - prev_time)
@@ -259,8 +270,12 @@ class PVRNN(nn.Module):
                 
         return(new_hidden_state_p, new_hidden_state_q, rgbd_dkl, father_comm_dkl, sensors_dkl, father_comm_zq)
     
-    def forward(self, prev_hidden_state, rgbd, sensors, father_comm, prev_action, prev_comm_out):
-                
+    def forward(self, prev_hidden_state, whole_obs, prev_action, prev_comm_out):
+        
+        rgbd = whole_obs.rgbd 
+        sensors = whole_obs.sensors 
+        father_comm = whole_obs.father_comm
+        
         action_labels = torch.argmax(father_comm[:, :, 0, :], dim=2)
         color_labels = torch.argmax(father_comm[:, :, 1, :], dim=2)
         shape_labels = torch.argmax(father_comm[:, :, 2, :], dim=2)
@@ -285,11 +300,14 @@ class PVRNN(nn.Module):
         episodes, steps = episodes_steps(rgbd)
         if(prev_hidden_state == None):
             prev_hidden_state = torch.zeros(episodes, 1, self.args.pvrnn_mtrnn_size)
-        rgbd = self.rgbd_in(rgbd)
-        sensors = self.sensors_in(sensors)
-        father_comm = self.father_comm_in(father_comm)
+            
+        whole_obs = self.whole_obs_in(whole_obs)
         prev_action = self.action_in(prev_action)
         prev_comm_out = self.comm_out_in(prev_comm_out)
+        
+        rgbd = whole_obs.rgbd 
+        sensors = whole_obs.sensors 
+        father_comm = whole_obs.father_comm
         
         how_many_nans(rgbd, "PVRNN, rgbd 2")
         how_many_nans(sensors, "PVRNN, sensors 2")
@@ -298,9 +316,10 @@ class PVRNN(nn.Module):
         how_many_nans(prev_comm_out, "PVRNN, prev_comm_out 2")
                                 
         for step in range(steps):
+            step_whole_obs = Whole_Obs(rgbd[:,step], sensors[:,step], father_comm[:,step], None)
             new_hidden_state_p, new_hidden_state_q, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq = \
             self.bottom_to_top_step(
-                prev_hidden_state, rgbd[:,step], sensors[:,step], father_comm[:,step], 
+                prev_hidden_state, step_whole_obs, 
                 prev_action[:,step], prev_comm_out[:,step])
             how_many_nans(new_hidden_state_p, f"PVRNN, new_hidden_state_p step {step}")
             how_many_nans(new_hidden_state_q, f"PVRNN, new_hidden_state_q step {step}")
