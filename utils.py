@@ -1,6 +1,7 @@
 #%% 
 
 # To do: most important 
+#   Behavior_Analysis! Awesome idea from Jun. 
 #   Instead of either goal or free play, two comm in: Father for goal, Mother for description. 
 #   Give actions percentage chances when making a task.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
@@ -39,15 +40,36 @@ torch.set_printoptions(precision=3, sci_mode=False)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #device = "cpu"
 
-action_map = {
+
+
+class Task:
+    def __init__(self, char, name):
+        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
+        
+class Color:
+    def __init__(self, char, name, rgbd):
+        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
+        
+class Shape:
+    def __init__(self, char, file_name):
+        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
+        self.name = f.split("_")[-1][:-5]
+        
+class Goal:
+    def __init__(self, task, color, shape):
+        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
+
+
+
+task_map = {
     -1: ["Z", "FREE_PLAY"],
     0:  ["A", "WATCH"],
     1:  ["B", "PUSH"],     
     2:  ["C", "PULL"],   
     3:  ["D", "LEFT"],   
     4:  ["E", "RIGHT"]}    
-max_len_action_name = max([len(a[1]) for a in action_map.values()])
-action_name_list = [action[1] for action in action_map.values()]
+max_len_taskname = max([len(a[1]) for a in task_map.values()])
+task_name_list = [task[1] for task in task_map.values()]
 
 color_map = {
     0: ["F", "RED",     (1,0,0,1)], 
@@ -74,7 +96,7 @@ def agent_to_english(agent_string):
     english_string = ""
     for char in agent_string:
         translated = False
-        for d in [action_map, color_map, shape_map]:
+        for d in [task_map, color_map, shape_map]:
             for val in d.values():
                 c = val[0]
                 n = val[1]
@@ -99,7 +121,7 @@ comm_map = {
 
 char_to_index = {v: k for k, v in comm_map.items()}
 
-all_combos = list(product(action_map.keys(), color_map.keys(), shape_map.keys()))
+all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
 training_combos = [(a, c, s) for (a, c, s) in all_combos if 
                    a == -1 or
                    (s in [0,1] and c in [0,1]) or
@@ -109,27 +131,27 @@ training_combos = [(a, c, s) for (a, c, s) in all_combos if
 
 testing_combos = [combo for combo in all_combos if not combo in training_combos]
 
-def valid_color_shape(action_num, other_shape_colors, allowed_colors, allowed_shapes, test = False):
+def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shapes, test = False):
     if(test):
         these_combos = testing_combos
     else:
         these_combos = training_combos
-    these_combos = [combo for combo in these_combos if combo[0] == action_num]
+    these_combos = [combo for combo in these_combos if combo[0] == task_num]
     these_combos = [(combo[1], combo[2]) for combo in these_combos if combo[1] in allowed_colors and combo[2] in allowed_shapes]
     these_combos = [combo for combo in these_combos if not combo in other_shape_colors]
     color_num, shape_num = choice(these_combos)
     return(color_num, shape_num)
 
-def make_objects_and_action(num_objects, allowed_actions, allowed_colors, allowed_shapes, test = False):
-    action_num = choice(allowed_actions)
-    goal_object = valid_color_shape(action_num, [], allowed_colors, allowed_shapes, test = test)
+def make_objects_and_task(num_objects, allowed_tasks, allowed_colors, allowed_shapes, test = False):
+    task_num = choice(allowed_tasks)
+    goal_object = valid_color_shape(task_num, [], allowed_colors, allowed_shapes, test = test)
     colors_shapes_1 = [goal_object]
     colors_shapes_2 = [goal_object]
     for n in range(num_objects-1):
-        colors_shapes_1.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
+        colors_shapes_1.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
     for n in range(num_objects-1):
-        colors_shapes_2.append(valid_color_shape(action_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
-    return(action_num, colors_shapes_1, colors_shapes_2)
+        colors_shapes_2.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
+    return(task_num, colors_shapes_1, colors_shapes_2)
 
 
 
@@ -137,9 +159,9 @@ if(__name__ == "__main__"):
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
     import matplotlib.patches as patches
-    for a, action in action_map.items():
+    for a, task in task_map.items():
         fig = plt.figure(figsize=(15, 15))
-        fig.suptitle(action[1])
+        fig.suptitle(task[1])
         gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
         axs = []
         for s in range(len(shape_map)):
@@ -246,10 +268,10 @@ parser.add_argument('--load_agents',                    type=literal,       defa
                     help='Are we loading agents?')    
 
     # Things which have list-values.
-parser.add_argument('--task_list',                      type=literal,       default = ["fp5", "w5", "wpulr5"],
-                    help='List of tasks. Agent trains on each task based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
-                    help='List of how many epochs to train in each task.')
+parser.add_argument('--processor_list',                      type=literal,       default = ["fp5", "w5", "wpulr5"],
+                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
+parser.add_argument('--epochs',                         type=literal,       default = [100, 50, 300], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+                    help='List of how many epochs to train in each processor.')
 parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')
 parser.add_argument("--beta",                           type=literal,       default = [2],
@@ -291,17 +313,17 @@ parser.add_argument('--max_shoulder_angle',             type=float,         defa
 parser.add_argument('--max_shoulder_speed',             type=float,         default = 8,
                     help='Max shoulder speed.')
 
-    # Task details
+    # Processor details
 parser.add_argument('--reward',                         type=float,         default = 10,
-                    help='Extrinsic reward for choosing correct action, shape, and color.') 
+                    help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--max_steps',                      type=int,           default = 10,
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
                     help='Extrinsic punishment for taking max_steps steps.')
 parser.add_argument('--wrong_object_punishment',        type=float,         default = 0,
-                    help='Extrinsic punishment for choosing any action with wrong object.') 
+                    help='Extrinsic punishment for choosing any task with wrong object.') 
 parser.add_argument('--free_play_reward',               type=float,         default = 0,
-                    help='Extrinsic reward for performing any action in free play.') 
+                    help='Extrinsic reward for performing any task in free play.') 
 parser.add_argument('--free_play_reward_dist',          type=literal,       default = False,
                     help='Add distance and anglular rewards for free play?') 
 parser.add_argument('--step_cost',                      type=float,         default = .975,
@@ -762,7 +784,7 @@ def load_dicts(args):
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():
-        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_action"]):
+        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task"]):
             if(key == "hidden_state"):
                 min_maxes = []
                 for layer in range(len(min_max_dicts[0][key])):

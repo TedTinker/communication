@@ -4,35 +4,35 @@ import numpy as np
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE" # Without this, pyplot crashes the kernal
 import plotly.graph_objects as go
 
-from utils import args, duration, load_dicts, print, action_map, color_map, shape_map
+from utils import args, duration, load_dicts, print, task_map, color_map, shape_map
 
 print("name:\n{}\n".format(args.arg_name),)
 
 dpi = 50
 
-action_names = ['WATCH', 'PUSH', 'PULL', 'LEFT', 'RIGHT']
+task_names = ['WATCH', 'PUSH', 'PULL', 'LEFT', 'RIGHT']
 color_names = ['RED', 'GREEN', 'BLUE', 'CYAN', 'PINK', 'YELLOW']
 shape_names = ['PILLAR', 'POLE', 'DUMBBELL', 'DELTA', 'HOURGLASS']
 
 
 
-def color_based_on_title(task_name):    
-    action_str, color_str, shape_str = task_name.split('_')
-    action_index = action_names.index(action_str)
+def color_based_on_title(processor_name):    
+    task_str, color_str, shape_str = processor_name.split('_')
+    task_index = task_names.index(task_str)
     color_index = color_names.index(color_str)
     shape_index = shape_names.index(shape_str)
     
-    action_normalized = action_index / (len(action_names) - 1)
+    task_normalized = task_index / (len(task_names) - 1)
     color_normalized = color_index / (len(color_names) - 1)
     shape_normalized = shape_index / (len(shape_names) - 1)
     
-    r = int(action_normalized * 255)
+    r = int(task_normalized * 255)
     g = int(color_normalized * 255)
     b = int(shape_normalized * 255)
     
     color = f'rgb({r}, {g}, {b})'
     
-    #print(task_name, "\t", color)
+    #print(processor_name, "\t", color)
     return color
 
 
@@ -49,29 +49,29 @@ def plot_interactive_3d(plot_dict, file_name="lda_plot.html"):
         if(agent != {}):
             print("AGENT NUM", agent_num)
 
-            for epochs, task_tensors in agent.items():
+            for epochs, processor_tensors in agent.items():
                 
                 print("EPOCHS", epochs)
                 fig = go.Figure()
                 
-                for task_name, (action_probs, color_probs, shape_probs) in task_tensors.items():
+                for processor_name, (task_probs, color_probs, shape_probs) in processor_tensors.items():
                                 
-                    actions = np.argmax(action_probs, axis=1)
+                    tasks = np.argmax(task_probs, axis=1)
                     colors = np.argmax(color_probs, axis=1)
                     shapes = np.argmax(shape_probs, axis=1)
                                     
-                    actions = np.array(actions).flatten()
+                    tasks = np.array(tasks).flatten()
                     colors = np.array(colors).flatten()
                     shapes = np.array(shapes).flatten()
                                     
                     fig.add_trace(go.Scatter3d(
-                        x=actions, 
+                        x=tasks, 
                         y=colors, 
                         z=shapes, 
                         mode='markers',
                         marker=dict(
                             size=8,  # Marker size
-                            color=color_based_on_title(task_name),  # Colors can be any valid sequence
+                            color=color_based_on_title(processor_name),  # Colors can be any valid sequence
                             opacity=0.8
                         ),
                     showlegend=False
@@ -81,9 +81,9 @@ def plot_interactive_3d(plot_dict, file_name="lda_plot.html"):
                 fig.update_layout(
                     scene=dict(
                         xaxis=dict(
-                            title='Actions', 
+                            title='tasks', 
                             tickvals=[0, 1, 2, 3, 4],  # Corresponding numeric values
-                            ticktext=action_names,          # Corresponding action labels
+                            ticktext=task_names,          # Corresponding task labels
                             range=[-1, 5]
                         ),
                         yaxis=dict(

@@ -5,7 +5,7 @@ from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
 from utils import default_args, attach_list, detach_list
-from submodule_utils import episodes_steps, init_weights
+from utils_submodule import episodes_steps, init_weights
 
 
 

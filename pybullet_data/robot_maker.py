@@ -281,21 +281,21 @@ add_this = "pybullet_data/" if(os.getcwd().split("/")[-1] != "pybullet_data") el
 
 squares_per_side = 9
 
-image = Image.open(f"{add_this}9_front.png")
+image = Image.open(f"{add_this}robot_front.png")
 image = image.convert("L")
 pixels = image.load()
 width, height = image.size
 front_squares = [(x, -y + squares_per_side - 1) for x in range(width) for y in range(height) if pixels[x, y] == 0]
 
 
-image = Image.open(f"{add_this}9_top.png")
+image = Image.open(f"{add_this}robot_top.png")
 image = image.convert("L")
 pixels = image.load()
 width, height = image.size
 top_squares = [(y, x) for x in range(width) for y in range(height) if pixels[x, y] == 0]
 
 
-image = Image.open(f"{add_this}9_back.png")
+image = Image.open(f"{add_this}robot_back.png")
 image = image.convert("L")
 pixels = image.load()
 width, height = image.size

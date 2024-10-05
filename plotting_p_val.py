@@ -23,26 +23,26 @@ for plot_dict in plot_dicts:
     arg_names.append(arg_name)
     values_to_plot[arg_name] = {}
     
-action_names = []
+task_names = []
 for key in plot_dicts[0].keys():
     if(key.startswith("wins_")):
         if(key[5:] != "free_play"):
-            action_names.append(key[5:])
+            task_names.append(key[5:])
             
 for plot_dict in plot_dicts:
     args = plot_dict["args"]
 
     # Final win-rates                 
-    for action_name in action_names:
-        wins = plot_dict["wins_" + action_name.lower()]
+    for task_name in task_names:
+        wins = plot_dict["wins_" + task_name.lower()]
         wins = np.array(wins)
         wins = wins[:,-1]
-        values_to_plot[args.arg_name]["wins_" + action_name.lower()] = wins
+        values_to_plot[args.arg_name]["wins_" + task_name.lower()] = wins
         
-        gen_wins = plot_dict["gen_wins_" + action_name.lower()]
+        gen_wins = plot_dict["gen_wins_" + task_name.lower()]
         gen_wins = np.array(gen_wins)  
         gen_wins = gen_wins[:,-1]
-        values_to_plot[args.arg_name]["gen_wins_" + action_name.lower()] = wins
+        values_to_plot[args.arg_name]["gen_wins_" + task_name.lower()] = wins
         
     # Rewards
     rewards = plot_dict["rewards"]

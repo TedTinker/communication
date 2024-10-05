@@ -8,7 +8,7 @@ from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
 from utils import default_args, detach_list, attach_list, print, duration, how_many_nans
-from submodule_utils import init_weights, episodes_steps, var, sample, model_start, model_end
+from utils_submodule import init_weights, episodes_steps, var, sample, model_start, model_end
 from mtrnn import MTRNN
 from submodules import Obs_IN, Action_IN, Comm_IN, Comm_OUT
 

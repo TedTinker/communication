@@ -12,7 +12,7 @@ import torchgan.layers as gg
 from torchinfo import summary as torch_summary
 
 from utils import print, default_args, how_many_nans
-from submodule_utils import model_start, model_end, generate_2d_sinusoidal_positions, generate_2d_positional_layers, generate_1d_positional_layers, \
+from utils_submodule import model_start, model_end, generate_2d_sinusoidal_positions, generate_2d_positional_layers, generate_1d_positional_layers, \
     Ted_Conv1d, Ted_Conv2d, ConstrainedConv1d, ConstrainedConv2d,\
     init_weights, hsv_to_circular_hue, pad_zeros, var, sample
 from mtrnn import MTRNN

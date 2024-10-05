@@ -98,7 +98,7 @@ def get_logs(quantile_dict):
 
 
 
-# This works, but it still has the instant drop in watching after introducing other actions. 
+# This works, but it still has the instant drop in watching after introducing other tasks. 
 # But it seems this function is fine, so maybe the problem is elsewhere, or maybe that's just have it works?
 def rolling_average_with_none(arr, window_size = 500):
     def process_row(row):
@@ -220,24 +220,24 @@ def plots(plot_dicts, min_max_dict):
         try: os.mkdir("thesis_pics/rolling_win_rate")
         except: pass
     
-        action_name_list = []
+        task_name_list = []
         for key in plot_dict.keys():
             if(key.startswith("wins_")):
                 if(key[5:] != "free_play"):
-                    action_name_list.append(key[5:])
+                    task_name_list.append(key[5:])
                     
-        fig2, ax2 = plt.subplots(len(action_name_list), 2, figsize = (20, 30))
+        fig2, ax2 = plt.subplots(len(task_name_list), 2, figsize = (20, 30))
         fig2.suptitle(plot_dict["arg_title"])  
         fig2_row_num = 0
                     
-        for action_name in action_name_list:
+        for task_name in task_name_list:
             
             def get_rolled_wins(gen = False):
-                wins = plot_dict[f"{'gen_' if gen else ''}wins_" + action_name.lower()]
+                wins = plot_dict[f"{'gen_' if gen else ''}wins_" + task_name.lower()]
                 wins = np.array(wins)
                 wins_rolled = rolling_average_with_none(wins) * 100
-                plot_dict[f"{'gen_' if gen else ''}wins_rolled_" + action_name.lower()] = wins_rolled
-                win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + action_name.lower(), levels = levels, adjust_xs = None)
+                plot_dict[f"{'gen_' if gen else ''}wins_rolled_" + task_name.lower()] = wins_rolled
+                win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + task_name.lower(), levels = levels, adjust_xs = None)
                 return(win_dict)
             
             win_dict = get_rolled_wins()
@@ -248,7 +248,7 @@ def plots(plot_dicts, min_max_dict):
                 here.set_ylabel((f"Rolling-Average Gen-Win-Rate" if gen else f"Rolling-Average Win-Rate"))
                 here.yaxis.set_major_formatter(FuncFormatter(to_percent))
                 here.set_xlabel("Epochs")
-                here.set_title(plot_dict["arg_title"] + (f"\nRolling-Average Gen-Win-Rate ({action_name})" if gen else f"\nRolling-Average Win-Rate ({action_name})"))
+                here.set_title(plot_dict["arg_title"] + (f"\nRolling-Average Gen-Win-Rate ({task_name})" if gen else f"\nRolling-Average Win-Rate ({task_name})"))
                 divide_arenas(gen_win_dict if gen else win_dict, here)
                     
             if(not too_many_plot_dicts): 
@@ -258,12 +258,12 @@ def plots(plot_dicts, min_max_dict):
                 ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
                 
             plot_rolling_average_wins(ax2[fig2_row_num, 0])  
-            ax2[fig2_row_num, 0].set_title(f"Rolling-Average Win-Rate ({action_name})")
+            ax2[fig2_row_num, 0].set_title(f"Rolling-Average Win-Rate ({task_name})")
             plot_rolling_average_wins(ax2[fig2_row_num, 1], gen = True)  
-            ax2[fig2_row_num, 1].set_title(f"Rolling-Average Gen-Win-Rate ({action_name})")
+            ax2[fig2_row_num, 1].set_title(f"Rolling-Average Gen-Win-Rate ({task_name})")
             
             fig2_row_num += 1
-            print(f"\tFinished win-rates ({action_name}).")
+            print(f"\tFinished win-rates ({task_name}).")
             
         fig2.savefig(f"thesis_pics/rolling_win_rate/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
@@ -409,7 +409,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[0].set_title("Actor, Critic Losses")
         plot_other_losses(ax2[1], min_max = True)  
         ax2[1].set_title("Actor, Critic Losses, shared min/max")
-        fig2.savefig(f"thesis_pics/other_losses/actor_critic_losses_{action_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
+        fig2.savefig(f"thesis_pics/other_losses/actor_critic_losses_{task_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished other losses.")

@@ -9,7 +9,7 @@ from sklearn.manifold import TSNE
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
 from utils import default_args, dkl, duration, how_many_nans
-from submodule_utils import init_weights, episodes_steps, var, sample
+from utils_submodule import init_weights, episodes_steps, var, sample
 from mtrnn import MTRNN
 from submodules import RGBD_IN, Comm_IN, Sensors_IN, Obs_OUT, Action_IN, Comm_IN_GRU
 
