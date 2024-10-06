@@ -320,13 +320,12 @@ class Agent:
             time = duration()
             if(self.args.show_duration): print("STEP B:", time - start_time)
 
-            action_1, comm_out_1, _, _, ha_1 = self.actor(rgbd_1, comm_in_1, sensors_1, prev_action_1, prev_comm_out_1, hq_1.detach(), ha_1, parenting) 
+            action_1, comm_out_1, _, _ = self.actor(hq_1.detach(), parenting) 
             values_1 = []
             new_hcs_1 = []
             for i in range(self.args.critics):
-                value, hc = self.critics[i](rgbd_1, comm_in_1, sensors_1, action_1, comm_out_1, hq_1.detach(), hcs_1[i]) 
+                value = self.critics[i](action_1, comm_out_1, hq_1.detach()) 
                 values_1.append(round(value.item(), 3))
-                new_hcs_1.append(hc)
                 
             time = duration()
             if(self.args.show_duration): print("STEP C:", time - start_time)
@@ -348,13 +347,12 @@ class Agent:
                     hq_2, 
                     self.forward.rgbd_in(rgbd_2), self.forward.comm_in(comm_in_2), self.forward.sensors_in(sensors_2), 
                     self.forward.action_in(prev_action_2), self.forward.comm_out_in(prev_comm_out_2))
-                action_2, comm_out_2, _, _, ha_2 = self.actor(rgbd_2, prev_comm_out_1, sensors_2, prev_action_2, prev_comm_out_2, hq_2.detach(), ha_2, parenting) 
+                action_2, comm_out_2, _, _ = self.actor(hq_2.detach(), parenting) 
                 values_2 = []
                 new_hcs_2 = []
                 for i in range(self.args.critics):
-                    value, hc = self.critics[i](rgbd_2, parent_comm if parenting else prev_comm_out_1, sensors_2, action_2, comm_out_2, hq_2.detach(), hcs_2[i]) 
+                    value = self.critics[i](action_2, comm_out_2, hq_2.detach()) 
                     values_2.append(round(value.item(), 3))
-                    new_hcs_2.append(hc)
                                     
             time = duration()
             if(self.args.show_duration): print("\nUP TO STEP:", time - prev_time)
@@ -1006,12 +1004,11 @@ class Agent:
                 
         # Train critics
         with torch.no_grad():
-            new_actions, new_comms_out, log_pis_next, log_pis_next_text, _ = \
-                self.actor(rgbds, comms_in, sensors, actions, comms_out, hqs.detach(), 
-                           torch.zeros((episodes, steps + 1, self.args.hidden_size)), parenting)
+            new_actions, new_comms_out, log_pis_next, log_pis_next_text = \
+                self.actor(hqs.detach(), parenting)
             Q_target_nexts = []
             for i in range(self.args.critics):
-                Q_target_next, _ = self.critic_targets[i](rgbds, comms_in, sensors, new_actions, new_comms_out, hqs.detach(), torch.zeros((episodes, steps + 1, self.args.hidden_size)))
+                Q_target_next = self.critic_targets[i](new_actions, new_comms_out, hqs.detach())
                 Q_target_next[:,1:]
                 Q_target_nexts.append(Q_target_next)                
             log_pis_next = log_pis_next[:,1:]
@@ -1034,7 +1031,7 @@ class Agent:
         critic_losses = []
         Qs = []
         for i in range(self.args.critics):
-            Q, _ = self.critics[i](rgbds[:,:-1], comms_in[:,:-1], sensors[:,:-1], actions[:,1:], comms_out[:,1:], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)))
+            Q = self.critics[i](actions[:,1:], comms_out[:,1:], hqs[:,:-1].detach())
             critic_loss = 0.5*F.mse_loss(Q*masks, Q_targets*masks)
             critic_losses.append(critic_loss)
             Qs.append(Q[0,0].item())
@@ -1061,7 +1058,7 @@ class Agent:
             else:                            alpha = self.args.alpha
             if self.args.alpha_text == None: alpha_text = self.alpha_text 
             else:                            alpha_text = self.args.alpha_text
-            new_actions, new_comms_out, log_pis, log_pis_text, _ = self.actor(rgbds[:,:-1], comms_in[:,:-1], sensors[:,:-1], actions[:,:-1], comms_out[:,:-1], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)), parenting)
+            new_actions, new_comms_out, log_pis, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
             recommendation_value = calculate_similarity(recommended_actions, new_actions).unsqueeze(-1)
             intrinsic_imitation = -torch.mean((self.args.delta * recommendation_value)*masks).item() 
             
@@ -1077,7 +1074,7 @@ class Agent:
                 
             Qs = []
             for i in range(self.args.critics):
-                Q, _ = self.critics[i](rgbds[:,:-1], comms_in[:,:-1], sensors[:,:-1], new_actions, new_comms_out, hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)))
+                Q = self.critics[i](new_actions, new_comms_out, hqs[:,:-1].detach())
                 Qs.append(Q)
             Qs_stacked = torch.stack(Qs, dim=0)
             Q, _ = torch.min(Qs_stacked, dim=0)
@@ -1115,7 +1112,7 @@ class Agent:
             
         # Train alpha
         if self.args.alpha == None:
-            _, _, log_pis, _, _ = self.actor(rgbds[:,:-1], comms_in[:,:-1], sensors[:,:-1], actions[:,:-1], comms_out[:,:-1], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)), parenting)
+            _, _, log_pis, _ = self.actor(hqs[:,:-1].detach(), parenting)
             alpha_loss = -(self.log_alpha.to(self.args.device) * (log_pis + self.target_entropy))*masks
             alpha_loss = alpha_loss.mean() / masks.mean()
             self.alpha_opt.zero_grad()
@@ -1127,7 +1124,7 @@ class Agent:
             alpha_loss = None
             
         if self.args.alpha_text == None:
-            _, _, _, log_pis_text, _ = self.actor(rgbds[:,:-1], comms_in[:,:-1], sensors[:,:-1], actions[:,:-1], comms_out[:,:-1], hqs[:,:-1].detach(), torch.zeros((episodes, steps, self.args.hidden_size)), parenting)
+            _, _, _, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
             alpha_text_loss = -(self.log_alpha_text.to(self.args.device) * (log_pis_text + self.target_entropy_text))*masks
             alpha_text_loss = alpha_text_loss.mean() / masks.mean()
             self.alpha_text_opt.zero_grad()

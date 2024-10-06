@@ -8,13 +8,14 @@ from scipy import stats
 from utils import args, duration, load_dicts
 
 print("name:\n{}".format(args.arg_name))
-    
-    
 
+os.chdir(f"saved_{args.comp}")
 try: os.mkdir("thesis_pics/p_values")
 except: pass
 
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
+
+
 
 arg_names = []
 values_to_plot = {}

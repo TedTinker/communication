@@ -369,6 +369,7 @@ class Comm_OUT(nn.Module):
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
                 
     def forward(self, h_w_action):
+        
         start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
                 
         h_w_action = h_w_action.reshape(episodes * steps, self.args.pvrnn_mtrnn_size + self.args.encode_action_size)

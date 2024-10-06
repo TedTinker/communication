@@ -184,7 +184,7 @@ if(__name__ == "__main__" and args.arg_list != []):
 #SBATCH --mem=50G"""
 
     if(args.comp == "saion"):
-        nv = "--nv"
+        nv = " --nv"
         module = "module load singularity cuda"
         partition = \
 """
@@ -204,7 +204,7 @@ f"""
 {partition}
 #SBATCH --ntasks={max_cpus}
 {module}
-singularity exec {nv} maze.sif python communication/main.py --comp {args.comp} --arg_name {name} {get_args(name)} --agents $agents_per_job --previous_agents $previous_agents
+singularity exec{nv} maze.sif python communication/main.py --comp {args.comp} --arg_name {name} {get_args(name)} --agents $agents_per_job --previous_agents $previous_agents
 """[2:])
             
 
@@ -214,7 +214,7 @@ singularity exec {nv} maze.sif python communication/main.py --comp {args.comp} -
 f"""
 {partition}
 {module}
-singularity exec {nv} maze.sif python communication/finish_dicts.py --comp {args.comp} --arg_title {combined} --arg_name finishing_dictionaries
+singularity exec{nv} maze.sif python communication/finish_dicts.py --comp {args.comp} --arg_title {combined} --arg_name finishing_dictionaries
 """[2:])
         
     with open("plotting.slurm", "w") as f:
@@ -222,7 +222,7 @@ singularity exec {nv} maze.sif python communication/finish_dicts.py --comp {args
 f"""
 {partition}
 {module}
-singularity exec {nv} maze.sif python communication/plotting.py --comp {args.comp} --arg_title {combined} --arg_name plotting
+singularity exec{nv} maze.sif python communication/plotting.py --comp {args.comp} --arg_title {combined} --arg_name plotting
 """[2:])
         
     with open("plotting_lda.slurm", "w") as f:
@@ -230,7 +230,7 @@ singularity exec {nv} maze.sif python communication/plotting.py --comp {args.com
 f"""
 {partition}
 {module}
-singularity exec {nv} maze.sif python communication/plotting_lda.py --comp {args.comp} --arg_title {combined} --arg_name plotting_lda
+singularity exec{nv} maze.sif python communication/plotting_lda.py --comp {args.comp} --arg_title {combined} --arg_name plotting_lda
 """[2:])
         
     with open("plotting_episodes.slurm", "w") as f:
@@ -238,7 +238,7 @@ singularity exec {nv} maze.sif python communication/plotting_lda.py --comp {args
 f"""
 {partition}
 {module}
-singularity exec {nv} maze.sif python communication/plotting_episodes.py --comp {args.comp} --arg_title {combined} --arg_name plotting_episodes
+singularity exec{nv} maze.sif python communication/plotting_episodes.py --comp {args.comp} --arg_title {combined} --arg_name plotting_episodes
 """[2:])
         
     with open("plotting_p_values.slurm", "w") as f:
@@ -246,7 +246,7 @@ singularity exec {nv} maze.sif python communication/plotting_episodes.py --comp 
 f"""
 {partition}
 {module}
-singularity exec {nv} maze.sif python communication/plotting_p_val.py --comp {args.comp} --arg_title {combined} --arg_name plotting_p_values
+singularity exec{nv} maze.sif python communication/plotting_p_val.py --comp {args.comp} --arg_title {combined} --arg_name plotting_p_values
 """[2:])
         
     with open("combine_plots.slurm", "w") as f:
@@ -254,7 +254,7 @@ singularity exec {nv} maze.sif python communication/plotting_p_val.py --comp {ar
 f"""
 {partition}
 {module}
-singularity exec {nv} maze.sif python communication/combine_plots.py --comp {args.comp} --arg_title {combined} --arg_name combining_plots
+singularity exec{nv} maze.sif python communication/combine_plots.py --comp {args.comp} --arg_title {combined} --arg_name combining_plots
 """[2:])
 # %%
 
