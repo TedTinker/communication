@@ -186,6 +186,97 @@ if __name__ == "__main__":
 
 
 
+
+    
+class Sensors_IN(nn.Module):
+    
+    def __init__(self, args = default_args):
+        super(Sensors_IN, self).__init__()
+        
+        self.args = args 
+        
+        self.a = nn.Sequential(
+            nn.Linear(
+                in_features = self.args.sensors_shape,
+                out_features = self.args.encode_sensors_size),
+            #nn.BatchNorm1d(self.args.encode_sensors_size),
+            nn.PReLU())
+        
+        self.apply(init_weights)
+        self.to(self.args.device)
+        if(self.args.half):
+            self = self.half()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
+        
+    def forward(self, sensors):
+        start, episodes, steps, [sensors] = model_start([(sensors, "lin")], self.args.device, self.args.half)
+        encoding = self.a(sensors)
+        [encoding] = model_end(start, episodes, steps, [(encoding, "lin")], "SENSORS_IN" if self.args.show_duration else None)
+        return(encoding)
+
+    
+    
+if __name__ == "__main__":
+    
+    sensors_in = Sensors_IN(args = args)
+    
+    print("\n\n")
+    print(sensors_in)
+    print()
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(sensors_in, 
+                                (episodes, steps, args.sensors_shape)))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+
+#%%
+
+
+
+class Sensors_OUT(nn.Module):
+
+    def __init__(self, args = default_args):
+        super(Sensors_OUT, self).__init__()  
+        
+        self.args = args 
+        
+        self.a = nn.Sequential(
+            nn.Linear(
+                in_features = self.args.h_w_action_size,
+                out_features = self.args.sensors_shape),
+            nn.Tanh())
+        
+        self.apply(init_weights)
+        self.to(self.args.device)
+        if(self.args.half):
+            self = self.half()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
+        
+    def forward(self, h_w_action):
+        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
+        sensors = self.a(h_w_action)
+        sensors = (sensors + 1) / 2
+        [sensors] = model_end(start, episodes, steps, [(sensors, "lin")], "SENSORS_OUT" if self.args.show_duration else None)
+        return(sensors)
+    
+    
+    
+if __name__ == "__main__":
+    
+    sensors_out = Sensors_OUT(args = args)
+    
+    print("\n\n")
+    print(sensors_out)
+    print()
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(sensors_out, 
+                                (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+#%%
+
+
+
 class Comm_IN(nn.Module):
 
     def __init__(self, args = default_args):
@@ -415,95 +506,6 @@ if __name__ == "__main__":
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 
 #%%
-
-
-    
-class Sensors_IN(nn.Module):
-    
-    def __init__(self, args = default_args):
-        super(Sensors_IN, self).__init__()
-        
-        self.args = args 
-        
-        self.a = nn.Sequential(
-            nn.Linear(
-                in_features = self.args.sensors_shape,
-                out_features = self.args.encode_sensors_size),
-            #nn.BatchNorm1d(self.args.encode_sensors_size),
-            nn.PReLU())
-        
-        self.apply(init_weights)
-        self.to(self.args.device)
-        if(self.args.half):
-            self = self.half()
-            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
-        
-    def forward(self, sensors):
-        start, episodes, steps, [sensors] = model_start([(sensors, "lin")], self.args.device, self.args.half)
-        encoding = self.a(sensors)
-        [encoding] = model_end(start, episodes, steps, [(encoding, "lin")], "SENSORS_IN" if self.args.show_duration else None)
-        return(encoding)
-
-    
-    
-if __name__ == "__main__":
-    
-    sensors_in = Sensors_IN(args = args)
-    
-    print("\n\n")
-    print(sensors_in)
-    print()
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            print(torch_summary(sensors_in, 
-                                (episodes, steps, args.sensors_shape)))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-
-#%%
-
-
-
-class Sensors_OUT(nn.Module):
-
-    def __init__(self, args = default_args):
-        super(Sensors_OUT, self).__init__()  
-        
-        self.args = args 
-        
-        self.a = nn.Sequential(
-            nn.Linear(
-                in_features = self.args.h_w_action_size,
-                out_features = self.args.sensors_shape),
-            nn.Tanh())
-        
-        self.apply(init_weights)
-        self.to(self.args.device)
-        if(self.args.half):
-            self = self.half()
-            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
-        
-    def forward(self, h_w_action):
-        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
-        sensors = self.a(h_w_action)
-        sensors = (sensors + 1) / 2
-        [sensors] = model_end(start, episodes, steps, [(sensors, "lin")], "SENSORS_OUT" if self.args.show_duration else None)
-        return(sensors)
-    
-    
-    
-if __name__ == "__main__":
-    
-    sensors_out = Sensors_OUT(args = args)
-    
-    print("\n\n")
-    print(sensors_out)
-    print()
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            print(torch_summary(sensors_out, 
-                                (episodes, steps, args.pvrnn_mtrnn_size + args.encode_action_size)))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-#%%
     
     
     
@@ -514,8 +516,8 @@ class Obs_IN(nn.Module):
                 
         self.args = args
         self.rgbd_in = RGBD_IN(self.args)
-        self.comm_in = Comm_IN_GRU(self.args) if self.args.use_comm_in_gru else Comm_IN(self.args)
         self.sensors_in = Sensors_IN(self.args)
+        self.comm_in = Comm_IN_GRU(self.args) if self.args.use_comm_in_gru else Comm_IN(self.args)
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -525,9 +527,10 @@ class Obs_IN(nn.Module):
         
     def forward(self, rgbd, comm, sensors):
         rgbd = self.rgbd_in(rgbd)
-        comm = self.comm_in(comm)
         sensors = self.sensors_in(sensors)
-        return(torch.cat([rgbd, comm, sensors], dim = -1))
+        comm = self.comm_in(comm)
+        
+        return(torch.cat([rgbd, sensors, comm], dim = -1))
     
     
     
@@ -542,8 +545,8 @@ if __name__ == "__main__":
         with record_function("model_inference"):
             print(torch_summary(obs_in, 
                                 ((episodes, steps, args.image_size, args.image_size, 4),
-                                (episodes, steps, args.max_comm_len, args.comm_shape),
-                                (episodes, steps, args.sensors_shape))))
+                                 (episodes, steps, args.sensors_shape),
+                                (episodes, steps, args.max_comm_len, args.comm_shape))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
 #%%
@@ -557,8 +560,8 @@ class Obs_OUT(nn.Module):
         
         self.args = args 
         self.rgbd_out = RGBD_OUT(self.args)
-        self.comm_out = Comm_OUT(actor = False, args = self.args)
         self.sensors_out = Sensors_OUT(self.args)
+        self.comm_out = Comm_OUT(actor = False, args = self.args)
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -568,9 +571,9 @@ class Obs_OUT(nn.Module):
         
     def forward(self, h_w_action):
         rgbd_pred = self.rgbd_out(h_w_action)
-        comm_pred = self.comm_out(h_w_action)
         sensors_pred = self.sensors_out(h_w_action)
-        return(rgbd_pred, comm_pred, sensors_pred)
+        comm_pred = self.comm_out(h_w_action)
+        return(rgbd_pred, sensors_pred, comm_pred)
     
     
     

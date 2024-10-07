@@ -5,4 +5,4 @@
 #SBATCH --time 24:00:00
 #SBATCH --mem=50G
 module load singularity
-singularity exec  maze.sif python communication/plotting.py --comp deigo --arg_title ___e+ef_only_comm+ef___ --arg_name plotting
+singularity exec maze.sif python communication/plotting.py --comp deigo --arg_title ___e+ef_only_comm+ef___ --arg_name plotting

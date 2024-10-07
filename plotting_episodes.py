@@ -37,7 +37,7 @@ def plot_episode(key, episode_dict, arg_name, saving = True):
             pass
         os.chdir(f"{arg_name}/epoch_{epoch}_episode_{episode_num}_agent_{agent_num}_swapping_{swapping}")
         print("Saving {}: agent {}, epoch {}, episode {}.{}".format(arg_name, agent_num, epoch, episode_num, " Swapping!" if swapping == 1 else ""))
-    steps = len(episode_dict["rgbds_1"])
+    steps = len(episode_dict["rgbd_1"])
     for step in range(steps):
         plot_step(step, episode_dict, last_step = step + 1 == steps, saving = saving)
         if(episode_dict["processor"]).parenting: pass 
@@ -64,32 +64,32 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         data.append(["", ["Real"], ["Prior"], ["Posterior"], .1])
     
     if(step == 0):
-        data.append([f"RGBD ({agent_num})", [episode_dict[f"rgbds_{agent_num}"][step], "image"], 1])
-        data.append([f"Comm_In ({agent_num})", [episode_dict[f"comms_in_{agent_num}"][step]], 1])
+        data.append([f"RGBD ({agent_num})", [episode_dict[f"rgbd_{agent_num}"][step], "image"], 1])
         data.append([f"Sensors ({agent_num})", [episode_dict[f"sensors_{agent_num}"][step], "sensors"], 1])
+        data.append([f"Comm_In ({agent_num})", [episode_dict[f"comm_in_{agent_num}"][step]], 1])
     else:
         data.append(
             [f"RGBD ({agent_num})", 
-            [episode_dict[f"rgbds_{agent_num}"][step], "image"],
-            [episode_dict[f"prior_predicted_rgbds_{agent_num}"][step-1], "image"],
-            [episode_dict[f"posterior_predicted_rgbds_{agent_num}"][step-1], "image"], 1])
-        data.append(
-            [f"Comm_In ({agent_num})",
-            [episode_dict[f"comms_in_{agent_num}"][step]],
-            ["\n\n" + episode_dict[f"prior_predicted_comms_in_{agent_num}"][step-1]],
-            ["\n\n\n\n" + episode_dict[f"posterior_predicted_comms_in_{agent_num}"][step-1]], .3])
+            [episode_dict[f"rgbd_{agent_num}"][step], "image"],
+            [episode_dict[f"prior_predicted_rgbd_{agent_num}"][step-1], "image"],
+            [episode_dict[f"posterior_predicted_rgbd_{agent_num}"][step-1], "image"], 1])
         data.append(
             [f"Sensors ({agent_num})", 
             [episode_dict[f"sensors_{agent_num}"][step], "sensors"],
             [episode_dict[f"prior_predicted_sensors_{agent_num}"][step-1], "sensors"],
             [episode_dict[f"posterior_predicted_sensors_{agent_num}"][step-1], "sensors"], 1])
+        data.append(
+            [f"Comm_In ({agent_num})",
+            [episode_dict[f"comm_in_{agent_num}"][step]],
+            ["\n\n" + episode_dict[f"prior_predicted_comm_in_{agent_num}"][step-1]],
+            ["\n\n\n\n" + episode_dict[f"posterior_predicted_comm_in_{agent_num}"][step-1]], .3])
         
-        data.append([f"Action ({agent_num})", [episode_dict[f"action_texts_{agent_num}"][step-1]], .1])
-        data.append([f"Comms Out ({agent_num})", [episode_dict[f"comms_out_{agent_num}"][step-1]], .1])
+        data.append([f"Action ({agent_num})", [episode_dict[f"action_text_{agent_num}"][step-1]], .1])
+        data.append([f"Comms Out ({agent_num})", [episode_dict[f"comm_out_{agent_num}"][step-1]], .1])
         
-        data.append([f"RGBD DKL ({agent_num})", [episode_dict[f"rgbd_dkls_{agent_num}"][:step], "plot"], .5])
-        data.append([f"Comm DKL ({agent_num})", [episode_dict[f"comm_dkls_{agent_num}"][:step], "plot"], .5])
-        data.append([f"Sensors DKL ({agent_num})", [episode_dict[f"sensors_dkls_{agent_num}"][:step], "plot"], .5])
+        data.append([f"RGBD DKL ({agent_num})", [episode_dict[f"rgbd_dkl_{agent_num}"][:step], "plot"], .5])
+        data.append([f"Sensors DKL ({agent_num})", [episode_dict[f"sensors_dkl_{agent_num}"][:step], "plot"], .5])
+        data.append([f"Comm DKL ({agent_num})", [episode_dict[f"comm_dkl_{agent_num}"][:step], "plot"], .5])
         
     max_sublist_len = 0
     for sublist in data:

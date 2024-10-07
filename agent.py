@@ -130,13 +130,13 @@ class Agent:
             "all_processor_names" : self.all_processor_names,
             "lda_transformations" : {},
             "agent_lists" : {} if (self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list) else {"forward" : PVRNN(self.args), "actor" : Actor(self.args), "critic" : Critic(self.args)},
-            "rewards" : [], 
-            "gen_rewards" : [], 
+            "reward" : [], 
+            "gen_reward" : [], 
             "steps" : [],
             "accuracy" : [], 
             "rgbd_loss" : [], 
-            "comm_loss" : [], 
             "sensors_loss" : [], 
+            "comm_loss" : [], 
             "complexity" : [],
             "alpha" : [], 
             "alpha_text" : [],
@@ -148,12 +148,12 @@ class Agent:
             "intrinsic_entropy" : [], 
             "intrinsic_imitation" : [],
             "rgbd_prediction_error_curiosity" : [], 
-            "comm_prediction_error_curiosity" : [], 
             "sensors_prediction_error_curiosity" : [], 
+            "comm_prediction_error_curiosity" : [], 
             "prediction_error_curiosity" : [], 
             "rgbd_hidden_state_curiosity" : [],
-            "comm_hidden_state_curiosity" : [],
             "sensors_hidden_state_curiosity" : [],
+            "comm_hidden_state_curiosity" : [],
             "hidden_state_curiosity" : [],
             "wins_all" : [],
             "gen_wins_all" : []}
@@ -258,8 +258,8 @@ class Agent:
         self.save_episodes(swapping = False)
         self.save_agent()
         
-        self.plot_dict["accumulated_rewards"] = list(accumulate(self.plot_dict["rewards"]))
-        self.plot_dict["accumulated_gen_rewards"] = list(accumulate(self.plot_dict["gen_rewards"]))
+        self.plot_dict["accumulated_reward"] = list(accumulate(self.plot_dict["reward"]))
+        self.plot_dict["accumulated_gen_reward"] = list(accumulate(self.plot_dict["gen_reward"]))
         
         time = duration()
         if(self.args.show_duration): print("AFTER GEN, SAVE EPISODE, LDA TRANSFORM, SAVE AGENT (END):", time - prev_time)
@@ -304,17 +304,17 @@ class Agent:
         with torch.no_grad():
             self.eval()
             parenting = self.processor.processor.parenting
-            rgbd_1, parent_comm, sensors_1 = self.processor.obs()
-            rgbd_2, _, sensors_2 = self.processor.obs(agent_1 = False)
+            rgbd_1, sensors_1, parent_comm = self.processor.obs()
+            rgbd_2, sensors_2, _ = self.processor.obs(agent_1 = False)
             recommended_action_1 = self.processor.get_recommended_action() 
             comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_2
             
             time = duration()
             if(self.args.show_duration): print("STEP A:", time - start_time)
 
-            hp_1, hq_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, activations_3d_pca_1, activations_3d_tsne_1, comm_zq_1 = self.forward.bottom_to_top_step(
+            hp_1, hq_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, activations_3d_pca_1, activations_3d_tsne_1, comm_zq_1 = self.forward.bottom_to_top_step(
                 hq_1, 
-                self.forward.rgbd_in(rgbd_1), self.forward.comm_in(comm_in_1), self.forward.sensors_in(sensors_1), 
+                self.forward.rgbd_in(rgbd_1), self.forward.sensors_in(sensors_1), self.forward.comm_in(comm_in_1), 
                 self.forward.action_in(prev_action_1), self.forward.comm_out_in(prev_comm_out_1)) 
             
             time = duration()
@@ -337,15 +337,15 @@ class Agent:
                 hq_2 = None
                 values_2 = None
                 new_hcs_2 = None
-                rgbd_dkls_2 = None 
-                comm_dkls_2 = None
-                sensors_dkls_2 = None
+                rgbd_dkl_2 = None 
+                sensors_dkl_2 = None
+                comm_dkl_2 = None
             else:
                 recommended_action_2 = self.processor.get_recommended_action(agent_1 = False)
                 comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_1
-                hp_2, hq_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, activations_3d_pca_2, activations_3d_tsne_2, comm_zq_2 = self.forward.bottom_to_top(
+                hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, activations_3d_pca_2, activations_3d_tsne_2, comm_zq_2 = self.forward.bottom_to_top(
                     hq_2, 
-                    self.forward.rgbd_in(rgbd_2), self.forward.comm_in(comm_in_2), self.forward.sensors_in(sensors_2), 
+                    self.forward.rgbd_in(rgbd_2), self.forward.sensors_in(sensors_2), self.forward.comm_in(comm_in_2), 
                     self.forward.action_in(prev_action_2), self.forward.comm_out_in(prev_comm_out_2))
                 action_2, comm_out_2, _, _ = self.actor(hq_2.detach(), parenting) 
                 values_2 = []
@@ -366,8 +366,8 @@ class Agent:
             
             total_reward = raw_reward + distance_reward + angle_reward 
             total_reward_2 = raw_reward + distance_reward_2 + angle_reward_2
-            next_rgbd_1, next_parent_comm, next_sensors_1 = self.processor.obs()
-            next_rgbd_2, _, next_sensors_2 = self.processor.obs(agent_1 = False)
+            next_rgbd_1, next_sensors_1, next_parent_comm = self.processor.obs()
+            next_rgbd_2, next_sensors_2, _ = self.processor.obs(agent_1 = False)
             
             next_comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
             next_comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
@@ -376,16 +376,16 @@ class Agent:
             
             to_push_1 = [
                 rgbd_1,
-                comm_in_1,
                 sensors_1,
+                comm_in_1,
                 action_1,
                 comm_out_1,
                 recommended_action_1,
                 total_reward,
                 comm_curious,
                 next_rgbd_1,
-                next_comm_in_1,
                 next_sensors_1,
+                next_comm_in_1,
                 done]
             
             if(parenting): 
@@ -393,16 +393,16 @@ class Agent:
             else:
                 to_push_2 = [
                     rgbd_2,
-                    comm_in_2,
                     sensors_2,
+                    comm_in_2,
                     action_2,
                     comm_out_2,
                     recommended_action_2,
                     total_reward,
                     comm_curious,
                     next_rgbd_2,
-                    next_comm_in_2,
                     next_sensors_2,
+                    next_comm_in_2,
                     done]
         torch.cuda.empty_cache()
         
@@ -410,8 +410,8 @@ class Agent:
         if(self.args.show_duration): print("COMPLETE STEP:", time - start_time, "\n")
         prev_time = time
         
-        return(action_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), ha_1, new_hcs_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, which_goal_message_1,
-               action_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), ha_2, new_hcs_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, which_goal_message_2,
+        return(action_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), ha_1, new_hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1,
+               action_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), ha_2, new_hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2,
                raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2)
             
            
@@ -458,8 +458,8 @@ class Agent:
             self.steps += 1                                                                                             
             if(not done):
                 steps += 1
-                prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, which_goal_message_1, \
-                    prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, which_goal_message_2, \
+                prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
+                    prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
                         raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
                             prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
@@ -475,16 +475,16 @@ class Agent:
                 prev_time = time
                 if(plot_data == False): pass
                 else:
-                    accuracy, rgbd_loss, comm_loss, sensors_loss, complexity, \
+                    accuracy, rgbd_loss, sensors_loss, comm_loss, complexity, \
                         alpha_loss, alpha_text_loss, actor_loss, critic_losses, \
                         e, q, ic, ie, ii, \
-                        rgbd_prediction_error_curiosity, comm_prediction_error_curiosity, sensors_prediction_error_curiosity, prediction_error_curiosity,\
-                        rgbd_hidden_state_curiosity, comm_hidden_state_curiosity, sensors_hidden_state_curiosity, hidden_state_curiosity = plot_data
+                        rgbd_prediction_error_curiosity, sensors_prediction_error_curiosity, comm_prediction_error_curiosity, prediction_error_curiosity,\
+                        rgbd_hidden_state_curiosity, sensors_hidden_state_curiosity, comm_hidden_state_curiosity, hidden_state_curiosity = plot_data
                     if(self.epochs == 1 or self.epochs >= sum(self.args.epochs) or self.epochs % self.args.keep_data == 0):
                         self.plot_dict["accuracy"].append(accuracy)
                         self.plot_dict["rgbd_loss"].append(rgbd_loss)
-                        self.plot_dict["comm_loss"].append(comm_loss)
                         self.plot_dict["sensors_loss"].append(sensors_loss)
+                        self.plot_dict["comm_loss"].append(comm_loss)
                         self.plot_dict["complexity"].append(complexity)                                                                             
                         self.plot_dict["alpha"].append(alpha_loss)
                         self.plot_dict["alpha_text"].append(alpha_text_loss)
@@ -498,17 +498,17 @@ class Agent:
                         self.plot_dict["intrinsic_entropy"].append(ie)
                         self.plot_dict["intrinsic_imitation"].append(ii)
                         self.plot_dict["rgbd_prediction_error_curiosity"].append(rgbd_prediction_error_curiosity)
-                        self.plot_dict["comm_prediction_error_curiosity"].append(comm_prediction_error_curiosity)
                         self.plot_dict["sensors_prediction_error_curiosity"].append(sensors_prediction_error_curiosity)
+                        self.plot_dict["comm_prediction_error_curiosity"].append(comm_prediction_error_curiosity)
                         self.plot_dict["prediction_error_curiosity"].append(prediction_error_curiosity)
                         self.plot_dict["rgbd_hidden_state_curiosity"].append(rgbd_hidden_state_curiosity)    
-                        self.plot_dict["comm_hidden_state_curiosity"].append(comm_hidden_state_curiosity)    
                         self.plot_dict["sensors_hidden_state_curiosity"].append(sensors_hidden_state_curiosity)  
+                        self.plot_dict["comm_hidden_state_curiosity"].append(comm_hidden_state_curiosity)    
                         self.plot_dict["hidden_state_curiosity"].append(hidden_state_curiosity)    
                                                     
         self.processor.done()
         self.plot_dict["steps"].append(steps)
-        self.plot_dict["rewards"].append(complete_reward)
+        self.plot_dict["reward"].append(complete_reward)
         goal_task = self.processor.processor.goal[0]
         self.plot_dict["wins_all"].append(win)
         win_dict_list = [self.plot_dict["wins_" + task_name.lower()] for task_name in task_name_list]
@@ -517,36 +517,36 @@ class Agent:
             else:                   win_dict.append(None)
                              
         for to_push in to_push_list_1:
-            rgbd, comm_in, sensors, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_comm_in, next_sensors, done = to_push
+            rgbd, sensors, comm_in, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_sensors, next_comm_in, done = to_push
             self.memory.push(
                 rgbd.to("cpu"),
-                comm_in.to("cpu"), 
                 sensors.to("cpu"),
+                comm_in.to("cpu"), 
                 action.to("cpu"), 
                 comm_out.to("cpu"),
                 recommended_action.to("cpu"),
                 total_reward, 
                 comm_curious,
                 next_rgbd.to("cpu"),
-                next_comm_in.to("cpu"), 
                 next_sensors.to("cpu"),
+                next_comm_in.to("cpu"), 
                 done)
             
         for to_push in to_push_list_2:
             if(to_push != None):
-                rgbd, comm_in, sensors, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_comm_in, next_sensors, done = to_push
+                rgbd, sensors, comm_in, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_sensors, next_comm_in, done = to_push
                 self.memory.push(
                     rgbd.to("cpu"),
-                    comm_in.to("cpu"), 
                     sensors.to("cpu"),
+                    comm_in.to("cpu"), 
                     action.to("cpu"), 
                     comm_out.to("cpu"),
                     recommended_action.to("cpu"),
                     total_reward, 
                     comm_curious,
                     next_rgbd.to("cpu"),
-                    next_comm_in.to("cpu"), 
                     next_sensors.to("cpu"),
+                    next_comm_in.to("cpu"), 
                     done)
                 
         self.episodes += 1
@@ -566,8 +566,8 @@ class Agent:
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
-                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, which_goal_message_1, \
-                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, which_goal_message_2, \
+                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
+                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
                             raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
                                 prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
@@ -590,7 +590,7 @@ class Agent:
             win_dict_list = [self.plot_dict["gen_wins_" + task_name.lower()] for task_name in task_name_list]
             for i, win_dict in enumerate(win_dict_list):
                 win_dict.append(None)
-        self.plot_dict["gen_rewards"].append(complete_reward)
+        self.plot_dict["gen_reward"].append(complete_reward)
         return(win)
         
         
@@ -604,51 +604,50 @@ class Agent:
                 return
             for episode_num in range(self.args.episodes_in_episode_dict):
                 episode_dict = {
-                    "rgbds_1" : [],
-                    "comms_in_1" : [],
+                    "rgbd_1" : [],
                     "sensors_1" : [],
+                    "comm_in_1" : [],
                     "recommended_1" : [],
-                    "actions_1" : [],
-                    "action_texts_1" : [],
-                    "comms_out_1" : [],
+                    "action_1" : [],
+                    "action_text_1" : [],
+                    "comm_out_1" : [],
                     "birds_eye_1" : [],
-                    "raw_rewards" : [],
-                    "total_rewards_1" : [],
-                    "distance_rewards_1" : [],
-                    "angle_rewards_1" : [],
+                    "raw_reward" : [],
+                    "total_reward_1" : [],
+                    "distance_reward_1" : [],
+                    "angle_reward_1" : [],
                     "critic_predictions_1" : [],
-                    "prior_predicted_rgbds_1" : [],
-                    "prior_predicted_comms_in_1" : [],
+                    "prior_predicted_rgbd_1" : [],
                     "prior_predicted_sensors_1" : [],
-                    "posterior_predicted_rgbds_1" : [],
-                    "posterior_predicted_comms_in_1" : [],
+                    "prior_predicted_comm_in_1" : [],
+                    "posterior_predicted_rgbd_1" : [],
                     "posterior_predicted_sensors_1" : [], 
-                    "rgbd_dkls_1" : [],
-                    "comm_dkls_1" : [],
-                    "sensors_dkls_1" : [],
+                    "posterior_predicted_comm_in_1" : [],
+                    "rgbd_dkl_1" : [],
+                    "sensors_dkl_1" : [],
+                    "comm_dkl_1" : [],
                     "which_goal_message_1" : [],
-                    
-                    "rgbds_2" : [],
-                    "comms_in_2" : [],
+                    "rgbd_2" : [],
                     "sensors_2" : [],
+                    "comm_in_2" : [],
                     "recommended_2" : [],
-                    "actions_2" : [],
-                    "action_texts_2" : [],
-                    "comms_out_2" : [],
+                    "action_2" : [],
+                    "action_text_2" : [],
+                    "comm_out_2" : [],
                     "birds_eye_2" : [],
-                    "total_rewards_2" : [],
-                    "distance_rewards_2" : [],
-                    "angle_rewards_2" : [],
+                    "total_reward_2" : [],
+                    "distance_reward_2" : [],
+                    "angle_reward_2" : [],
                     "critic_predictions_2" : [],
-                    "prior_predicted_rgbds_2" : [],
-                    "prior_predicted_comms_in_2" : [],
+                    "prior_predicted_rgbd_2" : [],
                     "prior_predicted_sensors_2" : [],
-                    "posterior_predicted_rgbds_2" : [],
-                    "posterior_predicted_comms_in_2" : [],
+                    "prior_predicted_comm_in_2" : [],
+                    "posterior_predicted_rgbd_2" : [],
                     "posterior_predicted_sensors_2" : [],
-                    "rgbd_dkls_2" : [],
-                    "comm_dkls_2" : [],
-                    "sensors_dkls_2" : [],
+                    "posterior_predicted_comm_in_2" : [],
+                    "rgbd_dkl_2" : [],
+                    "sensors_dkl_2" : [],
+                    "comm_dkl_2" : [],
                     "which_goal_message_2" : []}
                 
                 episode_dict["processor"] = self.processor.processor
@@ -673,17 +672,17 @@ class Agent:
                     episode_dict[f"recommended_{agent_num}"].append(None if recommended == None else action_to_string(recommended))
                     
                     birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
-                    rgbd, parent_comm, sensors = self.processor.obs(agent_1 = agent_1)
+                    rgbd, sensors, parent_comm = self.processor.obs(agent_1 = agent_1)
                     
                     episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
-                    episode_dict[f"rgbds_{agent_num}"].append(rgbd[0,:,:,0:3])        
+                    episode_dict[f"rgbd_{agent_num}"].append(rgbd[0,:,:,0:3])        
                     episode_dict[f"sensors_{agent_num}"].append(sensors.tolist()[0])
                     
                     if(agent_1):
                         comm_in = which_goal_message_1 if self.processor.processor.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
                     else:
                         comm_in = which_goal_message_2 if self.processor.processor.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_1[0,0]
-                    episode_dict[f"comms_in_{agent_num}"].append("'{}' ({})".format(comm_in, self.processor.processor.agent_to_english(comm_in)))
+                    episode_dict[f"comm_in_{agent_num}"].append("'{}' ({})".format(comm_in, self.processor.processor.agent_to_english(comm_in)))
                     
                     if(agent_1):
                         which_goal_message = which_goal_message_1
@@ -693,18 +692,18 @@ class Agent:
                     
                     if(step != 0):
                         
-                        pred_rgbds_p, pred_comm_in_p, pred_sensors_p = self.forward.predict(hp.unsqueeze(1), self.forward.action_in(action)) 
-                        pred_rgbds_q, pred_comm_in_q, pred_sensors_q = self.forward.predict(hq.unsqueeze(1), self.forward.action_in(action))
+                        pred_rgbd_p, pred_sensors_p, pred_comm_in_p = self.forward.predict(hp.unsqueeze(1), self.forward.action_in(action)) 
+                        pred_rgbd_q, pred_sensors_q , pred_comm_in_q= self.forward.predict(hq.unsqueeze(1), self.forward.action_in(action))
 
-                        episode_dict[f"prior_predicted_rgbds_{agent_num}"].append(pred_rgbds_p[0,0][:,:,0:3])
-                        prior_predicted_comms_in = onehots_to_string(pred_comm_in_p[0,0])
-                        episode_dict[f"prior_predicted_comms_in_{agent_num}"].append("'{}' ({})".format(prior_predicted_comms_in, self.processor.processor.agent_to_english(prior_predicted_comms_in)))
+                        episode_dict[f"prior_predicted_rgbd_{agent_num}"].append(pred_rgbd_p[0,0][:,:,0:3])
                         episode_dict[f"prior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_p[0,0]])
+                        prior_predicted_comm_in = onehots_to_string(pred_comm_in_p[0,0])
+                        episode_dict[f"prior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(prior_predicted_comm_in, self.processor.processor.agent_to_english(prior_predicted_comm_in)))
                         
-                        episode_dict[f"posterior_predicted_rgbds_{agent_num}"].append(pred_rgbds_q[0,0][:,:,0:3])
-                        posterior_predicted_comms_in = onehots_to_string(pred_comm_in_q[0,0])
-                        episode_dict[f"posterior_predicted_comms_in_{agent_num}"].append("'{}' ({})".format(posterior_predicted_comms_in, self.processor.processor.agent_to_english(posterior_predicted_comms_in)))
+                        episode_dict[f"posterior_predicted_rgbd_{agent_num}"].append(pred_rgbd_q[0,0][:,:,0:3])
+                        posterior_predicted_comm_in = onehots_to_string(pred_comm_in_q[0,0])
                         episode_dict[f"posterior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_q[0,0]])
+                        episode_dict[f"posterior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(posterior_predicted_comm_in, self.processor.processor.agent_to_english(posterior_predicted_comm_in)))
                     
                 def display(step, agent_1 = True, done = False, stopping = False, wait = True):
                     if(for_display):
@@ -723,38 +722,38 @@ class Agent:
                         
                     display(step)
                     
-                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, which_goal_message_1, \
-                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, which_goal_message_2, \
+                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
+                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
                             raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
                                 prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2, sleep_time) 
                             
-                    episode_dict["raw_rewards"].append(str(round(raw_reward, 3)))
+                    episode_dict["raw_reward"].append(str(round(raw_reward, 3)))
                     
-                    episode_dict["actions_1"].append(prev_action_1)
-                    episode_dict["action_texts_1"].append(action_to_string(prev_action_1))
+                    episode_dict["action_1"].append(prev_action_1)
+                    episode_dict["action_text_1"].append(action_to_string(prev_action_1))
                     comm_out_1 = onehots_to_string(prev_comm_out_1)
-                    episode_dict["comms_out_1"].append("{} ({})".format(comm_out_1, self.processor.processor.agent_to_english(comm_out_1)))
-                    episode_dict["rgbd_dkls_1"].append(rgbd_dkls_1.sum().item())
-                    episode_dict["comm_dkls_1"].append(comm_dkls_1.sum().item())
-                    episode_dict["sensors_dkls_1"].append(sensors_dkls_1.sum().item())
+                    episode_dict["comm_out_1"].append("{} ({})".format(comm_out_1, self.processor.processor.agent_to_english(comm_out_1)))
+                    episode_dict["rgbd_dkl_1"].append(rgbd_dkl_1.sum().item())
+                    episode_dict["sensors_dkl_1"].append(sensors_dkl_1.sum().item())
+                    episode_dict["comm_dkl_1"].append(comm_dkl_1.sum().item())
                     episode_dict["critic_predictions_1"].append(values_1)
-                    episode_dict["total_rewards_1"].append(str(round(total_reward, 3)))
-                    episode_dict["distance_rewards_1"].append(str(round(distance_reward, 3)))
-                    episode_dict["angle_rewards_1"].append(str(round(angle_reward, 3)))
+                    episode_dict["total_reward_1"].append(str(round(total_reward, 3)))
+                    episode_dict["distance_reward_1"].append(str(round(distance_reward, 3)))
+                    episode_dict["angle_reward_1"].append(str(round(angle_reward, 3)))
                         
                     if(not self.processor.processor.parenting):
-                        episode_dict["actions_2"].append(prev_action_2)
-                        episode_dict["action_texts_2"].append(action_to_string(prev_action_2))
+                        episode_dict["action_2"].append(prev_action_2)
+                        episode_dict["action_text_2"].append(action_to_string(prev_action_2))
                         comm_out_2 = onehots_to_string(prev_comm_out_2)
-                        episode_dict["comms_out_2"].append("{} ({})".format(comm_out_1, self.processor.processor.agent_to_english(comm_out_2)))
-                        episode_dict["rgbd_dkls_2"].append(rgbd_dkls_2.sum().item())
-                        episode_dict["comm_dkls_2"].append(comm_dkls_2.sum().item())
-                        episode_dict["sensors_dkls_2"].append(sensors_dkls_2.sum().item())
+                        episode_dict["comm_out_2"].append("{} ({})".format(comm_out_1, self.processor.processor.agent_to_english(comm_out_2)))
+                        episode_dict["rgbd_dkl_2"].append(rgbd_dkl_2.sum().item())
+                        episode_dict["sensors_dkl_2"].append(sensors_dkl_2.sum().item())
+                        episode_dict["comm_dkl_2"].append(comm_dkl_2.sum().item())
                         episode_dict["critic_predictions_2"].append(values_2)
-                        episode_dict["total_rewards_2"].append(str(round(total_reward_2, 3)))
-                        episode_dict["distance_rewards_2"].append(str(round(distance_reward_2, 3)))
-                        episode_dict["angle_rewards_2"].append(str(round(angle_reward_2, 3)))
+                        episode_dict["total_reward_2"].append(str(round(total_reward_2, 3)))
+                        episode_dict["distance_reward_2"].append(str(round(distance_reward_2, 3)))
+                        episode_dict["angle_reward_2"].append(str(round(angle_reward_2, 3)))
                     
                     if(done):
                         save_step(step, hp_1, hq_1, action = prev_action_1, agent_1 = True)    
@@ -794,8 +793,8 @@ class Agent:
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
-                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkls_1, comm_dkls_1, sensors_dkls_1, which_goal_message_1, \
-                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkls_2, comm_dkls_2, sensors_dkls_2, which_goal_message_2, \
+                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
+                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
                             raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
                                 prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
@@ -807,33 +806,33 @@ class Agent:
             processor_lens.append(step)
                             
             for to_push in to_push_list_1:
-                rgbd, comm_in, sensors, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_comm_in, next_sensors, done = to_push
+                rgbd, sensors, comm_in, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_sensors, next_comm_in, done = to_push
                 temp_memory.push(
                     rgbd.to("cpu"),
-                    comm_in.to("cpu"), 
                     sensors.to("cpu"),
+                    comm_in.to("cpu"), 
                     action.to("cpu"), 
                     comm_out.to("cpu"),
                     recommended_action.to("cpu"),
                     total_reward, 
                     comm_curious,
                     next_rgbd.to("cpu"),
-                    next_comm_in.to("cpu"), 
                     next_sensors.to("cpu"),
+                    next_comm_in.to("cpu"), 
                     done)
                 
         batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
-        rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, comm_curious, dones, actions, comms_out, masks, all_masks, episodes, steps = batch
+        rgbd, sensors, comm_in, action, comm_out, recommended_action, reward, comm_curious, done, action, comm_out, mask, all_mask, episodes, steps = batch
         
-        hps, hqs, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comms_q, pred_sensors_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels = self.forward(
+        hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels = self.forward(
             torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), 
-            rgbds, comms_in, sensors, actions, comms_out)
+            rgbd, sensors, comm_in, action, comm_out)
         
         comm_zq = comm_zq.view(-1, 128)
         labels = labels.view(-1, 3)   
-        all_masks = all_masks.view(-1)         
-        comm_zq = comm_zq[all_masks.bool()]
-        labels = labels[all_masks.bool()]
+        all_mask = all_mask.view(-1)         
+        comm_zq = comm_zq[all_mask.bool()]
+        labels = labels[all_mask.bool()]
                 
         self.lda_task.fit(comm_zq.detach().cpu().numpy(), labels[:,0].detach().cpu().numpy())
         self.lda_color.fit(comm_zq.detach().cpu().numpy(), labels[:,1].detach().cpu().numpy())
@@ -875,36 +874,36 @@ class Agent:
         
         prev_time = duration()
 
-        rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, comm_curious, dones, masks = batch
-        rgbds = torch.from_numpy(rgbds).to(self.args.device)
-        comms_in = torch.from_numpy(comms_in).to(self.args.device)
+        rgbd, sensors, comm_in, action, comm_out, recommended_action, reward, comm_curious, done, mask = batch
+        rgbd = torch.from_numpy(rgbd).to(self.args.device)
         sensors = torch.from_numpy(sensors).to(self.args.device)
-        actions = torch.from_numpy(actions)
-        comms_out = torch.from_numpy(comms_out)
-        recommended_actions = torch.from_numpy(recommended_actions).to(self.args.device)
-        rewards = torch.from_numpy(rewards).to(self.args.device)
+        comm_in = torch.from_numpy(comm_in).to(self.args.device)
+        action = torch.from_numpy(action)
+        comm_out = torch.from_numpy(comm_out)
+        recommended_action = torch.from_numpy(recommended_action).to(self.args.device)
+        reward = torch.from_numpy(reward).to(self.args.device)
         comm_curious = torch.from_numpy(comm_curious).to(self.args.device)
-        dones = torch.from_numpy(dones).to(self.args.device)
-        masks = torch.from_numpy(masks)
-        actions = torch.cat([torch.zeros(actions[:,0].unsqueeze(1).shape), actions], dim = 1).to(self.args.device)
-        comms_out = torch.cat([torch.zeros(comms_out[:,0].unsqueeze(1).shape), comms_out], dim = 1).to(self.args.device)
-        all_masks = torch.cat([torch.ones(masks.shape[0], 1, 1), masks], dim = 1).to(self.args.device)
-        masks = masks.to(self.args.device)
-        episodes = rewards.shape[0]
-        steps = rewards.shape[1]
+        done = torch.from_numpy(done).to(self.args.device)
+        mask = torch.from_numpy(mask)
+        action = torch.cat([torch.zeros(action[:,0].unsqueeze(1).shape), action], dim = 1).to(self.args.device)
+        comm_out = torch.cat([torch.zeros(comm_out[:,0].unsqueeze(1).shape), comm_out], dim = 1).to(self.args.device)
+        all_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1).to(self.args.device)
+        mask = mask.to(self.args.device)
+        episodes = reward.shape[0]
+        steps = reward.shape[1]
         
         if(self.args.half):
-            rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, comm_curious, dones, masks, actions, comms_out, all_masks, masks = \
-                rgbds.to(dtype=torch.float16), comms_in.to(dtype=torch.float16), sensors.to(dtype=torch.float16), actions.to(dtype=torch.float16), \
-                comms_out.to(dtype=torch.float16), recommended_actions.to(dtype=torch.float16), rewards.to(dtype=torch.float16), comm_curious.to(dtype=torch.float16), dones.to(dtype=torch.float16), \
-                masks.to(dtype=torch.float16), actions.to(dtype=torch.float16), comms_out.to(dtype=torch.float16), all_masks.to(dtype=torch.float16), masks.to(dtype=torch.float16)
+            rgbd, sensors, comm_in, action, comm_out, recommended_action, reward, comm_curious, done, mask, action, comm_out, all_mask, mask = \
+                rgbd.to(dtype=torch.float16), sensors.to(dtype=torch.float16), comm_in.to(dtype=torch.float16), action.to(dtype=torch.float16), \
+                comm_out.to(dtype=torch.float16), recommended_action.to(dtype=torch.float16), reward.to(dtype=torch.float16), comm_curious.to(dtype=torch.float16), done.to(dtype=torch.float16), \
+                mask.to(dtype=torch.float16), action.to(dtype=torch.float16), comm_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
         
         #print("\n\n")
-        #print("Agent {}, epoch {}. rgbds: {}. comms in: {}. actions: {}. comms out: {}. recommended actions: {}. rewards: {}. comm_curious: {}. dones: {}. masks: {}.".format(
-        #    self.agent_num, self.epochs, rgbds.shape, comms_in.shape, actions.shape, comms_out.shape, recommended_actions.shape, rewards.shape, comm_curious.shape, dones.shape, masks.shape))
+        #print("Agent {}, epoch {}. rgbd: {}. comm in: {}. action: {}. comm out: {}. recommended action: {}. reward: {}. comm_curious: {}. done: {}. mask: {}.".format(
+        #    self.agent_num, self.epochs, rgbd.shape, comm_in.shape, action.shape, comm_out.shape, recommended_action.shape, reward.shape, comm_curious.shape, done.shape, mask.shape))
         #print("\n\n")
         
-        return(rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, comm_curious, dones, actions, comms_out, masks, all_masks, episodes, steps)
+        return(rgbd, sensors, comm_in, action, comm_out, recommended_action, reward, comm_curious, done, action, comm_out, mask, all_mask, episodes, steps)
         
     
     
@@ -919,7 +918,7 @@ class Agent:
             return(False)
         batch_size = batch[0].shape[0]
         
-        rgbds, comms_in, sensors, actions, comms_out, recommended_actions, rewards, comm_curious, dones, actions, comms_out, masks, all_masks, episodes, steps = batch
+        rgbd, sensors, comm_in, action, comm_out, recommended_action, reward, comm_curious, done, action, comm_out, mask, all_mask, episodes, steps = batch
         # Also sample from old memories, and use them to keep actor and critic outputs the same.
         
         time = duration()
@@ -927,34 +926,34 @@ class Agent:
         prev_time = time
                 
         # Train forward
-        hps, hqs, rgbd_dkl, comm_dkl, sensors_dkl, pred_rgbd_q, pred_comms_q, pred_sensors_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels = self.forward(
+        hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels = self.forward(
             torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), 
-            rgbds, comms_in, sensors, actions, comms_out)
+            rgbd, sensors, comm_in, action, comm_out)
                         
-        rgbd_loss = F.binary_cross_entropy(pred_rgbd_q, rgbds[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * masks * self.args.rgbd_scaler
+        rgbd_loss = F.binary_cross_entropy(pred_rgbd_q, rgbd[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.rgbd_scaler
                         
-        real_comms = comms_in[:,1:].reshape((episodes * steps, self.args.max_comm_len, self.args.comm_shape))
-        real_comms = torch.argmax(real_comms, dim = -1)
-        pred_comms = pred_comms_q.reshape((pred_comms_q.shape[0] * pred_comms_q.shape[1], self.args.max_comm_len, self.args.comm_shape))
-        pred_comms = pred_comms.transpose(1,2)
-    
-        comm_loss = F.cross_entropy(pred_comms, real_comms, reduction = "none")
-        comm_loss = comm_loss.reshape(episodes, steps, self.args.max_comm_len)
-        comm_loss = comm_loss.mean(dim=2).unsqueeze(-1) * masks * self.args.comm_scaler
-        
         sensors_loss = F.mse_loss(pred_sensors_q, sensors[:,1:], reduction = "none")
-        sensors_loss = sensors_loss.mean(-1).unsqueeze(-1) * masks * self.args.sensors_scaler
+        sensors_loss = sensors_loss.mean(-1).unsqueeze(-1) * mask * self.args.sensors_scaler
+                        
+        real_comm = comm_in[:,1:].reshape((episodes * steps, self.args.max_comm_len, self.args.comm_shape))
+        real_comm = torch.argmax(real_comm, dim = -1)
+        pred_comm = pred_comm_q.reshape((pred_comm_q.shape[0] * pred_comm_q.shape[1], self.args.max_comm_len, self.args.comm_shape))
+        pred_comm = pred_comm.transpose(1,2)
+    
+        comm_loss = F.cross_entropy(pred_comm, real_comm, reduction = "none")
+        comm_loss = comm_loss.reshape(episodes, steps, self.args.max_comm_len)
+        comm_loss = comm_loss.mean(dim=2).unsqueeze(-1) * mask * self.args.comm_scaler
         
         accuracy = (rgbd_loss + comm_loss + sensors_loss).mean()
         
-        rgbd_complexity_for_hidden_state = rgbd_dkl.mean(-1).unsqueeze(-1) * all_masks
-        comm_complexity_for_hidden_state = comm_dkl.mean(-1).unsqueeze(-1) * all_masks
-        sensors_complexity_for_hidden_state = sensors_dkl.mean(-1).unsqueeze(-1) * all_masks
+        rgbd_complexity_for_hidden_state = rgbd_dkl.mean(-1).unsqueeze(-1) * all_mask
+        sensors_complexity_for_hidden_state = sensors_dkl.mean(-1).unsqueeze(-1) * all_mask
+        comm_complexity_for_hidden_state = comm_dkl.mean(-1).unsqueeze(-1) * all_mask
                 
         complexity = sum([
             self.args.beta_rgbd * rgbd_complexity_for_hidden_state.mean(),
-            self.args.beta_comm * comm_complexity_for_hidden_state.mean(),
-            self.args.beta_sensors * sensors_complexity_for_hidden_state.mean()])       
+            self.args.beta_sensors * sensors_complexity_for_hidden_state.mean(),
+            self.args.beta_comm * comm_complexity_for_hidden_state.mean()])       
                                 
         time = duration()
         if(self.args.show_duration): print("USED FORWARD:", time - prev_time)
@@ -978,23 +977,23 @@ class Agent:
         
         # Get curiosity                 
         rgbd_prediction_error_curiosity     = self.args.prediction_error_eta_rgbd       * rgbd_loss
+        sensors_prediction_error_curiosity  = self.args.prediction_error_eta_sensors    * sensors_loss
         comm_prediction_error_curiosity     = self.args.prediction_error_eta_comm       * comm_loss
         if(self.args.selective_comm_curiosity): comm_prediction_error_curiosity         *= comm_curious
-        sensors_prediction_error_curiosity  = self.args.prediction_error_eta_sensors    * sensors_loss
         prediction_error_curiosity = rgbd_prediction_error_curiosity + comm_prediction_error_curiosity + sensors_prediction_error_curiosity
         
         rgbd_hidden_state_curiosity    = self.args.hidden_state_eta_rgbd       * torch.clamp(rgbd_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
+        sensors_hidden_state_curiosity = self.args.hidden_state_eta_sensors    * torch.clamp(sensors_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
         comm_hidden_state_curiosity    = self.args.hidden_state_eta_comm       * torch.clamp(comm_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
         if(self.args.selective_comm_curiosity): comm_hidden_state_curiosity    *= comm_curious
-        sensors_hidden_state_curiosity = self.args.hidden_state_eta_sensors    * torch.clamp(sensors_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
         hidden_state_curiosity = rgbd_hidden_state_curiosity + comm_hidden_state_curiosity + sensors_hidden_state_curiosity
         
         if(self.args.curiosity == "prediction_error"):  curiosity = prediction_error_curiosity
         elif(self.args.curiosity == "hidden_state"):    curiosity = hidden_state_curiosity
-        else:                                           curiosity = torch.zeros(rewards.shape).to(self.args.device)
-        extrinsic = torch.mean(rewards).item()
+        else:                                           curiosity = torch.zeros(reward.shape).to(self.args.device)
+        extrinsic = torch.mean(reward).item()
         intrinsic_curiosity = curiosity.mean().item()
-        rewards += curiosity
+        reward += curiosity
         
         time = duration()
         if(self.args.show_duration): print("CURIOSITY:", time - prev_time)
@@ -1004,16 +1003,16 @@ class Agent:
                 
         # Train critics
         with torch.no_grad():
-            new_actions, new_comms_out, log_pis_next, log_pis_next_text = \
+            new_action, new_comm_out, log_pis_next, log_pis_next_text = \
                 self.actor(hqs.detach(), parenting)
             Q_target_nexts = []
             for i in range(self.args.critics):
-                Q_target_next = self.critic_targets[i](new_actions, new_comms_out, hqs.detach())
+                Q_target_next = self.critic_targets[i](new_action, new_comm_out, hqs.detach())
                 Q_target_next[:,1:]
                 Q_target_nexts.append(Q_target_next)                
             log_pis_next = log_pis_next[:,1:]
             log_pis_next_text = log_pis_next_text[:,1:]
-            recommendation_value = calculate_similarity(recommended_actions, new_actions[:,:-1]).unsqueeze(-1)
+            recommendation_value = calculate_similarity(recommended_action, new_action[:,:-1]).unsqueeze(-1)
                         
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
@@ -1022,7 +1021,7 @@ class Agent:
             else:                            alpha = self.args.alpha
             if self.args.alpha_text == None: alpha_text = self.alpha_text 
             else:                            alpha_text = self.args.alpha_text
-            Q_targets = rewards + (self.args.GAMMA * (1 - dones) * (Q_target_next - (alpha * log_pis_next) - (alpha_text * log_pis_next_text) + (self.args.delta * recommendation_value)))
+            Q_targets = reward + (self.args.GAMMA * (1 - done) * (Q_target_next - (alpha * log_pis_next) - (alpha_text * log_pis_next_text) + (self.args.delta * recommendation_value)))
             
         time = duration()
         #if(self.args.show_duration): print("USED TARGET CRITICS:", time - prev_time)
@@ -1031,8 +1030,8 @@ class Agent:
         critic_losses = []
         Qs = []
         for i in range(self.args.critics):
-            Q = self.critics[i](actions[:,1:], comms_out[:,1:], hqs[:,:-1].detach())
-            critic_loss = 0.5*F.mse_loss(Q*masks, Q_targets*masks)
+            Q = self.critics[i](action[:,1:], comm_out[:,1:], hqs[:,:-1].detach())
+            critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
             critic_losses.append(critic_loss)
             Qs.append(Q[0,0].item())
             if(self.args.train_together):
@@ -1058,30 +1057,30 @@ class Agent:
             else:                            alpha = self.args.alpha
             if self.args.alpha_text == None: alpha_text = self.alpha_text 
             else:                            alpha_text = self.args.alpha_text
-            new_actions, new_comms_out, log_pis, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
-            recommendation_value = calculate_similarity(recommended_actions, new_actions).unsqueeze(-1)
-            intrinsic_imitation = -torch.mean((self.args.delta * recommendation_value)*masks).item() 
+            new_action, new_comm_out, log_pis, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
+            recommendation_value = calculate_similarity(recommended_action, new_action).unsqueeze(-1)
+            intrinsic_imitation = -torch.mean((self.args.delta * recommendation_value)*mask).item() 
             
             if self.args.action_prior == "normal":
                 loc = torch.zeros(self.args.action_shape, dtype=torch.float64).to(self.args.device).float()
                 n = self.args.action_shape
                 scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device).float()
                 policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
-                policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_actions).unsqueeze(-1)
+                policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_action).unsqueeze(-1)
             elif self.args.action_prior == "uniform":
                 policy_prior_log_prrgbd = 0.0
-            intrinsic_entropy = torch.mean((alpha * log_pis - policy_prior_log_prrgbd)*masks).item()
+            intrinsic_entropy = torch.mean((alpha * log_pis - policy_prior_log_prrgbd)*mask).item()
                 
             Qs = []
             for i in range(self.args.critics):
-                Q = self.critics[i](new_actions, new_comms_out, hqs[:,:-1].detach())
+                Q = self.critics[i](new_action, new_comm_out, hqs[:,:-1].detach())
                 Qs.append(Q)
             Qs_stacked = torch.stack(Qs, dim=0)
             Q, _ = torch.min(Qs_stacked, dim=0)
             Q = Q.mean(-1).unsqueeze(-1)
             
-            actor_loss = ((alpha * log_pis - policy_prior_log_prrgbd) + (alpha_text * log_pis_text) - (self.args.delta * recommendation_value) - Q)*masks
-            actor_loss = actor_loss.mean() / masks.mean()
+            actor_loss = ((alpha * log_pis - policy_prior_log_prrgbd) + (alpha_text * log_pis_text) - (self.args.delta * recommendation_value) - Q)*mask
+            actor_loss = actor_loss.mean() / mask.mean()
             
             time = duration()
             if(self.args.show_duration): print("USED ACTOR:", time - prev_time)
@@ -1113,8 +1112,8 @@ class Agent:
         # Train alpha
         if self.args.alpha == None:
             _, _, log_pis, _ = self.actor(hqs[:,:-1].detach(), parenting)
-            alpha_loss = -(self.log_alpha.to(self.args.device) * (log_pis + self.target_entropy))*masks
-            alpha_loss = alpha_loss.mean() / masks.mean()
+            alpha_loss = -(self.log_alpha.to(self.args.device) * (log_pis + self.target_entropy))*mask
+            alpha_loss = alpha_loss.mean() / mask.mean()
             self.alpha_opt.zero_grad()
             alpha_loss.backward()
             self.alpha_opt.step()
@@ -1125,8 +1124,8 @@ class Agent:
             
         if self.args.alpha_text == None:
             _, _, _, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
-            alpha_text_loss = -(self.log_alpha_text.to(self.args.device) * (log_pis_text + self.target_entropy_text))*masks
-            alpha_text_loss = alpha_text_loss.mean() / masks.mean()
+            alpha_text_loss = -(self.log_alpha_text.to(self.args.device) * (log_pis_text + self.target_entropy_text))*mask
+            alpha_text_loss = alpha_text_loss.mean() / mask.mean()
             self.alpha_text_opt.zero_grad()
             alpha_text_loss.backward()
             self.alpha_text_opt.step()
@@ -1143,8 +1142,8 @@ class Agent:
                                 
         if(accuracy != None):   accuracy = accuracy.item()
         if(rgbd_loss != None):   rgbd_loss = rgbd_loss.mean().item()
-        if(comm_loss != None):   comm_loss = comm_loss.mean().item()
         if(sensors_loss != None):   sensors_loss = sensors_loss.mean().item()
+        if(comm_loss != None):   comm_loss = comm_loss.mean().item()
         if(complexity != None): complexity = complexity.item()
         if(alpha_loss != None): alpha_loss = alpha_loss.item()
         if(alpha_text_loss != None): alpha_text_loss = alpha_text_loss.item()
@@ -1156,12 +1155,12 @@ class Agent:
                 critic_losses[i] = log(critic_losses[i]) if critic_losses[i] > 0 else critic_losses[i]
                 
         rgbd_prediction_error_curiosity = rgbd_prediction_error_curiosity.mean().item()
-        comm_prediction_error_curiosity = comm_prediction_error_curiosity.mean().item()
         sensors_prediction_error_curiosity = sensors_prediction_error_curiosity.mean().item()
+        comm_prediction_error_curiosity = comm_prediction_error_curiosity.mean().item()
         
         rgbd_hidden_state_curiosity = rgbd_hidden_state_curiosity.mean().item()
-        comm_hidden_state_curiosity = comm_hidden_state_curiosity.mean().item()
         sensors_hidden_state_curiosity = sensors_hidden_state_curiosity.mean().item()
+        comm_hidden_state_curiosity = comm_hidden_state_curiosity.mean().item()
         
         prediction_error_curiosity = prediction_error_curiosity.mean().item()
         hidden_state_curiosity = hidden_state_curiosity.mean().item()
@@ -1169,10 +1168,10 @@ class Agent:
         time = duration()
         #if(self.args.show_duration): print(f"WHOLE EPOCH {self.epochs}:", time - start_time)
                 
-        return(accuracy, rgbd_loss, comm_loss, sensors_loss, complexity, alpha_loss, alpha_text_loss, actor_loss, critic_losses, 
+        return(accuracy, rgbd_loss, sensors_loss, comm_loss, complexity, alpha_loss, alpha_text_loss, actor_loss, critic_losses, 
                extrinsic, Q, intrinsic_curiosity, intrinsic_entropy, intrinsic_imitation, 
-               rgbd_prediction_error_curiosity, comm_prediction_error_curiosity, sensors_prediction_error_curiosity, prediction_error_curiosity,
-               rgbd_hidden_state_curiosity, comm_hidden_state_curiosity, sensors_hidden_state_curiosity, hidden_state_curiosity)
+               rgbd_prediction_error_curiosity, sensors_prediction_error_curiosity, comm_prediction_error_curiosity, prediction_error_curiosity,
+               rgbd_hidden_state_curiosity, sensors_hidden_state_curiosity, comm_hidden_state_curiosity, hidden_state_curiosity)
     
     
                      

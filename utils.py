@@ -372,10 +372,10 @@ parser.add_argument('--batch_size',                     type=int,           defa
                     help='How many episodes are sampled for each epoch.')      
 parser.add_argument('--rgbd_scaler',                    type=float,         default = 5, 
                     help='How much to consider rgbd prediction in accuracy compared to comm and sensors.')  
-parser.add_argument('--comm_scaler',                    type=float,         default = 3, 
-                    help='How much to consider comm prediction in accuracy compared to rgbd and sensors.')       
 parser.add_argument('--sensors_scaler',                 type=float,         default = .3, 
                     help='How much to consider sensors prediction in accuracy compared to rgbd and comm.')   
+parser.add_argument('--comm_scaler',                    type=float,         default = 3, 
+                    help='How much to consider comm prediction in accuracy compared to rgbd and sensors.')       
 parser.add_argument('--weight_decay',                   type=float,         default = .00001,
                     help='Weight decay for modules.')       
 parser.add_argument('--lr',                             type=float,         default = .0003,
@@ -404,20 +404,22 @@ parser.add_argument('--pvrnn_mtrnn_size',               type=int,           defa
                     help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
 parser.add_argument('--rgbd_state_size',                type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--comm_state_size',                type=int,           default = 128,
-                    help='Parameters in prior and posterior inner-states.')
 parser.add_argument('--sensors_state_size',             type=int,           default = num_sensors,
                     help='Parameters in prior and posterior inner-states.')
+parser.add_argument('--comm_state_size',                type=int,           default = 128,
+                    help='Parameters in prior and posterior inner-states.')
+
 parser.add_argument('--encode_char_size',               type=int,           default = 8,
                     help='Parameters in encoding.')   
 parser.add_argument('--encode_rgbd_size',               type=int,           default = 128,
                     help='Parameters in encoding image.')   
-parser.add_argument('--encode_comm_size',               type=int,           default = 128,
-                    help='Parameters in encoding communicaiton.')   
 parser.add_argument('--encode_sensors_size',            type=int,           default = num_sensors,
                     help='Parameters in encoding sensors, angles, speed.')   
+parser.add_argument('--encode_comm_size',               type=int,           default = 128,
+                    help='Parameters in encoding communicaiton.')   
 parser.add_argument('--encode_action_size',             type=int,           default = 8,
                     help='Parameters in encoding action.')   
+
 parser.add_argument('--use_comm_in_gru',                type=literal,       default = True,  
                     help='Use comm_in model with gru, or not?')   
 parser.add_argument('--dropout',                        type=float,         default = .001,
@@ -454,10 +456,12 @@ parser.add_argument('--std_max',                        type=int,           defa
                     help='Maximum value for standard deviation.')
 parser.add_argument("--beta_rgbd",                      type=float,         default = .03,
                     help='Relative importance of complexity for rgbd.')
-parser.add_argument("--beta_comm",                      type=float,         default = .06,
-                    help='Relative importance of complexity for comm.')
 parser.add_argument("--beta_sensors",                   type=float,         default = .3,
                     help='Relative importance of complexity for sensors.')     
+parser.add_argument("--beta_comm",                      type=float,         default = .06,
+                    help='Relative importance of complexity for comm.')
+
+
 
     # Curiosity
 parser.add_argument("--curiosity",                      type=str,           default = "none",
@@ -469,17 +473,19 @@ parser.add_argument('--selective_comm_curiosity',       type=literal,       defa
 
 parser.add_argument("--prediction_error_eta_rgbd",      type=float,         default = .3,
                     help='Nonnegative value, how much to consider prediction_error curiosity for rgbd.')    
-parser.add_argument("--prediction_error_eta_comm",      type=float,         default = 1,
-                    help='Nonnegative value, how much to consider prediction_error curiosity for comm.')    
 parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = .03,
-                    help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')    
+                    help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')   
+parser.add_argument("--prediction_error_eta_comm",      type=float,         default = 1,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for comm.')     
 
 parser.add_argument("--hidden_state_eta_rgbd",          type=float,         default = .3,
                     help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
+parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = .03,
+                    help='Nonnegative values, how much to consider hidden_state curiosity for sensors.') 
 parser.add_argument("--hidden_state_eta_comm",          type=float,         default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
-parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = .03,
-                    help='Nonnegative values, how much to consider hidden_state curiosity for sensors.')   
+
+  
  
     # Imitation
 parser.add_argument("--delta",                          type=float,         default = 0,
@@ -529,9 +535,9 @@ for arg_set in [default_args, args]:
         arg_set.half = False
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.object_shape = arg_set.shapes + arg_set.colors
-    arg_set.comm_shape = len(comm_map)
     arg_set.sensors_shape = num_sensors
     arg_set.sensor_names = sensors
+    arg_set.comm_shape = len(comm_map)
     arg_set.action_shape = 4 if arg_set.two_arms else 3
     arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size + arg_set.encode_sensors_size
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.encode_action_size

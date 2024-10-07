@@ -45,16 +45,16 @@ for plot_dict in plot_dicts:
         gen_wins = gen_wins[:,-1]
         values_to_plot[args.arg_name]["gen_wins_" + task_name.lower()] = wins
         
-    # Rewards
-    rewards = plot_dict["rewards"]
-    rewards = np.array(rewards)
-    rewards = rewards[:,-1]
-    values_to_plot[args.arg_name]["rewards"] = rewards
+    # reward
+    reward = plot_dict["reward"]
+    reward = np.array(reward)
+    reward = reward[:,-1]
+    values_to_plot[args.arg_name]["reward"] = reward
     
-    gen_rewards = plot_dict["gen_rewards"]
-    gen_rewards= np.array(gen_rewards)   
-    gen_rewards = gen_rewards[:,-1]
-    values_to_plot[args.arg_name]["gen_rewards"] = gen_rewards
+    gen_reward = plot_dict["gen_reward"]
+    gen_reward= np.array(gen_reward)   
+    gen_reward = gen_reward[:,-1]
+    values_to_plot[args.arg_name]["gen_reward"] = gen_reward
 
 
 

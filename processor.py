@@ -107,7 +107,7 @@ class Processor_Runner:
         #speed = opposite_relative_to(speed, self.args.min_speed, self.args.max_speed)
         sensors = torch.tensor([touched]).float()
                 
-        return(rgbd, self.processor.goal_comm.unsqueeze(0), sensors)
+        return(rgbd, sensors, self.processor.goal_comm.unsqueeze(0))
             
     def act(self, action, agent_1 = True, verbose = False, sleep_time = None):
         if(agent_1): arena = self.arena_1
