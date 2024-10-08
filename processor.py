@@ -125,29 +125,23 @@ class Processor_Runner:
             round(left_wheel, 2), round(right_wheel, 2), round(left_shoulder, 2), round(right_shoulder, 2)))
             
         arena.step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = verbose, sleep_time = sleep_time)
-        raw_reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards()
-        return(raw_reward, distance_reward, angle_reward, win, which_goal_message)
+        raw_reward, win, which_goal_message = arena.rewards()
+        return(raw_reward, win, which_goal_message)
         
     def step(self, action_1, action_2 = None, verbose = False, sleep_time = None):
         self.steps += 1
         done = False
         
-        raw_reward, distance_reward, angle_reward, win, which_goal_message_1 = self.act(action_1, verbose = verbose, sleep_time = sleep_time)
+        raw_reward, win, which_goal_message_1 = self.act(action_1, verbose = verbose, sleep_time = sleep_time)
         if(self.parenting): 
-            distance_reward_2 = 0
-            angle_reward_2 = 0
             which_goal_message_2 = " " * self.args.max_comm_len
         else:
-            raw_reward_2, distance_reward_2, angle_reward_2, win_2, which_goal_message_2 = self.act(action_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
+            raw_reward_2, win_2, which_goal_message_2 = self.act(action_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
             raw_reward = max([raw_reward, raw_reward_2])
             win = win or win_2
                     
         if(raw_reward > 0): 
             raw_reward *= self.args.step_cost ** (self.steps-1)
-        if(distance_reward > 0):
-            distance_reward *= self.args.step_cost ** (self.steps-1)
-        if(angle_reward > 0):
-            angle_reward *= self.args.step_cost ** (self.steps-1)
         end = self.steps >= self.args.max_steps
                                 
         if(end and not win): 
@@ -163,12 +157,10 @@ class Processor_Runner:
                 print("Correct!", end = " ")
         if(verbose):
             print("Raw reward:", raw_reward)
-            print("Distance reward:", distance_reward)
-            print("Angle reward:", angle_reward)
             if(done): 
                 print("Done.")
                                 
-        return(raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win, which_goal_message_1, which_goal_message_2)
+        return(raw_reward, done, win, which_goal_message_1, which_goal_message_2)
     
     def done(self):
         self.arena_1.end()
@@ -225,9 +217,9 @@ if __name__ == "__main__":
             j += 1 
             print("step", j)
             example_images(get_images())
-            recommendation = torch.zeros((4)) # processor_runner.get_recommended_action(verbose = False)#True)
+            recommendation = torch.zeros((4,)) # processor_runner.get_recommended_action(verbose = False)#True)
             print("Got recommendation:", recommendation)
-            raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win, which_goal_message_1, which_goal_message_2 = processor_runner.step(recommendation, verbose = True)
+            raw_reward, done, win, which_goal_message_1, which_goal_message_2 = processor_runner.step(recommendation, verbose = True)
             print("Done:", done)
             rgbd, _, _ = processor_runner.obs()
             rgb = rgbd[0,:,:,0:3]

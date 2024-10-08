@@ -349,14 +349,14 @@ class Agent:
             if(self.args.show_duration): print("\nUP TO STEP:", time - prev_time)
             prev_time = time
             
-            raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win, which_goal_message_1, which_goal_message_2 = self.processor.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
+            raw_reward, done, win, which_goal_message_1, which_goal_message_2 = self.processor.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
             
             time = duration()
             if(self.args.show_duration): print("AFTER STEP:", time - prev_time)
             prev_time = time
             
-            total_reward = raw_reward + distance_reward + angle_reward 
-            total_reward_2 = raw_reward + distance_reward_2 + angle_reward_2
+            total_reward = raw_reward
+            total_reward_2 = raw_reward
             next_rgbd_1, next_sensors_1, next_parent_comm = self.processor.obs()
             next_rgbd_2, next_sensors_2, _ = self.processor.obs(agent_1 = False)
             
@@ -397,7 +397,7 @@ class Agent:
         
         return(action_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), ha_1, new_hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1,
                action_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), ha_2, new_hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2,
-               raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2)
+               raw_reward, total_reward, total_reward_2, done, win, to_push_1, to_push_2)
             
            
            
@@ -445,7 +445,7 @@ class Agent:
                 steps += 1
                 prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
                     prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
-                        raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                        raw_reward, total_reward, total_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
                             prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
                         
@@ -518,7 +518,7 @@ class Agent:
                 if(not done):
                     prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
                         prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
-                            raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                            raw_reward, total_reward, total_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
                                 prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
                     complete_reward += total_reward
@@ -563,8 +563,6 @@ class Agent:
                     "birds_eye_1" : [],
                     "raw_reward" : [],
                     "total_reward_1" : [],
-                    "distance_reward_1" : [],
-                    "angle_reward_1" : [],
                     "critic_predictions_1" : [],
                     "prior_predicted_rgbd_1" : [],
                     "prior_predicted_sensors_1" : [],
@@ -584,8 +582,6 @@ class Agent:
                     "comm_out_2" : [],
                     "birds_eye_2" : [],
                     "total_reward_2" : [],
-                    "distance_reward_2" : [],
-                    "angle_reward_2" : [],
                     "critic_predictions_2" : [],
                     "prior_predicted_rgbd_2" : [],
                     "prior_predicted_sensors_2" : [],
@@ -669,7 +665,7 @@ class Agent:
                     
                     prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
                         prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
-                            raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                            raw_reward, total_reward, total_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
                                 prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2, sleep_time) 
                             
@@ -684,8 +680,6 @@ class Agent:
                     episode_dict["comm_dkl_1"].append(comm_dkl_1.sum().item())
                     episode_dict["critic_predictions_1"].append(values_1)
                     episode_dict["total_reward_1"].append(str(round(total_reward, 3)))
-                    episode_dict["distance_reward_1"].append(str(round(distance_reward, 3)))
-                    episode_dict["angle_reward_1"].append(str(round(angle_reward, 3)))
                         
                     if(not self.processor.processor.parenting):
                         episode_dict["action_2"].append(prev_action_2)
@@ -697,8 +691,6 @@ class Agent:
                         episode_dict["comm_dkl_2"].append(comm_dkl_2.sum().item())
                         episode_dict["critic_predictions_2"].append(values_2)
                         episode_dict["total_reward_2"].append(str(round(total_reward_2, 3)))
-                        episode_dict["distance_reward_2"].append(str(round(distance_reward_2, 3)))
-                        episode_dict["angle_reward_2"].append(str(round(angle_reward_2, 3)))
                     
                     if(done):
                         save_step(step, hp_1, hq_1, action = prev_action_1, agent_1 = True)    
@@ -740,7 +732,7 @@ class Agent:
                 if(not done):
                     prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
                         prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
-                            raw_reward, total_reward, distance_reward, angle_reward, total_reward_2, distance_reward_2, angle_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                            raw_reward, total_reward, total_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
                                 prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
                 to_push_list_1.append(to_push_1)

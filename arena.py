@@ -442,42 +442,10 @@ class Arena():
                 lefting = True
             if(movement_left <= -self.args.left_right_amount and touching):
                 righting = True
-                    
-            # Also add reward for mere distance.
-            midpoint = (self.args.dist_reward_min + self.args.dist_reward_max) / 2
-            if distance <= self.args.dist_reward_min:
-                distance_reward = 1
-            elif distance <= midpoint:
-                proportion = (distance - self.args.dist_reward_min) / (midpoint - self.args.dist_reward_min)
-                distance_reward = (1 - proportion)
-            elif(distance >= midpoint and distance <= self.args.dist_reward_max):
-                proportion = (distance - midpoint) / (self.args.dist_reward_max - midpoint)
-                distance_reward = -proportion
-            else:
-                distance_reward = -1
-            distance_reward *= self.args.dist_reward
-                
-            # Also add reward for mere angle.
-            abs_angle = abs(angle_degrees)
-            midpoint = (self.args.angle_reward_min + self.args.angle_reward_max) / 2
-            if abs_angle <= self.args.angle_reward_min:
-                angle_reward = 1
-            elif abs_angle <= midpoint:
-                proportion = (abs_angle - self.args.angle_reward_min) / (midpoint - self.args.angle_reward_min)
-                angle_reward = (1 - proportion)
-            elif(abs_angle >= midpoint and abs_angle <= self.args.angle_reward_max):
-                proportion = (abs_angle - midpoint) / (self.args.angle_reward_max - midpoint)
-                angle_reward = -proportion
-            else:
-                angle_reward = -1
-            if(distance_reward < 0 and angle_reward > 0):
-                angle_reward *= 0
-            angle_reward *= self.args.angle_reward
-                    
-            objects_goals[(color_index, shape_index)] = [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward]
+            objects_goals[(color_index, shape_index)] = [watching, pushing, pulling, lefting, righting]
                         
         which_goal_message = " " * self.args.max_comm_len
-        for (color, shape), (watching, pushing, pulling, lefting, righting, distance_reward, angle_reward) in objects_goals.items():
+        for (color, shape), (watching, pushing, pulling, lefting, righting) in objects_goals.items():
             task_char = " "
             # If an task is occuring, find the task/color/shape.
             if(watching or pushing or pulling or lefting or righting):
@@ -509,27 +477,17 @@ class Arena():
                     reward = self.args.wrong_object_punishment
                     break
                             
-        [watching, pushing, pulling, lefting, righting, distance_reward, angle_reward] = objects_goals[(goal_color, goal_shape)]
+        [watching, pushing, pulling, lefting, righting] = objects_goals[(goal_color, goal_shape)]
         if(task_map[goal_task][1] == "FREE_PLAY"):
             reward = 0 if which_goal_message == " " * self.args.max_comm_len else self.args.free_play_reward
-            if(self.args.free_play_reward_dist):
-                distance_reward = max([distance_reward for _, (_, _, _, _, _, distance_reward, _) in objects_goals.items()])
-                angle_reward = max([angle_reward for _, (_, _, _, _, _, _, angle_reward) in objects_goals.items()])
-            else:
-                distance_reward = 0
-                angle_reward = 0
             
         if(verbose):
             print(f"\nWhich goal message: \'{which_goal_message}\'")
             print("Raw reward:", round(reward, 2))
-            print("Distance:", round(distance, 2))
-            print("Distance reward:", round(distance_reward, 2))
-            print("Angle:", round(angle_degrees, 2))
-            print("Angle reward:", round(angle_reward, 2))
-            print("Total reward:", reward + distance_reward + angle_reward)
+            print("Total reward:", reward)
             print("Win:", win)
                         
-        return(reward, distance_reward, angle_reward, win, which_goal_message)
+        return(reward,win, which_goal_message)
     
     def photo_from_above(self):
         pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
@@ -590,9 +548,9 @@ if __name__ == "__main__":
         
     task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
         num_objects = 3,
-        allowed_tasks = [0],
-        allowed_colors = [0, 1, 2, 3, 4, 5, 6],
-        allowed_shapes = [0, 1, 2])
+        allowed_tasks = [-1],
+        allowed_colors = [0, 1, 2, 3, 4, 5],
+        allowed_shapes = [0, 1, 2, 3, 4])
         
         
     """
@@ -615,9 +573,10 @@ if __name__ == "__main__":
     
     task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
         num_objects = 1,
-        allowed_tasks = [0],
-        allowed_colors = [0, 1, 2, 3, 4, 5, 6],
-        allowed_shapes = [5])
+        allowed_tasks = [-1],
+        allowed_colors = [0, 1, 2, 3, 4, 5],
+        allowed_shapes = [4],
+        test = None)
     
     
     
@@ -626,11 +585,11 @@ if __name__ == "__main__":
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(4.5,0)])
     show_them()
-    reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+    reward, win, which_goal_message = arena.rewards(verbose = True)
     for j in range(3):
         arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
         show_them()
-        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        reward, win, which_goal_message = arena.rewards(verbose = True)
     arena.end()
     """
         
@@ -641,11 +600,11 @@ if __name__ == "__main__":
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(15,0)])
     show_them()
-    reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+    reward, win, which_goal_message = arena.rewards(verbose = True)
     for j in range(15):
         arena.step(1, 1, 1, verbose = True, sleep_time = sleep_time)
         show_them()
-        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        reward, win, which_goal_message = arena.rewards(verbose = True)
     arena.end()
     """
     
@@ -654,11 +613,11 @@ if __name__ == "__main__":
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(8,0)])
     show_them()
-    reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+    reward, win, which_goal_message = arena.rewards(verbose = True)
     for j in range(15):
         arena.step(-.1, .1, 1, verbose = True, sleep_time = sleep_time)
         show_them()
-        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        reward, win, which_goal_message = arena.rewards(verbose = True)
     arena.end()
     """
     
@@ -667,15 +626,15 @@ if __name__ == "__main__":
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(8,0)])
     show_them()
-    reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+    reward, win, which_goal_message = arena.rewards(verbose = True)
     i = 1
     show_them()
-    reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+    reward, win, which_goal_message = arena.rewards(verbose = True)
     for j in range(5):
         i *= -1
         arena.step(1, -1, i, verbose = True, sleep_time = sleep_time)
         show_them()
-        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        reward, win, which_goal_message = arena.rewards(verbose = True)
     arena.end()
     """
     
@@ -684,11 +643,11 @@ if __name__ == "__main__":
     goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(6,0)])
     show_them()
-    reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+    reward, win, which_goal_message = arena.rewards(verbose = True)
     while(True):
         arena.step(0, 0, 1, verbose = True, sleep_time = .1)
         show_them()
-        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
             break
     arena.end()
@@ -703,7 +662,7 @@ if __name__ == "__main__":
     while(True):
         arena.step(1, 1, 1, 1, verbose = True, sleep_time = sleep_time)
         show_them()
-        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
             break
     arena.end()
@@ -721,7 +680,7 @@ if __name__ == "__main__":
     while(True):
         arena.step(-1, -1, -1, -1, verbose = True, sleep_time = sleep_time)
         show_them()
-        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
             break
     arena.end()
@@ -736,7 +695,7 @@ if __name__ == "__main__":
     for i in range(4):
         arena.step(-1, -1, -1, verbose = True, sleep_time = sleep_time)
         show_them()
-        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
             break
     #arena.end()
@@ -754,7 +713,7 @@ if __name__ == "__main__":
     while(True):
         arena.step(-1, 1, -1, -1, verbose = True, sleep_time = sleep_time)
         show_them()
-        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
             break
     arena.end()
@@ -772,7 +731,7 @@ if __name__ == "__main__":
     while(True):
         arena.step(-1, 1, -1, -1, verbose = True, sleep_time = sleep_time)
         show_them()
-        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
             break
     arena.end()
@@ -790,7 +749,7 @@ if __name__ == "__main__":
     while(True):
         arena.step(1, -1, -1, -1, verbose = True, sleep_time = sleep_time)
         show_them()
-        reward, distance_reward, angle_reward, win, which_goal_message = arena.rewards(verbose = True)
+        reward, win, which_goal_message = arena.rewards(verbose = True)
         if(win):
             break
     arena.end()

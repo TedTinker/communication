@@ -4,8 +4,7 @@
 #   Behavior_Analysis! Awesome idea from Jun. 
 #   Remove unused position/hsv stuff, 'cube', 'easy_robot', 'two arms'
 #   action to wheels_shoulders
-#   remove distance, angle
-#   Implement 
+#   Implement those classes
 
 
 #   Instead of either goal or free play, two comm in: Father for goal, Mother for description. 
@@ -173,7 +172,9 @@ training_combos = [(a, c, s) for (a, c, s) in all_combos if
 testing_combos = [combo for combo in all_combos if not combo in training_combos]
 
 def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shapes, test = False):
-    if(test):
+    if(test == None):
+        these_combos = testing_combos + training_combos
+    elif(test):
         these_combos = testing_combos
     else:
         these_combos = training_combos
@@ -389,22 +390,6 @@ parser.add_argument('--pull_amount',                    type=float,         defa
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--left_right_amount',              type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
-
-    # Rewards for distances
-parser.add_argument('--dist_reward',                    type=float,         default = 0,    # Works with 0, but much faster like this
-                    help='Give agents a reward just for getting close to the correct object.')
-parser.add_argument('--dist_reward_min',                type=float,         default = 3.5,
-                    help='If agent closer to correct object that this, rewarded.')
-parser.add_argument('--dist_reward_max',                type=float,         default = 5.5,
-                    help='If agent farther to correct object that this, punished. If agent between min and max, agent relatively rewarded.')
-
-    # Rewards for angles
-parser.add_argument('--angle_reward',                   type=float,         default = 0,    # Not very important
-                    help='Give agents a reward just for pointing at the right object.')
-parser.add_argument('--angle_reward_min',               type=float,         default = 15,
-                    help='If agent pointing at correct object that this, rewarded.')
-parser.add_argument('--angle_reward_max',               type=float,         default = 90,
-                    help='If agent pointing farther from correct object that this, punished. If angle between min and max, agent relatively rewarded.')
 
     # Training
 parser.add_argument('--capacity',                       type=int,           default = 256,
