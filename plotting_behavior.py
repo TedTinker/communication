@@ -25,37 +25,51 @@ def plot_behaviors(plot_dict):
     all_behaviors = plot_dict["behavior"]
     
     start_stop_indexes = []
-    start_index = 0 
+    # TO DO: actually save mother_comm
+    """start_index = 0 
     stop_index = start_index + 100 
     while(stop_index < len(all_behaviors[0])):
         start_stop_indexes.append((start_index, stop_index))
         start_index = stop_index 
-        stop_index += 100
+        stop_index += 100"""
         
-
+    start_stop_indexes = [(0, 1000), (1001, 2000), (2001, 3000)]
     
-    fig, axes = plt.subplots(nrows=len(start_stop_indexes), ncols=len(task_names), figsize=(15, 9))
+    nrows = len(start_stop_indexes) * 2
+    ncols = len(task_names)
+    
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(10 * ncols, 10 * len(start_stop_indexes)))
+    
     for i, (start, stop) in enumerate(start_stop_indexes):
+        # Remove the axis for all columns in this row (use fig.text for centered label)
+        for j in range(ncols):
+            ax = axes[i * 2, j]
+            ax.axis('off')  # Turn off all axes in the row for the label
+
+        # Place the label above the row of subplots using fig.text
+        fig.text(0.5, 1 - (i * 2 + 1) / nrows, f'{start}-{stop}\n\n\n', 
+                ha='center', va='center', fontsize=30)
+        
+        # Plot the data on the next row (i*2 + 1) for the current task and index
         for j, task in enumerate(task_names):
-            data = np.random.rand(len(shape_names), len(color_names)) # Random data, fix it with this.
-            #all_these_behaviors = [behavior[start_index:stop_index] for behavior in all_behaviors]
-            #all_these_behaviors = sum(all_these_behaviors, [])
-            ax = axes[i, j]
+            data = np.random.rand(len(shape_names), len(color_names))  # Replace this with real data later
+            
+            ax = axes[i * 2 + 1, j]
             heatmap = ax.imshow(data, cmap='gray', vmin=0, vmax=1)
+            
+            # Set the labels for x and y axis
             ax.set_xticks(np.arange(len(color_names)))
             ax.set_xticklabels(color_names, rotation=90)
             ax.set_yticks(np.arange(len(shape_names)))
             ax.set_yticklabels(shape_names)
-            if i == 0:  # Set titles only for the top row
-                ax.set_title(task)
-            if j == 0:
-                ax.set_ylabel(f'{start}-{stop}', rotation=0, labelpad=50, va='center')
+            ax.set_title(task)
 
     plt.tight_layout()
-    plt.figsave(f"behavior/{plot_dict["args"].arg_name}.png")
+    plt.savefig(f"thesis_pics/behavior/{plot_dict['args'].arg_name}.png")
     
 
 
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
-plot_behaviors(plot_dicts)
+for plot_dict in plot_dicts:
+    plot_behaviors(plot_dict)
 print(f"\nDuration: {duration()}. Done!")

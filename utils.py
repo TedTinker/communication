@@ -5,7 +5,6 @@
 #   Remove unused position/hsv stuff, 'cube', 'easy_robot', 'two arms'
 #   action to wheels_shoulders
 #   remove distance, angle
-#   move LDA stuff to the plotting
 #   Implement 
 
 
@@ -312,7 +311,7 @@ parser.add_argument('--load_agents',                    type=literal,       defa
     # Things which have list-values.
 parser.add_argument('--processor_list',                      type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+parser.add_argument('--epochs',                         type=literal,       default = [100, 50, 300], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each processor.')
 parser.add_argument('--time_scales',                    type=literal,       default = [1],
                     help='Time-scales for upper MTRNN.')
@@ -544,9 +543,9 @@ parser.add_argument('--epochs_per_agent_list',          type=int,           defa
 parser.add_argument('--agents_per_agent_list',          type=int,           default = 3,
                     help='How many agents to save.') 
 
-parser.add_argument('--epochs_per_lda_transform',        type=int,           default = 2500,
+parser.add_argument('--epochs_per_component_data',        type=int,           default = 2500,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_lda_transform',       type=int,           default = 1,
+parser.add_argument('--agents_per_component_data',       type=int,           default = 1,
                     help='How many agents to save episodes.')
 
 try:
@@ -813,7 +812,7 @@ def load_dicts(args):
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():
-        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "behavior"]):
+        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "behavior"]):
             if(key == "hidden_state"):
                 min_maxes = []
                 for layer in range(len(min_max_dicts[0][key])):

@@ -120,7 +120,7 @@ class Agent:
             "division_epochs" : [],
             "episode_dicts" : {}, 
             "all_processor_names" : self.all_processor_names,
-            "lda_transformations" : {},
+            "component_data" : {},
             "agent_lists" : {} if (self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list) else {"forward" : PVRNN(self.args), "actor" : Actor(self.args), "critic" : Critic(self.args)},
             "reward" : [], 
             "gen_reward" : [], 
@@ -175,7 +175,7 @@ class Agent:
         prev_time = duration()
         
         self.gen_test()  
-        self.LDA_transforms()
+        self.get_component_data()
         self.save_episodes()
         self.save_agent()
         while(True):
@@ -187,7 +187,7 @@ class Agent:
                     prev_time = duration()
                     
                     self.gen_test()  
-                    self.LDA_transforms()
+                    self.get_component_data()
                     self.save_episodes(swapping = False)
                     self.save_agent()
                     
@@ -200,7 +200,7 @@ class Agent:
                     self.save_agent()
                     
                     time = duration()
-                    if(self.args.show_duration): print("AFTER GEN, LDA TRANSFORM, SAVE EPISODE, SAVE AGENT:", time - prev_time)
+                    if(self.args.show_duration): print("AFTER GEN, GETTING COMPONENT DATA, SAVE EPISODE, SAVE AGENT:", time - prev_time)
                     prev_time = time
                 
             prev_time = duration()
@@ -231,10 +231,10 @@ class Agent:
                 win_dict_list = [self.plot_dict["gen_wins_" + task_name.lower()] for task_name in task_name_list]
                 for i, win_dict in enumerate(win_dict_list):
                     win_dict.append(None)
-            if(self.epochs % self.args.epochs_per_lda_transform == 0):
-                self.LDA_transforms()  
+            if(self.epochs % self.args.epochs_per_component_data == 0):
+                self.cget_omponent_data()  
                 time = duration()
-                if(self.args.show_duration): print("AFTER LDA:", time - prev_time)
+                if(self.args.show_duration): print("AFTER component_data:", time - prev_time)
             if(self.epochs % self.args.epochs_per_episode_dict == 0):
                 self.save_episodes(swapping = False)
                 time = duration()
@@ -247,7 +247,7 @@ class Agent:
         prev_time = duration()
         
         self.gen_test()  
-        self.LDA_transforms()
+        self.get_component_data()
         self.save_episodes(swapping = False)
         self.save_agent()
         
@@ -255,12 +255,12 @@ class Agent:
         self.plot_dict["accumulated_gen_reward"] = list(accumulate(self.plot_dict["gen_reward"]))
         
         time = duration()
-        if(self.args.show_duration): print("AFTER GEN, SAVE EPISODE, LDA TRANSFORM, SAVE AGENT (END):", time - prev_time)
+        if(self.args.show_duration): print("AFTER GEN, SAVE EPISODE, component_data, SAVE AGENT (END):", time - prev_time)
         prev_time = time
                 
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
-            if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps"]):
+            if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps"]):
                 if(key == "hidden_state"):
                     min_maxes = []
                     hidden_state = deepcopy(self.plot_dict[key])
@@ -717,8 +717,8 @@ class Agent:
                     
                     
                     
-    def LDA_transforms(self):
-        if(self.args.agents_per_lda_transform != -1 and self.agent_num > self.args.agents_per_lda_transform): 
+    def get_component_data(self):
+        if(self.args.agents_per_component_data != -1 and self.agent_num > self.args.agents_per_component_data): 
             return
         adjusted_args = deepcopy(self.args)
         adjusted_args.capacity = len(self.all_processors)
@@ -795,7 +795,7 @@ class Agent:
             processor_tensors[name] = (task_probs_slice, color_probs_slice, shape_probs_slice)
             start_idx = end_idx
                         
-        self.plot_dict["lda_transformations"][self.epochs] = processor_tensors
+        self.plot_dict["component_data"][self.epochs] = processor_tensors
         
         #print(f"\tAgent {self.agent_num} in Total Epochs {self.epochs}:")
         #for epochs, processor_tensors in self.plot_dict["lda_transformations"].items():

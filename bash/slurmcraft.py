@@ -225,12 +225,12 @@ f"""
 singularity exec{nv} maze.sif python communication/plotting.py --comp {args.comp} --arg_title {combined} --arg_name plotting
 """[2:])
         
-    with open("plotting_lda.slurm", "w") as f:
+    with open("plotting_components.slurm", "w") as f:
         f.write(
 f"""
 {partition}
 {module}
-singularity exec{nv} maze.sif python communication/plotting_lda.py --comp {args.comp} --arg_title {combined} --arg_name plotting_lda
+singularity exec{nv} maze.sif python communication/plotting_components.py --comp {args.comp} --arg_title {combined} --arg_name plotting_components
 """[2:])
         
     with open("plotting_episodes.slurm", "w") as f:
