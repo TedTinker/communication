@@ -433,7 +433,6 @@ def plots(plot_dicts, min_max_dict):
         ext_dict = get_quantiles(plot_dict, "extrinsic", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         ent_dict = get_quantiles(plot_dict, "intrinsic_entropy", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         cur_dict = get_quantiles(plot_dict, "intrinsic_curiosity", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        imi_dict = get_quantiles(plot_dict, "intrinsic_imitation", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         reward_min_max = many_min_max([min_max_dict["extrinsic"], min_max_dict["intrinsic_entropy"], min_max_dict["intrinsic_curiosity"]])
         
         def plot_extrinsic_and_intrinsic_reward(here, min_max = False):
@@ -450,11 +449,6 @@ def plots(plot_dicts, min_max_dict):
                 ax3.spines["right"].set_position(("axes", 1.08))
                 handles.append(awesome_plot(ax3, cur_dict, "green", "Curiosity", min_max_dict["intrinsic_curiosity"] if min_max else None))
                 ax3.set_ylabel("Curiosity")
-            if((imi_dict[keys[0]] != imi_dict[keys[1]]).any()):
-                ax4 = here.twinx()
-                ax4.spines["right"].set_position(("axes", 1.16))
-                handles.append(awesome_plot(ax4, imi_dict, "blue", "Imitation", min_max_dict["intrinsic_imitation"] if min_max else None))
-                ax4.set_ylabel("Imitation")
             here.legend(handles = handles)
             here.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic reward" + (", shared min/max" if min_max else ""))
             divide_arenas(ext_dict, here)      
@@ -468,8 +462,6 @@ def plots(plot_dicts, min_max_dict):
                 handles.append(awesome_plot(here, ent_dict, "black", "Entropy", reward_min_max if min_max else None))
             if((cur_dict[keys[0]] != cur_dict[keys[1]]).any()):
                 handles.append(awesome_plot(here, cur_dict, "green", "Curiosity", reward_min_max if min_max else None))
-            if((imi_dict[keys[0]] != imi_dict[keys[1]]).any()):
-                handles.append(awesome_plot(here, imi_dict, "blue", "Imitation", reward_min_max if min_max else None))
             here.legend(handles = handles)
             here.set_title(plot_dict["arg_title"] + "\nExtrinsic and Intrinsic reward, shared dims" + (", shared min/max" if min_max else ""))
             divide_arenas(ext_dict, here)

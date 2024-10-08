@@ -50,11 +50,7 @@ class RecurrentReplayBuffer:
         self.comm_out = VariableBuffer(
             shape = (self.args.max_comm_len, self.args.comm_shape,), 
             args = self.args)
-        self.recommended_action = VariableBuffer(
-            shape = (self.args.action_shape,), 
-            args = self.args)
         self.reward = VariableBuffer(args = self.args)
-        self.comm_curious = VariableBuffer(args = self.args)
         self.done = VariableBuffer(args = self.args)
         self.mask = VariableBuffer(args = self.args)
 
@@ -68,9 +64,7 @@ class RecurrentReplayBuffer:
             comm_in, 
             action, 
             comm_out, 
-            recommended_action,
             reward, 
-            comm_curious,
             next_rgbd,
             next_sensors,
             next_comm_in, 
@@ -84,9 +78,7 @@ class RecurrentReplayBuffer:
                     self.comm_in, 
                     self.action, 
                     self.comm_out, 
-                    self.recommended_action,
                     self.reward, 
-                    self.comm_curious,
                     self.done, 
                     self.mask]:
                 buffer.reset_episode(self.episode_ptr)
@@ -98,9 +90,7 @@ class RecurrentReplayBuffer:
         self.comm_in.push(self.episode_ptr, self.time_ptr, comm_in)
         self.action.push(self.episode_ptr, self.time_ptr, action)
         self.comm_out.push(self.episode_ptr, self.time_ptr, comm_out)
-        self.recommended_action.push(self.episode_ptr, self.time_ptr, recommended_action)
         self.reward.push(self.episode_ptr, self.time_ptr, reward)
-        self.comm_curious.push(self.episode_ptr, self.time_ptr, comm_curious)
         self.done.push(self.episode_ptr, self.time_ptr, done)
         self.mask.push(self.episode_ptr, self.time_ptr, 1.0)
 
@@ -128,9 +118,7 @@ class RecurrentReplayBuffer:
             self.comm_in.sample(indices),
             self.action.sample(indices),
             self.comm_out.sample(indices),
-            self.recommended_action.sample(indices),
             self.reward.sample(indices),
-            self.comm_curious.sample(indices),
             self.done.sample(indices),
             self.mask.sample(indices))
         return batch

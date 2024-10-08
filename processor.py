@@ -175,65 +175,6 @@ class Processor_Runner:
         if(not self.parenting):
             self.arena_2.end()
     
-    def get_recommended_action(self, agent_1 = True, verbose = False):
-        if(agent_1): arena = self.arena_1
-        else:        
-            if(self.parenting):
-                return(None)
-            else:
-                arena = self.arena_2
-        goal = arena.goal
-        goal_task = goal[0]
-        goal_color = goal[1]
-        goal_shape = goal[2]
-                
-        distances = []
-        angles = []
-        shapes = []
-        colors = []
-        for i, ((shape, color, old_pos), object_index) in enumerate(arena.objects_in_play.items()):
-            object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=arena.physicsClient)
-            agent_pos, agent_ori = p.getBasePositionAndOrientation(arena.robot_index)
-            distance_vector = np.subtract(object_pos, agent_pos)
-            distance = np.linalg.norm(distance_vector)
-            normalized_distance_vector = distance_vector / distance
-            rotation_matrix = p.getMatrixFromQuaternion(agent_ori)
-            forward_vector = np.array([rotation_matrix[0], rotation_matrix[3], rotation_matrix[6]])
-            forward_vector /= np.linalg.norm(forward_vector)
-            dot_product = np.dot(forward_vector, normalized_distance_vector)
-            angle_radians = np.arccos(np.clip(dot_product, -1.0, 1.0))  
-            cross_product = np.cross(forward_vector, normalized_distance_vector)
-            if cross_product[2] < 0:  
-                angle_radians = -angle_radians
-            distances.append(distance)
-            angles.append(angle_radians)
-            shapes.append(shape)
-            colors.append(color)
-        
-        relevant_distances_and_angles = [(distances[i], angles[i]) for i in range(len(distances)) if colors[i] == goal_color and shapes[i] == goal_shape]
-        #relevant_distance, relevant_angle = min(relevant_distances_and_angles, key=lambda t: abs(t[1]))
-        
-        left_wheel = uniform(-1, 1)
-        right_wheel = uniform(-1, 1)
-        left_shoulder = 1 # uniform(-.1, .1)
-        right_shoulder = 1 # uniform(-.1, .1)
-        
-        if(task_map[goal_task][1].upper() == "PUSH"):
-            pass
-                
-        if(task_map[goal_task][1].upper() == "PULL"):
-            pass
-                
-        if(task_map[goal_task][1].upper()== "LEFT"):
-            pass
-                
-        if(task_map[goal_task][1].upper() == "RIGHT"):
-            pass
-        
-        recommendation = torch.tensor([left_wheel, right_wheel, left_shoulder] + ([right_shoulder] if self.args.two_arms else [])).float()
-                
-        return(recommendation)
-    
     
     
 if __name__ == "__main__":        
@@ -284,7 +225,7 @@ if __name__ == "__main__":
             j += 1 
             print("step", j)
             example_images(get_images())
-            recommendation = processor_runner.get_recommended_action(verbose = False)#True)
+            recommendation = torch.zeros((4)) # processor_runner.get_recommended_action(verbose = False)#True)
             print("Got recommendation:", recommendation)
             raw_reward, distance_reward, angle_reward, distance_reward_2, angle_reward_2, done, win, which_goal_message_1, which_goal_message_2 = processor_runner.step(recommendation, verbose = True)
             print("Done:", done)

@@ -44,7 +44,7 @@ for folder in folders:
         plot_dict["agent_lists"] = agent_lists
             
         for key in min_max_dict.keys():
-            if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task"]):
+            if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "behavior"]):
                 minimum = None ; maximum = None
                 for min_max in min_max_dict[key]:
                     if(any(item in [None, "not_used"] for item in min_max)): 

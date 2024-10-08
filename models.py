@@ -119,11 +119,11 @@ class Critic(nn.Module):
         self.args = args
         
         self.action_in = Action_IN(self.args)
-        self.comm_in = Comm_IN(self.args)
+        self.comm_out_in = Comm_IN(self.args)
         
         self.lin = nn.Sequential(
             nn.Linear(
-                in_features = self.args.pvrnn_mtrnn_size + self.args.encode_action_size + self.args.encode_comm_size,
+                in_features = self.args.h_w_action_size + self.args.comm_encode_size,
                 out_features = self.args.hidden_size),
             nn.PReLU())
         
@@ -148,7 +148,7 @@ class Critic(nn.Module):
             [(action, "lin"), (comm_out, "comm"), (forward_hidden, "lin")], device = self.args.device, half = self.args.half)
                 
         action = self.action_in(action)
-        comm_out = self.comm_in(comm_out)
+        comm_out = self.comm_out_in(comm_out)
         x = torch.cat([forward_hidden, action.squeeze(1), comm_out.squeeze(1)], dim=-1)
         x = self.lin(x)
         value = self.value(x)

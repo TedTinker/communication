@@ -2,6 +2,13 @@
 
 # To do: most important 
 #   Behavior_Analysis! Awesome idea from Jun. 
+#   Remove unused position/hsv stuff, 'cube', 'easy_robot', 'two arms'
+#   action to wheels_shoulders
+#   remove distance, angle
+#   move LDA stuff to the plotting
+#   Implement 
+
+
 #   Instead of either goal or free play, two comm in: Father for goal, Mother for description. 
 #   Give actions percentage chances when making a task.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
@@ -28,7 +35,6 @@ from random import choice, randint
 import torch
 import platform
 import torch.nn.functional as F
-#from kornia.color import rgb_to_hsv 
 import psutil
 from itertools import product
 
@@ -56,7 +62,43 @@ class Shape:
         self.name = f.split("_")[-1][:-5]
         
 class Goal:
-    def __init__(self, task, color, shape):
+    def __init__(self, task, color, shape, parenting):
+        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
+        
+    def one_hots(self):
+        all_zeros = torch.zeros((3, 6 + 6 + 5))
+        for i, char in enumerate([self.task.char, self.color.char, self.shape.char]):
+            index = ord(char) - ord('A') + 1
+            all_zeros[i, index] = 1
+        return(all_zeros)
+    
+    def token_text(self):
+        return(f"{self.task.char}{self.color.char}{self.shape.char}") 
+    
+    def human_test(self):
+        return(f"{self.task.name} {self.color.name} {self.shape.name}")
+        
+class To_Push:
+    def __init__(self, rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_father_comm, next_mother_comm, done, mask):
+        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
+        
+    def push(self, memory):
+        memory.push(
+            self.rgbd.to("cpu"),
+            self.sensors.to("cpu"),
+            self.father_comm.to("cpu"),
+            self.mother_comm.to("cpu"),
+            self.wheels_shoulders.to("cpu"), 
+            self.comm_out.to("cpu"),
+            self.reward, 
+            self.next_rgbd.to("cpu"),
+            self.next_sensors.to("cpu"),
+            self.next_father_comm.to("cpu"), 
+            self.next_mother_comm.to("cpu"), 
+            self.done)
+
+class Inner_State:
+    def __init__(self, zp, zq, dkl):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
 
 
@@ -268,7 +310,7 @@ parser.add_argument('--load_agents',                    type=literal,       defa
                     help='Are we loading agents?')    
 
     # Things which have list-values.
-parser.add_argument('--processor_list',                      type=literal,       default = ["fp5", "w5", "wpulr5"],
+parser.add_argument('--processor_list',                      type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each processor.')
@@ -409,19 +451,17 @@ parser.add_argument('--sensors_state_size',             type=int,           defa
 parser.add_argument('--comm_state_size',                type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
 
-parser.add_argument('--encode_char_size',               type=int,           default = 8,
+parser.add_argument('--char_encode_size',               type=int,           default = 8,
                     help='Parameters in encoding.')   
-parser.add_argument('--encode_rgbd_size',               type=int,           default = 128,
+parser.add_argument('--rgbd_encode_size',               type=int,           default = 128,
                     help='Parameters in encoding image.')   
-parser.add_argument('--encode_sensors_size',            type=int,           default = num_sensors,
+parser.add_argument('--sensors_encode_size',            type=int,           default = num_sensors,
                     help='Parameters in encoding sensors, angles, speed.')   
-parser.add_argument('--encode_comm_size',               type=int,           default = 128,
+parser.add_argument('--comm_encode_size',               type=int,           default = 128,
                     help='Parameters in encoding communicaiton.')   
-parser.add_argument('--encode_action_size',             type=int,           default = 8,
+parser.add_argument('--action_encode_size',             type=int,           default = 8,
                     help='Parameters in encoding action.')   
 
-parser.add_argument('--use_comm_in_gru',                type=literal,       default = True,  
-                    help='Use comm_in model with gru, or not?')   
 parser.add_argument('--dropout',                        type=float,         default = .001,
                     help='Dropout percentage.')
 parser.add_argument('--use_hsv',                        type=literal,       default = False,
@@ -467,9 +507,7 @@ parser.add_argument("--beta_comm",                      type=float,         defa
 parser.add_argument("--curiosity",                      type=str,           default = "none",
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
 parser.add_argument("--dkl_max",                        type=float,         default = 1,
-                    help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')  
-parser.add_argument('--selective_comm_curiosity',       type=literal,       default = False,
-                    help='Should comm_curiosity be removed when comm_in is constant?')           
+                    help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')   
 
 parser.add_argument("--prediction_error_eta_rgbd",      type=float,         default = .3,
                     help='Nonnegative value, how much to consider prediction_error curiosity for rgbd.')    
@@ -485,11 +523,7 @@ parser.add_argument("--hidden_state_eta_sensors",       type=float,         defa
 parser.add_argument("--hidden_state_eta_comm",          type=float,         default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
 
-  
- 
-    # Imitation
-parser.add_argument("--delta",                          type=float,         default = 0,
-                    help='How much to consider action\'s similarity to recommended action.')  
+
 
     # Saving data
 parser.add_argument('--keep_data',                      type=int,           default = 250,
@@ -539,8 +573,8 @@ for arg_set in [default_args, args]:
     arg_set.sensor_names = sensors
     arg_set.comm_shape = len(comm_map)
     arg_set.action_shape = 4 if arg_set.two_arms else 3
-    arg_set.encode_obs_size = arg_set.encode_rgbd_size + arg_set.encode_comm_size + arg_set.encode_sensors_size
-    arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.encode_action_size
+    arg_set.obs_encode_size = arg_set.rgbd_encode_size + arg_set.sensors_encode_size + arg_set.comm_encode_size
+    arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.action_encode_size
     max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
     arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)
     arg_set.beta = extend_list_to_match_length(arg_set.beta, max_length, 0)
@@ -709,17 +743,6 @@ def dkl(mu_1, std_1, mu_2, std_2):
     out = (.5 * (term_1 + term_2 - term_3 - 1))
     out = torch.nan_to_num(out)
     return(out)
-    
-    
-    
-def calculate_similarity(recommended_actions, actor_actions):
-    similarities = -F.mse_loss(recommended_actions, actor_actions, reduction='none').mean(-1)
-    return similarities
-
-
-
-
-
 
 
 
@@ -790,7 +813,7 @@ def load_dicts(args):
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():
-        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task"]):
+        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "lda_transformations", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "behavior"]):
             if(key == "hidden_state"):
                 min_maxes = []
                 for layer in range(len(min_max_dicts[0][key])):

@@ -15,7 +15,7 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import default_args, duration, dkl, calculate_similarity, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, task_map, color_map, shape_map, task_name_list, print, string_to_onehots, agent_to_english
+from utils import default_args, duration, dkl, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, task_map, color_map, shape_map, task_name_list, print, string_to_onehots, agent_to_english
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from processor import Processor, Processor_Runner
@@ -52,17 +52,9 @@ class Agent:
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.processors = {
-            "fp" :      Processor(tasks = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
-            "w" :       Processor(tasks = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
-            "wpulr" :   Processor(tasks = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2],         parenting = True, args = self.args),
-            
-            "fp5" :      Processor(tasks = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
-            "w5" :       Processor(tasks = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
-            "wpulr5" :   Processor(tasks = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
-            
-            "fp_cube" :      Processor(tasks = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args),
-            "w_cube" :       Processor(tasks = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args),
-            "wpulr_cube" :   Processor(tasks = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [5, 6, 7, 8, 9],         parenting = True, args = self.args)}
+            "fp" :      Processor(tasks = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
+            "w" :       Processor(tasks = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
+            "wpulr" :   Processor(tasks = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args)}
         
         self.all_processors = {f"{task_map[task][1]}_{color_map[color][1]}_{shape_map[shape][1]}" : Processor(tasks = [task], objects = 1, colors = [color], shapes = [shape], parenting = True, args = self.args) for task, color, shape in product([0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
         all_processor_names = list(self.all_processors.keys())
@@ -155,6 +147,7 @@ class Agent:
             "sensors_hidden_state_curiosity" : [],
             "comm_hidden_state_curiosity" : [],
             "hidden_state_curiosity" : [],
+            "behavior" : [],
             "wins_all" : [],
             "gen_wins_all" : []}
         for a in task_map.values():
@@ -306,7 +299,6 @@ class Agent:
             parenting = self.processor.processor.parenting
             rgbd_1, sensors_1, parent_comm = self.processor.obs()
             rgbd_2, sensors_2, _ = self.processor.obs(agent_1 = False)
-            recommended_action_1 = self.processor.get_recommended_action() 
             comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_2
             
             time = duration()
@@ -341,7 +333,6 @@ class Agent:
                 sensors_dkl_2 = None
                 comm_dkl_2 = None
             else:
-                recommended_action_2 = self.processor.get_recommended_action(agent_1 = False)
                 comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_1
                 hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, activations_3d_pca_2, activations_3d_tsne_2, comm_zq_2 = self.forward.bottom_to_top(
                     hq_2, 
@@ -371,18 +362,14 @@ class Agent:
             
             next_comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
             next_comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
-            
-            comm_curious = 1 if (not parenting or self.processor.processor.goal[0] == -1) else 0 # True in free play or unparented
-            
+                        
             to_push_1 = [
                 rgbd_1,
                 sensors_1,
                 comm_in_1,
                 action_1,
                 comm_out_1,
-                recommended_action_1,
                 total_reward,
-                comm_curious,
                 next_rgbd_1,
                 next_sensors_1,
                 next_comm_in_1,
@@ -397,9 +384,7 @@ class Agent:
                     comm_in_2,
                     action_2,
                     comm_out_2,
-                    recommended_action_2,
                     total_reward,
-                    comm_curious,
                     next_rgbd_2,
                     next_sensors_2,
                     next_comm_in_2,
@@ -469,42 +454,11 @@ class Agent:
                 complete_reward += total_reward
             if(self.steps % self.args.steps_per_epoch == 0):
                 prev_time = duration()
-                plot_data = self.epoch(self.args.batch_size)
+                self.epoch(self.args.batch_size)
                 time = duration()
                 if(self.args.show_duration): print("\nEPOCH:", time - prev_time)
                 prev_time = time
-                if(plot_data == False): pass
-                else:
-                    accuracy, rgbd_loss, sensors_loss, comm_loss, complexity, \
-                        alpha_loss, alpha_text_loss, actor_loss, critic_losses, \
-                        e, q, ic, ie, ii, \
-                        rgbd_prediction_error_curiosity, sensors_prediction_error_curiosity, comm_prediction_error_curiosity, prediction_error_curiosity,\
-                        rgbd_hidden_state_curiosity, sensors_hidden_state_curiosity, comm_hidden_state_curiosity, hidden_state_curiosity = plot_data
-                    if(self.epochs == 1 or self.epochs >= sum(self.args.epochs) or self.epochs % self.args.keep_data == 0):
-                        self.plot_dict["accuracy"].append(accuracy)
-                        self.plot_dict["rgbd_loss"].append(rgbd_loss)
-                        self.plot_dict["sensors_loss"].append(sensors_loss)
-                        self.plot_dict["comm_loss"].append(comm_loss)
-                        self.plot_dict["complexity"].append(complexity)                                                                             
-                        self.plot_dict["alpha"].append(alpha_loss)
-                        self.plot_dict["alpha_text"].append(alpha_text_loss)
-                        self.plot_dict["actor"].append(actor_loss)
-                        for layer, f in enumerate(critic_losses):
-                            self.plot_dict["critics"][layer].append(f)    
-                        self.plot_dict["critics"].append(critic_losses)
-                        self.plot_dict["extrinsic"].append(e)
-                        self.plot_dict["q"].append(q)
-                        self.plot_dict["intrinsic_curiosity"].append(ic)
-                        self.plot_dict["intrinsic_entropy"].append(ie)
-                        self.plot_dict["intrinsic_imitation"].append(ii)
-                        self.plot_dict["rgbd_prediction_error_curiosity"].append(rgbd_prediction_error_curiosity)
-                        self.plot_dict["sensors_prediction_error_curiosity"].append(sensors_prediction_error_curiosity)
-                        self.plot_dict["comm_prediction_error_curiosity"].append(comm_prediction_error_curiosity)
-                        self.plot_dict["prediction_error_curiosity"].append(prediction_error_curiosity)
-                        self.plot_dict["rgbd_hidden_state_curiosity"].append(rgbd_hidden_state_curiosity)    
-                        self.plot_dict["sensors_hidden_state_curiosity"].append(sensors_hidden_state_curiosity)  
-                        self.plot_dict["comm_hidden_state_curiosity"].append(comm_hidden_state_curiosity)    
-                        self.plot_dict["hidden_state_curiosity"].append(hidden_state_curiosity)    
+
                                                     
         self.processor.done()
         self.plot_dict["steps"].append(steps)
@@ -517,16 +471,14 @@ class Agent:
             else:                   win_dict.append(None)
                              
         for to_push in to_push_list_1:
-            rgbd, sensors, comm_in, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_sensors, next_comm_in, done = to_push
+            rgbd, sensors, comm_in, action, comm_out, total_reward, next_rgbd, next_sensors, next_comm_in, done = to_push
             self.memory.push(
                 rgbd.to("cpu"),
                 sensors.to("cpu"),
                 comm_in.to("cpu"), 
                 action.to("cpu"), 
                 comm_out.to("cpu"),
-                recommended_action.to("cpu"),
                 total_reward, 
-                comm_curious,
                 next_rgbd.to("cpu"),
                 next_sensors.to("cpu"),
                 next_comm_in.to("cpu"), 
@@ -534,16 +486,14 @@ class Agent:
             
         for to_push in to_push_list_2:
             if(to_push != None):
-                rgbd, sensors, comm_in, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_sensors, next_comm_in, done = to_push
+                rgbd, sensors, comm_in, action, comm_out, total_reward, next_rgbd, next_sensors, next_comm_in, done = to_push
                 self.memory.push(
                     rgbd.to("cpu"),
                     sensors.to("cpu"),
                     comm_in.to("cpu"), 
                     action.to("cpu"), 
                     comm_out.to("cpu"),
-                    recommended_action.to("cpu"),
                     total_reward, 
-                    comm_curious,
                     next_rgbd.to("cpu"),
                     next_sensors.to("cpu"),
                     next_comm_in.to("cpu"), 
@@ -607,7 +557,6 @@ class Agent:
                     "rgbd_1" : [],
                     "sensors_1" : [],
                     "comm_in_1" : [],
-                    "recommended_1" : [],
                     "action_1" : [],
                     "action_text_1" : [],
                     "comm_out_1" : [],
@@ -630,7 +579,6 @@ class Agent:
                     "rgbd_2" : [],
                     "sensors_2" : [],
                     "comm_in_2" : [],
-                    "recommended_2" : [],
                     "action_2" : [],
                     "action_text_2" : [],
                     "comm_out_2" : [],
@@ -667,9 +615,6 @@ class Agent:
                                 
                 def save_step(step, hp, hq, action, agent_1 = True):
                     agent_num = 1 if agent_1 else 2
-                    
-                    recommended = self.processor.get_recommended_action(agent_1 = agent_1)
-                    episode_dict[f"recommended_{agent_num}"].append(None if recommended == None else action_to_string(recommended))
                     
                     birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
                     rgbd, sensors, parent_comm = self.processor.obs(agent_1 = agent_1)
@@ -806,23 +751,21 @@ class Agent:
             processor_lens.append(step)
                             
             for to_push in to_push_list_1:
-                rgbd, sensors, comm_in, action, comm_out, recommended_action, total_reward, comm_curious, next_rgbd, next_sensors, next_comm_in, done = to_push
+                rgbd, sensors, comm_in, action, comm_out, total_reward, next_rgbd, next_sensors, next_comm_in, done = to_push
                 temp_memory.push(
                     rgbd.to("cpu"),
                     sensors.to("cpu"),
                     comm_in.to("cpu"), 
                     action.to("cpu"), 
                     comm_out.to("cpu"),
-                    recommended_action.to("cpu"),
                     total_reward, 
-                    comm_curious,
                     next_rgbd.to("cpu"),
                     next_sensors.to("cpu"),
                     next_comm_in.to("cpu"), 
                     done)
                 
         batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
-        rgbd, sensors, comm_in, action, comm_out, recommended_action, reward, comm_curious, done, action, comm_out, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, comm_in, action, comm_out, reward, done, action, comm_out, mask, all_mask, episodes, steps = batch
         
         hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels = self.forward(
             torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), 
@@ -874,15 +817,13 @@ class Agent:
         
         prev_time = duration()
 
-        rgbd, sensors, comm_in, action, comm_out, recommended_action, reward, comm_curious, done, mask = batch
+        rgbd, sensors, comm_in, action, comm_out, reward, done, mask = batch
         rgbd = torch.from_numpy(rgbd).to(self.args.device)
         sensors = torch.from_numpy(sensors).to(self.args.device)
         comm_in = torch.from_numpy(comm_in).to(self.args.device)
         action = torch.from_numpy(action)
         comm_out = torch.from_numpy(comm_out)
-        recommended_action = torch.from_numpy(recommended_action).to(self.args.device)
         reward = torch.from_numpy(reward).to(self.args.device)
-        comm_curious = torch.from_numpy(comm_curious).to(self.args.device)
         done = torch.from_numpy(done).to(self.args.device)
         mask = torch.from_numpy(mask)
         action = torch.cat([torch.zeros(action[:,0].unsqueeze(1).shape), action], dim = 1).to(self.args.device)
@@ -893,17 +834,17 @@ class Agent:
         steps = reward.shape[1]
         
         if(self.args.half):
-            rgbd, sensors, comm_in, action, comm_out, recommended_action, reward, comm_curious, done, mask, action, comm_out, all_mask, mask = \
+            rgbd, sensors, comm_in, action, comm_out, reward, done, mask, action, comm_out, all_mask, mask = \
                 rgbd.to(dtype=torch.float16), sensors.to(dtype=torch.float16), comm_in.to(dtype=torch.float16), action.to(dtype=torch.float16), \
-                comm_out.to(dtype=torch.float16), recommended_action.to(dtype=torch.float16), reward.to(dtype=torch.float16), comm_curious.to(dtype=torch.float16), done.to(dtype=torch.float16), \
+                comm_out.to(dtype=torch.float16), reward.to(dtype=torch.float16), done.to(dtype=torch.float16), \
                 mask.to(dtype=torch.float16), action.to(dtype=torch.float16), comm_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
         
         #print("\n\n")
-        #print("Agent {}, epoch {}. rgbd: {}. comm in: {}. action: {}. comm out: {}. recommended action: {}. reward: {}. comm_curious: {}. done: {}. mask: {}.".format(
-        #    self.agent_num, self.epochs, rgbd.shape, comm_in.shape, action.shape, comm_out.shape, recommended_action.shape, reward.shape, comm_curious.shape, done.shape, mask.shape))
+        #print("Agent {}, epoch {}. rgbd: {}. comm in: {}. action: {}. comm out: {}. reward: {}.  done: {}. mask: {}.".format(
+        #    self.agent_num, self.epochs, rgbd.shape, comm_in.shape, action.shape, comm_out.shape, reward.shape, done.shape, mask.shape))
         #print("\n\n")
         
-        return(rgbd, sensors, comm_in, action, comm_out, recommended_action, reward, comm_curious, done, action, comm_out, mask, all_mask, episodes, steps)
+        return(rgbd, sensors, comm_in, action, comm_out, reward, done, action, comm_out, mask, all_mask, episodes, steps)
         
     
     
@@ -918,7 +859,7 @@ class Agent:
             return(False)
         batch_size = batch[0].shape[0]
         
-        rgbd, sensors, comm_in, action, comm_out, recommended_action, reward, comm_curious, done, action, comm_out, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, comm_in, action, comm_out, reward, done, action, comm_out, mask, all_mask, episodes, steps = batch
         # Also sample from old memories, and use them to keep actor and critic outputs the same.
         
         time = duration()
@@ -979,13 +920,11 @@ class Agent:
         rgbd_prediction_error_curiosity     = self.args.prediction_error_eta_rgbd       * rgbd_loss
         sensors_prediction_error_curiosity  = self.args.prediction_error_eta_sensors    * sensors_loss
         comm_prediction_error_curiosity     = self.args.prediction_error_eta_comm       * comm_loss
-        if(self.args.selective_comm_curiosity): comm_prediction_error_curiosity         *= comm_curious
         prediction_error_curiosity = rgbd_prediction_error_curiosity + comm_prediction_error_curiosity + sensors_prediction_error_curiosity
         
         rgbd_hidden_state_curiosity    = self.args.hidden_state_eta_rgbd       * torch.clamp(rgbd_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
         sensors_hidden_state_curiosity = self.args.hidden_state_eta_sensors    * torch.clamp(sensors_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
         comm_hidden_state_curiosity    = self.args.hidden_state_eta_comm       * torch.clamp(comm_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
-        if(self.args.selective_comm_curiosity): comm_hidden_state_curiosity    *= comm_curious
         hidden_state_curiosity = rgbd_hidden_state_curiosity + comm_hidden_state_curiosity + sensors_hidden_state_curiosity
         
         if(self.args.curiosity == "prediction_error"):  curiosity = prediction_error_curiosity
@@ -1012,7 +951,6 @@ class Agent:
                 Q_target_nexts.append(Q_target_next)                
             log_pis_next = log_pis_next[:,1:]
             log_pis_next_text = log_pis_next_text[:,1:]
-            recommendation_value = calculate_similarity(recommended_action, new_action[:,:-1]).unsqueeze(-1)
                         
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
@@ -1021,7 +959,7 @@ class Agent:
             else:                            alpha = self.args.alpha
             if self.args.alpha_text == None: alpha_text = self.alpha_text 
             else:                            alpha_text = self.args.alpha_text
-            Q_targets = reward + (self.args.GAMMA * (1 - done) * (Q_target_next - (alpha * log_pis_next) - (alpha_text * log_pis_next_text) + (self.args.delta * recommendation_value)))
+            Q_targets = reward + (self.args.GAMMA * (1 - done) * (Q_target_next - (alpha * log_pis_next) - (alpha_text * log_pis_next_text)))
             
         time = duration()
         #if(self.args.show_duration): print("USED TARGET CRITICS:", time - prev_time)
@@ -1058,8 +996,6 @@ class Agent:
             if self.args.alpha_text == None: alpha_text = self.alpha_text 
             else:                            alpha_text = self.args.alpha_text
             new_action, new_comm_out, log_pis, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
-            recommendation_value = calculate_similarity(recommended_action, new_action).unsqueeze(-1)
-            intrinsic_imitation = -torch.mean((self.args.delta * recommendation_value)*mask).item() 
             
             if self.args.action_prior == "normal":
                 loc = torch.zeros(self.args.action_shape, dtype=torch.float64).to(self.args.device).float()
@@ -1079,7 +1015,7 @@ class Agent:
             Q, _ = torch.min(Qs_stacked, dim=0)
             Q = Q.mean(-1).unsqueeze(-1)
             
-            actor_loss = ((alpha * log_pis - policy_prior_log_prrgbd) + (alpha_text * log_pis_text) - (self.args.delta * recommendation_value) - Q)*mask
+            actor_loss = ((alpha * log_pis - policy_prior_log_prrgbd) + (alpha_text * log_pis_text) - Q)*mask
             actor_loss = actor_loss.mean() / mask.mean()
             
             time = duration()
@@ -1167,11 +1103,34 @@ class Agent:
         
         time = duration()
         #if(self.args.show_duration): print(f"WHOLE EPOCH {self.epochs}:", time - start_time)
-                
-        return(accuracy, rgbd_loss, sensors_loss, comm_loss, complexity, alpha_loss, alpha_text_loss, actor_loss, critic_losses, 
-               extrinsic, Q, intrinsic_curiosity, intrinsic_entropy, intrinsic_imitation, 
-               rgbd_prediction_error_curiosity, sensors_prediction_error_curiosity, comm_prediction_error_curiosity, prediction_error_curiosity,
-               rgbd_hidden_state_curiosity, sensors_hidden_state_curiosity, comm_hidden_state_curiosity, hidden_state_curiosity)
+        
+        
+        
+        if(self.epochs == 1 or self.epochs >= sum(self.args.epochs) or self.epochs % self.args.keep_data == 0):
+            self.plot_dict["accuracy"].append(accuracy)
+            self.plot_dict["rgbd_loss"].append(rgbd_loss)
+            self.plot_dict["sensors_loss"].append(sensors_loss)
+            self.plot_dict["comm_loss"].append(comm_loss)
+            self.plot_dict["complexity"].append(complexity)                                                                             
+            self.plot_dict["alpha"].append(alpha_loss)
+            self.plot_dict["alpha_text"].append(alpha_text_loss)
+            self.plot_dict["actor"].append(actor_loss)
+            for layer, f in enumerate(critic_losses):
+                self.plot_dict["critics"][layer].append(f)    
+            self.plot_dict["critics"].append(critic_losses)
+            self.plot_dict["extrinsic"].append(extrinsic)
+            self.plot_dict["q"].append(Q)
+            self.plot_dict["intrinsic_curiosity"].append(intrinsic_curiosity)
+            self.plot_dict["intrinsic_entropy"].append(intrinsic_entropy)
+            self.plot_dict["rgbd_prediction_error_curiosity"].append(rgbd_prediction_error_curiosity)
+            self.plot_dict["sensors_prediction_error_curiosity"].append(sensors_prediction_error_curiosity)
+            self.plot_dict["comm_prediction_error_curiosity"].append(comm_prediction_error_curiosity)
+            self.plot_dict["prediction_error_curiosity"].append(prediction_error_curiosity)
+            self.plot_dict["rgbd_hidden_state_curiosity"].append(rgbd_hidden_state_curiosity)    
+            self.plot_dict["sensors_hidden_state_curiosity"].append(sensors_hidden_state_curiosity)  
+            self.plot_dict["comm_hidden_state_curiosity"].append(comm_hidden_state_curiosity)    
+            self.plot_dict["hidden_state_curiosity"].append(hidden_state_curiosity)    
+        
     
     
                      

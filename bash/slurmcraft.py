@@ -249,6 +249,14 @@ f"""
 singularity exec{nv} maze.sif python communication/plotting_p_val.py --comp {args.comp} --arg_title {combined} --arg_name plotting_p_values
 """[2:])
         
+    with open("plotting_behavior.slurm", "w") as f:
+        f.write(
+f"""
+{partition}
+{module}
+singularity exec{nv} maze.sif python communication/plotting_behavior.py --comp {args.comp} --arg_title {combined} --arg_name plotting_behavior
+"""[2:])
+        
     with open("combine_plots.slurm", "w") as f:
         f.write(
 f"""
