@@ -2,7 +2,7 @@
 
 # To do: most important 
 #   Behavior_Analysis! Awesome idea from Jun. 
-#   Remove unused position/hsv stuff, 'cube', 'easy_robot', 'two arms'
+#   Remove unused position
 #   action to wheels_shoulders
 #   Implement those classes
 
@@ -102,7 +102,7 @@ class Inner_State:
 
 
 task_map = {
-    -1: ["Z", "FREE_PLAY"],
+    -1: ["Z", "FREEPLAY"],
     0:  ["A", "WATCH"],
     1:  ["B", "PUSH"],     
     2:  ["C", "PULL"],   
@@ -310,20 +310,14 @@ parser.add_argument('--load_agents',                    type=literal,       defa
                     help='Are we loading agents?')    
 
     # Things which have list-values.
-parser.add_argument('--processor_list',                      type=literal,       default = ["fp", "w", "wpulr"],
+parser.add_argument('--processor_list',                 type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [100, 50, 300], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each processor.')
-parser.add_argument('--time_scales',                    type=literal,       default = [1],
-                    help='Time-scales for upper MTRNN.')
-parser.add_argument("--beta",                           type=literal,       default = [2],
-                    help='Relative importance of complexity in each upper layer.')
 parser.add_argument("--hidden_state_eta",               type=literal,       default = [5],
                     help='Nonnegative values, how much to consider hidden_state curiosity in each upper layer.') 
 
     # Simulation details
-parser.add_argument('--cube_objects',                   type=literal,       default = False,
-                    help='How large is the agent\'s body?')    
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
                     help='How far objects must start from each other.')
 parser.add_argument('--max_object_distance',            type=float,         default = 6,
@@ -331,11 +325,7 @@ parser.add_argument('--max_object_distance',            type=float,         defa
 parser.add_argument('--object_size',                    type=float,         default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--body_size',                      type=float,         default = 2,
-                    help='How large is the agent\'s body?')    
-parser.add_argument('--two_arms',                       type=literal,       default = True,
-                    help='Does the agent have two arms instead of one?')  
-parser.add_argument('--shoulder_binary',                type=literal,       default = True,
-                    help='Do agent shoulders only have two speeds?')      
+                    help='How large is the agent\'s body?')        
 parser.add_argument('--time_step',                      type=float,         default = .2,
                     help='numSubSteps in pybullet environment.')
 parser.add_argument('--steps_per_step',                 type=int,           default = 20,
@@ -364,10 +354,6 @@ parser.add_argument('--step_lim_punishment',            type=float,         defa
                     help='Extrinsic punishment for taking max_steps steps.')
 parser.add_argument('--wrong_object_punishment',        type=float,         default = 0,
                     help='Extrinsic punishment for choosing any task with wrong object.') 
-parser.add_argument('--free_play_reward',               type=float,         default = 0,
-                    help='Extrinsic reward for performing any task in free play.') 
-parser.add_argument('--free_play_reward_dist',          type=literal,       default = False,
-                    help='Add distance and anglular rewards for free play?') 
 parser.add_argument('--step_cost',                      type=float,         default = .975,
                     help='How much extrinsic rewards for exiting are reduced per step.')
 parser.add_argument('--actions',                        type=int,           default = 5,
@@ -448,12 +434,6 @@ parser.add_argument('--action_encode_size',             type=int,           defa
 
 parser.add_argument('--dropout',                        type=float,         default = .001,
                     help='Dropout percentage.')
-parser.add_argument('--use_hsv',                        type=literal,       default = False,
-                    help='Should RGBD_In use hsv?')   
-parser.add_argument('--use_trig_pos',                   type=literal,       default = False,
-                    help='Use trigonometric positions, or linear?') 
-parser.add_argument('--pos_channels',                   type=int,           default = 0,
-                    help='How many channels for positions in rgbd?')   
 parser.add_argument('--divisions',                      type=int,           default = 2,
                     help='How many times should RBGD_Out double size to image-size?')
 parser.add_argument('--half',                           type=literal,       default = True,
@@ -556,16 +536,9 @@ for arg_set in [default_args, args]:
     arg_set.sensors_shape = num_sensors
     arg_set.sensor_names = sensors
     arg_set.comm_shape = len(comm_map)
-    arg_set.action_shape = 4 if arg_set.two_arms else 3
+    arg_set.action_shape = 4 
     arg_set.obs_encode_size = arg_set.rgbd_encode_size + arg_set.sensors_encode_size + arg_set.comm_encode_size
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.action_encode_size
-    max_length = max(len(arg_set.time_scales), len(arg_set.beta), len(arg_set.hidden_state_eta))
-    arg_set.time_scales = extend_list_to_match_length(arg_set.time_scales, max_length, 1)
-    arg_set.beta = extend_list_to_match_length(arg_set.beta, max_length, 0)
-    arg_set.hidden_state_eta = extend_list_to_match_length(arg_set.hidden_state_eta, max_length, 0)
-    arg_set.layers = len(arg_set.time_scales)
-    if(arg_set.use_trig_pos):
-        arg_set.pos_channels = 2
         
 args_not_in_title = ["arg_title", "id", "agents", "previous_agents", "init_seed", "keep_data", "epochs_per_pred_list", "episodes_in_pred_list", "agents_per_pred_list", "epochs_per_pos_list", "episodes_in_pos_list", "agents_per_pos_list"]
 def get_args_title(default_args, args):

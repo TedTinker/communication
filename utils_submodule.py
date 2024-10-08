@@ -53,45 +53,6 @@ def rnn_cnn(do_this, to_this):
     this = this.view((episodes, steps, this.shape[1], this.shape[2], this.shape[3]))
     return(this)
 
-def generate_1d_positional_layers(batch_size, length, device='cpu'):
-    x = torch.linspace(-1, 1, steps=length).view(1, 1, 1, length).repeat(batch_size, 1, length, 1)
-    x = x.to(device)
-    return x
-    
-def generate_2d_positional_layers(batch_size, image_size, device='cpu'):
-    x = torch.linspace(-1, 1, steps=image_size).view(1, 1, 1, image_size).repeat(batch_size, 1, image_size, 1)
-    y = torch.linspace(-1, 1, steps=image_size).view(1, 1, image_size, 1).repeat(batch_size, 1, 1, image_size)
-    x, y = x.to(device), y.to(device)
-    return torch.cat([x, y], dim=1)
-
-
-
-def generate_2d_sinusoidal_positions(batch_size, image_size, d_model=2, device='cpu'):
-    assert d_model % 2 == 0, "d_model should be even."
-    x = torch.arange(image_size, dtype=torch.float32, device=device).unsqueeze(0).expand(image_size, image_size)
-    y = torch.arange(image_size, dtype=torch.float32, device=device).unsqueeze(1).expand(image_size, image_size)
-    x = x.unsqueeze(2).tile((1, 1, d_model // 2))
-    y = y.unsqueeze(2).tile((1, 1, d_model // 2))
-
-    div_term = torch.exp(torch.arange(0, d_model, 2, dtype=torch.float32, device=device) * (-log(10000.0) / (d_model // 2)))
-    div_term = torch.tile(div_term.unsqueeze(0).unsqueeze(0), (image_size, image_size, 1))
-    
-    pe = torch.zeros(image_size, image_size, d_model, device=device)
-    pe[:, :, 0::2] = torch.sin(x * div_term) + torch.sin(y * div_term)
-    pe[:, :, 1::2] = torch.cos(x * div_term) + torch.cos(y * div_term)
-    pe = torch.tile(pe.unsqueeze(0), (batch_size, 1, 1, 1))
-    pe = pe.permute(0, 3, 1, 2) / 2
-    return pe
-
-
-
-def hsv_to_circular_hue(hsv_image):
-    hue = hsv_image[:, 0, :, :]
-    hue_sin = (torch.sin(hue) + 1) / 2
-    hue_cos = (torch.cos(hue) + 1) / 2
-    hsv_circular = torch.stack([hue_sin, hue_cos, hsv_image[:, 1, :, :], hsv_image[:, 2, :, :]], dim=1)
-    return hsv_circular
-
 
 
 def model_start(model_input_list, device = "cpu", half = False):

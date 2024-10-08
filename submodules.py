@@ -7,13 +7,11 @@ from torch import nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.profiler import profile, record_function, ProfilerActivity
-from kornia.color import rgb_to_hsv 
 import torchgan.layers as gg
 from torchinfo import summary as torch_summary
 
 from utils import print, default_args, how_many_nans
-from utils_submodule import model_start, model_end, generate_2d_sinusoidal_positions, generate_2d_positional_layers, generate_1d_positional_layers, \
-    init_weights, hsv_to_circular_hue, pad_zeros, var, sample
+from utils_submodule import model_start, model_end, init_weights, pad_zeros, var, sample
 from mtrnn import MTRNN
 
 if __name__ == "__main__":
@@ -30,7 +28,7 @@ class RGBD_IN(nn.Module):
         
         self.args = args 
         
-        image_dims = 4 + self.args.pos_channels + (4 if self.args.use_hsv else 0)
+        image_dims = 4
         
         rgbd_size = (1, image_dims, self.args.image_size, self.args.image_size)
         example = torch.zeros(rgbd_size)
@@ -58,27 +56,7 @@ class RGBD_IN(nn.Module):
         start, episodes, steps, [rgbd] = model_start([(rgbd, "cnn")], self.args.device, self.args.half)
         
         how_many_nans(rgbd, "RGBD IN, rgbd start")
-                
-        #if(self.args.use_hsv):
-        #    hsv = rgb_to_hsv(rgbd[:,:-1]) # Results in NAN
-        #    #print("hsv", torch.isnan(hsv).sum().item())
-        #    hsv = hsv_to_circular_hue(hsv)
-        #    rgbd = torch.cat([rgbd, hsv], dim = 1)
         rgbd = (rgbd * 2) - 1
-        
-        how_many_nans(rgbd, "RGBD IN, rgbd with hsv")
-                
-        if(self.args.pos_channels != 0):
-            if(self.args.use_trig_pos):
-                positional_layers = generate_2d_sinusoidal_positions(
-                    batch_size = rgbd.shape[0], image_size = rgbd.shape[2], d_model = self.args.pos_channels, device=self.args.device)
-            else:
-                positional_layers = generate_2d_positional_layers(rgbd.shape[0], rgbd.shape[2], device=self.args.device)        
-            if(self.args.half):
-                positional_layers = positional_layers.to(dtype=torch.float16)    
-            rgbd = torch.cat([rgbd, positional_layers], dim = 1)
-            
-            how_many_nans(rgbd, "RGBD IN, rgbd with positions")
                 
         a = self.a(rgbd).flatten(1)
         
@@ -124,12 +102,12 @@ class RGBD_OUT(nn.Module):
                 out_features = self.out_features_channels * (self.args.image_size//self.args.divisions) * (self.args.image_size//self.args.divisions)))
         
         self.b = nn.Sequential(
-            nn.BatchNorm2d(self.out_features_channels + self.args.pos_channels),
+            nn.BatchNorm2d(self.out_features_channels),
             nn.PReLU(),
             nn.Dropout(self.args.dropout),
             
             nn.Conv2d(
-                in_channels = self.out_features_channels + self.args.pos_channels, 
+                in_channels = self.out_features_channels, 
                 out_channels = 4 * (1 if self.args.divisions == 1 else 2 ** self.args.divisions),
                 kernel_size = 3,
                 padding = 1,
@@ -149,17 +127,6 @@ class RGBD_OUT(nn.Module):
         a = self.a(h_w_action)
         a = a.reshape(episodes * steps, self.out_features_channels, self.args.image_size//self.args.divisions, self.args.image_size//self.args.divisions)
         
-        if(self.args.pos_channels != 0):
-            if(self.args.use_trig_pos):
-                positional_layers = generate_2d_sinusoidal_positions(
-                    batch_size = a.shape[0], image_size = self.args.image_size//self.args.divisions, d_model = self.args.pos_channels, device=self.args.device)
-            else:
-                positional_layers = generate_2d_positional_layers(
-                    a.shape[0], self.args.image_size//self.args.divisions, device=self.args.device)
-            if(self.args.half):
-                positional_layers = positional_layers.to(dtype=torch.float16)    
-                
-            a = torch.cat([a, positional_layers], dim = 1)
         rgbd = self.b(a)
         rgbd = (rgbd + 1) / 2
                 
@@ -372,7 +339,7 @@ class Comm_OUT(nn.Module):
             nn.Dropout(self.args.dropout))
             
         self.b = nn.GRU(
-            input_size = self.args.hidden_size + self.args.max_comm_len,
+            input_size = self.args.hidden_size,
             hidden_size = self.args.hidden_size,
             batch_first = True)
         
@@ -400,10 +367,6 @@ class Comm_OUT(nn.Module):
         h_w_action = h_w_action.reshape(episodes * steps, self.args.h_w_action_size)
         a = self.a(h_w_action)
         a = a.reshape(episodes * steps, self.args.max_comm_len, self.args.hidden_size)
-        positional_layers = generate_1d_positional_layers(episodes * steps, self.args.max_comm_len, self.args.device)
-        if(self.args.half):
-            positional_layers = positional_layers.to(dtype=torch.float16)  
-        a = torch.cat([a, positional_layers.squeeze(1)], dim = -1)
         b, _ = self.b(a)
         
         if(self.actor):

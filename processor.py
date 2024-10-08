@@ -112,12 +112,8 @@ class Processor_Runner:
     def act(self, action, agent_1 = True, verbose = False, sleep_time = None):
         if(agent_1): arena = self.arena_1
         else:        arena = self.arena_2
-        left_wheel, right_wheel, left_shoulder = \
-            action[0].item(), action[1].item(), action[2].item()
-        if(self.args.two_arms):
-            right_shoulder = action[3].item()
-        else: 
-            right_shoulder = None
+        left_wheel, right_wheel, left_shoulder, right_shoulder = \
+            action[0].item(), action[1].item(), action[2].item(), action[3].item()
                   
         if(verbose): 
             print("\n\nStep {}:".format(self.steps))
@@ -147,7 +143,7 @@ class Processor_Runner:
         if(end and not win): 
             done = True
             goal_task = self.arena_1.goal[0]
-            if(task_map[goal_task][1].upper() != "FREE_PLAY"):
+            if(task_map[goal_task][1].upper() != "FREEPLAY"):
                 raw_reward += self.args.step_lim_punishment # STOP THIS IN FREE PLAY!
             if(verbose):
                 print("Episode end!", end = " ")

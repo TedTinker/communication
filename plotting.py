@@ -223,9 +223,9 @@ def plots(plot_dicts, min_max_dict):
         task_name_list = []
         for key in plot_dict.keys():
             if(key.startswith("wins_")):
-                if(key[5:] != "free_play"):
+                if(key[5:] != "FREEPLAY"):
                     task_name_list.append(key[5:])
-                    
+                                        
         fig2, ax2 = plt.subplots(len(task_name_list), 2, figsize = (20, 30))
         fig2.suptitle(plot_dict["arg_title"])  
         fig2_row_num = 0
@@ -233,11 +233,11 @@ def plots(plot_dicts, min_max_dict):
         for task_name in task_name_list:
             
             def get_rolled_wins(gen = False):
-                wins = plot_dict[f"{'gen_' if gen else ''}wins_" + task_name.lower()]
+                wins = plot_dict[f"{'gen_' if gen else ''}wins_" + task_name]
                 wins = np.array(wins)
                 wins_rolled = rolling_average_with_none(wins) * 100
-                plot_dict[f"{'gen_' if gen else ''}wins_rolled_" + task_name.lower()] = wins_rolled
-                win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + task_name.lower(), levels = levels, adjust_xs = None)
+                plot_dict[f"{'gen_' if gen else ''}wins_rolled_" + task_name] = wins_rolled
+                win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + task_name, levels = levels, adjust_xs = None)
                 return(win_dict)
             
             win_dict = get_rolled_wins()
@@ -409,7 +409,7 @@ def plots(plot_dicts, min_max_dict):
         ax2[0].set_title("Actor, Critic Losses")
         plot_other_losses(ax2[1], min_max = True)  
         ax2[1].set_title("Actor, Critic Losses, shared min/max")
-        fig2.savefig(f"thesis_pics/other_losses/actor_critic_losses_{task_name.lower()}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
+        fig2.savefig(f"thesis_pics/other_losses/actor_critic_losses_{task_name}_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished other losses.")

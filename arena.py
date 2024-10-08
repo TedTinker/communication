@@ -53,8 +53,6 @@ bottom = -top
 agent_upper_starting_pos = 2.02
 object_upper_starting_pos = 1.12
 object_lower_starting_pos = -8.85
-cube_upper_starting_pos = 2
-cube_lower_start_pos = -8
 
 if(__name__ == "__main__"):
     sensor_alpha = .5
@@ -70,12 +68,8 @@ class Arena():
         self.objects_in_play = {}
         self.watching = {}
         
-        if(self.args.cube_objects):
-            self.upper_starting_pos = cube_upper_starting_pos
-            self.lower_starting_pos = cube_lower_start_pos
-        else:
-            self.upper_starting_pos = object_upper_starting_pos
-            self.lower_starting_pos = object_lower_starting_pos
+        self.upper_starting_pos = object_upper_starting_pos
+        self.lower_starting_pos = object_lower_starting_pos
         
         # Make floor and lower level.
         plane_positions = [[0, 0]]
@@ -89,7 +83,7 @@ class Arena():
             
         # Place robot. 
         self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = self.physicsClient)
-        self.robot_index = p.loadURDF("pybullet_data/robot.urdf" if self.args.two_arms else "pybullet_data/easy_robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
+        self.robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
         
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
         p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
@@ -154,28 +148,17 @@ class Arena():
             x, y = random_positions[i]
             p.resetBasePositionAndOrientation(object_index, (x, y, self.upper_starting_pos), (0, 0, 0, 1), physicsClientId = self.physicsClient)
             self.object_faces_up(object_index)
-            
-            if(self.args.cube_objects):
-                p.changeVisualShape(object_index, -1, rgbaColor = (1, 1, 1, 1), physicsClientId = self.physicsClient)
-                for i in range(p.getNumJoints(object_index)):
-                    joint_info = p.getJointInfo(object_index, i, physicsClientId=self.physicsClient)
-                    joint_name = joint_info[1].decode("utf-8")  # Joint name is in byte format, so decode it to a string
-                    if "base" not in joint_name.lower():  # Check if "base" is not in the joint name (case insensitive)
-                        p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId=self.physicsClient)
+                
+            link_name = p.getBodyInfo(object_index)[0].decode('utf-8')
+            if "white" not in link_name.lower():
+                p.changeVisualShape(object_index, -1, rgbaColor = rgba, physicsClientId = self.physicsClient)
             else:
-                
-                
-                
-                link_name = p.getBodyInfo(object_index)[0].decode('utf-8')
-                if "white" not in link_name.lower():
-                    p.changeVisualShape(object_index, -1, rgbaColor = rgba, physicsClientId = self.physicsClient)
-                else:
-                    p.changeVisualShape(object_index, -1, rgbaColor = (1, 1, 1, 1), physicsClientId = self.physicsClient)
-                for i in range(p.getNumJoints(object_index)):
-                    joint_info = p.getJointInfo(object_index, i, physicsClientId=self.physicsClient)
-                    joint_name = joint_info[1].decode("utf-8") 
-                    if "white" not in joint_name.lower(): 
-                        p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId=self.physicsClient)
+                p.changeVisualShape(object_index, -1, rgbaColor = (1, 1, 1, 1), physicsClientId = self.physicsClient)
+            for i in range(p.getNumJoints(object_index)):
+                joint_info = p.getJointInfo(object_index, i, physicsClientId=self.physicsClient)
+                joint_name = joint_info[1].decode("utf-8") 
+                if "white" not in joint_name.lower(): 
+                    p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId=self.physicsClient)
                         
                         
                         
@@ -202,16 +185,14 @@ class Arena():
            for body_part in touch_dict.keys():
                touch_dict[body_part] = 0 
  
-        if(self.args.shoulder_binary):
-            if(left_shoulder < 0): 
-                left_shoulder = -1
-            else:
-                left_shoulder = 1
-            if(self.args.two_arms):
-                if(right_shoulder < 0):
-                    right_shoulder = -1
-                else:
-                    right_shoulder = 1
+        if(left_shoulder < 0): 
+            left_shoulder = -1
+        else:
+            left_shoulder = 1
+        if(right_shoulder < 0):
+            right_shoulder = -1
+        else:
+            right_shoulder = 1
 
         if(verbose): 
             WAITING = input("WAITING")
@@ -230,13 +211,12 @@ class Arena():
                 self.set_shoulder_angle(left_shoulder = self.args.min_shoulder_angle)
                 left_shoulder = 0
                 
-            if(self.args.two_arms):
-                if(right_shoulder_angle > self.args.max_shoulder_angle):
-                    self.set_shoulder_angle(right_shoulder = self.args.max_shoulder_angle)
-                    right_shoulder = 0
-                if(right_shoulder_angle < self.args.min_shoulder_angle):
-                    self.set_shoulder_angle(right_shoulder = self.args.min_shoulder_angle)
-                    right_shoulder = 0
+            if(right_shoulder_angle > self.args.max_shoulder_angle):
+                self.set_shoulder_angle(right_shoulder = self.args.max_shoulder_angle)
+                right_shoulder = 0
+            if(right_shoulder_angle < self.args.min_shoulder_angle):
+                self.set_shoulder_angle(right_shoulder = self.args.min_shoulder_angle)
+                right_shoulder = 0
                 
             touching_now = self.touching_any_object()
             for object_index, touch_dict in touching_now.items():
@@ -287,10 +267,10 @@ class Arena():
         left_shoulder = relative_to(left_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
         left_joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
         p.setJointMotorControl2(self.robot_index, left_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = left_shoulder, physicsClientId=self.physicsClient)
-        if(self.args.two_arms):
-            right_shoulder = relative_to(right_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
-            right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
-            p.setJointMotorControl2(self.robot_index, right_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = right_shoulder, physicsClientId=self.physicsClient)
+
+        right_shoulder = relative_to(right_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
+        right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
+        p.setJointMotorControl2(self.robot_index, right_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = right_shoulder, physicsClientId=self.physicsClient)
         
     def set_shoulder_angle(self, left_shoulder = None, right_shoulder = None):
         if(left_shoulder == None):
@@ -298,7 +278,7 @@ class Arena():
         else:
             limb_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
             p.resetJointState(self.robot_index, limb_index, left_shoulder, physicsClientId=self.physicsClient)
-        if(right_shoulder == None or not self.args.two_arms):
+        if(right_shoulder == None):
             pass 
         else:
             limb_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
@@ -307,11 +287,8 @@ class Arena():
     def get_shoulder_angle(self):
         left_joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
         left_joint_state = p.getJointState(self.robot_index, left_joint_index, physicsClientId=self.physicsClient)
-        if(self.args.two_arms):
-            right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
-            right_joint_state = p.getJointState(self.robot_index, right_joint_index, physicsClientId=self.physicsClient)
-        else:
-            right_joint_state = [0]
+        right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
+        right_joint_state = p.getJointState(self.robot_index, right_joint_index, physicsClientId=self.physicsClient)
         return left_joint_state[0], right_joint_state[0]
         
     def generate_positions(self, n, distence = 4):
@@ -478,8 +455,8 @@ class Arena():
                     break
                             
         [watching, pushing, pulling, lefting, righting] = objects_goals[(goal_color, goal_shape)]
-        if(task_map[goal_task][1] == "FREE_PLAY"):
-            reward = 0 if which_goal_message == " " * self.args.max_comm_len else self.args.free_play_reward
+        if(task_map[goal_task][1] == "FREEPLAY"):
+            reward = 0
             
         if(verbose):
             print(f"\nWhich goal message: \'{which_goal_message}\'")
@@ -487,7 +464,7 @@ class Arena():
             print("Total reward:", reward)
             print("Win:", win)
                         
-        return(reward,win, which_goal_message)
+        return(reward, win, which_goal_message)
     
     def photo_from_above(self):
         pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)

@@ -205,9 +205,7 @@ class PVRNN(nn.Module):
         self.action_in = Action_IN(self.args)
         self.comm_out_in = Comm_IN(self.args)
 
-        self.pvrnn_layer = PVRNN_LAYER(
-            self.args.time_scales[0], 
-            args = self.args)
+        self.pvrnn_layer = PVRNN_LAYER(1, args = self.args)
             
         self.predict_obs = Obs_OUT(args)
         
@@ -335,10 +333,7 @@ class PVRNN(nn.Module):
         
         
 if __name__ == "__main__":
-    
-    args.layers = 1
-    args.time_scales = [1]
-    
+        
     pvrnn = PVRNN(args = args)
     
     print("\n\nPVRNN: ONE LAYER")
@@ -357,7 +352,6 @@ if __name__ == "__main__":
 
     """
     args.layers = 5
-    args.time_scales = [1, 1, 1, 1, 1]
     
     pvrnn = PVRNN(args = args)
     

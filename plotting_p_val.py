@@ -35,15 +35,15 @@ for plot_dict in plot_dicts:
 
     # Final win-rates                 
     for task_name in task_names:
-        wins = plot_dict["wins_" + task_name.lower()]
+        wins = plot_dict["wins_" + task_name]
         wins = np.array(wins)
         wins = wins[:,-1]
-        values_to_plot[args.arg_name]["wins_" + task_name.lower()] = wins
+        values_to_plot[args.arg_name]["wins_" + task_name] = wins
         
-        gen_wins = plot_dict["gen_wins_" + task_name.lower()]
+        gen_wins = plot_dict["gen_wins_" + task_name]
         gen_wins = np.array(gen_wins)  
         gen_wins = gen_wins[:,-1]
-        values_to_plot[args.arg_name]["gen_wins_" + task_name.lower()] = wins
+        values_to_plot[args.arg_name]["gen_wins_" + task_name] = wins
         
     # reward
     reward = plot_dict["reward"]

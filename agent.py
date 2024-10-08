@@ -150,9 +150,9 @@ class Agent:
             "behavior" : [],
             "wins_all" : [],
             "gen_wins_all" : []}
-        for a in task_map.values():
-            self.plot_dict[f"wins_{a[1].lower()}"] = []
-            self.plot_dict[f"gen_wins_{a[1].lower()}"] = []
+        for t in task_map.values():
+            self.plot_dict[f"wins_{t[1]}"] = []
+            self.plot_dict[f"gen_wins_{t[1]}"] = []
             
             
             
@@ -228,11 +228,11 @@ class Agent:
                 if(self.args.show_duration): print("AFTER GEN:", time - prev_time)
             else:
                 self.plot_dict["gen_wins_all"].append(None)
-                win_dict_list = [self.plot_dict["gen_wins_" + task_name.lower()] for task_name in task_name_list]
+                win_dict_list = [self.plot_dict["gen_wins_" + task_name] for task_name in task_name_list]
                 for i, win_dict in enumerate(win_dict_list):
                     win_dict.append(None)
             if(self.epochs % self.args.epochs_per_component_data == 0):
-                self.cget_omponent_data()  
+                self.get_component_data()  
                 time = duration()
                 if(self.args.show_duration): print("AFTER component_data:", time - prev_time)
             if(self.epochs % self.args.epochs_per_episode_dict == 0):
@@ -412,7 +412,7 @@ class Agent:
         to_push_list_1 = []
         prev_action_1 = torch.zeros((1, 1, self.args.action_shape))
         prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
-        hq_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
+        hq_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
         ha_1 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_1 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
         which_goal_message_1 = " " * self.args.max_comm_len
@@ -420,7 +420,7 @@ class Agent:
         to_push_list_2 = []
         prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
         prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
-        hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
+        hq_2 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
         ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
         which_goal_message_2 = " " * self.args.max_comm_len
@@ -465,7 +465,7 @@ class Agent:
         self.plot_dict["reward"].append(complete_reward)
         goal_task = self.processor.processor.goal[0]
         self.plot_dict["wins_all"].append(win)
-        win_dict_list = [self.plot_dict["wins_" + task_name.lower()] for task_name in task_name_list]
+        win_dict_list = [self.plot_dict["wins_" + task_name] for task_name in task_name_list]
         for i, win_dict in enumerate(win_dict_list):
             if(i-1 == goal_task): win_dict.append(win)
             else:                   win_dict.append(None)
@@ -528,7 +528,7 @@ class Agent:
             self.processor.done()
             goal_task = self.processor.processor.goal[0]
             self.plot_dict["gen_wins_all"].append(win)
-            win_dict_list = [self.plot_dict["gen_wins_" + task_name.lower()] for task_name in task_name_list]
+            win_dict_list = [self.plot_dict["gen_wins_" + task_name] for task_name in task_name_list]
             for i, win_dict in enumerate(win_dict_list):
                 if(i-1 == goal_task): 
                     win_dict.append(win)
@@ -537,7 +537,7 @@ class Agent:
             complete_reward = 0
             win = False
             self.plot_dict["gen_wins_all"].append(None) # Changed from win
-            win_dict_list = [self.plot_dict["gen_wins_" + task_name.lower()] for task_name in task_name_list]
+            win_dict_list = [self.plot_dict["gen_wins_" + task_name] for task_name in task_name_list]
             for i, win_dict in enumerate(win_dict_list):
                 win_dict.append(None)
         self.plot_dict["gen_reward"].append(complete_reward)
@@ -603,11 +603,11 @@ class Agent:
                     to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1, \
                     to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2 = self.start_episode()
                         
-                hp_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
-                hq_1 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
+                hp_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
+                hq_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
 
-                hp_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
-                hq_2 = torch.zeros((1, self.args.layers, self.args.pvrnn_mtrnn_size)) 
+                hp_2 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
+                hq_2 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
                                 
                 def save_step(step, hp, hq, action, agent_1 = True):
                     agent_num = 1 if agent_1 else 2
@@ -760,7 +760,7 @@ class Agent:
         rgbd, sensors, comm_in, action, comm_out, reward, done, action, comm_out, mask, all_mask, episodes, steps = batch
         
         hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels = self.forward(
-            torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), 
+            torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
             rgbd, sensors, comm_in, action, comm_out)
         
         comm_zq = comm_zq.view(-1, 128)
@@ -860,7 +860,7 @@ class Agent:
                 
         # Train forward
         hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, activations_3d_pca, activations_3d_tsne, comm_zq, labels = self.forward(
-            torch.zeros((episodes, self.args.layers, self.args.pvrnn_mtrnn_size)), 
+            torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
             rgbd, sensors, comm_in, action, comm_out)
                         
         rgbd_loss = F.binary_cross_entropy(pred_rgbd_q, rgbd[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.rgbd_scaler
@@ -899,7 +899,6 @@ class Agent:
             (accuracy + complexity).backward()
             self.forward_opt.step()
         
-        if(self.args.beta == 0): complexity = None
         torch.cuda.empty_cache()
         
         time = duration()
