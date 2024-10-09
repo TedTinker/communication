@@ -44,6 +44,60 @@ torch.set_printoptions(precision=3, sci_mode=False)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #device = "cpu"
 
+# Adjusting printing for computer-cluster.
+def print(*args, **kwargs):
+    kwargs["flush"] = True
+    builtins.print(*args, **kwargs)
+
+# Adjusting PLT.
+font = {'family' : 'sans-serif',
+        #'weight' : 'bold',
+        'size'   : 22}
+matplotlib.rc('font', **font)
+
+# Duration functions.
+start_time = datetime.datetime.now()
+
+def duration(start_time = start_time):
+    change_time = datetime.datetime.now() - start_time
+    change_time = change_time# - datetime.timedelta(microseconds=change_time.microseconds)
+    return(change_time)
+
+def estimate_total_duration(proportion_completed, start_time=start_time):
+    if(proportion_completed != 0): 
+        so_far = datetime.datetime.now() - start_time
+        estimated_total = so_far / proportion_completed
+        estimated_total = estimated_total - datetime.timedelta(microseconds=estimated_total.microseconds)
+    else: estimated_total = "?:??:??"
+    return(estimated_total)
+
+# Memory functions. 
+def cpu_memory_usage():
+    process = psutil.Process(os.getpid())
+    mem_usage_bytes = process.memory_info().rss  # rss is the Resident Set Size
+    mem_usage_gb = mem_usage_bytes / (1024 ** 3)  # Convert bytes to gigabytes
+    print('memory use:', mem_usage_gb, "gigabytes")
+    
+# Checking robot parts.
+physicsClient = p.connect(p.DIRECT)
+default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
+robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
+sensors = []
+for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
+    joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
+    link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
+    if("sensor" in link_name):
+        sensors.append(link_name)
+p.disconnect(physicsClientId = physicsClient)
+num_sensors = len(sensors)
+
+if(__name__ == "__main__"):
+    print("Sensors:", num_sensors)
+
+
+
+#%%
+
 
 
 class Task:
@@ -63,18 +117,13 @@ class Goal:
     def __init__(self, task, color, shape, parenting):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
-    def one_hots(self):
-        all_zeros = torch.zeros((3, 6 + 6 + 5))
+        one_hots = torch.zeros((3, 6 + 6 + 5))
         for i, char in enumerate([self.task.char, self.color.char, self.shape.char]):
             index = ord(char) - ord('A') + 1
-            all_zeros[i, index] = 1
-        return(all_zeros)
-    
-    def token_text(self):
-        return(f"{self.task.char}{self.color.char}{self.shape.char}") 
-    
-    def human_test(self):
-        return(f"{self.task.name} {self.color.name} {self.shape.name}")
+            one_hots[i, index] = 1
+        self.one_hots = one_hots
+        self.char_text = f"{self.task.char}{self.color.char}{self.shape.char}"
+        self.human_text = f"{self.task.name} {self.color.name} {self.shape.name}"
         
 class To_Push:
     def __init__(self, rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_father_comm, next_mother_comm, done, mask):
@@ -123,35 +172,10 @@ color_name_list = [c[2] for c in color_map.values()]
 
 data_path = "pybullet_data"
 shape_files = [f.name for f in os.scandir(data_path + "/shapes") if f.name.endswith("urdf")] ; shape_files.sort()
-shape_num_letter_name_file = [[f.split("_")[0], f.split("_")[1], f.split("_")[2][:-5], f] for f in shape_files]
-shape_map = {int(num) : [l, n, f] for num, l, n, f in shape_num_letter_name_file} 
+shape_letter_name_file = [[f.split("_")[0], f.split("_")[1][:-5], f] for f in shape_files]
+shape_map = {i : [l, n, f] for i, (l, n, f) in enumerate(shape_letter_name_file)} 
 max_len_shape_name = max([len(s[1]) for s in shape_map.values()])
 shape_name_list = [s[1] for s in shape_map.values()]
-
-
-
-def agent_to_english(agent_string):
-    if(agent_string == "NONE"):
-        return("NONE")
-    english_string = ""
-    for char in agent_string:
-        translated = False
-        for d in [task_map, color_map, shape_map]:
-            for val in d.values():
-                c = val[0]
-                n = val[1]
-                if(char == c and char != " "):
-                    english_string += n + " "
-                    translated = True
-        if(not translated):
-            if(char == " "):
-                english_string += "___ "
-            else:
-                english_string += f"_{char}_ "
-    english_string = english_string.strip()
-    return(english_string)
-
-
 
 comm_map = {
     0: ' ', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G',
@@ -160,6 +184,25 @@ comm_map = {
     22: 'V', 23: 'W', 24: 'X', 25: 'Y', 26: 'Z'}
 
 char_to_index = {v: k for k, v in comm_map.items()}
+
+
+
+if(__name__ == "__main__"):
+    print("Tasks:")
+    for key, value in task_map.items():
+        print(f"\t{key} : \t {value}")
+    print("Colors:")
+    for key, value in color_map.items():
+        print(f"\t{key} : \t {value}")
+    print("Shapes:")
+    for key, value in shape_map.items():
+        print(f"\t{key} : \t {value}")
+
+
+
+#%%
+
+
 
 all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
 training_combos = [(a, c, s) for (a, c, s) in all_combos if 
@@ -170,6 +213,39 @@ training_combos = [(a, c, s) for (a, c, s) in all_combos if
                    ((s + c) % 2 == 1 and a % 2 == 1)]
 
 testing_combos = [combo for combo in all_combos if not combo in training_combos]
+
+
+
+if(__name__ == "__main__"):
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    import matplotlib.patches as patches
+    for a, task in task_map.items():
+        fig = plt.figure(figsize=(15, 15))
+        fig.suptitle(task[1])
+        gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
+        axs = []
+        for s in range(len(shape_map)):
+            row = []
+            for c in range(len(color_map)):
+                ax = fig.add_subplot(gs[s, c])
+                ax.axis('off')
+                if((a,c,s) in training_combos):
+                    rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
+                    ax.add_patch(rect)
+                color = list(color_map.values())[c][1]
+                shape = list(shape_map.values())[s][1]
+                ax.text(.5, .5, f"{color}\n{shape}", va='center', ha='center', fontsize=20)
+                row.append(ax)
+            axs.append(row)
+        plt.show()
+        plt.close()
+        
+        
+        
+#%%
+
+
 
 def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shapes, test = False):
     if(test == None):
@@ -196,85 +272,20 @@ def make_objects_and_task(num_objects, allowed_tasks, allowed_colors, allowed_sh
     return(task_num, colors_shapes_1, colors_shapes_2)
 
 
-
+        
 if(__name__ == "__main__"):
-    import matplotlib.pyplot as plt
-    import matplotlib.gridspec as gridspec
-    import matplotlib.patches as patches
-    for a, task in task_map.items():
-        fig = plt.figure(figsize=(15, 15))
-        fig.suptitle(task[1])
-        gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
-        axs = []
-        for s in range(len(shape_map)):
-            row = []
-            for c in range(len(color_map)):
-                ax = fig.add_subplot(gs[s, c])
-                ax.axis('off')
-                if((a,c,s) in training_combos):
-                    rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
-                    ax.add_patch(rect)
-                color = list(color_map.values())[c][1]
-                shape = list(shape_map.values())[s][1]
-                ax.text(.5, .5, f"{color}\n{shape}", va='center', ha='center', fontsize=20)
-                row.append(ax)
-            axs.append(row)
-        for ax_2 in [axs[1][1], axs[2][2], axs[3][3], axs[4][5]]:
-            p0 = axs[0][0].get_position()
-            p1 = ax_2.get_position()
-            width, height = p1.x1 - p0.x0, p1.y0 - p0.y1
-            rect = patches.Rectangle((p0.x0, p0.y1), width, height, linewidth=5, edgecolor='black', facecolor='none')
-            fig.add_artist(rect)
-        plt.show()
-        plt.close()
-
-# Adjusting printing for computer-cluster.
-def print(*args, **kwargs):
-    kwargs["flush"] = True
-    builtins.print(*args, **kwargs)
-
-# Adjusting PLT.
-font = {'family' : 'sans-serif',
-        #'weight' : 'bold',
-        'size'   : 22}
-matplotlib.rc('font', **font)
-
-# Duration functions.
-start_time = datetime.datetime.now()
-
-def duration(start_time = start_time):
-    change_time = datetime.datetime.now() - start_time
-    change_time = change_time# - datetime.timedelta(microseconds=change_time.microseconds)
-    return(change_time)
-
-def estimate_total_duration(proportion_completed, start_time=start_time):
-    if(proportion_completed != 0): 
-        so_far = datetime.datetime.now() - start_time
-        estimated_total = so_far / proportion_completed
-        estimated_total = estimated_total - datetime.timedelta(microseconds=estimated_total.microseconds)
-    else: estimated_total = "?:??:??"
-    return(estimated_total)
-
-# Memory functions. 
-def cpu_memory_usage():
-    process = psutil.Process(os.getpid())
-    mem_usage_bytes = process.memory_info().rss  # rss is the Resident Set Size
-    mem_usage_gb = mem_usage_bytes / (1024 ** 3)  # Convert bytes to gigabytes
-    print('memory use:', mem_usage_gb, "gigabytes")
-    
-# Checking robot parts.
-
-physicsClient = p.connect(p.DIRECT)
-default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
-robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
-sensors = []
-for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
-    joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
-    link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
-    if("sensor" in link_name):
-        sensors.append(link_name)
-p.disconnect(physicsClientId = physicsClient)
-num_sensors = len(sensors)
+    print("Train")
+    for i in range(1):
+        print(make_objects_and_task(2, [0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4]))
+    print("\nTest")
+    for i in range(1):
+        print(make_objects_and_task(2, [0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True))
+        
+    print(make_objects_and_task(1, [0], [0], [0]))
+        
+        
+        
+#%% 
 
 
 
@@ -310,12 +321,10 @@ parser.add_argument('--load_agents',                    type=literal,       defa
                     help='Are we loading agents?')    
 
     # Things which have list-values.
-parser.add_argument('--processor_list',                 type=literal,       default = ["fp", "w", "wpulr"],
+parser.add_argument('--processor_list',                 type=literal,       default = ["w"], # ["fp", "w", "wpulr"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+parser.add_argument('--epochs',                         type=literal,       default = [10000], # [100, 50, 300], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each processor.')
-parser.add_argument("--hidden_state_eta",               type=literal,       default = [5],
-                    help='Nonnegative values, how much to consider hidden_state curiosity in each upper layer.') 
 
     # Simulation details
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
@@ -352,18 +361,8 @@ parser.add_argument('--max_steps',                      type=int,           defa
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
                     help='Extrinsic punishment for taking max_steps steps.')
-parser.add_argument('--wrong_object_punishment',        type=float,         default = 0,
-                    help='Extrinsic punishment for choosing any task with wrong object.') 
 parser.add_argument('--step_cost',                      type=float,         default = .975,
                     help='How much extrinsic rewards for exiting are reduced per step.')
-parser.add_argument('--actions',                        type=int,           default = 5,
-                    help='Maximum count of actions in one episode.')
-parser.add_argument('--objects',                        type=int,           default = 2,
-                    help='Maximum count of objects in one episode.')
-parser.add_argument('--shapes',                         type=int,           default = 3, # 5,
-                    help='Maximum count of shapes in one episode.')
-parser.add_argument('--colors',                         type=int,           default = 6,
-                    help='Maximum count of colors in one episode.')
 parser.add_argument('--max_comm_len',                   type=int,           default = 3,
                     help='Maximum length of communication.')
 parser.add_argument('--watch_distance',                 type=float,         default = 8,
@@ -394,14 +393,6 @@ parser.add_argument('--lr',                             type=float,         defa
                     help='Learning rate.')
 parser.add_argument('--critics',                        type=int,           default = 2,
                     help='How many critics?')  
-parser.add_argument('--train_together',                 type=literal,       default = False,
-                    help='Training forward/actor/critics together, or separately?') 
-parser.add_argument('--forward_scaler',                 type=float,         default = 1, 
-                    help='If forward/actor/critic loss are combined, consideration of forward.')  
-parser.add_argument('--actor_scaler',                   type=float,         default = 1, 
-                    help='If forward/actor/critic loss are combined, consideration of actor.')  
-parser.add_argument('--critic_scaler',                  type=float,         default = 1, 
-                    help='If forward/actor/critic loss are combined, consideration of critic.')  
 parser.add_argument("--tau",                            type=float,         default = .1,
                     help='Rate at which target-critics approach critics.')      
 parser.add_argument('--GAMMA',                          type=float,         default = .9,
@@ -448,8 +439,6 @@ parser.add_argument("--alpha_text",                     type=literal,       defa
                     help='Nonnegative value, how much to consider entropy regarding communication. Set to None to use target_entropy_text.')        
 parser.add_argument("--target_entropy_text",            type=float,         default = -2,
                     help='Target for choosing alpha_text if alpha_text set to None. Recommended: negative size of action-space.')      
-parser.add_argument('--action_prior',                   type=str,           default = "normal",
-                    help='The actor can be trained based on normal or uniform distributions.')
 parser.add_argument("--normal_alpha",                   type=float,         default = 0,
                     help='Nonnegative value, how much to consider policy prior.') 
 
@@ -532,7 +521,6 @@ for arg_set in [default_args, args]:
     if(arg_set.comp == "deigo"):
         arg_set.half = False
     arg_set.steps_per_epoch = arg_set.max_steps
-    arg_set.object_shape = arg_set.shapes + arg_set.colors
     arg_set.sensors_shape = num_sensors
     arg_set.sensor_names = sensors
     arg_set.comm_shape = len(comm_map)
@@ -597,7 +585,32 @@ else:
             print("{}:\n\tDefault:\t{}\n\tThis time:\t{}".format(arg, default, this_time))
 
 
-# For printing tensors as what they represent.
+
+#%% 
+
+
+
+def agent_to_english(agent_string):
+    if(agent_string == "NONE"):
+        return("NONE")
+    english_string = ""
+    for char in agent_string:
+        translated = False
+        for d in [task_map, color_map, shape_map]:
+            for val in d.values():
+                c = val[0]
+                n = val[1]
+                if(char == c and char != " "):
+                    english_string += n + " "
+                    translated = True
+        if(not translated):
+            if(char == " "):
+                english_string += "___ "
+            else:
+                english_string += f"_{char}_ "
+    english_string = english_string.strip()
+    return(english_string)
+
 def string_to_onehots(s):
     s = ''.join([char.upper() if char.upper() in char_to_index else ' ' for char in s])
     onehots = []
@@ -632,6 +645,42 @@ def action_to_string(action):
     string += "Right Wheel: {} ".format(round(action[1].item(),2))
     string += "Shoulder: {} ".format(round(action[2].item(),2))
     return(string)
+
+def strings_to_human(strings):
+    human_strings = []
+    for s in strings:
+        human_s = ""
+        for c in s:
+            known = False
+            for d in [task_map, color_map, shape_map]:
+                for val in d.values():
+                    if val[0] == c:
+                        known = True
+                        human_s += val[1] + " "
+            if(not known):
+                human_s += f"_{c}_ "
+        human_strings.append(human_s[:-1])
+    return(human_strings)
+
+
+
+if(__name__ == "__main__"):
+    #task = torch.tensor((0, 0, 0, 0))
+    #print("Task to string:", task_to_string(task))
+    
+    onehots = string_to_onehots(" ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    print("String to onehots:", onehots)
+    
+    many_onehots = torch.stack([onehots, onehots, onehots], dim = 0)
+    strings = many_onehots_to_strings(many_onehots)
+    print("Many onehots to strings:", strings)
+    
+    human_strings = strings_to_human(strings)
+    print("Strings to human:", human_strings)
+
+
+
+#%%
 
 
 

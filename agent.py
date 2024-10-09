@@ -42,6 +42,8 @@ class Agent:
         
         self.agent_num = i
         self.args = args
+        self.total_steps = 0
+        self.total_episodes = 0
         self.total_epochs = 0
         
         if self.args.device.type == "cuda":
@@ -157,7 +159,9 @@ class Agent:
             
             
     def start_physics(self, GUI = False):
-        self.episodes = 0 ; self.epochs = 0 ; self.steps = 0
+        self.steps = 0
+        self.episodes = 0 
+        self.epochs = 0 
         physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
         physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
@@ -436,11 +440,14 @@ class Agent:
             to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1, \
             to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2 = self.start_episode()
                     
+        self.episodes += 1 
+        self.total_episodes += 1
         self.processor = self.processor_runners[self.processor_name]
         self.processor.begin()    
                         
         for step in range(self.args.max_steps):
-            self.steps += 1                                                                                             
+            self.steps += 1                           
+            self.total_steps += 1                                                                  
             if(not done):
                 steps += 1
                 prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
@@ -892,12 +899,9 @@ class Agent:
         if(self.args.show_duration): print("USED FORWARD:", time - prev_time)
         prev_time = time
                                 
-        if(self.args.train_together):
-            complete_loss = self.args.forward_scaler * (accuracy + complexity)
-        else:
-            self.forward_opt.zero_grad()
-            (accuracy + complexity).backward()
-            self.forward_opt.step()
+        self.forward_opt.zero_grad()
+        (accuracy + complexity).backward()
+        self.forward_opt.step()
         
         torch.cuda.empty_cache()
         
@@ -963,12 +967,9 @@ class Agent:
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
             critic_losses.append(critic_loss)
             Qs.append(Q[0,0].item())
-            if(self.args.train_together):
-                complete_loss += self.args.critic_scaler * critic_loss
-            else:
-                self.critic_opts[i].zero_grad()
-                critic_loss.backward()
-                self.critic_opts[i].step()
+            self.critic_opts[i].zero_grad()
+            critic_loss.backward()
+            self.critic_opts[i].step()
         
             self.soft_update(self.critics[i], self.critic_targets[i], self.args.tau)
         
@@ -988,14 +989,13 @@ class Agent:
             else:                            alpha_text = self.args.alpha_text
             new_action, new_comm_out, log_pis, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
             
-            if self.args.action_prior == "normal":
-                loc = torch.zeros(self.args.action_shape, dtype=torch.float64).to(self.args.device).float()
-                n = self.args.action_shape
-                scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device).float()
-                policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
-                policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_action).unsqueeze(-1)
-            elif self.args.action_prior == "uniform":
-                policy_prior_log_prrgbd = 0.0
+            loc = torch.zeros(self.args.action_shape, dtype=torch.float64).to(self.args.device).float()
+            n = self.args.action_shape
+            scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device).float()
+            policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
+            policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_action).unsqueeze(-1)
+
+                
             intrinsic_entropy = torch.mean((alpha * log_pis - policy_prior_log_prrgbd)*mask).item()
                 
             Qs = []
@@ -1013,12 +1013,9 @@ class Agent:
             if(self.args.show_duration): print("USED ACTOR:", time - prev_time)
             prev_time = time
             
-            if(self.args.train_together):
-                complete_loss += self.args.actor_scaler * actor_loss 
-            else:
-                self.actor_opt.zero_grad()
-                actor_loss.backward()
-                self.actor_opt.step()
+            self.actor_opt.zero_grad()
+            actor_loss.backward()
+            self.actor_opt.step()
             
             time = duration()
             if(self.args.show_duration): print("TRAINED ACTOR:", time - prev_time)
@@ -1028,11 +1025,6 @@ class Agent:
             intrinsic_entropy = None
             intrinsic_imitation = None
             actor_loss = None
-            
-        if(self.args.train_together):
-            self.complete_opt.zero_grad()
-            complete_loss.backward()
-            self.complete_opt.step()
         
             
             
@@ -1124,7 +1116,6 @@ class Agent:
         
     
     
-                     
     def soft_update(self, local_model, target_model, tau):
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)

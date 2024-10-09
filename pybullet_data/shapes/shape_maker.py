@@ -104,7 +104,7 @@ letters = ["L", "M", "N", "O", "P"]
 file_names = []
 
 for i in range(len(shapes)):
-    file_name = f"{i}_{letters[i]}_{names[i]}.urdf"
+    file_name = f"{letters[i]}_{names[i]}.urdf"
     shape = shapes[i]
     file_names.append(file_name)
     with open(file_name, 'w') as file:

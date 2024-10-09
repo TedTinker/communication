@@ -107,7 +107,7 @@ class Arena():
         self.loaded = {key : [] for key in shape_map.keys()}
         self.object_indexs = []
         for i, (shape, shape_name, shape_file) in shape_map.items():
-            for j in range(self.args.objects):
+            for j in range(2):
                 pos = (5*i, 5*j, self.lower_starting_pos)
                 object_index = p.loadURDF("pybullet_data/shapes/{}".format(shape_file), pos, p.getQuaternionFromEuler([0, 0, pi/2]), 
                                           useFixedBase=False, globalScaling = self.args.object_size, physicsClientId=self.physicsClient)
@@ -451,7 +451,7 @@ class Arena():
                 # If an task is occuring to the wrong object, stop.
                 else:
                     win = False 
-                    reward = self.args.wrong_object_punishment
+                    reward = 0
                     break
                             
         [watching, pushing, pulling, lefting, righting] = objects_goals[(goal_color, goal_shape)]
