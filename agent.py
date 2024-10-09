@@ -18,7 +18,7 @@ import torch.optim as optim
 from utils import default_args, duration, dkl, onehots_to_string, many_onehots_to_strings, action_to_string, cpu_memory_usage, task_map, color_map, shape_map, task_name_list, print, string_to_onehots, agent_to_english
 from utils_submodule import model_start
 from arena import Arena, get_physics
-from processor import Processor, Processor_Runner
+from processor import Processor
 from buffer import RecurrentReplayBuffer
 from pvrnn import PVRNN
 from models import Actor, Critic
@@ -50,15 +50,26 @@ class Agent:
             print(f"\nIN AGENT: {i} DEVICE: {self.args.device} ({torch.cuda.current_device()} out of {[j for j in range(torch.cuda.device_count())]}, {torch.cuda.get_device_name(torch.cuda.current_device())})\n")
         else:
             print(f"\nIN AGENT: {i} DEVICE: {self.args.device}\n")
+            
+        self.start_physics(GUI) 
         
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.processors = {
-            "fp" :      Processor(tasks = [-1],                objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
-            "w" :       Processor(tasks = [0],                 objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args),
-            "wpulr" :   Processor(tasks = [0, 1, 2, 3, 4],     objects = 2, colors = [0, 1, 2, 3, 4, 5],   shapes = [0, 1, 2, 3, 4],         parenting = True, args = self.args)}
+            "fp" :      Processor(self.arena_1, self.arena_2, tasks = [-1],             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "w" :       Processor(self.arena_1, self.arena_2, tasks = [0],              objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr" :   Processor(self.arena_1, self.arena_2, tasks = [0, 1, 2, 3, 4],  objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args)}
         
-        self.all_processors = {f"{task_map[task][1]}_{color_map[color][1]}_{shape_map[shape][1]}" : Processor(tasks = [task], objects = 1, colors = [color], shapes = [shape], parenting = True, args = self.args) for task, color, shape in product([0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
+        """arena_1, arena_2,
+            tasks = [-1], 
+            objects = 1, 
+            colors = [0], 
+            shapes = [0], 
+            parenting = True, 
+            args = default_args"""
+        
+        self.all_processors = {f"{task_map[task][1]}_{color_map[color][1]}_{shape_map[shape][1]}" : 
+            Processor(self.arena_1, self.arena_2, tasks = [task], objects = 1, colors = [color], shapes = [shape], parenting = True, args = self.args) for task, color, shape in product([0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
         all_processor_names = list(self.all_processors.keys())
         
         def extract_numbers(processor_name):
@@ -108,9 +119,7 @@ class Agent:
         all_params += list(self.actor.parameters())
         for critic in self.critics:
             all_params += list(critic.parameters())
-        self.complete_opt = optim.Adam(all_params, lr=self.args.lr, weight_decay=self.args.weight_decay)      
-        
-        self.start_physics(GUI)  
+        self.complete_opt = optim.Adam(all_params, lr=self.args.lr, weight_decay=self.args.weight_decay)       
         
         self.memory = RecurrentReplayBuffer(self.args)
         self.old_memories = []
@@ -166,10 +175,7 @@ class Agent:
         self.arena_1 = Arena(physicsClient_1, args = self.args)
         physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
         self.arena_2 = Arena(physicsClient_2, args = self.args)
-        self.processor_runners = {processor_name : Processor_Runner(processor, self.arena_1, self.arena_2, self.args) for i, (processor_name, processor) in enumerate(self.processors.items())}
         self.processor_name = self.args.processor_list[0]
-        self.all_processor_runners = {processor_name : Processor_Runner(processor, self.arena_1, self.arena_2, self.args) for i, (processor_name, processor) in enumerate(self.all_processors.items())}
-        self.give_actor_voice()
         
     def give_actor_voice(self):
         self.actor.comm_out.load_state_dict(self.forward.predict_obs.comm_out.state_dict())
@@ -300,10 +306,10 @@ class Agent:
         prev_time = duration()
         with torch.no_grad():
             self.eval()
-            parenting = self.processor.processor.parenting
+            parenting = self.processor.parenting
             rgbd_1, sensors_1, parent_comm = self.processor.obs()
             rgbd_2, sensors_2, _ = self.processor.obs(agent_1 = False)
-            comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_2
+            comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.processor.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_2
             
             time = duration()
             if(self.args.show_duration): print("STEP A:", time - start_time)
@@ -337,7 +343,7 @@ class Agent:
                 sensors_dkl_2 = None
                 comm_dkl_2 = None
             else:
-                comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_1
+                comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.processor.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_1
                 hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, activations_3d_pca_2, activations_3d_tsne_2, comm_zq_2 = self.forward.bottom_to_top(
                     hq_2, 
                     self.forward.rgbd_in(rgbd_2), self.forward.sensors_in(sensors_2), self.forward.comm_in(comm_in_2), 
@@ -364,8 +370,8 @@ class Agent:
             next_rgbd_1, next_sensors_1, next_parent_comm = self.processor.obs()
             next_rgbd_2, next_sensors_2, _ = self.processor.obs(agent_1 = False)
             
-            next_comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
-            next_comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.processor.processor.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
+            next_comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.processor.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
+            next_comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.processor.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
                         
             to_push_1 = [
                 rgbd_1,
@@ -442,7 +448,7 @@ class Agent:
                     
         self.episodes += 1 
         self.total_episodes += 1
-        self.processor = self.processor_runners[self.processor_name]
+        self.processor = self.processors[self.processor_name]
         self.processor.begin()    
                         
         for step in range(self.args.max_steps):
@@ -470,7 +476,7 @@ class Agent:
         self.processor.done()
         self.plot_dict["steps"].append(steps)
         self.plot_dict["reward"].append(complete_reward)
-        goal_task = self.processor.processor.goal[0]
+        goal_task = self.processor.goal[0]
         self.plot_dict["wins_all"].append(win)
         win_dict_list = [self.plot_dict["wins_" + task_name] for task_name in task_name_list]
         for i, win_dict in enumerate(win_dict_list):
@@ -518,7 +524,7 @@ class Agent:
             to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2 = self.start_episode()
                 
         try:
-            self.processor = self.processor_runners[self.processor_name]
+            self.processor = self.processors[self.processor_name]
             self.processor.begin(test = True)        
             for step in range(self.args.max_steps):
                 #print("Step", step)
@@ -533,7 +539,7 @@ class Agent:
             time = duration()
             if(self.args.show_duration): print(f"FULL GEN TEST EPISODE ({step + 1} steps):", time - start_time, "\n")
             self.processor.done()
-            goal_task = self.processor.processor.goal[0]
+            goal_task = self.processor.goal[0]
             self.plot_dict["gen_wins_all"].append(win)
             win_dict_list = [self.plot_dict["gen_wins_" + task_name] for task_name in task_name_list]
             for i, win_dict in enumerate(win_dict_list):
@@ -554,9 +560,9 @@ class Agent:
         
     def save_episodes(self, swapping = False, test = False, sleep_time = None, for_display = False):        
         with torch.no_grad():
-            self.processor = self.processor_runners[self.processor_name]
+            self.processor = self.processors[self.processor_name]
             self.processor.begin(test = test)       
-            comm_from_parent = self.processor.processor.parenting
+            comm_from_parent = self.processor.parenting
             if(self.args.agents_per_episode_dict != -1 and self.agent_num > self.args.agents_per_episode_dict): 
                 return
             for episode_num in range(self.args.episodes_in_episode_dict):
@@ -601,8 +607,8 @@ class Agent:
                     "comm_dkl_2" : [],
                     "which_goal_message_2" : []}
                 
-                episode_dict["processor"] = self.processor.processor
-                episode_dict["goal"] = "'{}' ({})".format(self.processor.processor.goal_text, self.processor.processor.goal_human_text)
+                episode_dict["processor"] = self.processor
+                episode_dict["goal"] = "'{}' ({})".format(self.processor.goal_text, self.processor.goal_human_text)
                 
                 done = False
                 
@@ -627,10 +633,10 @@ class Agent:
                     episode_dict[f"sensors_{agent_num}"].append(sensors.tolist()[0])
                     
                     if(agent_1):
-                        comm_in = which_goal_message_1 if self.processor.processor.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
+                        comm_in = which_goal_message_1 if self.processor.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
                     else:
-                        comm_in = which_goal_message_2 if self.processor.processor.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_1[0,0]
-                    episode_dict[f"comm_in_{agent_num}"].append("'{}' ({})".format(comm_in, self.processor.processor.agent_to_english(comm_in)))
+                        comm_in = which_goal_message_2 if self.processor.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_1[0,0]
+                    episode_dict[f"comm_in_{agent_num}"].append("'{}' ({})".format(comm_in, agent_to_english(comm_in)))
                     
                     if(agent_1):
                         which_goal_message = which_goal_message_1
@@ -646,26 +652,26 @@ class Agent:
                         episode_dict[f"prior_predicted_rgbd_{agent_num}"].append(pred_rgbd_p[0,0][:,:,0:3])
                         episode_dict[f"prior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_p[0,0]])
                         prior_predicted_comm_in = onehots_to_string(pred_comm_in_p[0,0])
-                        episode_dict[f"prior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(prior_predicted_comm_in, self.processor.processor.agent_to_english(prior_predicted_comm_in)))
+                        episode_dict[f"prior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(prior_predicted_comm_in, agent_to_english(prior_predicted_comm_in)))
                         
                         episode_dict[f"posterior_predicted_rgbd_{agent_num}"].append(pred_rgbd_q[0,0][:,:,0:3])
                         posterior_predicted_comm_in = onehots_to_string(pred_comm_in_q[0,0])
                         episode_dict[f"posterior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_q[0,0]])
-                        episode_dict[f"posterior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(posterior_predicted_comm_in, self.processor.processor.agent_to_english(posterior_predicted_comm_in)))
+                        episode_dict[f"posterior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(posterior_predicted_comm_in, agent_to_english(posterior_predicted_comm_in)))
                     
                 def display(step, agent_1 = True, done = False, stopping = False, wait = True):
                     if(for_display):
-                        print(f"\n{self.processor.processor.goal_human_text}", end = " ")
+                        print(f"\n{self.processor.goal_human_text}", end = " ")
                         print("STEP:", step)
                         plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False)
-                        if(not self.processor.processor.parenting and not stopping):
+                        if(not self.processor.parenting and not stopping):
                             display(step, agent_1 = False, stopping = True)
                         if(wait):
                             WAITING = input("WAITING")
                 
                 for step in range(self.args.max_steps + 1):
                     save_step(step, hp_1, hq_1, action = prev_action_1, agent_1 = True)    
-                    if(not self.processor.processor.parenting):
+                    if(not self.processor.parenting):
                         save_step(step, hp_2, hq_2, action = prev_action_2, agent_1 = False)  
                         
                     display(step)
@@ -681,18 +687,18 @@ class Agent:
                     episode_dict["action_1"].append(prev_action_1)
                     episode_dict["action_text_1"].append(action_to_string(prev_action_1))
                     comm_out_1 = onehots_to_string(prev_comm_out_1)
-                    episode_dict["comm_out_1"].append("{} ({})".format(comm_out_1, self.processor.processor.agent_to_english(comm_out_1)))
+                    episode_dict["comm_out_1"].append("{} ({})".format(comm_out_1, agent_to_english(comm_out_1)))
                     episode_dict["rgbd_dkl_1"].append(rgbd_dkl_1.sum().item())
                     episode_dict["sensors_dkl_1"].append(sensors_dkl_1.sum().item())
                     episode_dict["comm_dkl_1"].append(comm_dkl_1.sum().item())
                     episode_dict["critic_predictions_1"].append(values_1)
                     episode_dict["total_reward_1"].append(str(round(total_reward, 3)))
                         
-                    if(not self.processor.processor.parenting):
+                    if(not self.processor.parenting):
                         episode_dict["action_2"].append(prev_action_2)
                         episode_dict["action_text_2"].append(action_to_string(prev_action_2))
                         comm_out_2 = onehots_to_string(prev_comm_out_2)
-                        episode_dict["comm_out_2"].append("{} ({})".format(comm_out_1, self.processor.processor.agent_to_english(comm_out_2)))
+                        episode_dict["comm_out_2"].append("{} ({})".format(comm_out_1, agent_to_english(comm_out_2)))
                         episode_dict["rgbd_dkl_2"].append(rgbd_dkl_2.sum().item())
                         episode_dict["sensors_dkl_2"].append(sensors_dkl_2.sum().item())
                         episode_dict["comm_dkl_2"].append(comm_dkl_2.sum().item())
@@ -701,7 +707,7 @@ class Agent:
                     
                     if(done):
                         save_step(step, hp_1, hq_1, action = prev_action_1, agent_1 = True)    
-                        if(not self.processor.processor.parenting):
+                        if(not self.processor.parenting):
                             save_step(step, hp_2, hq_2, action = prev_action_2, agent_1 = False) 
                         display(step + 1, done = True, wait = False)
                         self.processor.done()
@@ -724,7 +730,7 @@ class Agent:
         temp_memory = RecurrentReplayBuffer(adjusted_args)
         processor_lens = []
         for processor_name in self.all_processor_names:
-            self.processor = self.all_processor_runners[processor_name]
+            self.processor = self.all_processors[processor_name]
             #print(self.processor.processor)
             try:
                 self.processor.begin()    
@@ -851,7 +857,7 @@ class Agent:
         self.epochs += 1
         self.total_epochs += 1
         self.train()
-        parenting = self.processor.processor.parenting
+        parenting = self.processor.parenting
                                 
         batch = self.get_batch(self.memory, batch_size)
         if(batch == False):

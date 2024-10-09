@@ -16,22 +16,25 @@ class Processor:
     
     def __init__(
             self, 
+            arena_1, arena_2,
             tasks = [-1], 
             objects = 1, 
             colors = [0], 
             shapes = [0], 
             parenting = True, 
             args = default_args):
+        
+        self.arena_1 = arena_1 
+        self.arena_2 = arena_2
         self.tasks = tasks
         self.objects = objects 
         self.shapes = shapes
         self.colors = colors
         self.parenting = parenting
         self.args = args
-        
-        self.agent_to_english = agent_to_english
-        
+                
     def begin(self, test = False, verbose = False):
+        self.steps = 0
         self.solved = False
         self.goal = []
         self.current_objects_1 = []
@@ -56,9 +59,12 @@ class Processor:
                 self.goal_human_text += "and "
             elif i == len(self.current_objects_1) - 1:
                 self.goal_human_text += ": "
-        self.goal_human_text += self.agent_to_english(self.goal_text) + "."
+        self.goal_human_text += agent_to_english(self.goal_text) + "."
         self.goal_comm = string_to_onehots(self.goal_text)
         self.goal_comm = pad_zeros(self.goal_comm, self.args.max_comm_len)
+        
+        self.arena_1.begin(self.current_objects_1, self.goal, self.parenting)
+        if(not self.parenting): self.arena_2.begin(self.current_objects_2, self.goal, self.parenting)
                                 
         if(verbose):
             print(self)
@@ -70,23 +76,6 @@ class Processor:
         to_return += "\nGOAL:\t{} ({})".format(onehots_to_string(self.goal_comm), self.goal_human_text)
         return(to_return)
     
-
-
-class Processor_Runner:
-    
-    def __init__(self, processor, arena_1, arena_2, args = default_args):
-        self.args = args
-        self.processor = processor
-        self.parenting = self.processor.parenting
-        self.arena_1 = arena_1 
-        self.arena_2 = arena_2
-        
-    def begin(self, test = False, verbose = False):
-        self.steps = 0
-        self.processor.begin(test, verbose)
-        self.arena_1.begin(self.processor.current_objects_1, self.processor.goal, self.parenting)
-        if(not self.parenting): self.arena_2.begin(self.processor.current_objects_2, self.processor.goal, self.parenting)
-        
     def obs(self, agent_1 = True):
         if(agent_1): arena = self.arena_1
         else:        
@@ -107,7 +96,7 @@ class Processor_Runner:
         #speed = opposite_relative_to(speed, self.args.min_speed, self.args.max_speed)
         sensors = torch.tensor([touched]).float()
                 
-        return(rgbd, sensors, self.processor.goal_comm.unsqueeze(0))
+        return(rgbd, sensors, self.goal_comm.unsqueeze(0))
             
     def act(self, action, agent_1 = True, verbose = False, sleep_time = None):
         if(agent_1): arena = self.arena_1
@@ -174,11 +163,11 @@ if __name__ == "__main__":
     physicsClient = get_physics(GUI = True, time_step = args.time_step, steps_per_step = args.steps_per_step)
     arena_1 = Arena(physicsClient)
     arena_2 = None
-    processor_runner = Processor_Runner(Processor(tasks = [2], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0]), arena_1, arena_2)
+    processor = Processor(arena_1, arena_2, tasks = [2], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0], parenting = True, args = args)
     
     def get_images():
-        rgba = processor_runner.arena_1.photo_from_above()
-        rgbd, _, _ = processor_runner.obs()
+        rgba = processor.arena_1.photo_from_above()
+        rgbd, _, _ = processor.obs()
         rgb = rgbd[0,:,:,0:3]
         d = rgbd[0,:,:,-1]
         return(rgba, rgb, d)
@@ -206,18 +195,18 @@ if __name__ == "__main__":
         i += 1
         
         print("episode", i)
-        processor_runner.begin(verbose = True)
+        processor.begin(verbose = True)
         done = False
         j = 0
         while(done == False):
             j += 1 
             print("step", j)
             example_images(get_images())
-            recommendation = torch.zeros((4,)) # processor_runner.get_recommended_action(verbose = False)#True)
+            recommendation = torch.zeros((4,)) 
             print("Got recommendation:", recommendation)
-            raw_reward, done, win, which_goal_message_1, which_goal_message_2 = processor_runner.step(recommendation, verbose = True)
+            raw_reward, done, win, which_goal_message_1, which_goal_message_2 = processor.step(recommendation, verbose = True)
             print("Done:", done)
-            rgbd, _, _ = processor_runner.obs()
+            rgbd, _, _ = processor.obs()
             rgb = rgbd[0,:,:,0:3]
             plt.imshow(rgb)
             plt.axis('off') 
@@ -226,5 +215,5 @@ if __name__ == "__main__":
             sleep(.1)
         print("Win:", win)
         example_images(get_images())
-        processor_runner.done()
+        processor.done()
 # %%
