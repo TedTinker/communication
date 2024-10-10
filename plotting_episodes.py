@@ -56,7 +56,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
     
     data.append(["Goal", [episode_dict["goal"]], .1])
     if not step == 0:
-        data.append(["Acheived Goal", [episode_dict[f"which_goal_message_{agent_num}"][step-1]], .1])
+        data.append(["Acheived Goal", [episode_dict[f"mother_comm_{agent_num}"][step-1]], .1])
         
     data.append(["Bird's Eye View", [episode_dict[f"birds_eye_{agent_num}"][step], "image"], 1])
     

@@ -6,7 +6,6 @@
 #   action to wheels_shoulders
 #   Implement those classes
 
-
 #   Instead of either goal or free play, two comm in: Father for goal, Mother for description. 
 #   Give actions percentage chances when making a task.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
@@ -104,20 +103,29 @@ class Task:
     def __init__(self, char, name):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
+    def __str__(self):
+        return(f"{self.char}, {self.name}")
+        
 class Color:
     def __init__(self, char, name, rgbd):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
+    def __str__(self):
+        return(f"{self.char}, {self.name}")
+        
 class Shape:
     def __init__(self, char, file_name):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
-        self.name = f.split("_")[-1][:-5]
+        self.name = file_name.split("_")[-1][:-5]
+        
+    def __str__(self):
+        return(f"{self.char}, {self.name}")
         
 class Goal:
     def __init__(self, task, color, shape, parenting):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
-        one_hots = torch.zeros((3, 6 + 6 + 5))
+        one_hots = torch.zeros((3, 27))
         for i, char in enumerate([self.task.char, self.color.char, self.shape.char]):
             index = ord(char) - ord('A') + 1
             one_hots[i, index] = 1
@@ -151,31 +159,31 @@ class Inner_State:
 
 
 task_map = {
-    -1: ["Z", "FREEPLAY"],
-    0:  ["A", "WATCH"],
-    1:  ["B", "PUSH"],     
-    2:  ["C", "PULL"],   
-    3:  ["D", "LEFT"],   
-    4:  ["E", "RIGHT"]}    
-max_len_taskname = max([len(a[1]) for a in task_map.values()])
-task_name_list = [task[1] for task in task_map.values()]
+    0:  Task("A", "FREEPLAY"),
+    1:  Task("B", "WATCH"),
+    2:  Task("C", "PUSH"),     
+    3:  Task("D", "PULL"),   
+    4:  Task("E", "LEFT"),   
+    5:  Task("F", "RIGHT")}    
+max_len_taskname = max([len(t.name) for t in task_map.values()])
+task_name_list = [task.name for task in task_map.values()]
 
 color_map = {
-    0: ["F", "RED",     (1,0,0,1)], 
-    1: ["G", "GREEN",   (0,1,0,1)],
-    2: ["H", "BLUE",    (0,0,1,1)],
-    3: ["I", "CYAN",    (0,1,1,1)], 
-    4: ["J", "PINK",    (1,0,1,1)], 
-    5: ["K", "YELLOW",  (1,1,0,1)]} 
-max_len_color_name = max([len(c[2]) for c in color_map.values()])
-color_name_list = [c[2] for c in color_map.values()]
+    0: Color("G", "RED",     (1,0,0,1)), 
+    1: Color("H", "GREEN",   (0,1,0,1)),
+    2: Color("I", "BLUE",    (0,0,1,1)),
+    3: Color("J", "CYAN",    (0,1,1,1)), 
+    4: Color("K", "PINK",    (1,0,1,1)), 
+    5: Color("L", "YELLOW",  (1,1,0,1))} 
+max_len_color_name = max([len(c.name) for c in color_map.values()])
+color_name_list = [c.name for c in color_map.values()]
 
 data_path = "pybullet_data"
 shape_files = [f.name for f in os.scandir(data_path + "/shapes") if f.name.endswith("urdf")] ; shape_files.sort()
-shape_letter_name_file = [[f.split("_")[0], f.split("_")[1][:-5], f] for f in shape_files]
-shape_map = {i : [l, n, f] for i, (l, n, f) in enumerate(shape_letter_name_file)} 
-max_len_shape_name = max([len(s[1]) for s in shape_map.values()])
-shape_name_list = [s[1] for s in shape_map.values()]
+shape_letter_file = [[f.split("_")[0], f] for f in shape_files]
+shape_map = {i : Shape(l, f) for i, (l, f) in enumerate(shape_letter_file)} 
+max_len_shape_name = max([len(s.name) for s in shape_map.values()])
+shape_name_list = [s.name for s in shape_map.values()]
 
 comm_map = {
     0: ' ', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G',
@@ -206,11 +214,9 @@ if(__name__ == "__main__"):
 
 all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
 training_combos = [(a, c, s) for (a, c, s) in all_combos if 
-                   a == -1 or
-                   (s in [0,1] and c in [0,1]) or
-                   (s == 0 or c == 0) or  
-                   ((s + c) % 2 == 0 and a % 2 == 0) or 
-                   ((s + c) % 2 == 1 and a % 2 == 1)]
+                   a == 0 or
+                   ((s + c) % 2 == 1 and a % 2 == 0) or
+                   ((s + c) % 2 == 0 and a % 2 == 1)]
 
 testing_combos = [combo for combo in all_combos if not combo in training_combos]
 
@@ -222,7 +228,7 @@ if(__name__ == "__main__"):
     import matplotlib.patches as patches
     for a, task in task_map.items():
         fig = plt.figure(figsize=(15, 15))
-        fig.suptitle(task[1])
+        fig.suptitle(task.name)
         gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
         axs = []
         for s in range(len(shape_map)):
@@ -233,8 +239,8 @@ if(__name__ == "__main__"):
                 if((a,c,s) in training_combos):
                     rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
                     ax.add_patch(rect)
-                color = list(color_map.values())[c][1]
-                shape = list(shape_map.values())[s][1]
+                color = list(color_map.values())[c].name
+                shape = list(shape_map.values())[s].name
                 ax.text(.5, .5, f"{color}\n{shape}", va='center', ha='center', fontsize=20)
                 row.append(ax)
             axs.append(row)
@@ -269,17 +275,21 @@ def make_objects_and_task(num_objects, allowed_tasks, allowed_colors, allowed_sh
         colors_shapes_1.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
     for n in range(num_objects-1):
         colors_shapes_2.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
-    return(task_num, colors_shapes_1, colors_shapes_2)
+    
+    task = task_map[task_num]
+    colors_shapes_1 = [(color_map[color_index], shape_map[shape_index]) for color_index, shape_index in colors_shapes_1]
+    colors_shapes_2 = [(color_map[color_index], shape_map[shape_index]) for color_index, shape_index in colors_shapes_2]
+    return(task, colors_shapes_1, colors_shapes_2)
 
 
         
 if(__name__ == "__main__"):
     print("Train")
     for i in range(1):
-        print(make_objects_and_task(2, [0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4]))
+        print(make_objects_and_task(2, [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4]))
     print("\nTest")
     for i in range(1):
-        print(make_objects_and_task(2, [0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True))
+        print(make_objects_and_task(2, [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True))
         
     print(make_objects_and_task(1, [0], [0], [0]))
         
@@ -497,9 +507,12 @@ parser.add_argument('--epochs_per_agent_list',          type=int,           defa
 parser.add_argument('--agents_per_agent_list',          type=int,           default = 3,
                     help='How many agents to save.') 
 
-parser.add_argument('--epochs_per_component_data',        type=int,           default = 2500,
+parser.add_argument('--epochs_per_component_data',      type=int,           default = 2500,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_component_data',       type=int,           default = 1,
+parser.add_argument('--agents_per_component_data',      type=int,           default = 1,
+                    help='How many agents to save episodes.')
+
+parser.add_argument('--agents_per_behavior_analysis',   type=int,           default = 1,
                     help='How many agents to save episodes.')
 
 try:
@@ -654,9 +667,9 @@ def strings_to_human(strings):
             known = False
             for d in [task_map, color_map, shape_map]:
                 for val in d.values():
-                    if val[0] == c:
+                    if val.char == c:
                         known = True
-                        human_s += val[1] + " "
+                        human_s += val.name + " "
             if(not known):
                 human_s += f"_{c}_ "
         human_strings.append(human_s[:-1])
@@ -749,46 +762,6 @@ def dkl(mu_1, std_1, mu_2, std_2):
     out = (.5 * (term_1 + term_2 - term_3 - 1))
     out = torch.nan_to_num(out)
     return(out)
-
-
-
-# For loading and plotting in final files.
-real_names = {
-    "d"  : "No Entropy, No Curiosity",
-    "e"  : "Entropy",
-    "n"  : "Prediction Error Curiosity",
-    "f"  : "Hidden State Curiosity",
-    "i"  : "Imitation",
-    "en" : "Entropy and Prediction Error Curiosity",
-    "ef" : "Entropy and Hidden State Curiosity",
-    "ei" : "Entropy and Imitation",
-    "ni" : "Prediction Error Curiosity and Imitation",
-    "fi" : "Hidden State Curiosity and Imitation",
-    "eni" : "Entropy, Prediction Error Curiosity, and Imitation",
-    "efi" : "Entropy, Hidden State Curiosity, and Imitation"}
-
-def add_this(name):
-    keys, values = [], []
-    for key, value in real_names.items(): keys.append(key) ; values.append(value)
-    for key, value in zip(keys, values):  
-        new_key = key + "_" + name 
-        real_names[new_key] = value
-add_this("hard")
-add_this("many")
-
-short_real_names = {
-    "d"  : "N",
-    "e"  : "E",
-    "n"  : "P",
-    "f"  : "H",
-    "i"  : "I",
-    "en" : "EP",
-    "ef" : "EH",
-    "ei" : "EI",
-    "ni" : "PI",
-    "fi" : "HI",
-    "eni" : "EPI",
-    "efi" : "EHI"}
 
 
 

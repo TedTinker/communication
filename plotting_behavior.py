@@ -1,3 +1,5 @@
+#%%
+
 import os
 import numpy as np
 from itertools import product
@@ -73,3 +75,4 @@ plot_dicts, min_max_dict, complete_order = load_dicts(args)
 for plot_dict in plot_dicts:
     plot_behaviors(plot_dict)
 print(f"\nDuration: {duration()}. Done!")
+# %%

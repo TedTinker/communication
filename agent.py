@@ -56,9 +56,9 @@ class Agent:
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.processors = {
-            "fp" :      Processor(self.arena_1, self.arena_2, tasks = [-1],             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "w" :       Processor(self.arena_1, self.arena_2, tasks = [0],              objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr" :   Processor(self.arena_1, self.arena_2, tasks = [0, 1, 2, 3, 4],  objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args)}
+            "fp" :      Processor(self.arena_1, self.arena_2, tasks = [0],             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "w" :       Processor(self.arena_1, self.arena_2, tasks = [1],              objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr" :   Processor(self.arena_1, self.arena_2, tasks = [1, 2, 3, 4, 5],  objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args)}
         
         """arena_1, arena_2,
             tasks = [-1], 
@@ -68,20 +68,11 @@ class Agent:
             parenting = True, 
             args = default_args"""
         
-        self.all_processors = {f"{task_map[task][1]}_{color_map[color][1]}_{shape_map[shape][1]}" : 
-            Processor(self.arena_1, self.arena_2, tasks = [task], objects = 1, colors = [color], shapes = [shape], parenting = True, args = self.args) for task, color, shape in product([0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
+        self.all_processors = {f"{task_map[task].name}_{color_map[color].name}_{shape_map[shape].name}" : 
+            Processor(self.arena_1, self.arena_2, tasks = [task], objects = 1, colors = [color], shapes = [shape], parenting = True, args = self.args) for task, color, shape in product([1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
         all_processor_names = list(self.all_processors.keys())
-        
-        def extract_numbers(processor_name):
-            task_str, color_str, shape_str = processor_name.split("_")
-            task = next(idx for idx, name in task_map.items() if name[1] == task_str)
-            color = next(idx for idx, name in color_map.items() if name[1] == color_str)
-            shape = next(idx for idx, name in shape_map.items() if name[1] == shape_str)
-            return task, color, shape
-
-        all_processor_names.sort(key=lambda processor: extract_numbers(processor))
         self.all_processor_names = all_processor_names
-                
+                        
         self.lda_task = LDA(n_components=4)
         self.lda_color = LDA(n_components=5)
         self.lda_shape = LDA(n_components=4)
@@ -162,8 +153,8 @@ class Agent:
             "wins_all" : [],
             "gen_wins_all" : []}
         for t in task_map.values():
-            self.plot_dict[f"wins_{t[1]}"] = []
-            self.plot_dict[f"gen_wins_{t[1]}"] = []
+            self.plot_dict[f"wins_{t.name}"] = []
+            self.plot_dict[f"gen_wins_{t.name}"] = []
             
             
             
@@ -238,9 +229,8 @@ class Agent:
                 if(self.args.show_duration): print("AFTER GEN:", time - prev_time)
             else:
                 self.plot_dict["gen_wins_all"].append(None)
-                win_dict_list = [self.plot_dict["gen_wins_" + task_name] for task_name in task_name_list]
-                for i, win_dict in enumerate(win_dict_list):
-                    win_dict.append(None)
+                for task_name in task_name_list:
+                    self.plot_dict["gen_wins_" + task_name].append(None)
             if(self.epochs % self.args.epochs_per_component_data == 0):
                 self.get_component_data()  
                 time = duration()
@@ -299,8 +289,8 @@ class Agent:
     
     
     def step_in_episode(self, 
-                        prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
-                        prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2, sleep_time = None):
+                        prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, mother_comm_1,
+                        prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, mother_comm_2, sleep_time = None):
                     
         start_time = duration()
         prev_time = duration()
@@ -309,7 +299,7 @@ class Agent:
             parenting = self.processor.parenting
             rgbd_1, sensors_1, parent_comm = self.processor.obs()
             rgbd_2, sensors_2, _ = self.processor.obs(agent_1 = False)
-            comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.processor.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_2
+            comm_in_1 = string_to_onehots(mother_comm_1).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else parent_comm.unsqueeze(0) if parenting else prev_comm_out_2
             
             time = duration()
             if(self.args.show_duration): print("STEP A:", time - start_time)
@@ -343,7 +333,7 @@ class Agent:
                 sensors_dkl_2 = None
                 comm_dkl_2 = None
             else:
-                comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.processor.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_1
+                comm_in_2 = string_to_onehots(mother_comm_2).unsqueeze(0).unsqueeze(0) if self.processor.goal[0] == -1 else parent_comm.unsqueeze(0) if parenting else prev_comm_out_1
                 hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, activations_3d_pca_2, activations_3d_tsne_2, comm_zq_2 = self.forward.bottom_to_top(
                     hq_2, 
                     self.forward.rgbd_in(rgbd_2), self.forward.sensors_in(sensors_2), self.forward.comm_in(comm_in_2), 
@@ -359,7 +349,7 @@ class Agent:
             if(self.args.show_duration): print("\nUP TO STEP:", time - prev_time)
             prev_time = time
             
-            raw_reward, done, win, which_goal_message_1, which_goal_message_2 = self.processor.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
+            raw_reward, done, win, mother_comm_1, mother_comm_2 = self.processor.step(action_1[0,0].clone(), action_2[0,0].clone(), sleep_time = sleep_time)
             
             time = duration()
             if(self.args.show_duration): print("AFTER STEP:", time - prev_time)
@@ -370,8 +360,8 @@ class Agent:
             next_rgbd_1, next_sensors_1, next_parent_comm = self.processor.obs()
             next_rgbd_2, next_sensors_2, _ = self.processor.obs(agent_1 = False)
             
-            next_comm_in_1 = string_to_onehots(which_goal_message_1).unsqueeze(0).unsqueeze(0) if self.processor.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
-            next_comm_in_2 = string_to_onehots(which_goal_message_2).unsqueeze(0).unsqueeze(0) if self.processor.goal[0] == -1 else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
+            next_comm_in_1 = string_to_onehots(mother_comm_1).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
+            next_comm_in_2 = string_to_onehots(mother_comm_2).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
                         
             to_push_1 = [
                 rgbd_1,
@@ -405,8 +395,8 @@ class Agent:
         if(self.args.show_duration): print("COMPLETE STEP:", time - start_time, "\n")
         prev_time = time
         
-        return(action_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), ha_1, new_hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1,
-               action_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), ha_2, new_hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2,
+        return(action_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), ha_1, new_hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, mother_comm_1,
+               action_2, comm_out_2, values_2, None if hp_2 == None else hp_2.squeeze(1), None if hq_2 == None else hq_2.squeeze(1), ha_2, new_hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, mother_comm_2,
                raw_reward, total_reward, total_reward_2, done, win, to_push_1, to_push_2)
             
            
@@ -425,7 +415,7 @@ class Agent:
         hq_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
         ha_1 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_1 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-        which_goal_message_1 = " " * self.args.max_comm_len
+        mother_comm_1 = " " * self.args.max_comm_len
         
         to_push_list_2 = []
         prev_action_2 = torch.zeros((1, 1, self.args.action_shape))
@@ -433,18 +423,18 @@ class Agent:
         hq_2 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
         ha_2 = torch.zeros((1, 1, self.args.hidden_size)) 
         hcs_2 = [torch.zeros((1, 1, self.args.hidden_size))] * self.args.critics
-        which_goal_message_2 = " " * self.args.max_comm_len
+        mother_comm_2 = " " * self.args.max_comm_len
                 
         return(start_time, prev_time, done, complete_reward, steps, 
-               to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
-               to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
+               to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, mother_comm_1,
+               to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, mother_comm_2)
            
            
     
     def training_episode(self):        
         start_time, prev_time, done, complete_reward, steps, \
-            to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1, \
-            to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2 = self.start_episode()
+            to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, mother_comm_1, \
+            to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, mother_comm_2 = self.start_episode()
                     
         self.episodes += 1 
         self.total_episodes += 1
@@ -456,11 +446,11 @@ class Agent:
             self.total_steps += 1                                                                  
             if(not done):
                 steps += 1
-                prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
-                    prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
+                prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, mother_comm_1, \
+                    prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, mother_comm_2, \
                         raw_reward, total_reward, total_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                            prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
-                            prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
+                            prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, mother_comm_1,
+                            prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, mother_comm_2)
                         
                 to_push_list_1.append(to_push_1)
                 to_push_list_2.append(to_push_2)
@@ -476,12 +466,17 @@ class Agent:
         self.processor.done()
         self.plot_dict["steps"].append(steps)
         self.plot_dict["reward"].append(complete_reward)
-        goal_task = self.processor.goal[0]
+        goal_task = self.processor.goal.task.name
         self.plot_dict["wins_all"].append(win)
-        win_dict_list = [self.plot_dict["wins_" + task_name] for task_name in task_name_list]
-        for i, win_dict in enumerate(win_dict_list):
-            if(i-1 == goal_task): win_dict.append(win)
-            else:                   win_dict.append(None)
+        "adding win to wins_all"
+        for task_name in task_name_list:
+            print(task_name, goal_task)
+            if(task_name == goal_task): 
+                print("adding win")
+                self.plot_dict["wins_" + task_name].append(win)
+            else:                
+                print("adding none")       
+                self.plot_dict["wins_" + task_name].append(None)
                              
         for to_push in to_push_list_1:
             rgbd, sensors, comm_in, action, comm_out, total_reward, next_rgbd, next_sensors, next_comm_in, done = to_push
@@ -520,8 +515,8 @@ class Agent:
         
     def gen_test(self):
         start_time, prev_time, done, complete_reward, steps, \
-            to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1, \
-            to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2 = self.start_episode()
+            to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, mother_comm_1, \
+            to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, mother_comm_2 = self.start_episode()
                 
         try:
             self.processor = self.processors[self.processor_name]
@@ -529,30 +524,29 @@ class Agent:
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
-                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
-                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
+                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, mother_comm_1, \
+                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, mother_comm_2, \
                             raw_reward, total_reward, total_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
-                                prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
+                                prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, mother_comm_1,
+                                prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, mother_comm_2)
                     complete_reward += total_reward
                 #print("DONE")
             time = duration()
             if(self.args.show_duration): print(f"FULL GEN TEST EPISODE ({step + 1} steps):", time - start_time, "\n")
             self.processor.done()
-            goal_task = self.processor.goal[0]
+            goal_task = self.processor.goal.task.name
             self.plot_dict["gen_wins_all"].append(win)
-            win_dict_list = [self.plot_dict["gen_wins_" + task_name] for task_name in task_name_list]
-            for i, win_dict in enumerate(win_dict_list):
-                if(i-1 == goal_task): 
-                    win_dict.append(win)
-                else: win_dict.append(None)
+            for task_name in task_name_list:
+                if(task_name == goal_task): 
+                    self.plot_dict["gen_wins_" + task_name].append(win)
+                else:                       
+                    self.plot_dict["gen_wins_" + task_name].append(None)
         except:
             complete_reward = 0
             win = False
-            self.plot_dict["gen_wins_all"].append(None) # Changed from win
-            win_dict_list = [self.plot_dict["gen_wins_" + task_name] for task_name in task_name_list]
-            for i, win_dict in enumerate(win_dict_list):
-                win_dict.append(None)
+            self.plot_dict["gen_wins_all"].append(None)
+            for task_name in task_name_list:
+                self.plot_dict["gen_wins_" + task_name].append(win)
         self.plot_dict["gen_reward"].append(complete_reward)
         return(win)
         
@@ -586,7 +580,7 @@ class Agent:
                     "rgbd_dkl_1" : [],
                     "sensors_dkl_1" : [],
                     "comm_dkl_1" : [],
-                    "which_goal_message_1" : [],
+                    "mother_comm_1" : [],
                     "rgbd_2" : [],
                     "sensors_2" : [],
                     "comm_in_2" : [],
@@ -605,7 +599,7 @@ class Agent:
                     "rgbd_dkl_2" : [],
                     "sensors_dkl_2" : [],
                     "comm_dkl_2" : [],
-                    "which_goal_message_2" : []}
+                    "mother_comm_2" : []}
                 
                 episode_dict["processor"] = self.processor
                 episode_dict["goal"] = "'{}' ({})".format(self.processor.goal_text, self.processor.goal_human_text)
@@ -613,8 +607,8 @@ class Agent:
                 done = False
                 
                 start_time, prev_time, done, complete_reward, steps, \
-                    to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1, \
-                    to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2 = self.start_episode()
+                    to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, mother_comm_1, \
+                    to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, mother_comm_2 = self.start_episode()
                         
                 hp_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
                 hq_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
@@ -633,16 +627,16 @@ class Agent:
                     episode_dict[f"sensors_{agent_num}"].append(sensors.tolist()[0])
                     
                     if(agent_1):
-                        comm_in = which_goal_message_1 if self.processor.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
+                        comm_in = mother_comm_1 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
                     else:
-                        comm_in = which_goal_message_2 if self.processor.goal[0] == -1 else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_1[0,0]
-                    episode_dict[f"comm_in_{agent_num}"].append("'{}' ({})".format(comm_in, agent_to_english(comm_in)))
+                        comm_in = mother_comm_2 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_1[0,0]
+                    episode_dict[f"comm_in_{agent_num}"].append("'{}' ({})".format(comm_in, comm_in))
                     
                     if(agent_1):
-                        which_goal_message = which_goal_message_1
+                        mother_comm = mother_comm_1
                     else:
-                        which_goal_message = which_goal_message_2
-                    episode_dict[f"which_goal_message_{agent_num}"].append(agent_to_english(which_goal_message))
+                        mother_comm = mother_comm_2
+                    episode_dict[f"mother_comm_{agent_num}"].append(mother_comm)
                     
                     if(step != 0):
                         
@@ -652,12 +646,12 @@ class Agent:
                         episode_dict[f"prior_predicted_rgbd_{agent_num}"].append(pred_rgbd_p[0,0][:,:,0:3])
                         episode_dict[f"prior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_p[0,0]])
                         prior_predicted_comm_in = onehots_to_string(pred_comm_in_p[0,0])
-                        episode_dict[f"prior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(prior_predicted_comm_in, agent_to_english(prior_predicted_comm_in)))
+                        episode_dict[f"prior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(prior_predicted_comm_in, prior_predicted_comm_in))
                         
                         episode_dict[f"posterior_predicted_rgbd_{agent_num}"].append(pred_rgbd_q[0,0][:,:,0:3])
                         posterior_predicted_comm_in = onehots_to_string(pred_comm_in_q[0,0])
                         episode_dict[f"posterior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_q[0,0]])
-                        episode_dict[f"posterior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(posterior_predicted_comm_in, agent_to_english(posterior_predicted_comm_in)))
+                        episode_dict[f"posterior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(posterior_predicted_comm_in, posterior_predicted_comm_in))
                     
                 def display(step, agent_1 = True, done = False, stopping = False, wait = True):
                     if(for_display):
@@ -676,18 +670,18 @@ class Agent:
                         
                     display(step)
                     
-                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
-                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
+                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, mother_comm_1, \
+                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, mother_comm_2, \
                             raw_reward, total_reward, total_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
-                                prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2, sleep_time) 
+                                prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, mother_comm_1,
+                                prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, mother_comm_2, sleep_time) 
                             
                     episode_dict["raw_reward"].append(str(round(raw_reward, 3)))
                     
                     episode_dict["action_1"].append(prev_action_1)
                     episode_dict["action_text_1"].append(action_to_string(prev_action_1))
                     comm_out_1 = onehots_to_string(prev_comm_out_1)
-                    episode_dict["comm_out_1"].append("{} ({})".format(comm_out_1, agent_to_english(comm_out_1)))
+                    episode_dict["comm_out_1"].append("{} ({})".format(comm_out_1, comm_out_1))
                     episode_dict["rgbd_dkl_1"].append(rgbd_dkl_1.sum().item())
                     episode_dict["sensors_dkl_1"].append(sensors_dkl_1.sum().item())
                     episode_dict["comm_dkl_1"].append(comm_dkl_1.sum().item())
@@ -698,7 +692,7 @@ class Agent:
                         episode_dict["action_2"].append(prev_action_2)
                         episode_dict["action_text_2"].append(action_to_string(prev_action_2))
                         comm_out_2 = onehots_to_string(prev_comm_out_2)
-                        episode_dict["comm_out_2"].append("{} ({})".format(comm_out_1, agent_to_english(comm_out_2)))
+                        episode_dict["comm_out_2"].append("{} ({})".format(comm_out_1, comm_out_2))
                         episode_dict["rgbd_dkl_2"].append(rgbd_dkl_2.sum().item())
                         episode_dict["sensors_dkl_2"].append(sensors_dkl_2.sum().item())
                         episode_dict["comm_dkl_2"].append(comm_dkl_2.sum().item())
@@ -737,17 +731,17 @@ class Agent:
             except:
                 self.processor.begin(test = True)    
             start_time, prev_time, done, complete_reward, steps, \
-                to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1, \
-                to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2 = self.start_episode()
+                to_push_list_1, prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, mother_comm_1, \
+                to_push_list_2, prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, mother_comm_2 = self.start_episode()
      
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
-                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, which_goal_message_1, \
-                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, which_goal_message_2, \
+                    prev_action_1, prev_comm_out_1, values_1, hp_1, hq_1, ha_1, hcs_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, mother_comm_1, \
+                        prev_action_2, prev_comm_out_2, values_2, hp_2, hq_2, ha_2, hcs_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, mother_comm_2, \
                             raw_reward, total_reward, total_reward_2, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, which_goal_message_1,
-                                prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, which_goal_message_2)
+                                prev_action_1, prev_comm_out_1, hq_1, ha_1, hcs_1, mother_comm_1,
+                                prev_action_2, prev_comm_out_2, hq_2, ha_2, hcs_2, mother_comm_2)
                 to_push_list_1.append(to_push_1)
                 if(done): break
             #print("DONE")
