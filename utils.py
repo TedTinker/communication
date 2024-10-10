@@ -321,9 +321,9 @@ parser.add_argument('--load_agents',                    type=literal,       defa
                     help='Are we loading agents?')    
 
     # Things which have list-values.
-parser.add_argument('--processor_list',                 type=literal,       default = ["w"], # ["fp", "w", "wpulr"],
+parser.add_argument('--processor_list',                 type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [10000], # [100, 50, 300], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+parser.add_argument('--epochs',                         type=literal,       default = [100, 50, 300], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each processor.')
 
     # Simulation details
