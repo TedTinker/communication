@@ -98,7 +98,7 @@ class RGBD_OUT(nn.Module):
         
         self.a = nn.Sequential(
             nn.Linear(
-                in_features = self.args.h_w_action_size,
+                in_features = self.args.h_w_wheels_shoulders_size,
                 out_features = self.out_features_channels * (self.args.image_size//self.args.divisions) * (self.args.image_size//self.args.divisions)))
         
         self.b = nn.Sequential(
@@ -121,10 +121,10 @@ class RGBD_OUT(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, h_w_action):
-        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
+    def forward(self, h_w_wheels_shoulders):
+        start, episodes, steps, [h_w_wheels_shoulders] = model_start([(h_w_wheels_shoulders, "lin")], self.args.device, self.args.half)
         
-        a = self.a(h_w_action)
+        a = self.a(h_w_wheels_shoulders)
         a = a.reshape(episodes * steps, self.out_features_channels, self.args.image_size//self.args.divisions, self.args.image_size//self.args.divisions)
         
         rgbd = self.b(a)
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(rgbd_out, 
-                                (episodes, steps, args.h_w_action_size)))
+                                (episodes, steps, args.h_w_wheels_shoulders_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
 #%%
@@ -208,7 +208,7 @@ class Sensors_OUT(nn.Module):
         
         self.a = nn.Sequential(
             nn.Linear(
-                in_features = self.args.h_w_action_size,
+                in_features = self.args.h_w_wheels_shoulders_size,
                 out_features = self.args.sensors_shape),
             nn.Tanh())
         
@@ -218,9 +218,9 @@ class Sensors_OUT(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, h_w_action):
-        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
-        sensors = self.a(h_w_action)
+    def forward(self, h_w_wheels_shoulders):
+        start, episodes, steps, [h_w_wheels_shoulders] = model_start([(h_w_wheels_shoulders, "lin")], self.args.device, self.args.half)
+        sensors = self.a(h_w_wheels_shoulders)
         sensors = (sensors + 1) / 2
         [sensors] = model_end(start, episodes, steps, [(sensors, "lin")], "SENSORS_OUT" if self.args.show_duration else None)
         return(sensors)
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(sensors_out, 
-                                (episodes, steps, args.h_w_action_size)))
+                                (episodes, steps, args.h_w_wheels_shoulders_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 
 
@@ -332,7 +332,7 @@ class Comm_OUT(nn.Module):
         
         self.a = nn.Sequential(
             nn.Linear(
-                in_features = self.args.h_w_action_size, 
+                in_features = self.args.h_w_wheels_shoulders_size, 
                 out_features = self.args.hidden_size * self.args.max_comm_len),
             nn.BatchNorm1d(self.args.hidden_size * self.args.max_comm_len),
             nn.PReLU(),
@@ -360,12 +360,12 @@ class Comm_OUT(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
                 
-    def forward(self, h_w_action):
+    def forward(self, h_w_wheels_shoulders):
         
-        start, episodes, steps, [h_w_action] = model_start([(h_w_action, "lin")], self.args.device, self.args.half)
+        start, episodes, steps, [h_w_wheels_shoulders] = model_start([(h_w_wheels_shoulders, "lin")], self.args.device, self.args.half)
                 
-        h_w_action = h_w_action.reshape(episodes * steps, self.args.h_w_action_size)
-        a = self.a(h_w_action)
+        h_w_wheels_shoulders = h_w_wheels_shoulders.reshape(episodes * steps, self.args.h_w_wheels_shoulders_size)
+        a = self.a(h_w_wheels_shoulders)
         a = a.reshape(episodes * steps, self.args.max_comm_len, self.args.hidden_size)
         b, _ = self.b(a)
         
@@ -399,7 +399,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(comm_out, 
-                                (episodes, steps, args.h_w_action_size)))
+                                (episodes, steps, args.h_w_wheels_shoulders_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 
 #%%
@@ -466,10 +466,10 @@ class Obs_OUT(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, h_w_action):
-        rgbd_pred = self.rgbd_out(h_w_action)
-        sensors_pred = self.sensors_out(h_w_action)
-        comm_pred = self.comm_out(h_w_action)
+    def forward(self, h_w_wheels_shoulders):
+        rgbd_pred = self.rgbd_out(h_w_wheels_shoulders)
+        sensors_pred = self.sensors_out(h_w_wheels_shoulders)
+        comm_pred = self.comm_out(h_w_wheels_shoulders)
         return(rgbd_pred, sensors_pred, comm_pred)
     
     
@@ -484,25 +484,25 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(obs_out, 
-                                (episodes, steps, args.h_w_action_size)))
+                                (episodes, steps, args.h_w_wheels_shoulders_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
 #%%
     
     
     
-class Action_IN(nn.Module):
+class Wheels_Shoulders_IN(nn.Module):
     
     def __init__(self, args = default_args):
-        super(Action_IN, self).__init__()
+        super(Wheels_Shoulders_IN, self).__init__()
         
         self.args = args 
         
         self.a = nn.Sequential(
             nn.Linear(
-                in_features = self.args.action_shape, 
-                out_features = self.args.action_encode_size),
-            #nn.BatchNorm1d(self.args.encode_action_size),
+                in_features = self.args.wheels_shoulders_shape, 
+                out_features = self.args.wheels_shoulders_encode_size),
+            #nn.BatchNorm1d(self.args.encode_wheels_shoulders_size),
             nn.PReLU())
         
         self.apply(init_weights)
@@ -511,10 +511,10 @@ class Action_IN(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, action):
-        start, episodes, steps, [action] = model_start([(action, "lin")], self.args.device, self.args.half)
-        encoded = self.a(action)
-        [encoded] = model_end(start, episodes, steps, [(encoded, "lin")], "ACTION_IN" if self.args.show_duration else None)
+    def forward(self, wheels_shoulders):
+        start, episodes, steps, [wheels_shoulders] = model_start([(wheels_shoulders, "lin")], self.args.device, self.args.half)
+        encoded = self.a(wheels_shoulders)
+        [encoded] = model_end(start, episodes, steps, [(encoded, "lin")], "Wheels_Shoulders_IN" if self.args.show_duration else None)
 
         return(encoded)
     
@@ -522,14 +522,15 @@ class Action_IN(nn.Module):
     
 if __name__ == "__main__":
     
-    action_in = Action_IN(args = args)
+    wheels_shoulders_in = Wheels_Shoulders_IN(args = args)
     
     print("\n\n")
-    print(action_in)
+    print(wheels_shoulders_in)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(torch_summary(action_in, 
-                                (episodes, steps, args.action_shape)))
+            print(torch_summary(wheels_shoulders_in, 
+                                (episodes, steps, args.wheels_shoulders_shape)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 # %%
+

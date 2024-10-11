@@ -92,17 +92,15 @@ class Processor:
             for i, (link_name, value) in enumerate(object_dict.items()):
                 touched[i] += value
                 
-        #_, _, speed = arena.get_pos_yaw_spe()
-        #speed = opposite_relative_to(speed, self.args.min_speed, self.args.max_speed)
         sensors = torch.tensor([touched]).float()
                 
         return(rgbd, sensors, self.goal_comm.unsqueeze(0))
             
-    def act(self, action, agent_1 = True, verbose = False, sleep_time = None):
+    def act(self, wheels_shoulders, agent_1 = True, verbose = False, sleep_time = None):
         if(agent_1): arena = self.arena_1
         else:        arena = self.arena_2
         left_wheel, right_wheel, left_shoulder, right_shoulder = \
-            action[0].item(), action[1].item(), action[2].item(), action[3].item()
+            wheels_shoulders[0].item(), wheels_shoulders[1].item(), wheels_shoulders[2].item(), wheels_shoulders[3].item()
                   
         if(verbose): 
             print("\n\nStep {}:".format(self.steps))
@@ -113,15 +111,15 @@ class Processor:
         raw_reward, win, mother_comm = arena.rewards()
         return(raw_reward, win, mother_comm)
         
-    def step(self, action_1, action_2 = None, verbose = False, sleep_time = None):
+    def step(self, wheels_shoulders_1, wheels_shoulders_2 = None, verbose = False, sleep_time = None):
         self.steps += 1
         done = False
         
-        raw_reward, win, mother_comm_1 = self.act(action_1, verbose = verbose, sleep_time = sleep_time)
+        raw_reward, win, mother_comm_1 = self.act(wheels_shoulders_1, verbose = verbose, sleep_time = sleep_time)
         if(self.parenting): 
             mother_comm_2 = " " * self.args.max_comm_len
         else:
-            raw_reward_2, win_2, mother_comm_2 = self.act(action_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
+            raw_reward_2, win_2, mother_comm_2 = self.act(wheels_shoulders_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
             raw_reward = max([raw_reward, raw_reward_2])
             win = win or win_2
                     

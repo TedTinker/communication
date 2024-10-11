@@ -44,8 +44,8 @@ class RecurrentReplayBuffer:
             shape = (self.args.max_comm_len, self.args.comm_shape,), 
             before_and_after = True, 
             args = self.args)
-        self.action = VariableBuffer(
-            shape = (self.args.action_shape,), 
+        self.wheels_shoulders = VariableBuffer(
+            shape = (self.args.wheels_shoulders_shape,), 
             args = self.args)
         self.comm_out = VariableBuffer(
             shape = (self.args.max_comm_len, self.args.comm_shape,), 
@@ -62,7 +62,7 @@ class RecurrentReplayBuffer:
             rgbd,
             sensors,
             comm_in, 
-            action, 
+            wheels_shoulders, 
             comm_out, 
             reward, 
             next_rgbd,
@@ -76,7 +76,7 @@ class RecurrentReplayBuffer:
                     self.rgbd,
                     self.sensors,
                     self.comm_in, 
-                    self.action, 
+                    self.wheels_shoulders, 
                     self.comm_out, 
                     self.reward, 
                     self.done, 
@@ -88,7 +88,7 @@ class RecurrentReplayBuffer:
         self.rgbd.push(self.episode_ptr, self.time_ptr, rgbd)
         self.sensors.push(self.episode_ptr, self.time_ptr, sensors)
         self.comm_in.push(self.episode_ptr, self.time_ptr, comm_in)
-        self.action.push(self.episode_ptr, self.time_ptr, action)
+        self.wheels_shoulders.push(self.episode_ptr, self.time_ptr, wheels_shoulders)
         self.comm_out.push(self.episode_ptr, self.time_ptr, comm_out)
         self.reward.push(self.episode_ptr, self.time_ptr, reward)
         self.done.push(self.episode_ptr, self.time_ptr, done)
@@ -116,7 +116,7 @@ class RecurrentReplayBuffer:
             self.rgbd.sample(indices),
             self.sensors.sample(indices),
             self.comm_in.sample(indices),
-            self.action.sample(indices),
+            self.wheels_shoulders.sample(indices),
             self.comm_out.sample(indices),
             self.reward.sample(indices),
             self.done.sample(indices),

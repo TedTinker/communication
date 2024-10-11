@@ -234,13 +234,13 @@ def plots(plot_dicts, min_max_dict):
                     
         for task_name in task_name_list:
             
-            print(f"\n\n{task_name}\n\n")
+            #print(f"\n\n{task_name}\n\n")
             
             def get_rolled_wins(gen = False):
                 wins = plot_dict[f"{'gen_' if gen else ''}wins_" + task_name]
                 wins = np.array(wins)
-                print("gen" if gen else "", wins.shape)
-                print(wins)
+                #print("gen" if gen else "", wins.shape)
+                #print(wins)
                 wins_rolled = rolling_average_with_none(wins) * 100
                 plot_dict[f"{'gen_' if gen else ''}wins_rolled_" + task_name] = wins_rolled
                 win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + task_name, levels = levels, adjust_xs = None)

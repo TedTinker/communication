@@ -3,7 +3,6 @@
 # To do: most important 
 #   Behavior_Analysis! Awesome idea from Jun. 
 #   Remove unused position
-#   action to wheels_shoulders
 #   Implement those classes
 
 #   Instead of either goal or free play, two comm in: Father for goal, Mother for description. 
@@ -333,8 +332,13 @@ parser.add_argument('--load_agents',                    type=literal,       defa
     # Things which have list-values.
 parser.add_argument('--processor_list',                 type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [100, 50, 300], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each processor.')
+
+"""parser.add_argument('--processor_list',                 type=literal,       default = ["w"],
+                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
+parser.add_argument('--epochs',                         type=literal,       default = [10000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+                    help='List of how many epochs to train in each processor.')"""
 
     # Simulation details
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
@@ -430,8 +434,8 @@ parser.add_argument('--sensors_encode_size',            type=int,           defa
                     help='Parameters in encoding sensors, angles, speed.')   
 parser.add_argument('--comm_encode_size',               type=int,           default = 128,
                     help='Parameters in encoding communicaiton.')   
-parser.add_argument('--action_encode_size',             type=int,           default = 8,
-                    help='Parameters in encoding action.')   
+parser.add_argument('--wheels_shoulders_encode_size',             type=int,           default = 8,
+                    help='Parameters in encoding wheels_shoulders.')   
 
 parser.add_argument('--dropout',                        type=float,         default = .001,
                     help='Dropout percentage.')
@@ -444,11 +448,11 @@ parser.add_argument('--half',                           type=literal,       defa
 parser.add_argument("--alpha",                          type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
 parser.add_argument("--target_entropy",                 type=float,         default = -1,
-                    help='Target for choosing alpha if alpha set to None. Recommended: negative size of action-space.')      
+                    help='Target for choosing alpha if alpha set to None. Recommended: negative size of wheels_shoulders-space.')      
 parser.add_argument("--alpha_text",                     type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy regarding communication. Set to None to use target_entropy_text.')        
 parser.add_argument("--target_entropy_text",            type=float,         default = -2,
-                    help='Target for choosing alpha_text if alpha_text set to None. Recommended: negative size of action-space.')      
+                    help='Target for choosing alpha_text if alpha_text set to None. Recommended: negative size of comm_out-space.')      
 parser.add_argument("--normal_alpha",                   type=float,         default = 0,
                     help='Nonnegative value, how much to consider policy prior.') 
 
@@ -537,9 +541,9 @@ for arg_set in [default_args, args]:
     arg_set.sensors_shape = num_sensors
     arg_set.sensor_names = sensors
     arg_set.comm_shape = len(comm_map)
-    arg_set.action_shape = 4 
+    arg_set.wheels_shoulders_shape = 4 
     arg_set.obs_encode_size = arg_set.rgbd_encode_size + arg_set.sensors_encode_size + arg_set.comm_encode_size
-    arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.action_encode_size
+    arg_set.h_w_wheels_shoulders_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_shoulders_encode_size
         
 args_not_in_title = ["arg_title", "id", "agents", "previous_agents", "init_seed", "keep_data", "epochs_per_pred_list", "episodes_in_pred_list", "agents_per_pred_list", "epochs_per_pos_list", "episodes_in_pos_list", "agents_per_pos_list"]
 def get_args_title(default_args, args):
@@ -651,12 +655,13 @@ def many_onehots_to_strings(onehots):
     else:  
         return [many_onehots_to_strings(sub_tensor) for sub_tensor in onehots]
 
-def action_to_string(action):
-    while(len(action.shape) > 1):
-        action = action.squeeze(0)
-    string = "Left Wheel: {} ".format(round(action[0].item(),2))
-    string += "Right Wheel: {} ".format(round(action[1].item(),2))
-    string += "Shoulder: {} ".format(round(action[2].item(),2))
+def wheels_shoulders_to_string(wheels_shoulders):
+    while(len(wheels_shoulders.shape) > 1):
+        wheels_shoulders = wheels_shoulders.squeeze(0)
+    string = "Left Wheel: {} ".format(round(wheels_shoulders[0].item(),2))
+    string += "Right Wheel: {} ".format(round(wheels_shoulders[1].item(),2))
+    string += "Left Shoulder: {} ".format(round(wheels_shoulders[2].item(),2))
+    string += "Right Shoulder: {} ".format(round(wheels_shoulders[3].item(),2))
     return(string)
 
 def strings_to_human(strings):
@@ -697,7 +702,7 @@ if(__name__ == "__main__"):
 
 
 
-# Functions for relative value of actor-output to actions.
+# Functions for relative value of actor-output to wheels_shoulders.
 def relative_to(this, min, max):
     this = min + ((this + 1)/2) * (max - min)
     this = [min, max, this]
