@@ -27,8 +27,8 @@ class Processor:
         self.goal_text = "{}{}{}".format(goal_task.char, goal_color.char, goal_shape.char)
         if(goal_task.name == "FREEDOM"):
             self.goal_text = self.goal_text[0]            
-        self.goal_comm = string_to_onehots(self.goal_text)
-        self.goal_comm = pad_zeros(self.goal_comm, self.args.max_comm_len)
+        self.father_comm = string_to_onehots(self.goal_text)
+        self.father_comm = pad_zeros(self.father_comm, self.args.max_comm_len)
         
         self.arena_1.begin(self.current_objects_1, self.goal, self.parenting)
         if(not self.parenting):
@@ -69,7 +69,7 @@ class Processor:
                 
         sensors = torch.tensor([touched]).float()
                 
-        return(rgbd, sensors, self.goal_comm.unsqueeze(0))
+        return(rgbd, sensors, self.father_comm.unsqueeze(0))
             
     def act(self, wheels_shoulders, agent_1 = True, verbose = False, sleep_time = None):
         arena = self.get_arena(agent_1)

@@ -337,7 +337,7 @@ parser.add_argument('--load_agents',                    type=literal,       defa
     # Things which have list-values.
 parser.add_argument('--processor_list',                 type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+parser.add_argument('--epochs',                         type=literal,       default = [100, 50, 300], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each processor.')
 
 """parser.add_argument('--processor_list',                 type=literal,       default = ["w"],
@@ -404,8 +404,10 @@ parser.add_argument('--rgbd_scaler',                    type=float,         defa
                     help='How much to consider rgbd prediction in accuracy compared to comm and sensors.')  
 parser.add_argument('--sensors_scaler',                 type=float,         default = .3, 
                     help='How much to consider sensors prediction in accuracy compared to rgbd and comm.')   
-parser.add_argument('--comm_scaler',                    type=float,         default = 3, 
-                    help='How much to consider comm prediction in accuracy compared to rgbd and sensors.')       
+parser.add_argument('--father_comm_scaler',                    type=float,         default = 3, 
+                    help='How much to consider father comm prediction in accuracy compared to rgbd and sensors.')       
+parser.add_argument('--mother_comm_scaler',                    type=float,         default = 3, 
+                    help='How much to consider mother comm prediction in accuracy compared to rgbd and sensors.')       
 parser.add_argument('--weight_decay',                   type=float,         default = .00001,
                     help='Weight decay for modules.')       
 parser.add_argument('--lr',                             type=float,         default = .0003,
@@ -470,7 +472,9 @@ parser.add_argument("--beta_rgbd",                      type=float,         defa
                     help='Relative importance of complexity for rgbd.')
 parser.add_argument("--beta_sensors",                   type=float,         default = .3,
                     help='Relative importance of complexity for sensors.')     
-parser.add_argument("--beta_comm",                      type=float,         default = .06,
+parser.add_argument("--beta_father_comm",                      type=float,         default = .06,
+                    help='Relative importance of complexity for comm.')
+parser.add_argument("--beta_mother_comm",                      type=float,         default = .06,
                     help='Relative importance of complexity for comm.')
 
 
@@ -485,14 +489,18 @@ parser.add_argument("--prediction_error_eta_rgbd",      type=float,         defa
                     help='Nonnegative value, how much to consider prediction_error curiosity for rgbd.')    
 parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = .03,
                     help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')   
-parser.add_argument("--prediction_error_eta_comm",      type=float,         default = 1,
+parser.add_argument("--prediction_error_eta_father_comm",      type=float,         default = 1,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for comm.')     
+parser.add_argument("--prediction_error_eta_mother_comm",      type=float,         default = 1,
                     help='Nonnegative value, how much to consider prediction_error curiosity for comm.')     
 
 parser.add_argument("--hidden_state_eta_rgbd",          type=float,         default = .3,
                     help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
 parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = .03,
                     help='Nonnegative values, how much to consider hidden_state curiosity for sensors.') 
-parser.add_argument("--hidden_state_eta_comm",          type=float,         default = 1,
+parser.add_argument("--hidden_state_eta_father_comm",          type=float,         default = 1,
+                    help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
+parser.add_argument("--hidden_state_eta_mother_comm",          type=float,         default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for comm.') 
 
 

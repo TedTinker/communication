@@ -119,7 +119,7 @@ class Agent:
             "accuracy" : [], 
             "rgbd_loss" : [], 
             "sensors_loss" : [], 
-            "comm_loss" : [], 
+            "father_comm_loss" : [], 
             "complexity" : [],
             "alpha" : [], 
             "alpha_text" : [],
@@ -132,11 +132,11 @@ class Agent:
             "intrinsic_imitation" : [],
             "rgbd_prediction_error_curiosity" : [], 
             "sensors_prediction_error_curiosity" : [], 
-            "comm_prediction_error_curiosity" : [], 
+            "father_comm_prediction_error_curiosity" : [], 
             "prediction_error_curiosity" : [], 
             "rgbd_hidden_state_curiosity" : [],
             "sensors_hidden_state_curiosity" : [],
-            "comm_hidden_state_curiosity" : [],
+            "father_comm_hidden_state_curiosity" : [],
             "hidden_state_curiosity" : [],
             "behavior" : {},
             "wins_all" : [],
@@ -261,9 +261,9 @@ class Agent:
                 rgbd, sensors, father_comm = self.processor.obs(agent_1)
                 
                 comm_in = string_to_onehots(mother_comm).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else father_comm.unsqueeze(0) if parenting else prev_comm_out
-                hp, hq, rgbd_dkl, sensors_dkl, comm_dkl, comm_zq = self.forward.bottom_to_top_step(
+                hp, hq, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq = self.forward.bottom_to_top_step(
                     hq_1, 
-                    self.forward.rgbd_in(rgbd), self.forward.sensors_in(sensors), self.forward.comm_in(comm_in), 
+                    self.forward.rgbd_in(rgbd), self.forward.sensors_in(sensors), self.forward.father_comm_in(comm_in), 
                     self.forward.wheels_shoulders_in(prev_wheels_shoulders), self.forward.comm_out_in(prev_comm_out)) 
 
                 wheels_shoulders, comm_out, _, _ = self.actor(hq.detach(), parenting) 
@@ -272,11 +272,11 @@ class Agent:
                     value = self.critics[i](wheels_shoulders, comm_out, hq.detach()) 
                     values.append(round(value.item(), 3))
                 
-                return(rgbd, sensors, comm_in, wheels_shoulders, comm_out, hp, hq, values, rgbd_dkl, sensors_dkl, comm_dkl)
+                return(rgbd, sensors, comm_in, wheels_shoulders, comm_out, hp, hq, values, rgbd_dkl, sensors_dkl, father_comm_dkl)
             
             
             
-            rgbd_1, sensors_1, comm_in_1, wheels_shoulders_1, comm_out_1, hp_1, hq_1, values_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1 = agent_step()
+            rgbd_1, sensors_1, comm_in_1, wheels_shoulders_1, comm_out_1, hp_1, hq_1, values_1, rgbd_dkl_1, sensors_dkl_1, father_comm_dkl_1 = agent_step()
             
             if(parenting):
                 wheels_shoulders_2 = torch.zeros_like(wheels_shoulders_1)
@@ -286,17 +286,17 @@ class Agent:
                 values_2 = None
                 rgbd_dkl_2 = None 
                 sensors_dkl_2 = None
-                comm_dkl_2 = None
+                father_comm_dkl_2 = None
             else:
-                rgbd_2, sensors_2, comm_in_2, wheels_shoulders_2, comm_out_2, hp_2, hq_2, values_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2 = agent_step(agent_1 = False)
+                rgbd_2, sensors_2, comm_in_2, wheels_shoulders_2, comm_out_2, hp_2, hq_2, values_2, rgbd_dkl_2, sensors_dkl_2, father_comm_dkl_2 = agent_step(agent_1 = False)
 
             reward, done, win, mother_comm_1, mother_comm_2 = self.processor.step(wheels_shoulders_1[0,0].clone(), wheels_shoulders_2[0,0].clone(), sleep_time = sleep_time)
             
-            next_rgbd_1, next_sensors_1, next_parent_comm = self.processor.obs()
+            next_rgbd_1, next_sensors_1, next_father_comm = self.processor.obs()
             next_rgbd_2, next_sensors_2, _ = self.processor.obs(agent_1 = False)
             
-            next_comm_in_1 = string_to_onehots(mother_comm_1).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
-            next_comm_in_2 = string_to_onehots(mother_comm_2).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
+            next_comm_in_1 = string_to_onehots(mother_comm_1).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_father_comm.unsqueeze(0) if parenting else comm_out_2 
+            next_comm_in_2 = string_to_onehots(mother_comm_2).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_father_comm.unsqueeze(0) if parenting else comm_out_1
                       
             #     def __init__(self, rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_father_comm, next_mother_comm, done):
 
@@ -309,8 +309,8 @@ class Agent:
 
         torch.cuda.empty_cache()
         
-        return(wheels_shoulders_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, mother_comm_1,
-               wheels_shoulders_2, comm_out_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1), rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, mother_comm_2,
+        return(wheels_shoulders_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), rgbd_dkl_1, sensors_dkl_1, father_comm_dkl_1, mother_comm_1,
+               wheels_shoulders_2, comm_out_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1), rgbd_dkl_2, sensors_dkl_2, father_comm_dkl_2, mother_comm_2,
                reward, done, win, to_push_1, to_push_2)
             
            
@@ -354,8 +354,8 @@ class Agent:
             self.total_steps += 1                                                                  
             if(not done):
                 steps += 1
-                prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, mother_comm_1, \
-                    prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, mother_comm_2, \
+                prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkl_1, sensors_dkl_1, father_comm_dkl_1, mother_comm_1, \
+                    prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, father_comm_dkl_2, mother_comm_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
                             prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2)
@@ -402,8 +402,8 @@ class Agent:
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
-                    prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, mother_comm_1, \
-                        prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, mother_comm_2, \
+                    prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkl_1, sensors_dkl_1, father_comm_dkl_1, mother_comm_1, \
+                        prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, father_comm_dkl_2, mother_comm_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
                                 prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2)
@@ -432,16 +432,16 @@ class Agent:
         with torch.no_grad():
             self.processor = self.processors[self.processor_name]
             self.processor.begin(test = test)       
-            comm_from_parent = self.processor.parenting
+            parenting = self.processor.parenting
             if(self.args.agents_per_episode_dict != -1 and self.agent_num > self.args.agents_per_episode_dict): 
                 return
             for episode_num in range(self.args.episodes_in_episode_dict):
                 common_keys = [
-                    "rgbd", "sensors", "comm_in", "wheels_shoulders", "wheels_shoulders_text", "comm_out", 
+                    "rgbd", "sensors", "father_comm", "wheels_shoulders", "wheels_shoulders_text", "comm_out", 
                     "birds_eye", "reward", "critic_predictions", "prior_predicted_rgbd", 
-                    "prior_predicted_sensors", "prior_predicted_comm_in", "posterior_predicted_rgbd", 
-                    "posterior_predicted_sensors", "posterior_predicted_comm_in", 
-                    "rgbd_dkl", "sensors_dkl", "comm_dkl", "mother_comm"]
+                    "prior_predicted_sensors", "prior_predicted_father_comm", "posterior_predicted_rgbd", 
+                    "posterior_predicted_sensors", "posterior_predicted_father_comm", 
+                    "rgbd_dkl", "sensors_dkl", "father_comm_dkl", "mother_comm"]
                 episode_dict = {}
                 for agent_id in [0, 1]:
                     for key in common_keys:
@@ -466,17 +466,17 @@ class Agent:
                     agent_num = 1 if agent_1 else 2
                     
                     birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
-                    rgbd, sensors, parent_comm = self.processor.obs(agent_1 = agent_1)
+                    rgbd, sensors, father_comm = self.processor.obs(agent_1 = agent_1)
                     
                     episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
                     episode_dict[f"rgbd_{agent_num}"].append(rgbd[0,:,:,0:3])        
                     episode_dict[f"sensors_{agent_num}"].append(sensors.tolist()[0])
                     
                     if(agent_1):
-                        comm_in = mother_comm_1 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_2[0,0]
+                        comm_in = mother_comm_1 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(father_comm[0]) if parenting else prev_comm_out_2[0,0]
                     else:
-                        comm_in = mother_comm_2 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(parent_comm[0]) if comm_from_parent else prev_comm_out_1[0,0]
-                    episode_dict[f"comm_in_{agent_num}"].append("'{}' ({})".format(comm_in, comm_in))
+                        comm_in = mother_comm_2 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(father_comm[0]) if parenting else prev_comm_out_1[0,0]
+                    episode_dict[f"father_comm_{agent_num}"].append("'{}' ({})".format(comm_in, comm_in))
                     
                     if(agent_1):
                         mother_comm = mother_comm_1
@@ -486,18 +486,18 @@ class Agent:
                     
                     if(step != 0):
                         
-                        pred_rgbd_p, pred_sensors_p, pred_comm_in_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders)) 
-                        pred_rgbd_q, pred_sensors_q, pred_comm_in_q= self.forward.predict(hq.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders))
+                        pred_rgbd_p, pred_sensors_p, pred_father_comm_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders)) 
+                        pred_rgbd_q, pred_sensors_q, pred_father_comm_q= self.forward.predict(hq.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders))
 
                         episode_dict[f"prior_predicted_rgbd_{agent_num}"].append(pred_rgbd_p[0,0][:,:,0:3])
                         episode_dict[f"prior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_p[0,0]])
-                        prior_predicted_comm_in = onehots_to_string(pred_comm_in_p[0,0])
-                        episode_dict[f"prior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(prior_predicted_comm_in, prior_predicted_comm_in))
+                        prior_predicted_father_comm = onehots_to_string(pred_father_comm_p[0,0])
+                        episode_dict[f"prior_predicted_father_comm_{agent_num}"].append("'{}' ({})".format(prior_predicted_father_comm, prior_predicted_father_comm))
                         
                         episode_dict[f"posterior_predicted_rgbd_{agent_num}"].append(pred_rgbd_q[0,0][:,:,0:3])
-                        posterior_predicted_comm_in = onehots_to_string(pred_comm_in_q[0,0])
+                        posterior_predicted_father_comm = onehots_to_string(pred_father_comm_q[0,0])
                         episode_dict[f"posterior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_q[0,0]])
-                        episode_dict[f"posterior_predicted_comm_in_{agent_num}"].append("'{}' ({})".format(posterior_predicted_comm_in, posterior_predicted_comm_in))
+                        episode_dict[f"posterior_predicted_father_comm_{agent_num}"].append("'{}' ({})".format(posterior_predicted_father_comm, posterior_predicted_father_comm))
                     
                 def display(step, agent_1 = True, done = False, stopping = False, wait = True):
                     if(for_display):
@@ -516,8 +516,8 @@ class Agent:
                         
                     display(step)
                     
-                    prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, mother_comm_1, \
-                        prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, mother_comm_2, \
+                    prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkl_1, sensors_dkl_1, father_comm_dkl_1, mother_comm_1, \
+                        prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, father_comm_dkl_2, mother_comm_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
                                 prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2, sleep_time) 
@@ -530,7 +530,7 @@ class Agent:
                     episode_dict["comm_out_1"].append("{} ({})".format(comm_out_1, comm_out_1))
                     episode_dict["rgbd_dkl_1"].append(rgbd_dkl_1.sum().item())
                     episode_dict["sensors_dkl_1"].append(sensors_dkl_1.sum().item())
-                    episode_dict["comm_dkl_1"].append(comm_dkl_1.sum().item())
+                    episode_dict["father_comm_dkl_1"].append(father_comm_dkl_1.sum().item())
                     episode_dict["critic_predictions_1"].append(values_1)
                     episode_dict["reward_1"].append(str(round(reward, 3)))
                         
@@ -541,7 +541,7 @@ class Agent:
                         episode_dict["comm_out_2"].append("{} ({})".format(comm_out_1, comm_out_2))
                         episode_dict["rgbd_dkl_2"].append(rgbd_dkl_2.sum().item())
                         episode_dict["sensors_dkl_2"].append(sensors_dkl_2.sum().item())
-                        episode_dict["comm_dkl_2"].append(comm_dkl_2.sum().item())
+                        episode_dict["father_comm_dkl_2"].append(father_comm_dkl_2.sum().item())
                         episode_dict["critic_predictions_2"].append(values_2)
                         episode_dict["reward_2"].append(str(round(reward_2, 3)))
                     
@@ -578,8 +578,8 @@ class Agent:
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
-                    prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, mother_comm_1, \
-                        prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, mother_comm_2, \
+                    prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_dkl_1, sensors_dkl_1, father_comm_dkl_1, mother_comm_1, \
+                        prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_dkl_2, sensors_dkl_2, father_comm_dkl_2, mother_comm_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
                                 prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2)
@@ -592,22 +592,22 @@ class Agent:
                 to_push.push(temp_memory)
                 
         batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
-        rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps = batch
         
-        hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels = self.forward(
+        hps, hqs, rgbd_dkl, sensors_dkl, father_comm_dkl, pred_rgbd_q, pred_sensors_q, pred_father_comm_q, father_comm_zq, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            rgbd, sensors, comm_in, wheels_shoulders, comm_out)
+            rgbd, sensors, father_comm, wheels_shoulders, comm_out)
         
-        comm_zq = comm_zq.detach().cpu().numpy()
+        father_comm_zq = father_comm_zq.detach().cpu().numpy()
         labels = labels.detach().cpu().numpy()
         all_mask = all_mask.detach().cpu().numpy()   
         
         non_zero_mask = labels[:, 0, 0] != 0  # This checks if the first element of each sequence is not 0
-        comm_zq_filtered = comm_zq[non_zero_mask]
+        father_comm_zq_filtered = father_comm_zq[non_zero_mask]
         labels_filtered = labels[non_zero_mask]
         all_mask_filtered = all_mask[non_zero_mask]
                 
-        self.plot_dict["component_data"][self.epochs] = (comm_zq, labels, all_mask, comm_zq_filtered, labels_filtered, all_mask_filtered)
+        self.plot_dict["component_data"][self.epochs] = (father_comm_zq, labels, all_mask, father_comm_zq_filtered, labels_filtered, all_mask_filtered)
                         
         
         
@@ -621,10 +621,10 @@ class Agent:
         batch = memory.sample(batch_size, random_sample = random_sample)
         if(batch == False): return(False)
         
-        rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask = batch
+        rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, done, mask = batch
         rgbd = torch.from_numpy(rgbd).to(self.args.device)
         sensors = torch.from_numpy(sensors).to(self.args.device)
-        comm_in = torch.from_numpy(comm_in).to(self.args.device)
+        father_comm = torch.from_numpy(father_comm).to(self.args.device)
         mother_comm = torch.from_numpy(mother_comm).to(self.args.device)
         wheels_shoulders = torch.from_numpy(wheels_shoulders)
         comm_out = torch.from_numpy(comm_out)
@@ -639,8 +639,8 @@ class Agent:
         steps = reward.shape[1]
         
         if(self.args.half):
-            rgbd, sensors, comm_in, wheels_shoulders, comm_out, reward, done, mask, all_mask, mask = \
-                rgbd.to(dtype=torch.float16), sensors.to(dtype=torch.float16), comm_in.to(dtype=torch.float16), wheels_shoulders.to(dtype=torch.float16), \
+            rgbd, sensors, father_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, mask = \
+                rgbd.to(dtype=torch.float16), sensors.to(dtype=torch.float16), father_comm.to(dtype=torch.float16), wheels_shoulders.to(dtype=torch.float16), \
                 comm_out.to(dtype=torch.float16), reward.to(dtype=torch.float16), done.to(dtype=torch.float16), \
                 mask.to(dtype=torch.float16), wheels_shoulders.to(dtype=torch.float16), comm_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
         
@@ -649,7 +649,7 @@ class Agent:
         #    self.agent_num, self.epochs, rgbd.shape, comm_in.shape, wheels_shoulders.shape, comm_out.shape, reward.shape, done.shape, mask.shape))
         #print("\n\n")
         
-        return(rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps)
+        return(rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps)
         
     
     
@@ -664,40 +664,40 @@ class Agent:
             return(False)
         batch_size = batch[0].shape[0]
         
-        rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps = batch
         # Also sample from old memories, and use them to keep actor and critic outputs the same.
         
         
                 
         # Train forward
-        hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels = self.forward(
+        hps, hqs, rgbd_dkl, sensors_dkl, father_comm_dkl, pred_rgbd_q, pred_sensors_q, pred_father_comm_q, father_comm_zq, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            rgbd, sensors, comm_in, wheels_shoulders, comm_out)
+            rgbd, sensors, father_comm, wheels_shoulders, comm_out)
                         
         rgbd_loss = F.binary_cross_entropy(pred_rgbd_q, rgbd[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.rgbd_scaler
                         
         sensors_loss = F.mse_loss(pred_sensors_q, sensors[:,1:], reduction = "none")
         sensors_loss = sensors_loss.mean(-1).unsqueeze(-1) * mask * self.args.sensors_scaler
                         
-        real_comm = comm_in[:,1:].reshape((episodes * steps, self.args.max_comm_len, self.args.comm_shape))
-        real_comm = torch.argmax(real_comm, dim = -1)
-        pred_comm = pred_comm_q.reshape((pred_comm_q.shape[0] * pred_comm_q.shape[1], self.args.max_comm_len, self.args.comm_shape))
-        pred_comm = pred_comm.transpose(1,2)
+        real_father_comm = father_comm[:,1:].reshape((episodes * steps, self.args.max_comm_len, self.args.comm_shape))
+        real_father_comm = torch.argmax(real_father_comm, dim = -1)
+        pred_father_comm = pred_father_comm_q.reshape((pred_father_comm_q.shape[0] * pred_father_comm_q.shape[1], self.args.max_comm_len, self.args.comm_shape))
+        pred_father_comm = pred_father_comm.transpose(1,2)
     
-        comm_loss = F.cross_entropy(pred_comm, real_comm, reduction = "none")
-        comm_loss = comm_loss.reshape(episodes, steps, self.args.max_comm_len)
-        comm_loss = comm_loss.mean(dim=2).unsqueeze(-1) * mask * self.args.comm_scaler
+        father_comm_loss = F.cross_entropy(pred_father_comm, real_father_comm, reduction = "none")
+        father_comm_loss = father_comm_loss.reshape(episodes, steps, self.args.max_comm_len)
+        father_comm_loss = father_comm_loss.mean(dim=2).unsqueeze(-1) * mask * self.args.father_comm_scaler
         
-        accuracy = (rgbd_loss + comm_loss + sensors_loss).mean()
+        accuracy = (rgbd_loss + sensors_loss + father_comm_loss).mean()
         
         rgbd_complexity_for_hidden_state = rgbd_dkl.mean(-1).unsqueeze(-1) * all_mask
         sensors_complexity_for_hidden_state = sensors_dkl.mean(-1).unsqueeze(-1) * all_mask
-        comm_complexity_for_hidden_state = comm_dkl.mean(-1).unsqueeze(-1) * all_mask
+        father_comm_complexity_for_hidden_state = father_comm_dkl.mean(-1).unsqueeze(-1) * all_mask
                 
         complexity = sum([
             self.args.beta_rgbd * rgbd_complexity_for_hidden_state.mean(),
             self.args.beta_sensors * sensors_complexity_for_hidden_state.mean(),
-            self.args.beta_comm * comm_complexity_for_hidden_state.mean()])       
+            self.args.beta_father_comm * father_comm_complexity_for_hidden_state.mean()])       
                                 
         self.forward_opt.zero_grad()
         (accuracy + complexity).backward()
@@ -710,13 +710,13 @@ class Agent:
         # Get curiosity                 
         rgbd_prediction_error_curiosity     = self.args.prediction_error_eta_rgbd       * rgbd_loss
         sensors_prediction_error_curiosity  = self.args.prediction_error_eta_sensors    * sensors_loss
-        comm_prediction_error_curiosity     = self.args.prediction_error_eta_comm       * comm_loss
-        prediction_error_curiosity = rgbd_prediction_error_curiosity + comm_prediction_error_curiosity + sensors_prediction_error_curiosity
+        father_comm_prediction_error_curiosity     = self.args.prediction_error_eta_father_comm       * father_comm_loss
+        prediction_error_curiosity = rgbd_prediction_error_curiosity + father_comm_prediction_error_curiosity + sensors_prediction_error_curiosity
         
         rgbd_hidden_state_curiosity    = self.args.hidden_state_eta_rgbd       * torch.clamp(rgbd_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
         sensors_hidden_state_curiosity = self.args.hidden_state_eta_sensors    * torch.clamp(sensors_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
-        comm_hidden_state_curiosity    = self.args.hidden_state_eta_comm       * torch.clamp(comm_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
-        hidden_state_curiosity = rgbd_hidden_state_curiosity + comm_hidden_state_curiosity + sensors_hidden_state_curiosity
+        father_comm_hidden_state_curiosity    = self.args.hidden_state_eta_father_comm       * torch.clamp(father_comm_complexity_for_hidden_state[:,1:], min = 0, max = self.args.dkl_max)
+        hidden_state_curiosity = rgbd_hidden_state_curiosity + father_comm_hidden_state_curiosity + sensors_hidden_state_curiosity
         
         if(self.args.curiosity == "prediction_error"):  curiosity = prediction_error_curiosity
         elif(self.args.curiosity == "hidden_state"):    curiosity = hidden_state_curiosity
@@ -832,7 +832,7 @@ class Agent:
         if(accuracy != None):       accuracy = accuracy.item()
         if(rgbd_loss != None):      rgbd_loss = rgbd_loss.mean().item()
         if(sensors_loss != None):   sensors_loss = sensors_loss.mean().item()
-        if(comm_loss != None):      comm_loss = comm_loss.mean().item()
+        if(father_comm_loss != None):      father_comm_loss = father_comm_loss.mean().item()
         if(complexity != None):     complexity = complexity.item()
         if(alpha_loss != None):     alpha_loss = alpha_loss.item()
         if(alpha_text_loss != None): alpha_text_loss = alpha_text_loss.item()
@@ -845,11 +845,11 @@ class Agent:
                 
         rgbd_prediction_error_curiosity = rgbd_prediction_error_curiosity.mean().item()
         sensors_prediction_error_curiosity = sensors_prediction_error_curiosity.mean().item()
-        comm_prediction_error_curiosity = comm_prediction_error_curiosity.mean().item()
+        father_comm_prediction_error_curiosity = father_comm_prediction_error_curiosity.mean().item()
         
         rgbd_hidden_state_curiosity = rgbd_hidden_state_curiosity.mean().item()
         sensors_hidden_state_curiosity = sensors_hidden_state_curiosity.mean().item()
-        comm_hidden_state_curiosity = comm_hidden_state_curiosity.mean().item()
+        father_comm_hidden_state_curiosity = father_comm_hidden_state_curiosity.mean().item()
         
         prediction_error_curiosity = prediction_error_curiosity.mean().item()
         hidden_state_curiosity = hidden_state_curiosity.mean().item()
@@ -860,7 +860,7 @@ class Agent:
             self.plot_dict["accuracy"].append(accuracy)
             self.plot_dict["rgbd_loss"].append(rgbd_loss)
             self.plot_dict["sensors_loss"].append(sensors_loss)
-            self.plot_dict["comm_loss"].append(comm_loss)
+            self.plot_dict["father_comm_loss"].append(father_comm_loss)
             self.plot_dict["complexity"].append(complexity)                                                                             
             self.plot_dict["alpha"].append(alpha_loss)
             self.plot_dict["alpha_text"].append(alpha_text_loss)
@@ -874,11 +874,11 @@ class Agent:
             self.plot_dict["intrinsic_entropy"].append(intrinsic_entropy)
             self.plot_dict["rgbd_prediction_error_curiosity"].append(rgbd_prediction_error_curiosity)
             self.plot_dict["sensors_prediction_error_curiosity"].append(sensors_prediction_error_curiosity)
-            self.plot_dict["comm_prediction_error_curiosity"].append(comm_prediction_error_curiosity)
+            self.plot_dict["father_comm_prediction_error_curiosity"].append(father_comm_prediction_error_curiosity)
             self.plot_dict["prediction_error_curiosity"].append(prediction_error_curiosity)
             self.plot_dict["rgbd_hidden_state_curiosity"].append(rgbd_hidden_state_curiosity)    
             self.plot_dict["sensors_hidden_state_curiosity"].append(sensors_hidden_state_curiosity)  
-            self.plot_dict["comm_hidden_state_curiosity"].append(comm_hidden_state_curiosity)    
+            self.plot_dict["father_comm_hidden_state_curiosity"].append(father_comm_hidden_state_curiosity)    
             self.plot_dict["hidden_state_curiosity"].append(hidden_state_curiosity)    
         
     

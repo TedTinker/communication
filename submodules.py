@@ -414,7 +414,7 @@ class Obs_IN(nn.Module):
         self.args = args
         self.rgbd_in = RGBD_IN(self.args)
         self.sensors_in = Sensors_IN(self.args)
-        self.comm_in = Comm_IN(self.args)
+        self.father_comm_in = Comm_IN(self.args)
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -422,12 +422,12 @@ class Obs_IN(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, rgbd, sensors, comm):
+    def forward(self, rgbd, sensors, father_comm):
         rgbd = self.rgbd_in(rgbd)
         sensors = self.sensors_in(sensors)
-        comm = self.comm_in(comm)
+        father_comm = self.father_comm_in(father_comm)
         
-        return(torch.cat([rgbd, sensors, comm], dim = -1))
+        return(torch.cat([rgbd, sensors, father_comm], dim = -1))
     
     
     
@@ -458,7 +458,7 @@ class Obs_OUT(nn.Module):
         self.args = args 
         self.rgbd_out = RGBD_OUT(self.args)
         self.sensors_out = Sensors_OUT(self.args)
-        self.comm_out = Comm_OUT(actor = False, args = self.args)
+        self.father_comm_out = Comm_OUT(actor = False, args = self.args)
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -469,8 +469,8 @@ class Obs_OUT(nn.Module):
     def forward(self, h_w_wheels_shoulders):
         rgbd_pred = self.rgbd_out(h_w_wheels_shoulders)
         sensors_pred = self.sensors_out(h_w_wheels_shoulders)
-        comm_pred = self.comm_out(h_w_wheels_shoulders)
-        return(rgbd_pred, sensors_pred, comm_pred)
+        father_comm_pred = self.father_comm_out(h_w_wheels_shoulders)
+        return(rgbd_pred, sensors_pred, father_comm_pred)
     
     
     

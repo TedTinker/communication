@@ -323,14 +323,14 @@ def plots(plot_dicts, min_max_dict):
         except: pass
         rgbd_dict = get_quantiles(plot_dict, "rgbd_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         sensors_dict = get_quantiles(plot_dict, "sensors_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        comm_dict = get_quantiles(plot_dict, "comm_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        father_comm_dict = get_quantiles(plot_dict, "father_comm_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         accuracy_dict = get_quantiles(plot_dict, "accuracy", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         comp_dict = get_quantiles(plot_dict, "complexity", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        forward_losses_min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["sensors_loss"], min_max_dict["comm_loss"], min_max_dict["accuracy"]])
+        forward_losses_min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["sensors_loss"], min_max_dict["father_comm_loss"], min_max_dict["accuracy"]])
         
         log_rgbd_dict = get_logs(rgbd_dict)
         log_sensors_dict = get_logs(sensors_dict)
-        log_comm_dict = get_logs(comm_dict)
+        log_father_comm_dict = get_logs(father_comm_dict)
         log_accuracy_dict = get_logs(accuracy_dict)
         log_comp_dict = get_logs(comp_dict)
         if(forward_losses_min_max[0] == 0):
@@ -343,7 +343,7 @@ def plots(plot_dicts, min_max_dict):
             handles = []
             handles.append(awesome_plot(here, log_rgbd_dict if log else rgbd_dict, "blue", "RGBD-Loss", min_max))
             handles.append(awesome_plot(here, log_sensors_dict if log else sensors_dict, "orange", "Sensors-Loss", min_max))
-            handles.append(awesome_plot(here, log_comm_dict if log else comm_dict, "red", "Comm-Loss", min_max))
+            handles.append(awesome_plot(here, log_father_comm_dict if log else father_comm_dict, "red", "Father Comm-Loss", min_max))
             handles.append(awesome_plot(here, log_accuracy_dict if log else accuracy_dict, "purple", "Accuracy", min_max))
             handles.append(awesome_plot(here, log_comp_dict if log else comp_dict, "green",  "Complexity", min_max))
             here.set_ylabel("Loss")
@@ -504,32 +504,32 @@ def plots(plot_dicts, min_max_dict):
         except: pass
         rgbd_prediction_error_dict = get_quantiles(plot_dict, "rgbd_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         sensors_prediction_error_dict = get_quantiles(plot_dict, "sensors_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
-        comm_prediction_error_dict = get_quantiles(plot_dict, "comm_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        father_comm_prediction_error_dict = get_quantiles(plot_dict, "father_comm_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         prediction_error_dict = get_quantiles(plot_dict, "prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         
         rgbd_hidden_state_dict = get_quantiles(plot_dict, "rgbd_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         sensors_hidden_state_dict = get_quantiles(plot_dict, "sensors_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
-        comm_hidden_state_dict = get_quantiles(plot_dict, "comm_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        father_comm_hidden_state_dict = get_quantiles(plot_dict, "father_comm_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         hidden_state_dict = get_quantiles(plot_dict, "hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         
         curiosity_min_max = many_min_max(
             [min_max_dict["rgbd_prediction_error_curiosity"], 
             min_max_dict["sensors_prediction_error_curiosity"],
-            min_max_dict["comm_prediction_error_curiosity"], 
+            min_max_dict["father_comm_prediction_error_curiosity"], 
             min_max_dict["prediction_error_curiosity"],
             min_max_dict["rgbd_hidden_state_curiosity"],
             min_max_dict["sensors_hidden_state_curiosity"],
-            min_max_dict["comm_hidden_state_curiosity"],
+            min_max_dict["father_comm_hidden_state_curiosity"],
             min_max_dict["hidden_state_curiosity"]])
         
         log_rgbd_prediction_error_dict = get_logs(rgbd_prediction_error_dict)
         log_sensors_prediction_error_dict = get_logs(sensors_prediction_error_dict)
-        log_comm_prediction_error_dict = get_logs(comm_prediction_error_dict)
+        log_father_comm_prediction_error_dict = get_logs(father_comm_prediction_error_dict)
         log_prediction_error_dict = get_logs(prediction_error_dict)
         
         log_rgbd_hidden_state_dict = get_logs(rgbd_hidden_state_dict)
         log_sensors_hidden_state_dict = get_logs(sensors_hidden_state_dict)
-        log_comm_hidden_state_dict = get_logs(comm_hidden_state_dict)
+        log_father_comm_hidden_state_dict = get_logs(father_comm_hidden_state_dict)
         log_hidden_state_dict = get_logs(hidden_state_dict)
         
         if(curiosity_min_max[0] == 0):
@@ -543,7 +543,7 @@ def plots(plot_dicts, min_max_dict):
             awesome_plot(here, log_prediction_error_dict if log else prediction_error_dict, "green", "Total " + ("log " if log else "") + "Prediction Error", min_max = this_min_max, linestyle = "solid")
             awesome_plot(here, log_rgbd_prediction_error_dict if log else rgbd_prediction_error_dict, "green", "RGBD", min_max = this_min_max, linestyle = "dotted")
             awesome_plot(here, log_sensors_prediction_error_dict if log else sensors_prediction_error_dict, "green", "Sensors", min_max = this_min_max, linestyle = custom_ls)
-            awesome_plot(here, log_comm_prediction_error_dict if log else comm_prediction_error_dict, "green", "Comm", min_max = this_min_max, linestyle = "dashed")
+            awesome_plot(here, log_father_comm_prediction_error_dict if log else father_comm_prediction_error_dict, "green", "Father Comm", min_max = this_min_max, linestyle = "dashed")
             here.set_ylabel("Prediction Error Curiosity")
             here.set_xlabel("Epochs")
             here.legend()
@@ -555,7 +555,7 @@ def plots(plot_dicts, min_max_dict):
             awesome_plot(here, log_hidden_state_dict if log else hidden_state_dict, "red", "Total Hidden State", min_max = this_min_max, linestyle = "solid")
             awesome_plot(here, log_rgbd_hidden_state_dict if log else rgbd_hidden_state_dict, "red", "RGBD", min_max = this_min_max, linestyle = "dotted")
             awesome_plot(here, log_sensors_hidden_state_dict if log else sensors_hidden_state_dict, "red", "Sensors", min_max = this_min_max, linestyle = custom_ls)
-            awesome_plot(here, log_comm_hidden_state_dict if log else comm_hidden_state_dict, "red", "Comm", min_max = this_min_max, linestyle = "dashed")
+            awesome_plot(here, log_father_comm_hidden_state_dict if log else father_comm_hidden_state_dict, "red", "Father Comm", min_max = this_min_max, linestyle = "dashed")
             here.set_ylabel("Hidden State Curiosity")
             here.set_xlabel("Epochs")
             here.legend()

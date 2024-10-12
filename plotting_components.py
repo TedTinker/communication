@@ -55,7 +55,7 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
     for agent_num, values_for_composition in enumerate(plot_dict["component_data"]):
         if(values_for_composition != {}):
             print("\nAGENT NUM", agent_num)
-            for epochs, (comm_zq, labels, all_mask, comm_zq_filtered, labels_filtered, all_mask_filtered) in values_for_composition.items():
+            for epochs, (father_comm_zq, labels, all_mask, father_comm_zq_filtered, labels_filtered, all_mask_filtered) in values_for_composition.items():
                 print("EPOCHS", epochs)
 
                 labels = labels.reshape(-1, labels.shape[-1])
@@ -194,7 +194,7 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     print(f"LDA for {args.arg_name} using {type_name} in epoch {epochs} plotted.")
                     
                 for this, this_filtered, type_name in [
-                    (comm_zq, comm_zq_filtered, "father_comm_zq")]:
+                    (father_comm_zq, father_comm_zq_filtered, "father_comm_zq")]:
                     plot_lda(this, this_filtered, type_name)
                     
                 #print("MAKING PCA")

@@ -40,7 +40,7 @@ class RecurrentReplayBuffer:
             shape = (self.args.sensors_shape,), 
             before_and_after = True, 
             args = self.args)
-        self.comm_in = VariableBuffer(
+        self.father_comm = VariableBuffer(
             shape = (self.args.max_comm_len, self.args.comm_shape,), 
             before_and_after = True, 
             args = self.args)
@@ -65,14 +65,14 @@ class RecurrentReplayBuffer:
             self, 
             rgbd,
             sensors,
-            comm_in, 
+            father_comm, 
             mother_comm,
             wheels_shoulders, 
             comm_out, 
             reward, 
             next_rgbd,
             next_sensors,
-            next_comm_in, 
+            next_father_comm, 
             next_mother_comm,
             done):
         
@@ -81,7 +81,7 @@ class RecurrentReplayBuffer:
             for buffer in [
                     self.rgbd,
                     self.sensors,
-                    self.comm_in, 
+                    self.father_comm, 
                     self.mother_comm,
                     self.wheels_shoulders, 
                     self.comm_out, 
@@ -90,11 +90,11 @@ class RecurrentReplayBuffer:
                     self.mask]:
                 buffer.reset_episode(self.episode_ptr)
 
-        comm_in = pad_zeros(comm_in, self.args.max_comm_len)
-        next_comm_in = pad_zeros(next_comm_in, self.args.max_comm_len)
+        father_comm = pad_zeros(father_comm, self.args.max_comm_len)
+        next_father_comm = pad_zeros(next_father_comm, self.args.max_comm_len)
         self.rgbd.push(self.episode_ptr, self.time_ptr, rgbd)
         self.sensors.push(self.episode_ptr, self.time_ptr, sensors)
-        self.comm_in.push(self.episode_ptr, self.time_ptr, comm_in)
+        self.father_comm.push(self.episode_ptr, self.time_ptr, father_comm)
         self.mother_comm.push(self.episode_ptr, self.time_ptr, mother_comm)
         self.wheels_shoulders.push(self.episode_ptr, self.time_ptr, wheels_shoulders)
         self.comm_out.push(self.episode_ptr, self.time_ptr, comm_out)
@@ -106,7 +106,7 @@ class RecurrentReplayBuffer:
         if done or self.time_ptr >= self.max_episode_len:
             self.rgbd.push(self.episode_ptr, self.time_ptr, next_rgbd)
             self.sensors.push(self.episode_ptr, self.time_ptr, next_sensors)
-            self.comm_in.push(self.episode_ptr, self.time_ptr, next_comm_in)
+            self.father_comm.push(self.episode_ptr, self.time_ptr, next_father_comm)
             self.mother_comm.push(self.episode_ptr, self.time_ptr, next_mother_comm)
             self.episode_ptr = (self.episode_ptr + 1) % self.capacity
             self.time_ptr = 0
@@ -124,7 +124,7 @@ class RecurrentReplayBuffer:
         batch = (
             self.rgbd.sample(indices),
             self.sensors.sample(indices),
-            self.comm_in.sample(indices),
+            self.father_comm.sample(indices),
             self.mother_comm.sample(indices),
             self.wheels_shoulders.sample(indices),
             self.comm_out.sample(indices),
