@@ -121,20 +121,9 @@ class PVRNN_LAYER(nn.Module):
             kullback_leibler = kullback_leibler.reshape((episodes, steps, kullback_leibler.shape[1]))
             return(zp, zq, kullback_leibler)
         
-        """how_many_nans(prev_hidden_states, "PVRNN layer, prev_hidden_states")
-        how_many_nans(rgbd, "PVRNN layer, rgbd")
-        how_many_nans(comm, "PVRNN layer, comm")
-        how_many_nans(sensors, "PVRNN layer, sensors")
-        how_many_nans(prev_wheels_shoulders, "PVRNN layer, prev_wheels_shoulders")
-        how_many_nans(prev_comm_out, "PVRNN layer, prev_comm_out")"""
-        
         prev_hidden_states = prev_hidden_states.to(self.args.device)
         zp_inputs = torch.cat([prev_hidden_states, prev_wheels_shoulders, prev_comm_out], dim=-1)
         rgbd_zq_inputs, sensors_zq_inputs, comm_zq_inputs = [torch.cat([zp_inputs, input_data], dim=-1) for input_data in (rgbd, sensors, comm)]
-        
-        """how_many_nans(rgbd_zq_inputs, "PVRNN layer, rgbd_zq_inputs")
-        how_many_nans(comm_zq_inputs, "PVRNN layer, comm_zq_inputs")
-        how_many_nans(sensors_zq_inputs, "PVRNN layer, sensors_zq_inputs")"""
         
         episodes, steps = episodes_steps(zp_inputs)
         dtype = torch.float16 if self.args.half else None
@@ -142,16 +131,6 @@ class PVRNN_LAYER(nn.Module):
         rgbd_zp, rgbd_zq, rgbd_dkl = process_z_func_outputs(zp_inputs, rgbd_zq_inputs, self.rgbd_z, episodes, steps, dtype)
         sensors_zp, sensors_zq, sensors_dkl = process_z_func_outputs(zp_inputs, sensors_zq_inputs, self.sensors_z, episodes, steps, dtype)
         comm_zp, comm_zq, comm_dkl = process_z_func_outputs(zp_inputs, comm_zq_inputs, self.comm_z, episodes, steps, dtype)
-                
-        """how_many_nans(rgbd_zp, "PVRNN layer, rgbd_zp")
-        how_many_nans(rgbd_zq, "PVRNN layer, rgbd_zq")
-        how_many_nans(rgbd_dkl, "PVRNN layer, rgbd_dkl")
-        how_many_nans(comm_zp, "PVRNN layer, comm_zp")
-        how_many_nans(comm_zq, "PVRNN layer, comm_zq")
-        how_many_nans(comm_dkl, "PVRNN layer, comm_dkl")
-        how_many_nans(sensors_zp, "PVRNN layer, sensors_zp")
-        how_many_nans(sensors_zq, "PVRNN layer, sensors_zq")
-        how_many_nans(sensors_dkl, "PVRNN layer, sensors_dkl")"""
         
         mtrnn_inputs_p = torch.cat([rgbd_zp, sensors_zp, comm_zp], dim=-1)
         mtrnn_inputs_q = torch.cat([rgbd_zq, sensors_zq, comm_zq], dim=-1)
@@ -161,12 +140,6 @@ class PVRNN_LAYER(nn.Module):
         
         new_hidden_states_p = self.mtrnn(mtrnn_inputs_p, prev_hidden_states)
         new_hidden_states_q = self.mtrnn(mtrnn_inputs_q, prev_hidden_states)
-        
-        """how_many_nans(new_hidden_states_p, "PVRNN layer, new_hidden_states_p")
-        how_many_nans(new_hidden_states_q, "PVRNN layer, new_hidden_states_q")
-        how_many_nans(rgbd_dkl, "PVRNN layer, rgbd_dkl")
-        how_many_nans(comm_dkl, "PVRNN layer, comm_dkl")
-        how_many_nans(sensors_dkl, "PVRNN layer, sensors_dkl")"""
         
         return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, sensors_dkl, comm_dkl, comm_zq)
         
@@ -264,13 +237,6 @@ class PVRNN(nn.Module):
         new_hidden_states_q_list = []
         comm_zq_list = []
         
-        """how_many_nans(prev_hidden_states, "PVRNN, prev_hidden_states")
-        how_many_nans(rgbd, "PVRNN, rgbd 1")
-        how_many_nans(comm_in, "PVRNN, comm_in 1")
-        how_many_nans(sensors, "PVRNN, sensors 1")
-        how_many_nans(prev_wheels_shoulders, "PVRNN, prev_wheels_shoulders 1")
-        how_many_nans(prev_comm_out, "PVRNN, prev_comm_out 1")"""
-        
         prev_time = duration()
                 
         episodes, steps = episodes_steps(rgbd)
@@ -282,23 +248,12 @@ class PVRNN(nn.Module):
         
         prev_wheels_shoulders = self.wheels_shoulders_in(prev_wheels_shoulders)
         prev_comm_out = self.comm_out_in(prev_comm_out)
-        
-        """how_many_nans(rgbd, "PVRNN, rgbd 2")
-        how_many_nans(comm_in, "PVRNN, comm_in 2")
-        how_many_nans(sensors, "PVRNN, sensors 2")
-        how_many_nans(prev_wheels_shoulders, "PVRNN, prev_wheels_shoulders 2")
-        how_many_nans(prev_comm_out, "PVRNN, prev_comm_out 2")"""
                                 
         for step in range(steps):
             new_hidden_states_p, new_hidden_states_q, rgbd_dkl, sensors_dkl, comm_dkl, comm_zq = \
             self.bottom_to_top_step(
                 prev_hidden_states, rgbd[:,step], sensors[:,step], comm_in[:,step], 
                 prev_wheels_shoulders[:,step], prev_comm_out[:,step])
-            """how_many_nans(new_hidden_states_p, f"PVRNN, new_hidden_states_p step {step}")
-            how_many_nans(new_hidden_states_q, f"PVRNN, new_hidden_states_q step {step}")
-            how_many_nans(rgbd_dkl, f"PVRNN, rgbd_dkl step {step}")
-            how_many_nans(comm_dkl, f"PVRNN, comm_dkl step {step}")
-            how_many_nans(sensors_dkl, f"PVRNN, sensors_dkl step {step}")"""
                                 
             for l, o in zip(
                 [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_dkl_list, sensors_dkl_list, comm_dkl_list, comm_zq_list],
@@ -313,15 +268,11 @@ class PVRNN(nn.Module):
         new_hidden_states_p, new_hidden_states_q, rgbd_dkl, sensors_dkl, comm_dkl, comm_zq = lists
                 
         pred_rgbd_q, pred_sensors_q, pred_comm_q = self.predict(new_hidden_states_q[:, :-1], prev_wheels_shoulders[:, 1:])
-        
-        """how_many_nans(pred_rgbd_q, "PVRNN, pred_rgbd_q 2")
-        how_many_nans(pred_comm_q, "PVRNN, pred_comm_q 2")
-        how_many_nans(pred_sensors_q, "PVRNN, pred_sensors_q 2")"""
                 
         task_labels = labels[:, :, 0].clone().unsqueeze(-1)
         color_labels = labels[:, :, 1].clone().unsqueeze(-1)
         shape_labels = labels[:, :, 2].clone().unsqueeze(-1)
-        #task_labels[task_labels == 0] = 1
+        task_labels[task_labels == 0] = 1
         color_labels[color_labels != 0] = color_labels[color_labels != 0] - 5  # 6-11 -> 1-6
         shape_labels[shape_labels != 0] = shape_labels[shape_labels != 0] - 11  # 12-16 -> 1-5
 
@@ -349,26 +300,6 @@ if __name__ == "__main__":
                                 (episodes, steps+1, args.wheels_shoulders_shape),
                                 (episodes, steps+1, args.max_comm_len, args.comm_shape))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-
-    """
-    args.layers = 5
-    
-    pvrnn = PVRNN(args = args)
-    
-    print("\n\nPVRNN: MANY LAYERS")
-    print(pvrnn)
-    print()
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            print(torch_summary(pvrnn, 
-                                ((episodes, args.layers, args.pvrnn_mtrnn_size), 
-                                (episodes, steps+1, args.image_size, args.image_size * 4, 4), 
-                                (episodes, steps+1, args.max_comm_len, args.comm_shape),
-                                (episodes, steps+1, args.sensors_shape),
-                                (episodes, steps+1, args.wheels_shoulders_shape),
-                                (episodes, steps+1, args.max_comm_len, args.comm_shape))))
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-    """
 
             
 

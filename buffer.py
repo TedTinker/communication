@@ -44,6 +44,10 @@ class RecurrentReplayBuffer:
             shape = (self.args.max_comm_len, self.args.comm_shape,), 
             before_and_after = True, 
             args = self.args)
+        self.mother_comm = VariableBuffer(
+            shape = (self.args.max_comm_len, self.args.comm_shape,), 
+            before_and_after = True, 
+            args = self.args)
         self.wheels_shoulders = VariableBuffer(
             shape = (self.args.wheels_shoulders_shape,), 
             args = self.args)
@@ -62,12 +66,14 @@ class RecurrentReplayBuffer:
             rgbd,
             sensors,
             comm_in, 
+            mother_comm,
             wheels_shoulders, 
             comm_out, 
             reward, 
             next_rgbd,
             next_sensors,
             next_comm_in, 
+            next_mother_comm,
             done):
         
                 
@@ -76,6 +82,7 @@ class RecurrentReplayBuffer:
                     self.rgbd,
                     self.sensors,
                     self.comm_in, 
+                    self.mother_comm,
                     self.wheels_shoulders, 
                     self.comm_out, 
                     self.reward, 
@@ -88,6 +95,7 @@ class RecurrentReplayBuffer:
         self.rgbd.push(self.episode_ptr, self.time_ptr, rgbd)
         self.sensors.push(self.episode_ptr, self.time_ptr, sensors)
         self.comm_in.push(self.episode_ptr, self.time_ptr, comm_in)
+        self.mother_comm.push(self.episode_ptr, self.time_ptr, mother_comm)
         self.wheels_shoulders.push(self.episode_ptr, self.time_ptr, wheels_shoulders)
         self.comm_out.push(self.episode_ptr, self.time_ptr, comm_out)
         self.reward.push(self.episode_ptr, self.time_ptr, reward)
@@ -99,6 +107,7 @@ class RecurrentReplayBuffer:
             self.rgbd.push(self.episode_ptr, self.time_ptr, next_rgbd)
             self.sensors.push(self.episode_ptr, self.time_ptr, next_sensors)
             self.comm_in.push(self.episode_ptr, self.time_ptr, next_comm_in)
+            self.mother_comm.push(self.episode_ptr, self.time_ptr, next_mother_comm)
             self.episode_ptr = (self.episode_ptr + 1) % self.capacity
             self.time_ptr = 0
             self.num_episodes = min(self.num_episodes + 1, self.capacity)
@@ -116,6 +125,7 @@ class RecurrentReplayBuffer:
             self.rgbd.sample(indices),
             self.sensors.sample(indices),
             self.comm_in.sample(indices),
+            self.mother_comm.sample(indices),
             self.wheels_shoulders.sample(indices),
             self.comm_out.sample(indices),
             self.reward.sample(indices),

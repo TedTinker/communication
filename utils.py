@@ -1,7 +1,8 @@
 #%% 
 
 # To do: most important 
-#   Behavior_Analysis! Awesome idea from Jun. 
+#   Remove 'no action' in behavior analysis.
+#   Look at of-by-one error in components.
 #   Remove unused position
 #   Implement those classes
 
@@ -132,8 +133,12 @@ class Goal:
         self.char_text = f"{self.task.char}{self.color.char}{self.shape.char}"
         self.human_text = f"{self.task.name} {self.color.name} {self.shape.name}"
         
+class Obs:
+    def __init__(self, rgbd, sensors, father_comm, mother_comm):
+        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
+        
 class To_Push:
-    def __init__(self, rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_father_comm, next_mother_comm, done, mask):
+    def __init__(self, rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_father_comm, next_mother_comm, done):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
     def push(self, memory):
@@ -797,7 +802,7 @@ def load_dicts(args):
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():
-        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "behavior"]):
+        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "all_processor_names", "behavior"]):
             if(key == "hidden_state"):
                 min_maxes = []
                 for layer in range(len(min_max_dicts[0][key])):

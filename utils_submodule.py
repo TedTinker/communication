@@ -19,7 +19,8 @@ def init_weights(m):
 def episodes_steps(this):
     return(this.shape[0], this.shape[1])
 
-# Is device used correctly here?
+
+
 def pad_zeros(value, length):
     rows_to_add = length - value.size(-2)
     if(rows_to_add == 0):
@@ -35,6 +36,8 @@ def pad_zeros(value, length):
     value = torch.cat([value, padding], dim=-2)
     return value
 
+
+
 def var(x, mu_func, std_func, args):
     mu = mu_func(x)
     std = torch.clamp(std_func(x), min = args.std_min, max = args.std_max)
@@ -43,8 +46,6 @@ def var(x, mu_func, std_func, args):
 def sample(mu, std, device):
     e = Normal(0, 1).sample(std.shape).to(device)
     return(mu + e * std)
-
-
 
 def rnn_cnn(do_this, to_this):
     episodes, steps = episodes_steps(to_this)
@@ -92,65 +93,3 @@ def model_end(start, episodes, steps, model_output_list, duration_text = None):
     if(duration_text != None):
         print(duration_text + ":", duration() - start)
     return new_model_outputs
-
-
-
-class ConstrainedConv1d(nn.Conv1d):
-    def forward(self, input):
-        return nn.functional.conv1d(input, self.weight.clamp(min=-1.0, max=1.0), self.bias, self.stride,
-                                    self.padding, self.dilation, self.groups)
-        
-class Ted_Conv1d(nn.Module):
-    
-    def __init__(self, in_channels, out_channels, kernel_sizes = [1,2,3], stride = 1):
-        super(Ted_Conv1d, self).__init__()
-        
-        self.Conv1ds = nn.ModuleList()
-        for kernel, out_channel in zip(kernel_sizes, out_channels):
-            padding = (kernel-1)//2
-            layer = nn.Sequential(
-                ConstrainedConv1d(
-                    in_channels = in_channels,
-                    out_channels = out_channel,
-                    kernel_size = kernel,
-                    padding = padding,
-                    padding_mode = "reflect",
-                    stride = stride))
-            self.Conv1ds.append(layer)
-                
-    def forward(self, x):
-        y = []
-        for Conv1d in self.Conv1ds: y.append(Conv1d(x)) 
-        return(torch.cat(y, dim = -2))
-    
-    
-    
-class ConstrainedConv2d(nn.Conv2d):
-    def forward(self, input):
-        return nn.functional.conv2d(input, self.weight.clamp(min=-1.0, max=1.0), self.bias, self.stride,
-                                    self.padding, self.dilation, self.groups)
-        
-class Ted_Conv2d(nn.Module):
-    
-    def __init__(self, in_channels, out_channels, kernel_sizes = [(1,1),(3,3),(5,5)], stride = 1):
-        super(Ted_Conv2d, self).__init__()
-        
-        self.Conv2ds = nn.ModuleList()
-        for kernel, out_channel in zip(kernel_sizes, out_channels):
-            if(type(kernel) == int): 
-                kernel = (kernel, kernel)
-            padding = ((kernel[0]-1)//2, (kernel[1]-1)//2)
-            layer = nn.Sequential(
-                ConstrainedConv2d(
-                    in_channels = in_channels,
-                    out_channels = out_channel,
-                    kernel_size = kernel,
-                    padding = padding,
-                    padding_mode = "reflect",
-                    stride = stride))
-            self.Conv2ds.append(layer)
-                
-    def forward(self, x):
-        y = []
-        for Conv2d in self.Conv2ds: y.append(Conv2d(x)) 
-        return(torch.cat(y, dim = -3))

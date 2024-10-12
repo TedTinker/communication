@@ -30,8 +30,10 @@ for folder in folders:
             with open(folder + "/" + file, "rb") as handle: 
                 saved_d = pickle.load(handle)          
             for key in saved_d.keys(): 
-                if(not key in d): d[key] = []
-                if(key in ["args", "arg_title", "arg_name"]): d[key] = saved_d[key]
+                if(not key in d): 
+                    d[key] = []
+                if(key in ["args", "arg_title", "arg_name", "all_processor_names"]): 
+                    d[key] = saved_d[key]
                 else:  d[key].append(saved_d[key])
                 
         episode_dicts = {}

@@ -6,67 +6,109 @@ from itertools import product
 import matplotlib.pyplot as plt
 from statsmodels.stats.proportion import proportions_ztest
 from scipy import stats
+import random
+from itertools import product
 
-from utils import args, duration, load_dicts
+from utils import args, duration, load_dicts, task_map, color_map, shape_map
 
 print("name:\n{}".format(args.arg_name))
 
-os.chdir(f"saved_{args.comp}")
+try:
+    os.chdir(f"saved_{args.comp}")
+except:
+    pass
 try: os.mkdir("thesis_pics/behavior")
 except: pass
 
 
 
-task_names = ['WATCH', 'PUSH', 'PULL', 'LEFT', 'RIGHT']
-color_names = ['RED', 'GREEN', 'BLUE', 'CYAN', 'PINK', 'YELLOW']
-shape_names = ['PILLAR', 'POLE', 'DUMBBELL', 'DELTA', 'HOURGLASS']
+def dict_to_ordered_list(d):
+    return [d[key] for key in sorted(d.keys())]
+
+tasks = dict_to_ordered_list(task_map)
+colors = dict_to_ordered_list(color_map)
+shapes = dict_to_ordered_list(shape_map)
+
+
+def generate_random_string():
+    return random.choice([t.char for t in tasks[:2]]) + random.choice([c.char for c in colors[:2]]) + random.choice([s.char for s in shapes[:2]])
+
+example_behaviors = [
+    {i: [random.choice([generate_random_string(), generate_random_string(), "   "]) for _ in range(random.randint(3, 10))]
+     for i in range(10001)} for _ in range(3)]
+
+
+
+def behaviors_to_data(behaviors, start_epoch, finish_epoch):
+    all_strings = ['   '] + [''.join((t.char, c.char, s.char)) for (t, c, s) in product(tasks, colors, shapes)]
+    range_keys = range(start_epoch, finish_epoch)  
+    string_counts = {string: 0 for string in all_strings}
+    total_count = 0
+    for i in range_keys:
+        for string in behaviors[i]:
+            string_counts[string] += 1
+            total_count += 1
+    string_percentages = {key: (count / total_count) * 100 for key, count in string_counts.items()}
+    return(string_percentages)
+
+
+
+def create_ranges(start, end, step):
+    ranges = []
+    for i in range(start, end, step):
+        ranges.append((i, min(i + step, end+1)))
+    return ranges
 
 
 
 def plot_behaviors(plot_dict):
-    all_behaviors = plot_dict["behavior"]
-    
-    start_stop_indexes = []
-    # TO DO: actually save mother_comm
-    """start_index = 0 
-    stop_index = start_index + 100 
-    while(stop_index < len(all_behaviors[0])):
-        start_stop_indexes.append((start_index, stop_index))
-        start_index = stop_index 
-        stop_index += 100"""
+    all_behaviors = plot_dict["behavior"][0]
+    #global example_behaviors
+    #all_behaviors = example_behaviors
         
-    start_stop_indexes = [(0, 1000), (1001, 2000), (2001, 3000)]
+    epoch_ranges = create_ranges(1, 45000, 2500)
+    data = {epoch: behaviors_to_data(all_behaviors, start, end) for epoch, (start, end) in enumerate(epoch_ranges)}
     
-    nrows = len(start_stop_indexes) * 2
-    ncols = len(task_names)
-    
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(10 * ncols, 10 * len(start_stop_indexes)))
-    
-    for i, (start, stop) in enumerate(start_stop_indexes):
-        # Remove the axis for all columns in this row (use fig.text for centered label)
-        for j in range(ncols):
-            ax = axes[i * 2, j]
-            ax.axis('off')  # Turn off all axes in the row for the label
+    fig, axes = plt.subplots(len(epoch_ranges), len(tasks), figsize=(3 * len(tasks), 3 * len(epoch_ranges)))
 
-        # Place the label above the row of subplots using fig.text
-        fig.text(0.5, 1 - (i * 2 + 1) / nrows, f'{start}-{stop}\n\n\n', 
-                ha='center', va='center', fontsize=30)
-        
-        # Plot the data on the next row (i*2 + 1) for the current task and index
-        for j, task in enumerate(task_names):
-            data = np.random.rand(len(shape_names), len(color_names))  # Replace this with real data later
+    for row, (start, end) in enumerate(epoch_ranges):
+        percentages = data[row]
+        for col, task in enumerate(tasks):
+            # Create a heatmap grid for each task
+            heatmap = np.zeros((len(shapes), len(colors)))
             
-            ax = axes[i * 2 + 1, j]
-            heatmap = ax.imshow(data, cmap='gray', vmin=0, vmax=1)
-            
-            # Set the labels for x and y axis
-            ax.set_xticks(np.arange(len(color_names)))
-            ax.set_xticklabels(color_names, rotation=90)
-            ax.set_yticks(np.arange(len(shape_names)))
-            ax.set_yticklabels(shape_names)
-            ax.set_title(task)
+            for i, shape in enumerate(shapes):
+                for j, color in enumerate(colors):
+                    key = task.char + color.char + shape.char  # First letters to match the task_chars, color_chars, shape_chars
+                    if(task.name == "FREEPLAY"):
+                        key = "   "
+                    heatmap[i, j] = percentages.get(key, 0)  # Get the percentage for this combination
 
-    plt.tight_layout()
+            ax = axes[row, col]
+            im = ax.imshow(heatmap, cmap='Blues', vmin=0, vmax=100)  # Darker colors for higher percentages
+
+            if col == 0:
+                ax.set_ylabel(f'Epoch {start}-{end}', fontsize=12)
+
+            # Set axis labels for each task in each row (color on x-axis, shape on y-axis)
+            if task.name == "FREEPLAY":
+                ax.set_title("NO ACTION", pad=10)
+                ax.set_xticks([])  # Remove x-ticks
+                ax.set_yticks([])  # Remove y-ticks
+                ax.set_xticklabels([])  # Remove x-tick labels
+                ax.set_yticklabels([])  # Remove y-tick labels
+            else:
+                ax.set_title(task.name, pad=10)
+                ax.set_xticks(np.arange(len(colors)))
+                ax.set_yticks(np.arange(len(shapes)))
+                ax.set_xticklabels([c.name for c in colors], rotation=90, fontsize=10)  # Smaller font-size for x labels
+                ax.set_yticklabels([s.name for s in shapes], rotation=45, fontsize=10)  # Smaller font-size for y labels
+
+    # Add an overall title
+    fig.suptitle('Behavior Analysis', fontsize=16)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    #plt.savefig(f"thesis_pics/behavior/example.png")
     plt.savefig(f"thesis_pics/behavior/{plot_dict['args'].arg_name}.png")
     
 

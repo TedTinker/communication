@@ -8,14 +8,13 @@ from math import log
 from itertools import accumulate, product
 from copy import deepcopy
 import matplotlib.pyplot as plt
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
 import torch
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import default_args, duration, dkl, onehots_to_string, many_onehots_to_strings, wheels_shoulders_to_string, cpu_memory_usage, task_map, color_map, shape_map, task_name_list, print, string_to_onehots, agent_to_english
+from utils import default_args, dkl, onehots_to_string, many_onehots_to_strings, wheels_shoulders_to_string, cpu_memory_usage, task_map, color_map, shape_map, task_name_list, print, string_to_onehots, agent_to_english, To_Push
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from processor import Processor
@@ -61,13 +60,11 @@ class Agent:
             "wpulr" :   Processor(self.arena_1, self.arena_2, tasks = [1, 2, 3, 4, 5],  objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args)}
         
         self.all_processors = {f"{task_map[task].name}_{color_map[color].name}_{shape_map[shape].name}" : 
-            Processor(self.arena_1, self.arena_2, tasks = [task], objects = 1, colors = [color], shapes = [shape], parenting = True, args = self.args) for task, color, shape in product([1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
+            Processor(self.arena_1, self.arena_2, tasks = [task], objects = 1, colors = [color], shapes = [shape], parenting = True, args = self.args) for task, color, shape in \
+                product([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
+                #product([0, 1], [0, 1], [0, 1])}
         all_processor_names = list(self.all_processors.keys())
         self.all_processor_names = all_processor_names
-                        
-        self.lda_task = LDA(n_components=4)
-        self.lda_color = LDA(n_components=5)
-        self.lda_shape = LDA(n_components=4)
         
         self.target_entropy = self.args.target_entropy
         self.alpha = 1
@@ -141,7 +138,7 @@ class Agent:
             "sensors_hidden_state_curiosity" : [],
             "comm_hidden_state_curiosity" : [],
             "hidden_state_curiosity" : [],
-            "behavior" : [],
+            "behavior" : {},
             "wins_all" : [],
             "gen_wins_all" : []}
         for t in task_map.values():
@@ -172,7 +169,6 @@ class Agent:
             self.save_episodes(swapping = swapping)
             self.save_agent()
             return
-        
         if(self.epochs % self.args.epochs_per_gen_test == 0):
             self.gen_test()  
         else:
@@ -190,65 +186,36 @@ class Agent:
         
         
     def training(self, q = None):      
-        start_time = duration()
-        prev_time = duration()
-        
         self.regular_checks(force = True)
         while(True):
             cumulative_epochs = 0
             for i, epochs in enumerate(self.args.epochs): 
                 cumulative_epochs += epochs
-                if(self.epochs == cumulative_epochs): 
-                    
-                    prev_time = duration()
-                    
+                if(self.epochs == cumulative_epochs):                     
                     self.regular_checks(force = True)
-                    
                     self.processor_name = self.args.processor_list[i+1] 
                     self.old_memories.append(deepcopy(self.memory))
                     self.plot_dict["division_epochs"].append(self.total_epochs)
-                    
                     self.regular_checks(force = True, swapping = True)
-                    
-                    time = duration()
-                    if(self.args.show_duration): print("AFTER GEN, GETTING COMPONENT DATA, SAVE EPISODE, SAVE AGENT:", time - prev_time)
-                    prev_time = time
-                
-            prev_time = duration()
-                
             step = self.training_episode()
-            
-            time = duration()
-            if(self.args.show_duration): 
-                print(f"TRAINING EPISODE ({step+1} steps):", time - prev_time)
-                print(f"{self.epochs} EPOCHS:", time - start_time, "\n")
-            prev_time = time
-            
+
             percent_done = str(self.epochs / sum(self.args.epochs))
             if(q != None):
                 q.put((self.agent_num, percent_done))
             if(self.epochs >= sum(self.args.epochs)): 
                 self.plot_dict["division_epochs"].append(self.total_epochs) 
                 break
-            
-            prev_time = duration()
-            
+                        
             self.regular_checks()
-        
-        prev_time = duration()
         
         self.regular_checks(force = True)
         
         self.plot_dict["accumulated_reward"] = list(accumulate(self.plot_dict["reward"]))
         self.plot_dict["accumulated_gen_reward"] = list(accumulate(self.plot_dict["gen_reward"]))
-        
-        time = duration()
-        if(self.args.show_duration): print("AFTER GEN, SAVE EPISODE, component_data, SAVE AGENT (END):", time - prev_time)
-        prev_time = time
-                
+
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
-            if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps"]):
+            if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps", "behavior"]):
                 if(key == "hidden_state"):
                     min_maxes = []
                     hidden_state = deepcopy(self.plot_dict[key])
@@ -279,9 +246,7 @@ class Agent:
     def step_in_episode(self, 
                         prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
                         prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2, sleep_time = None):
-                    
-        start_time = duration()
-        prev_time = duration()
+
         with torch.no_grad():
             self.eval()
             parenting = self.processor.parenting
@@ -332,38 +297,17 @@ class Agent:
             
             next_comm_in_1 = string_to_onehots(mother_comm_1).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_parent_comm.unsqueeze(0) if parenting else comm_out_2 
             next_comm_in_2 = string_to_onehots(mother_comm_2).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_parent_comm.unsqueeze(0) if parenting else comm_out_1
-                        
-            to_push_1 = [
-                rgbd_1,
-                sensors_1,
-                comm_in_1,
-                wheels_shoulders_1,
-                comm_out_1,
-                reward,
-                next_rgbd_1,
-                next_sensors_1,
-                next_comm_in_1,
-                done]
+                      
+            #     def __init__(self, rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_father_comm, next_mother_comm, done):
+
+            to_push_1 = To_Push(rgbd_1, sensors_1, comm_in_1, comm_in_1, wheels_shoulders_1, comm_out_1, reward, next_rgbd_1, next_sensors_1, next_comm_in_1, next_comm_in_1, done)          
             
             if(parenting): 
                 to_push_2 = None
             else:
-                to_push_2 = [
-                    rgbd_2,
-                    sensors_2,
-                    comm_in_2,
-                    wheels_shoulders_2,
-                    comm_out_2,
-                    reward,
-                    next_rgbd_2,
-                    next_sensors_2,
-                    next_comm_in_2,
-                    done]
+                to_push_2 = To_Push(rgbd_2, sensors_2, comm_in_2, comm_in_2, wheels_shoulders_2, comm_out_2, reward, next_rgbd_2, next_sensors_2, next_comm_in_2, next_comm_in_2, done)          
+
         torch.cuda.empty_cache()
-        
-        time = duration()
-        if(self.args.show_duration): print("COMPLETE STEP:", time - start_time, "\n")
-        prev_time = time
         
         return(wheels_shoulders_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), rgbd_dkl_1, sensors_dkl_1, comm_dkl_1, mother_comm_1,
                wheels_shoulders_2, comm_out_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1), rgbd_dkl_2, sensors_dkl_2, comm_dkl_2, mother_comm_2,
@@ -372,9 +316,6 @@ class Agent:
            
            
     def start_episode(self):
-        start_time = duration()
-        prev_time = duration()
-        
         done = False
         complete_reward = 0
         steps = 0
@@ -391,19 +332,20 @@ class Agent:
         hq_2 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
         mother_comm_2 = " " * self.args.max_comm_len
                 
-        return(start_time, prev_time, done, complete_reward, steps, 
+        return(done, complete_reward, steps, 
                to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
                to_push_list_2, prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2)
            
            
     
     def training_episode(self):        
-        start_time, prev_time, done, complete_reward, steps, \
+        done, complete_reward, steps, \
             to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1, \
             to_push_list_2, prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
                     
         self.episodes += 1 
         self.total_episodes += 1
+        self.plot_dict["behavior"][self.episodes] = []
         self.processor = self.processors[self.processor_name]
         self.processor.begin()    
                         
@@ -418,16 +360,14 @@ class Agent:
                             prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
                             prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2)
                         
+                if(self.args.agents_per_behavior_analysis == -1 or self.agent_num <= self.args.agents_per_behavior_analysis):  
+                    self.plot_dict["behavior"][self.episodes].append(mother_comm_1)
+                    
                 to_push_list_1.append(to_push_1)
                 to_push_list_2.append(to_push_2)
                 complete_reward += reward
             if(self.steps % self.args.steps_per_epoch == 0):
-                prev_time = duration()
                 self.epoch(self.args.batch_size)
-                time = duration()
-                if(self.args.show_duration): print("\nEPOCH:", time - prev_time)
-                prev_time = time
-
                                                     
         self.processor.done()
         self.plot_dict["steps"].append(steps)
@@ -441,42 +381,18 @@ class Agent:
                 self.plot_dict["wins_" + task_name].append(None)
                              
         for to_push in to_push_list_1:
-            rgbd, sensors, comm_in, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_comm_in, done = to_push
-            self.memory.push(
-                rgbd.to("cpu"),
-                sensors.to("cpu"),
-                comm_in.to("cpu"), 
-                wheels_shoulders.to("cpu"), 
-                comm_out.to("cpu"),
-                reward, 
-                next_rgbd.to("cpu"),
-                next_sensors.to("cpu"),
-                next_comm_in.to("cpu"), 
-                done)
+            to_push.push(self.memory)
             
         for to_push in to_push_list_2:
             if(to_push != None):
-                rgbd, sensors, comm_in, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_comm_in, done = to_push
-                self.memory.push(
-                    rgbd.to("cpu"),
-                    sensors.to("cpu"),
-                    comm_in.to("cpu"), 
-                    wheels_shoulders.to("cpu"), 
-                    comm_out.to("cpu"),
-                    reward, 
-                    next_rgbd.to("cpu"),
-                    next_sensors.to("cpu"),
-                    next_comm_in.to("cpu"), 
-                    done)
-                
-        self.episodes += 1
-        
+                to_push.push(self.memory)
+                        
         return(step)
         
         
         
     def gen_test(self):
-        start_time, prev_time, done, complete_reward, steps, \
+        done, complete_reward, steps, \
             to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1, \
             to_push_list_2, prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
                 
@@ -493,8 +409,6 @@ class Agent:
                                 prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2)
                     complete_reward += reward
                 #print("DONE")
-            time = duration()
-            if(self.args.show_duration): print(f"FULL GEN TEST EPISODE ({step + 1} steps):", time - start_time, "\n")
             self.processor.done()
             goal_task = self.processor.goal.task.name
             self.plot_dict["gen_wins_all"].append(win)
@@ -534,11 +448,11 @@ class Agent:
                         episode_dict[f"{key}_{agent_id}"] = []
                 episode_dict["reward"] = []
                 episode_dict["processor"] = self.processor
-                episode_dict["goal"] = "'{}' ({})".format(self.processor.goal_text, self.processor.goal_human_text)
+                episode_dict["goal"] = "'{}' ({})".format(self.processor.goal.char_text, self.processor.goal.human_text)
                 
                 done = False
                 
-                start_time, prev_time, done, complete_reward, steps, \
+                done, complete_reward, steps, \
                     to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1, \
                     to_push_list_2, prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
                         
@@ -587,7 +501,7 @@ class Agent:
                     
                 def display(step, agent_1 = True, done = False, stopping = False, wait = True):
                     if(for_display):
-                        print(f"\n{self.processor.goal_human_text}", end = " ")
+                        print(f"\n{self.processor.goal.human_text}", end = " ")
                         print("STEP:", step)
                         plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False)
                         if(not self.processor.parenting and not stopping):
@@ -637,8 +551,6 @@ class Agent:
                             save_step(step, hp_2, hq_2, wheels_shoulders = prev_wheels_shoulders_2, agent_1 = False) 
                         display(step + 1, done = True, wait = False)
                         self.processor.done()
-                        time = duration()
-                        if(self.args.show_duration): print(f"\nFULL SAVE EPISODE EPISODE ({step + 1} steps):", time - start_time, "\n")
                         break
                 
                 if(for_display):
@@ -658,11 +570,8 @@ class Agent:
         for processor_name in self.all_processor_names:
             self.processor = self.all_processors[processor_name]
             #print(self.processor.processor)
-            try:
-                self.processor.begin()    
-            except:
-                self.processor.begin(test = True)    
-            start_time, prev_time, done, complete_reward, steps, \
+            self.processor.begin(test = None)    
+            done, complete_reward, steps, \
                 to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1, \
                 to_push_list_2, prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
      
@@ -678,61 +587,27 @@ class Agent:
                 if(done): break
             #print("DONE")
             self.processor.done()
-            
-            processor_lens.append(step)
-                            
+            processor_lens.append(step)           
             for to_push in to_push_list_1:
-                rgbd, sensors, comm_in, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_comm_in, done = to_push
-                temp_memory.push(
-                    rgbd.to("cpu"),
-                    sensors.to("cpu"),
-                    comm_in.to("cpu"), 
-                    wheels_shoulders.to("cpu"), 
-                    comm_out.to("cpu"),
-                    reward, 
-                    next_rgbd.to("cpu"),
-                    next_sensors.to("cpu"),
-                    next_comm_in.to("cpu"), 
-                    done)
+                to_push.push(temp_memory)
                 
         batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
-        rgbd, sensors, comm_in, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps = batch
         
         hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
             rgbd, sensors, comm_in, wheels_shoulders, comm_out)
         
-        comm_zq = comm_zq.view(-1, 128)
-        labels = labels.view(-1, 3)   
-        all_mask = all_mask.view(-1)         
-        comm_zq = comm_zq[all_mask.bool()]
-        labels = labels[all_mask.bool()]
+        comm_zq = comm_zq.detach().cpu().numpy()
+        labels = labels.detach().cpu().numpy()
+        all_mask = all_mask.detach().cpu().numpy()   
+        
+        non_zero_mask = labels[:, 0, 0] != 0  # This checks if the first element of each sequence is not 0
+        comm_zq_filtered = comm_zq[non_zero_mask]
+        labels_filtered = labels[non_zero_mask]
+        all_mask_filtered = all_mask[non_zero_mask]
                 
-        self.lda_task.fit(comm_zq.detach().cpu().numpy(), labels[:,0].detach().cpu().numpy())
-        self.lda_color.fit(comm_zq.detach().cpu().numpy(), labels[:,1].detach().cpu().numpy())
-        self.lda_shape.fit(comm_zq.detach().cpu().numpy(), labels[:,2].detach().cpu().numpy())
-
-        task_probs = self.lda_task.predict_proba(comm_zq.detach().cpu().numpy())
-        color_probs = self.lda_color.predict_proba(comm_zq.detach().cpu().numpy())
-        shape_probs = self.lda_shape.predict_proba(comm_zq.detach().cpu().numpy())
-        
-        processor_tensors = {}
-        start_idx = 0  
-        for name, length in zip(self.all_processor_names, processor_lens):
-            end_idx = start_idx + length
-            task_probs_slice = task_probs[start_idx:end_idx]
-            color_probs_slice = color_probs[start_idx:end_idx]
-            shape_probs_slice = shape_probs[start_idx:end_idx]
-            processor_tensors[name] = (task_probs_slice, color_probs_slice, shape_probs_slice)
-            start_idx = end_idx
-                        
-        self.plot_dict["component_data"][self.epochs] = processor_tensors
-        
-        #print(f"\tAgent {self.agent_num} in Total Epochs {self.epochs}:")
-        #for epochs, processor_tensors in self.plot_dict["lda_transformations"].items():
-        #    print(f"\t\tepoch {epochs}:")
-        #    for name, (task_probs, color_probs, shape_probs) in processor_tensors.items():
-        #        print(f"\t\t\t{name}: task probs {task_probs.shape}, color probs {color_probs.shape}, shape_probs {shape_probs.shape}")
+        self.plot_dict["component_data"][self.epochs] = (comm_zq, labels, all_mask, comm_zq_filtered, labels_filtered, all_mask_filtered)
                         
         
         
@@ -746,12 +621,11 @@ class Agent:
         batch = memory.sample(batch_size, random_sample = random_sample)
         if(batch == False): return(False)
         
-        prev_time = duration()
-
-        rgbd, sensors, comm_in, wheels_shoulders, comm_out, reward, done, mask = batch
+        rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask = batch
         rgbd = torch.from_numpy(rgbd).to(self.args.device)
         sensors = torch.from_numpy(sensors).to(self.args.device)
         comm_in = torch.from_numpy(comm_in).to(self.args.device)
+        mother_comm = torch.from_numpy(mother_comm).to(self.args.device)
         wheels_shoulders = torch.from_numpy(wheels_shoulders)
         comm_out = torch.from_numpy(comm_out)
         reward = torch.from_numpy(reward).to(self.args.device)
@@ -775,7 +649,7 @@ class Agent:
         #    self.agent_num, self.epochs, rgbd.shape, comm_in.shape, wheels_shoulders.shape, comm_out.shape, reward.shape, done.shape, mask.shape))
         #print("\n\n")
         
-        return(rgbd, sensors, comm_in, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps)
+        return(rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps)
         
     
     
@@ -790,12 +664,10 @@ class Agent:
             return(False)
         batch_size = batch[0].shape[0]
         
-        rgbd, sensors, comm_in, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, comm_in, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps = batch
         # Also sample from old memories, and use them to keep actor and critic outputs the same.
         
-        time = duration()
-        start_time = duration()
-        prev_time = time
+        
                 
         # Train forward
         hps, hqs, rgbd_dkl, sensors_dkl, comm_dkl, pred_rgbd_q, pred_sensors_q, pred_comm_q, comm_zq, labels = self.forward(
@@ -827,19 +699,11 @@ class Agent:
             self.args.beta_sensors * sensors_complexity_for_hidden_state.mean(),
             self.args.beta_comm * comm_complexity_for_hidden_state.mean()])       
                                 
-        time = duration()
-        if(self.args.show_duration): print("USED FORWARD:", time - prev_time)
-        prev_time = time
-                                
         self.forward_opt.zero_grad()
         (accuracy + complexity).backward()
         self.forward_opt.step()
         
         torch.cuda.empty_cache()
-        
-        time = duration()
-        if(self.args.show_duration): print("TRAINED FORWARD:", time - prev_time)
-        prev_time = time
                         
                         
         
@@ -860,12 +724,8 @@ class Agent:
         extrinsic = torch.mean(reward).item()
         intrinsic_curiosity = curiosity.mean().item()
         reward += curiosity
-        
-        time = duration()
-        if(self.args.show_duration): print("CURIOSITY:", time - prev_time)
-        prev_time = time
-                        
-        
+
+
                 
         # Train critics
         with torch.no_grad():
@@ -887,10 +747,6 @@ class Agent:
             if self.args.alpha_text == None: alpha_text = self.alpha_text 
             else:                            alpha_text = self.args.alpha_text
             Q_targets = reward + (self.args.GAMMA * (1 - done) * (Q_target_next - (alpha * log_pis_next) - (alpha_text * log_pis_next_text)))
-            
-        time = duration()
-        #if(self.args.show_duration): print("USED TARGET CRITICS:", time - prev_time)
-        prev_time = time
         
         critic_losses = []
         Qs = []
@@ -906,10 +762,6 @@ class Agent:
             self.soft_update(self.critics[i], self.critic_targets[i], self.args.tau)
         
         torch.cuda.empty_cache()
-        
-        time = duration()
-        if(self.args.show_duration): print("TRAINED CRITICS:", time - prev_time)
-        prev_time = time
                                     
             
         
@@ -926,8 +778,6 @@ class Agent:
             scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device).float()
             policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
             policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_wheels_shoulders).unsqueeze(-1)
-
-                
             intrinsic_entropy = torch.mean((alpha * log_pis - policy_prior_log_prrgbd)*mask).item()
                 
             Qs = []
@@ -941,17 +791,9 @@ class Agent:
             actor_loss = ((alpha * log_pis - policy_prior_log_prrgbd) + (alpha_text * log_pis_text) - Q)*mask
             actor_loss = actor_loss.mean() / mask.mean()
             
-            time = duration()
-            if(self.args.show_duration): print("USED ACTOR:", time - prev_time)
-            prev_time = time
-            
             self.actor_opt.zero_grad()
             actor_loss.backward()
             self.actor_opt.step()
-            
-            time = duration()
-            if(self.args.show_duration): print("TRAINED ACTOR:", time - prev_time)
-            prev_time = time
         else:
             Q = None
             intrinsic_entropy = None
@@ -984,22 +826,18 @@ class Agent:
             torch.cuda.empty_cache()
         else:
             alpha_text_loss = None
-            
-        time = duration()
-        if(self.args.show_duration): print("TRAINED ALPHA:", time - prev_time)
-        prev_time = time
                                 
                                 
                                 
-        if(accuracy != None):   accuracy = accuracy.item()
-        if(rgbd_loss != None):   rgbd_loss = rgbd_loss.mean().item()
+        if(accuracy != None):       accuracy = accuracy.item()
+        if(rgbd_loss != None):      rgbd_loss = rgbd_loss.mean().item()
         if(sensors_loss != None):   sensors_loss = sensors_loss.mean().item()
-        if(comm_loss != None):   comm_loss = comm_loss.mean().item()
-        if(complexity != None): complexity = complexity.item()
-        if(alpha_loss != None): alpha_loss = alpha_loss.item()
+        if(comm_loss != None):      comm_loss = comm_loss.mean().item()
+        if(complexity != None):     complexity = complexity.item()
+        if(alpha_loss != None):     alpha_loss = alpha_loss.item()
         if(alpha_text_loss != None): alpha_text_loss = alpha_text_loss.item()
-        if(actor_loss != None): actor_loss = actor_loss.item()
-        if(Q != None): Q = -Q.mean().item()
+        if(actor_loss != None):     actor_loss = actor_loss.item()
+        if(Q != None):              Q = -Q.mean().item()
         for i in range(self.args.critics):
             if(critic_losses[i] != None): 
                 critic_losses[i] = critic_losses[i].item()
@@ -1016,11 +854,8 @@ class Agent:
         prediction_error_curiosity = prediction_error_curiosity.mean().item()
         hidden_state_curiosity = hidden_state_curiosity.mean().item()
         
-        time = duration()
-        #if(self.args.show_duration): print(f"WHOLE EPOCH {self.epochs}:", time - start_time)
-        
-        
-        
+
+
         if(self.epochs == 1 or self.epochs >= sum(self.args.epochs) or self.epochs % self.args.keep_data == 0):
             self.plot_dict["accuracy"].append(accuracy)
             self.plot_dict["rgbd_loss"].append(rgbd_loss)

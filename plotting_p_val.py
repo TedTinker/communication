@@ -93,7 +93,7 @@ def compare_and_plot(values_1, values_2, args_name_1, args_name_2, here, data_ty
             color_1, color_2 = 'red', 'green'  # values_2 is better
     else:  # No significant difference
         color_1, color_2 = 'white', 'white'
-        
+
     print(f"\t\tMeans: {mean_1}, {mean_2}")
     print(f"\t\tConf: {ci_1}, {ci_2}")
     print(f"\t\tColor: {color_1}, {color_2}")
@@ -104,10 +104,13 @@ def compare_and_plot(values_1, values_2, args_name_1, args_name_2, here, data_ty
         yerr=[ci_1, ci_2],
         color=[color_1, color_2],
         edgecolor='black',
-        capsize=10)
-    
-    #here.set_ylabel(f'Average')
-    #here.set_title(f'{label.capitalize()}')
+        capsize=10
+    )
+
+    if data_type == 'boolean':
+        here.set_ylim(0, 1)  # Set y-axis limits from 0 to 1
+        here.set_yticklabels([f'{int(tick*100)}%' for tick in here.get_yticks()])  # Format y-ticks as percentages
+
     
     
 

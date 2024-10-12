@@ -6,7 +6,7 @@ from time import sleep
 from random import uniform, choice
 
 from utils import default_args, task_map, shape_map, color_map, make_objects_and_task,\
-    string_to_onehots, onehots_to_string, print, comm_map, Goal
+    string_to_onehots, onehots_to_string, print, comm_map, Goal, Obs
 from utils_submodule import pad_zeros
 from arena import Arena, get_physics
 
@@ -14,31 +14,11 @@ from arena import Arena, get_physics
 
 class Processor:
     
-    def __init__(
-            self, 
-            arena_1, arena_2,
-            tasks = [0], 
-            objects = 1, 
-            colors = [0], 
-            shapes = [0], 
-            parenting = True, 
-            args = default_args):
-        
-        self.arena_1 = arena_1 
-        self.arena_2 = arena_2
-        self.tasks = tasks
-        self.objects = objects 
-        self.shapes = shapes
-        self.colors = colors
-        self.parenting = parenting
-        self.args = args
+    def __init__(self, arena_1, arena_2, tasks = [0], objects = 1, colors = [0], shapes = [0], parenting = True, args = default_args):
+        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
                 
     def begin(self, test = False, verbose = False):
-        self.steps = 0
-        self.solved = False
-        self.goal = None
-        self.current_objects_1 = []
-            
+        self.steps = 0            
         goal_task, self.current_objects_1, self.current_objects_2 = make_objects_and_task(
             num_objects = self.objects, allowed_tasks = self.tasks, allowed_colors = self.colors, allowed_shapes = self.shapes, test = test)
         goal_color, goal_shape = self.current_objects_1[0]
@@ -47,24 +27,12 @@ class Processor:
         self.goal_text = "{}{}{}".format(goal_task.char, goal_color.char, goal_shape.char)
         if(goal_task.name == "FREEDOM"):
             self.goal_text = self.goal_text[0]            
-        self.goal_human_text = "Given "
-        for i, (c, s) in enumerate(self.current_objects_1):
-            self.goal_human_text += c.name + " " + s.name
-            if i < len(self.current_objects_1) - 1:
-                if len(self.current_objects_1) > 2: 
-                    self.goal_human_text += ", "
-                else:
-                    self.goal_human_text += " "
-            if i == len(self.current_objects_1) - 2: 
-                self.goal_human_text += "and "
-            elif i == len(self.current_objects_1) - 1:
-                self.goal_human_text += ": "
-        self.goal_human_text = self.goal.human_text
         self.goal_comm = string_to_onehots(self.goal_text)
         self.goal_comm = pad_zeros(self.goal_comm, self.args.max_comm_len)
         
         self.arena_1.begin(self.current_objects_1, self.goal, self.parenting)
-        if(not self.parenting): self.arena_2.begin(self.current_objects_2, self.goal, self.parenting)
+        if(not self.parenting):
+            self.arena_2.begin(self.current_objects_2, self.goal, self.parenting)
                                 
         if(verbose):
             print(self)
@@ -73,16 +41,23 @@ class Processor:
         to_return = "\n\nSHAPE-COLORS (1):\t{}".format(["{} {}".format(color, shape) for color, shape in self.current_objects_1])
         if(not self.parenting):
             to_return += "\nSHAPE-COLORS (2):\t{}".format(["{} {}".format(color, shape) for color, shape in self.current_objects_2])
-        to_return += "\nGOAL:\t{} ({})".format(self.goal.char_text, self.goal_human_text)
+        to_return += "\nGOAL:\t{} ({})".format(self.goal.char_text, self.goal.human_text)
         return(to_return)
     
-    def obs(self, agent_1 = True):
-        if(agent_1): arena = self.arena_1
+    def get_arena(self, agent_1 = True):
+        if(agent_1): 
+            arena = self.arena_1
         else:        
             if(self.parenting):
-                return(torch.zeros((1, self.args.image_size, self.args.image_size, 4)), None, None)
+                return(None)
             else:
                 arena = self.arena_2
+        return(arena)
+        
+    def obs(self, agent_1 = True):
+        arena = self.get_arena(agent_1)
+        if(arena == None):
+            return(torch.zeros((1, self.args.image_size, self.args.image_size, 4)), None, None)
                 
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
@@ -97,14 +72,14 @@ class Processor:
         return(rgbd, sensors, self.goal_comm.unsqueeze(0))
             
     def act(self, wheels_shoulders, agent_1 = True, verbose = False, sleep_time = None):
-        if(agent_1): arena = self.arena_1
-        else:        arena = self.arena_2
+        arena = self.get_arena(agent_1)
+        
         left_wheel, right_wheel, left_shoulder, right_shoulder = \
             wheels_shoulders[0].item(), wheels_shoulders[1].item(), wheels_shoulders[2].item(), wheels_shoulders[3].item()
                   
         if(verbose): 
             print("\n\nStep {}:".format(self.steps))
-            print("Left Wheel: {}. Right Wheel: {}. Shoulders: {}, {}.".format(
+            print("Wheels: {}, {}. Shoulders: {}, {}.".format(
             round(left_wheel, 2), round(right_wheel, 2), round(left_shoulder, 2), round(right_shoulder, 2)))
             
         arena.step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = verbose, sleep_time = sleep_time)
