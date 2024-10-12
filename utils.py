@@ -105,6 +105,18 @@ class Task:
         
     def __str__(self):
         return(f"{self.char}, {self.name}")
+    
+task_map = {
+    0:  Task("A", "FREEPLAY"),
+    1:  Task("B", "WATCH"),
+    2:  Task("C", "PUSH"),     
+    3:  Task("D", "PULL"),   
+    4:  Task("E", "LEFT"),   
+    5:  Task("F", "RIGHT")}    
+max_len_taskname = max([len(t.name) for t in task_map.values()])
+task_name_list = [task.name for task in task_map.values()]
+
+
         
 class Color:
     def __init__(self, char, name, rgbd):
@@ -112,6 +124,18 @@ class Color:
         
     def __str__(self):
         return(f"{self.char}, {self.name}")
+    
+color_map = {
+    0: Color("G", "RED",     (1,0,0,1)), 
+    1: Color("H", "GREEN",   (0,1,0,1)),
+    2: Color("I", "BLUE",    (0,0,1,1)),
+    3: Color("J", "CYAN",    (0,1,1,1)), 
+    4: Color("K", "PINK",    (1,0,1,1)), 
+    5: Color("L", "YELLOW",  (1,1,0,1))} 
+max_len_color_name = max([len(c.name) for c in color_map.values()])
+color_name_list = [c.name for c in color_map.values()]
+
+
         
 class Shape:
     def __init__(self, char, file_name):
@@ -120,6 +144,15 @@ class Shape:
         
     def __str__(self):
         return(f"{self.char}, {self.name}")
+    
+data_path = "pybullet_data"
+shape_files = [f.name for f in os.scandir(data_path + "/shapes") if f.name.endswith("urdf")] ; shape_files.sort()
+shape_letter_file = [[f.split("_")[0], f] for f in shape_files]
+shape_map = {i : Shape(l, f) for i, (l, f) in enumerate(shape_letter_file)} 
+max_len_shape_name = max([len(s.name) for s in shape_map.values()])
+shape_name_list = [s.name for s in shape_map.values()]
+
+
         
 class Goal:
     def __init__(self, task, color, shape, parenting):
@@ -132,6 +165,10 @@ class Goal:
         self.one_hots = one_hots
         self.char_text = f"{self.task.char}{self.color.char}{self.shape.char}"
         self.human_text = f"{self.task.name} {self.color.name} {self.shape.name}"
+        
+empty_goal = Goal(task_map[0], task_map[0], task_map[0], parenting = False)
+
+
         
 class Obs:
     def __init__(self, rgbd, sensors, father_comm, mother_comm):
@@ -161,33 +198,6 @@ class Inner_State:
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
 
 
-
-task_map = {
-    0:  Task("A", "FREEPLAY"),
-    1:  Task("B", "WATCH"),
-    2:  Task("C", "PUSH"),     
-    3:  Task("D", "PULL"),   
-    4:  Task("E", "LEFT"),   
-    5:  Task("F", "RIGHT")}    
-max_len_taskname = max([len(t.name) for t in task_map.values()])
-task_name_list = [task.name for task in task_map.values()]
-
-color_map = {
-    0: Color("G", "RED",     (1,0,0,1)), 
-    1: Color("H", "GREEN",   (0,1,0,1)),
-    2: Color("I", "BLUE",    (0,0,1,1)),
-    3: Color("J", "CYAN",    (0,1,1,1)), 
-    4: Color("K", "PINK",    (1,0,1,1)), 
-    5: Color("L", "YELLOW",  (1,1,0,1))} 
-max_len_color_name = max([len(c.name) for c in color_map.values()])
-color_name_list = [c.name for c in color_map.values()]
-
-data_path = "pybullet_data"
-shape_files = [f.name for f in os.scandir(data_path + "/shapes") if f.name.endswith("urdf")] ; shape_files.sort()
-shape_letter_file = [[f.split("_")[0], f] for f in shape_files]
-shape_map = {i : Shape(l, f) for i, (l, f) in enumerate(shape_letter_file)} 
-max_len_shape_name = max([len(s.name) for s in shape_map.values()])
-shape_name_list = [s.name for s in shape_map.values()]
 
 comm_map = {
     0: ' ', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G',
@@ -335,15 +345,15 @@ parser.add_argument('--load_agents',                    type=literal,       defa
                     help='Are we loading agents?')    
 
     # Things which have list-values.
-parser.add_argument('--processor_list',                 type=literal,       default = ["fp", "w", "wpulr"],
+"""parser.add_argument('--processor_list',                 type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 parser.add_argument('--epochs',                         type=literal,       default = [100, 50, 300], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
-                    help='List of how many epochs to train in each processor.')
+                    help='List of how many epochs to train in each processor.')"""
 
-"""parser.add_argument('--processor_list',                 type=literal,       default = ["w"],
+parser.add_argument('--processor_list',                 type=literal,       default = ["w"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 parser.add_argument('--epochs',                         type=literal,       default = [10000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
-                    help='List of how many epochs to train in each processor.')"""
+                    help='List of how many epochs to train in each processor.')
 
     # Simulation details
 parser.add_argument('--min_object_separation',          type=float,         default = 3,

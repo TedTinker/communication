@@ -6,7 +6,7 @@ from time import sleep
 from random import uniform, choice
 
 from utils import default_args, task_map, shape_map, color_map, make_objects_and_task,\
-    string_to_onehots, onehots_to_string, print, comm_map, Goal, Obs
+    string_to_onehots, onehots_to_string, print, comm_map, Goal, Obs, empty_goal
 from utils_submodule import pad_zeros
 from arena import Arena, get_physics
 
@@ -16,6 +16,8 @@ class Processor:
     
     def __init__(self, arena_1, arena_2, tasks = [0], objects = 1, colors = [0], shapes = [0], parenting = True, args = default_args):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
+        
+        
                 
     def begin(self, test = False, verbose = False):
         self.steps = 0            
@@ -23,19 +25,14 @@ class Processor:
             num_objects = self.objects, allowed_tasks = self.tasks, allowed_colors = self.colors, allowed_shapes = self.shapes, test = test)
         goal_color, goal_shape = self.current_objects_1[0]
         self.goal = Goal(goal_task, goal_color, goal_shape, self.parenting)
-        
-        self.goal_text = "{}{}{}".format(goal_task.char, goal_color.char, goal_shape.char)
-        if(goal_task.name == "FREEDOM"):
-            self.goal_text = self.goal_text[0]            
-        self.father_comm = string_to_onehots(self.goal_text)
-        self.father_comm = pad_zeros(self.father_comm, self.args.max_comm_len)
-        
         self.arena_1.begin(self.current_objects_1, self.goal, self.parenting)
         if(not self.parenting):
             self.arena_2.begin(self.current_objects_2, self.goal, self.parenting)
                                 
         if(verbose):
             print(self)
+            
+            
     
     def __str__(self):
         to_return = "\n\nSHAPE-COLORS (1):\t{}".format(["{} {}".format(color, shape) for color, shape in self.current_objects_1])
@@ -43,6 +40,8 @@ class Processor:
             to_return += "\nSHAPE-COLORS (2):\t{}".format(["{} {}".format(color, shape) for color, shape in self.current_objects_2])
         to_return += "\nGOAL:\t{} ({})".format(self.goal.char_text, self.goal.human_text)
         return(to_return)
+    
+    
     
     def get_arena(self, agent_1 = True):
         if(agent_1): 
@@ -53,6 +52,8 @@ class Processor:
             else:
                 arena = self.arena_2
         return(arena)
+    
+    
         
     def obs(self, agent_1 = True):
         arena = self.get_arena(agent_1)
@@ -69,7 +70,9 @@ class Processor:
                 
         sensors = torch.tensor([touched]).float()
                 
-        return(rgbd, sensors, self.father_comm.unsqueeze(0))
+        return(rgbd, sensors, self.goal.one_hots.unsqueeze(0))
+    
+    
             
     def act(self, wheels_shoulders, agent_1 = True, verbose = False, sleep_time = None):
         arena = self.get_arena(agent_1)
@@ -85,6 +88,8 @@ class Processor:
         arena.step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = verbose, sleep_time = sleep_time)
         raw_reward, win, mother_comm = arena.rewards()
         return(raw_reward, win, mother_comm)
+    
+    
         
     def step(self, wheels_shoulders_1, wheels_shoulders_2 = None, verbose = False, sleep_time = None):
         self.steps += 1
@@ -92,7 +97,7 @@ class Processor:
         
         raw_reward, win, mother_comm_1 = self.act(wheels_shoulders_1, verbose = verbose, sleep_time = sleep_time)
         if(self.parenting): 
-            mother_comm_2 = " " * self.args.max_comm_len
+            mother_comm_2 = empty_goal
         else:
             raw_reward_2, win_2, mother_comm_2 = self.act(wheels_shoulders_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
             raw_reward = max([raw_reward, raw_reward_2])
@@ -119,6 +124,8 @@ class Processor:
                 print("Done.")
                                 
         return(raw_reward, done, win, mother_comm_1, mother_comm_2)
+    
+    
     
     def done(self):
         self.arena_1.end()

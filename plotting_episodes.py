@@ -66,7 +66,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
     if(step == 0):
         data.append([f"RGBD ({agent_num})", [episode_dict[f"rgbd_{agent_num}"][step], "image"], 1])
         data.append([f"Sensors ({agent_num})", [episode_dict[f"sensors_{agent_num}"][step], "sensors"], 1])
-        data.append([f"Comm_In ({agent_num})", [episode_dict[f"comm_in_{agent_num}"][step]], 1])
+        data.append([f"Father Comm ({agent_num})", [episode_dict[f"father_comm_{agent_num}"][step]], 1])
     else:
         data.append(
             [f"RGBD ({agent_num})", 
@@ -79,17 +79,17 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
             [episode_dict[f"prior_predicted_sensors_{agent_num}"][step-1], "sensors"],
             [episode_dict[f"posterior_predicted_sensors_{agent_num}"][step-1], "sensors"], 1])
         data.append(
-            [f"Comm_In ({agent_num})",
-            [episode_dict[f"comm_in_{agent_num}"][step]],
-            ["\n\n" + episode_dict[f"prior_predicted_comm_in_{agent_num}"][step-1]],
-            ["\n\n\n\n" + episode_dict[f"posterior_predicted_comm_in_{agent_num}"][step-1]], .3])
+            [f"Father Comm ({agent_num})",
+            [episode_dict[f"father_comm_{agent_num}"][step]],
+            ["\n\n" + episode_dict[f"prior_predicted_father_comm_{agent_num}"][step-1]],
+            ["\n\n\n\n" + episode_dict[f"posterior_predicted_father_comm_{agent_num}"][step-1]], .3])
         
         data.append([f"Wheels, Shoulders ({agent_num})", [episode_dict[f"wheels_shoulders_text_{agent_num}"][step-1]], .1])
         data.append([f"Comms Out ({agent_num})", [episode_dict[f"comm_out_{agent_num}"][step-1]], .1])
         
         data.append([f"RGBD DKL ({agent_num})", [episode_dict[f"rgbd_dkl_{agent_num}"][:step], "plot"], .5])
         data.append([f"Sensors DKL ({agent_num})", [episode_dict[f"sensors_dkl_{agent_num}"][:step], "plot"], .5])
-        data.append([f"Comm DKL ({agent_num})", [episode_dict[f"comm_dkl_{agent_num}"][:step], "plot"], .5])
+        data.append([f"Father Comm ({agent_num})", [episode_dict[f"father_comm_dkl_{agent_num}"][:step], "plot"], .5])
         
     max_sublist_len = 0
     for sublist in data:

@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import default_args, dkl, onehots_to_string, many_onehots_to_strings, wheels_shoulders_to_string, cpu_memory_usage, task_map, color_map, shape_map, task_name_list, print, string_to_onehots, agent_to_english, To_Push
+from utils import default_args, dkl, onehots_to_string, many_onehots_to_strings, wheels_shoulders_to_string, cpu_memory_usage, task_map, color_map, shape_map, task_name_list, print, string_to_onehots, agent_to_english, To_Push, empty_goal
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from processor import Processor
@@ -55,7 +55,7 @@ class Agent:
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.processors = {
-            "fp" :      Processor(self.arena_1, self.arena_2, tasks = [0],             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "fp" :      Processor(self.arena_1, self.arena_2, tasks = [0],              objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
             "w" :       Processor(self.arena_1, self.arena_2, tasks = [1],              objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
             "wpulr" :   Processor(self.arena_1, self.arena_2, tasks = [1, 2, 3, 4, 5],  objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args)}
         
@@ -250,9 +250,7 @@ class Agent:
         with torch.no_grad():
             self.eval()
             parenting = self.processor.parenting
-            
-            
-            
+                        
             def agent_step(agent_1 = True):
                 prev_wheels_shoulders = prev_wheels_shoulders_1 if agent_1 else prev_wheels_shoulders_2
                 prev_comm_out = prev_comm_out_2 if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)) if agent_1 else prev_comm_out_1
@@ -260,7 +258,7 @@ class Agent:
                 mother_comm = mother_comm_1 if agent_1 else mother_comm_2
                 rgbd, sensors, father_comm = self.processor.obs(agent_1)
                 
-                comm_in = string_to_onehots(mother_comm).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else father_comm.unsqueeze(0) if parenting else prev_comm_out
+                comm_in = mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else father_comm.unsqueeze(0) if parenting else prev_comm_out
                 hp, hq, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq = self.forward.bottom_to_top_step(
                     hq_1, 
                     self.forward.rgbd_in(rgbd), self.forward.sensors_in(sensors), self.forward.father_comm_in(comm_in), 
@@ -291,12 +289,12 @@ class Agent:
                 rgbd_2, sensors_2, comm_in_2, wheels_shoulders_2, comm_out_2, hp_2, hq_2, values_2, rgbd_dkl_2, sensors_dkl_2, father_comm_dkl_2 = agent_step(agent_1 = False)
 
             reward, done, win, mother_comm_1, mother_comm_2 = self.processor.step(wheels_shoulders_1[0,0].clone(), wheels_shoulders_2[0,0].clone(), sleep_time = sleep_time)
-            
+                        
             next_rgbd_1, next_sensors_1, next_father_comm = self.processor.obs()
             next_rgbd_2, next_sensors_2, _ = self.processor.obs(agent_1 = False)
             
-            next_comm_in_1 = string_to_onehots(mother_comm_1).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_father_comm.unsqueeze(0) if parenting else comm_out_2 
-            next_comm_in_2 = string_to_onehots(mother_comm_2).unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_father_comm.unsqueeze(0) if parenting else comm_out_1
+            next_comm_in_1 = mother_comm_1.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_father_comm.unsqueeze(0) if parenting else comm_out_2 
+            next_comm_in_2 = mother_comm_2.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_father_comm.unsqueeze(0) if parenting else comm_out_1
                       
             #     def __init__(self, rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_father_comm, next_mother_comm, done):
 
@@ -324,13 +322,13 @@ class Agent:
         prev_wheels_shoulders_1 = torch.zeros((1, 1, self.args.wheels_shoulders_shape))
         prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
         hq_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
-        mother_comm_1 = " " * self.args.max_comm_len
+        mother_comm_1 = empty_goal
         
         to_push_list_2 = []
         prev_wheels_shoulders_2 = torch.zeros((1, 1, self.args.wheels_shoulders_shape))
         prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
         hq_2 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
-        mother_comm_2 = " " * self.args.max_comm_len
+        mother_comm_2 = empty_goal
                 
         return(done, complete_reward, steps, 
                to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
@@ -574,7 +572,7 @@ class Agent:
             done, complete_reward, steps, \
                 to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1, \
                 to_push_list_2, prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
-     
+                     
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):

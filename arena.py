@@ -9,7 +9,7 @@ from math import pi, sin, cos, tan, radians, degrees, sqrt, isnan
 from time import sleep
 from skimage.transform import resize
 
-from utils import default_args, shape_map, color_map, task_map, Goal, relative_to, opposite_relative_to, make_objects_and_task, duration#, print
+from utils import default_args, shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, make_objects_and_task, duration#, print
 
 def get_physics(GUI, time_step, steps_per_step, w = 10, h = 10):
     if(GUI):
@@ -426,7 +426,7 @@ class Arena():
                 righting = True
             objects_goals[(color_map[color_index], shape_map[shape_index])] = [watching, pushing, pulling, lefting, righting]
                         
-        mother_comm = " " * self.args.max_comm_len
+        mother_comm = empty_goal
         for (color, shape), (watching, pushing, pulling, lefting, righting) in objects_goals.items():
             task = None
             # If an task is occuring, find the task/color/shape.
@@ -436,7 +436,7 @@ class Arena():
                 if(pulling):  task = task_map[3]
                 if(lefting):  task = task_map[4]
                 if(righting): task = task_map[5]
-                mother_comm = task.char + color.char + shape.char + (" " * (self.args.max_comm_len - 3))
+                mother_comm = Goal(task, color, shape, parenting = False)
             # If a task is occuring, check if that's the correct color/shape.
             # For some reason, this part seems to be a little iffy.
             if(task != None):
@@ -462,7 +462,7 @@ class Arena():
             reward = 0
             
         if(verbose):
-            print(f"\nWhich goal message: \'{mother_comm}\'")
+            print(f"\nWhich goal message: \'{mother_comm.human_text}\'")
             print("Raw reward:", round(reward, 2))
             print("Total reward:", reward)
             print("Win:", win)

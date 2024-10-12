@@ -34,19 +34,19 @@ def generate_random_string():
     return random.choice([t.char for t in tasks[:2]]) + random.choice([c.char for c in colors[:2]]) + random.choice([s.char for s in shapes[:2]])
 
 example_behaviors = [
-    {i: [random.choice([generate_random_string(), generate_random_string(), "   "]) for _ in range(random.randint(3, 10))]
+    {i: [random.choice([generate_random_string(), generate_random_string(), "AAA"]) for _ in range(random.randint(3, 10))]
      for i in range(10001)} for _ in range(3)]
 
 
 
 def behaviors_to_data(behaviors, start_epoch, finish_epoch):
-    all_strings = ['   '] + [''.join((t.char, c.char, s.char)) for (t, c, s) in product(tasks, colors, shapes)]
+    all_strings = ['AAA'] + [''.join((t.char, c.char, s.char)) for (t, c, s) in product(tasks, colors, shapes)]
     range_keys = range(start_epoch, finish_epoch)  
     string_counts = {string: 0 for string in all_strings}
     total_count = 0
     for i in range_keys:
-        for string in behaviors[i]:
-            string_counts[string] += 1
+        for mother_comm in behaviors[i]:
+            string_counts[mother_comm.char_text] += 1
             total_count += 1
     string_percentages = {key: (count / total_count) * 100 for key, count in string_counts.items()}
     return(string_percentages)
@@ -66,7 +66,7 @@ def plot_behaviors(plot_dict):
     #global example_behaviors
     #all_behaviors = example_behaviors
         
-    epoch_ranges = create_ranges(1, 45000, 2500)
+    epoch_ranges = create_ranges(1, 10000, 2500)
     data = {epoch: behaviors_to_data(all_behaviors, start, end) for epoch, (start, end) in enumerate(epoch_ranges)}
     
     fig, axes = plt.subplots(len(epoch_ranges), len(tasks), figsize=(3 * len(tasks), 3 * len(epoch_ranges)))
@@ -81,7 +81,7 @@ def plot_behaviors(plot_dict):
                 for j, color in enumerate(colors):
                     key = task.char + color.char + shape.char  # First letters to match the task_chars, color_chars, shape_chars
                     if(task.name == "FREEPLAY"):
-                        key = "   "
+                        key = "AAA"
                     heatmap[i, j] = percentages.get(key, 0)  # Get the percentage for this combination
 
             ax = axes[row, col]
