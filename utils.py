@@ -158,9 +158,9 @@ class Goal:
     def __init__(self, task, color, shape, parenting):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
-        one_hots = torch.zeros((3, 27))
+        one_hots = torch.zeros((3, len(task_map) + len(color_map) + len(shape_map)))
         for i, char in enumerate([self.task.char, self.color.char, self.shape.char]):
-            index = ord(char) - ord('A') + 1
+            index = ord(char) - ord('A')
             one_hots[i, index] = 1
         self.one_hots = one_hots
         self.char_text = f"{self.task.char}{self.color.char}{self.shape.char}"
@@ -199,11 +199,22 @@ class Inner_State:
 
 
 
-comm_map = {
-    0: ' ', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G',
-    8: 'H', 9: 'I', 10: 'J', 11: 'K', 12: 'L', 13: 'M', 14: 'N',
-    15: 'O', 16: 'P', 17: 'Q', 18: 'R', 19: 'S', 20: 'T', 21: 'U',
-    22: 'V', 23: 'W', 24: 'X', 25: 'Y', 26: 'Z'}
+used_chars = list(
+                 [t.char for t in task_map.values()] +
+                 [c.char for c in color_map.values()] +
+                 [s.char for s in shape_map.values()])
+used_chars.sort()
+
+print(used_chars)
+
+comm_map = {k: v for k, v in {
+    0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G',
+    7: 'H', 8: 'I', 9: 'J', 10: 'K', 11: 'L', 12: 'M', 13: 'N',
+    14: 'O', 15: 'P', 16: 'Q', 17: 'R', 18: 'S', 19: 'T', 20: 'U',
+    21: 'V', 22: 'W', 23: 'X', 24: 'Y', 25: 'Z'
+}.items() if v in used_chars}
+
+
 
 char_to_index = {v: k for k, v in comm_map.items()}
 
@@ -345,15 +356,15 @@ parser.add_argument('--load_agents',                    type=literal,       defa
                     help='Are we loading agents?')    
 
     # Things which have list-values.
-"""parser.add_argument('--processor_list',                 type=literal,       default = ["fp", "w", "wpulr"],
+parser.add_argument('--processor_list',                 type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [100, 50, 300], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
-                    help='List of how many epochs to train in each processor.')"""
+parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+                    help='List of how many epochs to train in each processor.')
 
-parser.add_argument('--processor_list',                 type=literal,       default = ["w"],
+"""parser.add_argument('--processor_list',                 type=literal,       default = ["w"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 parser.add_argument('--epochs',                         type=literal,       default = [10000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
-                    help='List of how many epochs to train in each processor.')
+                    help='List of how many epochs to train in each processor.')"""
 
     # Simulation details
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
@@ -652,7 +663,7 @@ def agent_to_english(agent_string):
     return(english_string)
 
 def string_to_onehots(s):
-    s = ''.join([char.upper() if char.upper() in char_to_index else ' ' for char in s])
+    s = ''.join([char.upper() if char.upper() in char_to_index else 'A' for char in s])
     onehots = []
     for char in s:
         tensor = torch.zeros(len(comm_map))
@@ -709,7 +720,7 @@ if(__name__ == "__main__"):
     #task = torch.tensor((0, 0, 0, 0))
     #print("Task to string:", task_to_string(task))
     
-    onehots = string_to_onehots(" ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    onehots = string_to_onehots("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     print("String to onehots:", onehots)
     
     many_onehots = torch.stack([onehots, onehots, onehots], dim = 0)

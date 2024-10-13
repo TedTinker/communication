@@ -6,7 +6,7 @@ from time import sleep
 from random import uniform, choice
 
 from utils import default_args, task_map, shape_map, color_map, make_objects_and_task,\
-    string_to_onehots, onehots_to_string, print, comm_map, Goal, Obs, empty_goal
+    string_to_onehots, onehots_to_string, print, Goal, Obs, empty_goal
 from utils_submodule import pad_zeros
 from arena import Arena, get_physics
 
