@@ -7,7 +7,7 @@ from torch.distributions import Normal
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, detach_list, attach_list, print, duration, how_many_nans
+from utils import default_args, print, duration
 from utils_submodule import init_weights, episodes_steps, var, sample, model_start, model_end
 from mtrnn import MTRNN
 from submodules import Obs_IN, Wheels_Shoulders_IN, Comm_IN, Comm_OUT
@@ -63,7 +63,6 @@ class Actor(nn.Module):
         start, episodes, steps, [forward_hidden] = model_start(
             [(forward_hidden, "lin")], device = self.args.device, half = self.args.half)
         
-        how_many_nans(forward_hidden, "Actor, forward_hidden")
         x = self.lin(forward_hidden)
         
         mu, std = var(x, self.mu, self.std, self.args)

@@ -57,6 +57,14 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
             print("\nAGENT NUM", agent_num)
             for epochs, (father_comm_zq, labels, all_mask, father_comm_zq_filtered, labels_filtered, all_mask_filtered) in values_for_composition.items():
                 print("EPOCHS", epochs)
+                
+                print(father_comm_zq.shape, labels.shape, all_mask.shape, father_comm_zq_filtered.shape, labels_filtered.shape, all_mask_filtered.shape)
+                
+                print("\n\n")
+                print(labels)
+                print("\n\n")
+                print(labels_filtered)
+                print("\n\n")
 
                 labels = labels.reshape(-1, labels.shape[-1])
                 labels = labels[all_mask.reshape(-1).astype(bool)]
@@ -92,8 +100,8 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     this = this[all_mask.reshape(-1).astype(bool)]
                     
                     this_filtered = this_filtered.reshape(-1, this_filtered.shape[-1])
-                    this_filtered = this_filtered[all_mask_filtered.reshape(-1).astype(bool)]                                
-                                                                                        
+                    this_filtered = this_filtered[all_mask_filtered.reshape(-1).astype(bool)]            
+                                                                                                            
                     lda_task.fit(this, labels[:,0])
                     lda_color.fit(this_filtered, labels_filtered[:,1])
                     lda_shape.fit(this_filtered, labels_filtered[:,2])
@@ -154,7 +162,7 @@ def plot_interactive_3d(plot_dict, file_name="plot"):
                     print("Shapes:", len(jittered_labels_filtered[:,2]), all_pred_shapes.shape)
                     print("\n\n")
                     
-                    axs[0].scatter(jittered_labels[:,0], all_pred_tasks, c = "black", s = size)
+                    axs[0].scatter(jittered_labels[:,0] + 1, all_pred_tasks, c = "black", s = size)
                     axs[0].set_title('Tasks')
                     axs[0].set_xlabel('Real Labels')
                     axs[0].set_ylabel('LDA Predictions')

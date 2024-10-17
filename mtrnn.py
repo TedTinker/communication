@@ -4,7 +4,7 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, attach_list, detach_list
+from utils import default_args
 from utils_submodule import episodes_steps, init_weights
 
 
@@ -60,7 +60,6 @@ class MTRNNCell(nn.Module):
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
 
     def forward(self, x, h):
-        #attach_list([x, h], self.args.device)
         r = torch.sigmoid(self.r_x(x) + self.r_h(h))
         z = torch.sigmoid(self.z_x(x) + self.z_h(h))
         #r = (torch.tanh(self.r_x(x) + self.r_h(h)) + 1) / 2
@@ -68,7 +67,6 @@ class MTRNNCell(nn.Module):
         new_h = torch.tanh(self.n_x(x) + r * self.n_h(h))
         new_h = new_h * (1 - z)  + h * z
         new_h = new_h * self.new + h * self.old
-        #detach_list([r, z])
         if(len(new_h.shape) == 2):
             new_h = new_h.unsqueeze(1)
         return new_h
@@ -116,7 +114,6 @@ class MTRNN(nn.Module):
         if(self.args.half):
             x = x.to(dtype=torch.float16)
             h = h.to(dtype=torch.float16)
-        #[x, h] = attach_list([x, h], self.args.device)
         episodes, steps = episodes_steps(x)
         outputs = []
         for step in range(steps):  

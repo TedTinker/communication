@@ -225,9 +225,7 @@ def plots(plot_dicts, min_max_dict):
             if(key.startswith("wins_")):
                 if(key[5:] != "FREEPLAY"):
                     task_name_list.append(key[5:])
-                    
-        print(f"\n\n{task_name_list}\n\n")
-                                        
+                                                            
         fig2, ax2 = plt.subplots(len(task_name_list), 2, figsize = (20, 30))
         fig2.suptitle(plot_dict["arg_title"])  
         fig2_row_num = 0

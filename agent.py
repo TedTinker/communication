@@ -14,7 +14,8 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import default_args, dkl, onehots_to_string, many_onehots_to_strings, wheels_shoulders_to_string, cpu_memory_usage, task_map, color_map, shape_map, task_name_list, print, string_to_onehots, agent_to_english, To_Push, empty_goal
+from utils import default_args, onehots_to_string, wheels_shoulders_to_string, cpu_memory_usage, \
+    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from processor import Processor
@@ -212,6 +213,13 @@ class Agent:
         
         self.plot_dict["accumulated_reward"] = list(accumulate(self.plot_dict["reward"]))
         self.plot_dict["accumulated_gen_reward"] = list(accumulate(self.plot_dict["gen_reward"]))
+        
+        """self.plot_dict["wins_all"].append(win)
+        for task_name in task_name_list:
+            if(task_name == goal_task): 
+                self.plot_dict["wins_" + task_name].append(win)
+            else:                
+                self.plot_dict["wins_" + task_name].append(None)"""
 
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():

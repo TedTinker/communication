@@ -10,7 +10,7 @@ from torch.profiler import profile, record_function, ProfilerActivity
 import torchgan.layers as gg
 from torchinfo import summary as torch_summary
 
-from utils import print, default_args, how_many_nans
+from utils import print, default_args
 from utils_submodule import model_start, model_end, init_weights, pad_zeros, var, sample
 from mtrnn import MTRNN
 
@@ -54,18 +54,9 @@ class RGBD_IN(nn.Module):
         
     def forward(self, rgbd):
         start, episodes, steps, [rgbd] = model_start([(rgbd, "cnn")], self.args.device, self.args.half)
-        
-        how_many_nans(rgbd, "RGBD IN, rgbd start")
         rgbd = (rgbd * 2) - 1
-                
         a = self.a(rgbd).flatten(1)
-        
-        how_many_nans(a, "RGBD IN, after a")
-        
         encoding = self.b(a)
-        
-        how_many_nans(encoding, "RGBD IN, after b")
-        
         [encoding] = model_end(start, episodes, steps, [(encoding, "lin")], "RGBD_IN" if self.args.show_duration else None)
         return(encoding)
     

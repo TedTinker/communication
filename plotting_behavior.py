@@ -46,9 +46,12 @@ def behaviors_to_data(behaviors, start_epoch, finish_epoch):
     total_count = 0
     for i in range_keys:
         for mother_comm in behaviors[i]:
-            string_counts[mother_comm.char_text] += 1
-            total_count += 1
-    string_percentages = {key: (count / total_count) * 100 for key, count in string_counts.items()}
+            if(mother_comm.char_text[0] == "A"):
+                pass
+            else:
+                string_counts[mother_comm.char_text] += 1
+                total_count += 1
+    string_percentages = {key: (count) for key, count in string_counts.items()}
     return(string_percentages)
 
 
@@ -63,11 +66,17 @@ def create_ranges(start, end, step):
 
 def plot_behaviors(plot_dict):
     all_behaviors = plot_dict["behavior"][0]
+    print(all_behaviors)
     #global example_behaviors
     #all_behaviors = example_behaviors
         
-    epoch_ranges = create_ranges(1, 10000, 2500)
+    epoch_ranges = create_ranges(1, 45000, 2500)
     data = {epoch: behaviors_to_data(all_behaviors, start, end) for epoch, (start, end) in enumerate(epoch_ranges)}
+    vmax = 0 
+    for epoch, d in data.items():
+        for key, percentage in d.items():
+            if(percentage > vmax):
+                vmax = percentage
     
     fig, axes = plt.subplots(len(epoch_ranges), len(tasks), figsize=(3 * len(tasks), 3 * len(epoch_ranges)))
 
@@ -85,7 +94,7 @@ def plot_behaviors(plot_dict):
                     heatmap[i, j] = percentages.get(key, 0)  # Get the percentage for this combination
 
             ax = axes[row, col]
-            im = ax.imshow(heatmap, cmap='Blues', vmin=0, vmax=100)  # Darker colors for higher percentages
+            im = ax.imshow(heatmap, vmin=0, vmax=100, cmap='gray_r')  # Darker colors for higher percentages
 
             if col == 0:
                 ax.set_ylabel(f'Epoch {start}-{end}', fontsize=12)

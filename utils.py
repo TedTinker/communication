@@ -1,13 +1,14 @@
 #%% 
 
 # To do: most important 
+#   Give actions percentage chances when making a task.
+#   Save rolling wins, not just wins.
 #   Remove 'no action' in behavior analysis.
 #   Look at of-by-one error in components.
 #   Remove unused position
 #   Implement those classes
 
 #   Instead of either goal or free play, two comm in: Father for goal, Mother for description. 
-#   Give actions percentage chances when making a task.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   "push" action detected at odd times. Should "left" and "right" only win when object is in gaze?
 #   Plotting sometimes shows big changes immedietely after changing epoch-list values. 
@@ -205,7 +206,7 @@ used_chars = list(
                  [s.char for s in shape_map.values()])
 used_chars.sort()
 
-print(used_chars)
+
 
 comm_map = {k: v for k, v in {
     0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G',
@@ -358,12 +359,17 @@ parser.add_argument('--load_agents',                    type=literal,       defa
     # Things which have list-values.
 parser.add_argument('--processor_list',                 type=literal,       default = ["fp", "w", "wpulr"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+parser.add_argument('--epochs',                         type=literal,       default = [100, 50, 300], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each processor.')
 
 """parser.add_argument('--processor_list',                 type=literal,       default = ["w"],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 parser.add_argument('--epochs',                         type=literal,       default = [10000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
+                    help='List of how many epochs to train in each processor.')"""
+                    
+"""parser.add_argument('--processor_list',                 type=literal,       default = ["fp", "w", "wpulr"],
+                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
+parser.add_argument('--epochs',                         type=literal,       default = [10000, 5000, 30000], # 10000 for easy mode with distance-rewards and non-gru. 25000 for hard mode enough.
                     help='List of how many epochs to train in each processor.')"""
 
     # Simulation details
@@ -641,37 +647,6 @@ else:
 
 
 
-def agent_to_english(agent_string):
-    if(agent_string == "NONE"):
-        return("NONE")
-    english_string = ""
-    for char in agent_string:
-        translated = False
-        for d in [task_map, color_map, shape_map]:
-            for val in d.values():
-                c = val[0]
-                n = val[1]
-                if(char == c and char != " "):
-                    english_string += n + " "
-                    translated = True
-        if(not translated):
-            if(char == " "):
-                english_string += "___ "
-            else:
-                english_string += f"_{char}_ "
-    english_string = english_string.strip()
-    return(english_string)
-
-def string_to_onehots(s):
-    s = ''.join([char.upper() if char.upper() in char_to_index else 'A' for char in s])
-    onehots = []
-    for char in s:
-        tensor = torch.zeros(len(comm_map))
-        tensor[char_to_index[char]] = 1
-        onehots.append(tensor.unsqueeze(0))
-    onehots = torch.cat(onehots, dim = 0)
-    return onehots
-
 def onehots_to_string(onehots):
     if(onehots == None):
         return("NONE")
@@ -681,13 +656,7 @@ def onehots_to_string(onehots):
         string += comm_map[index]
     return string
 
-def many_onehots_to_strings(onehots):
-    if(onehots == None):
-        return("NONE")
-    if onehots.dim() == 2: 
-        return onehots_to_string(onehots)
-    else:  
-        return [many_onehots_to_strings(sub_tensor) for sub_tensor in onehots]
+
 
 def wheels_shoulders_to_string(wheels_shoulders):
     while(len(wheels_shoulders.shape) > 1):
@@ -698,45 +667,12 @@ def wheels_shoulders_to_string(wheels_shoulders):
     string += "Right Shoulder: {} ".format(round(wheels_shoulders[3].item(),2))
     return(string)
 
-def strings_to_human(strings):
-    human_strings = []
-    for s in strings:
-        human_s = ""
-        for c in s:
-            known = False
-            for d in [task_map, color_map, shape_map]:
-                for val in d.values():
-                    if val.char == c:
-                        known = True
-                        human_s += val.name + " "
-            if(not known):
-                human_s += f"_{c}_ "
-        human_strings.append(human_s[:-1])
-    return(human_strings)
-
-
-
-if(__name__ == "__main__"):
-    #task = torch.tensor((0, 0, 0, 0))
-    #print("Task to string:", task_to_string(task))
-    
-    onehots = string_to_onehots("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-    print("String to onehots:", onehots)
-    
-    many_onehots = torch.stack([onehots, onehots, onehots], dim = 0)
-    strings = many_onehots_to_strings(many_onehots)
-    print("Many onehots to strings:", strings)
-    
-    human_strings = strings_to_human(strings)
-    print("Strings to human:", human_strings)
-
 
 
 #%%
 
 
 
-# Functions for relative value of actor-output to wheels_shoulders.
 def relative_to(this, min, max):
     this = min + ((this + 1)/2) * (max - min)
     this = [min, max, this]
@@ -747,52 +683,8 @@ def opposite_relative_to(this, min, max):
     return ((this - min) / (max - min)) * 2 - 1
 
 
-
-# PyTorch functions.
-
-def how_many_nans(tensor, place = "tensor"):
-    if(tensor == None):
-        return
-    nan_count = torch.isnan(tensor).sum().item()
-    if(nan_count > 0):
-        print(f'nans in {place}: \t{nan_count}.')
-
-
-def extract_and_concatenate(tensor, expected_len):
-    episodes, steps, _ = tensor.shape
-    all_indices = []
-    for episode in range(episodes):
-        episode_indices = []
-        for step in range(steps):
-            ones_indices = tensor[episode, step].nonzero(as_tuple=True)[0]
-            if(ones_indices.shape[0] < expected_len):
-                ones_indices = torch.zeros((expected_len,)).int()
-            episode_indices.append(ones_indices)
-        episode_tensor = torch.stack(episode_indices)
-        all_indices.append(episode_tensor)
-    final_tensor = torch.stack(all_indices, dim=0)
-    return final_tensor
     
-def attach_list(tensor_list, device):
-    updated_list = []
-    for tensor in tensor_list:
-        if isinstance(tensor, list):
-            updated_sublist = [t.to(device) if t.device != device else t for t in tensor]
-            updated_list.append(updated_sublist)
-        else:
-            updated_tensor = tensor.to(device) if tensor.device != device else tensor
-            updated_list.append(updated_tensor)
-    return updated_list
-
-def detach_list(l): 
-    return([element.detach() for element in l])
-    
-def memory_usage(device):
-    print(device, ":", platform.node(), torch.cuda.memory_allocated(device), "out of", torch.cuda.max_memory_allocated(device))
-    
-    
-
-def dkl(mu_1, std_1, mu_2, std_2):
+def calculate_dkl(mu_1, std_1, mu_2, std_2):
     std_1 = std_1**2
     std_2 = std_2**2
     term_1 = (mu_2 - mu_1)**2 / std_2 

@@ -4,7 +4,7 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, dkl, duration, how_many_nans
+from utils import default_args, calculate_dkl, duration
 from utils_submodule import init_weights, episodes_steps, var, sample
 from mtrnn import MTRNN
 from submodules import RGBD_IN, Sensors_IN, Comm_IN, Obs_OUT, Wheels_Shoulders_IN
@@ -63,9 +63,9 @@ class ZP_ZQ(nn.Module):
         zp = sample(zp_mu, zp_std, self.args.device)
         zq_mu, zq_std = var(zq_inputs, self.zq_mu, self.zq_std, self.args)
         zq = sample(zq_mu, zq_std, self.args.device)
-        kullback_leibler = dkl(zp_mu, zp_std, zq_mu, zq_std)
+        dkl = calculate_dkl(zp_mu, zp_std, zq_mu, zq_std)
                             
-        return(zp, zq, kullback_leibler)       
+        return(zp, zq, dkl)       
 
 
 
@@ -199,6 +199,9 @@ class PVRNN(nn.Module):
         start_time = duration()
         prev_time = duration()
         
+        #start, episodes, steps, [prev_hidden_states, rgbd, sensors, father_comm, prev_wheels_shoulders, prev_comm_out] = model_start(
+        #    [(prev_hidden_states, "lin"), (rgbd, "lin"), (sensors, "lin"), (father_comm, "lin"), (prev_wheels_shoulders, "lin"), (prev_comm_out, "lin")], self.args.device, self.args.half)
+        
         if(prev_hidden_states != None and len(prev_hidden_states.shape) == 2): 
             prev_hidden_states = prev_hidden_states.unsqueeze(1)
         if(rgbd != None and len(rgbd.shape) == 2): 
@@ -272,7 +275,7 @@ class PVRNN(nn.Module):
         task_labels = labels[:, :, 0].clone().unsqueeze(-1)
         color_labels = labels[:, :, 1].clone().unsqueeze(-1)
         shape_labels = labels[:, :, 2].clone().unsqueeze(-1)
-        task_labels[task_labels == 0] = 1
+        #task_labels[task_labels == 0] = 1
         color_labels[color_labels != 0] = color_labels[color_labels != 0] - 5  # 6-11 -> 1-6
         shape_labels[shape_labels != 0] = shape_labels[shape_labels != 0] - 11  # 12-16 -> 1-5
 

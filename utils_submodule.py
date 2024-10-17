@@ -56,7 +56,7 @@ def rnn_cnn(do_this, to_this):
 
 
 
-def model_start(model_input_list, device = "cpu", half = False):
+def model_start(model_input_list, device = "cpu", half = False, recurrent = False):
     start = duration()
     new_model_inputs = []
     for model_input, layer_type in model_input_list:
@@ -66,7 +66,8 @@ def model_start(model_input_list, device = "cpu", half = False):
         if(layer_type == "lin"):
             if(len(model_input.shape) == 2):   model_input = model_input.unsqueeze(1)
             episodes, steps = episodes_steps(model_input)
-            model_input = model_input.reshape(episodes * steps, model_input.shape[2])
+            if(not recurrent):
+                model_input = model_input.reshape(episodes * steps, model_input.shape[2])
         if(layer_type == "cnn"):
             if(len(model_input.shape) == 4): model_input = model_input.unsqueeze(1)
             episodes, steps = episodes_steps(model_input)
