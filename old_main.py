@@ -9,7 +9,7 @@ args.normal_alpha = .1
 args.curiosity = "hidden_state"
 args.processor_list = ["fp", "w"]
 args.epochs = [10, 10]
-args.agents_per_component_data = 0
+args.agents_per_component_data = 1
 #args.show_duration = True
 
 def run():

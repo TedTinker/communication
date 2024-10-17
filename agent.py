@@ -15,7 +15,7 @@ from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
 from utils import default_args, onehots_to_string, wheels_shoulders_to_string, cpu_memory_usage, \
-    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average
+    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from processor import Processor
@@ -269,7 +269,7 @@ class Agent:
                 comm_in = mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else father_comm.unsqueeze(0) if parenting else prev_comm_out
                 hp, hq, rgbd_is, sensors_is, father_comm_is = self.forward.bottom_to_top_step(
                     hq_1, 
-                    self.forward.rgbd_in(rgbd), self.forward.sensors_in(sensors), self.forward.father_comm_in(comm_in), 
+                    self.forward.obs_in(Obs(rgbd, sensors, comm_in, comm_in)), 
                     self.forward.wheels_shoulders_in(prev_wheels_shoulders), self.forward.comm_out_in(prev_comm_out)) 
 
                 wheels_shoulders, comm_out, _, _ = self.actor(hq.detach(), parenting) 

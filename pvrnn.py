@@ -109,6 +109,7 @@ class PVRNN_LAYER(nn.Module):
             
     def forward(self, prev_hidden_states, obs, prev_wheels_shoulders=None, prev_comm_out=None):
         
+        # Complicated and ridiculous :C
         def reshape_and_to_dtype(inputs, episodes, steps, dtype=None):
             inputs = inputs.reshape(episodes * steps, inputs.shape[2])
             if dtype:
@@ -190,6 +191,15 @@ class PVRNN(nn.Module):
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
             
             
+            
+    def obs_in(self, obs):
+        return(Obs(
+            self.rgbd_in(obs.rgbd),
+            self.sensors_in(obs.sensors),
+            self.father_comm_in(obs.father_comm),
+            obs.mother_comm))
+    
+            
         
     def predict(self, h, wheels_shoulders):
         h_w_wheels_shoulders = torch.cat([h, wheels_shoulders], dim = -1)
@@ -198,25 +208,12 @@ class PVRNN(nn.Module):
     
     
         
-    def bottom_to_top_step(self, prev_hidden_states, rgbd = None, sensors = None, father_comm = None, prev_wheels_shoulders = None, prev_comm_out = None):
+    def bottom_to_top_step(self, prev_hidden_states, obs, prev_wheels_shoulders = None, prev_comm_out = None):
         start_time = duration()
         prev_time = duration()
         
         start, episodes, steps, [prev_hidden_states, rgbd, sensors, father_comm, prev_wheels_shoulders, prev_comm_out] = model_start(
-            [(prev_hidden_states, "lin"), (rgbd, "lin"), (sensors, "lin"), (father_comm, "lin"), (prev_wheels_shoulders, "lin"), (prev_comm_out, "lin")], self.args.device, self.args.half, recurrent = True)
-        
-        """if(prev_hidden_states != None and len(prev_hidden_states.shape) == 2): 
-            prev_hidden_states = prev_hidden_states.unsqueeze(1)
-        if(rgbd != None and len(rgbd.shape) == 2): 
-            rgbd = rgbd.unsqueeze(1)
-        if(sensors != None and len(sensors.shape) == 2): 
-            sensors = sensors.unsqueeze(1)
-        if(father_comm != None and len(father_comm.shape) == 2): 
-            father_comm = father_comm.unsqueeze(1)
-        if(prev_wheels_shoulders != None and len(prev_wheels_shoulders.shape) == 2): 
-            prev_wheels_shoulders = prev_wheels_shoulders.unsqueeze(1)
-        if(prev_comm_out != None and len(prev_comm_out.shape) == 2): 
-            prev_comm_out = prev_comm_out.unsqueeze(1)"""
+            [(prev_hidden_states, "lin"), (obs.rgbd, "lin"), (obs.sensors, "lin"), (obs.father_comm, "lin"), (prev_wheels_shoulders, "lin"), (prev_comm_out, "lin")], self.args.device, self.args.half, recurrent = True)
                                     
         new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is, father_comm_zq = \
             self.pvrnn_layer(
@@ -257,10 +254,9 @@ class PVRNN(nn.Module):
         prev_comm_out = self.comm_out_in(prev_comm_out)
                                 
         for step in range(steps):
+            step_obs = Obs(rgbd[:,step], sensors[:,step], father_comm[:,step], father_comm[:,step])
             new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is = \
-            self.bottom_to_top_step(
-                prev_hidden_states, rgbd[:,step], sensors[:,step], father_comm[:,step], 
-                prev_wheels_shoulders[:,step], prev_comm_out[:,step])
+            self.bottom_to_top_step(prev_hidden_states, step_obs, prev_wheels_shoulders[:,step], prev_comm_out[:,step])
                                 
             for l, o in zip(
                 [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_is_list, sensors_is_list, father_comm_is_list],
