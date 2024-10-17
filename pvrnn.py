@@ -4,8 +4,8 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, calculate_dkl, duration, Inner_States
-from utils_submodule import init_weights, episodes_steps, var, sample
+from utils import default_args, calculate_dkl, duration, Obs, Inner_States
+from utils_submodule import init_weights, episodes_steps, var, sample, model_start
 from mtrnn import MTRNN
 from submodules import RGBD_IN, Sensors_IN, Comm_IN, Obs_OUT, Wheels_Shoulders_IN
 
@@ -107,7 +107,8 @@ class PVRNN_LAYER(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
             
-    def forward(self, prev_hidden_states, rgbd=None, sensors=None, father_comm=None, prev_wheels_shoulders=None, prev_comm_out=None):
+    def forward(self, prev_hidden_states, obs, prev_wheels_shoulders=None, prev_comm_out=None):
+        
         def reshape_and_to_dtype(inputs, episodes, steps, dtype=None):
             inputs = inputs.reshape(episodes * steps, inputs.shape[2])
             if dtype:
@@ -123,7 +124,7 @@ class PVRNN_LAYER(nn.Module):
         
         prev_hidden_states = prev_hidden_states.to(self.args.device)
         zp_inputs = torch.cat([prev_hidden_states, prev_wheels_shoulders, prev_comm_out], dim=-1)
-        rgbd_zq_inputs, sensors_zq_inputs, father_comm_zq_inputs = [torch.cat([zp_inputs, input_data], dim=-1) for input_data in (rgbd, sensors, father_comm)]
+        rgbd_zq_inputs, sensors_zq_inputs, father_comm_zq_inputs = [torch.cat([zp_inputs, input_data], dim=-1) for input_data in (obs.rgbd, obs.sensors, obs.father_comm)]
         
         episodes, steps = episodes_steps(zp_inputs)
         dtype = torch.float16 if self.args.half else None
@@ -201,10 +202,10 @@ class PVRNN(nn.Module):
         start_time = duration()
         prev_time = duration()
         
-        #start, episodes, steps, [prev_hidden_states, rgbd, sensors, father_comm, prev_wheels_shoulders, prev_comm_out] = model_start(
-        #    [(prev_hidden_states, "lin"), (rgbd, "lin"), (sensors, "lin"), (father_comm, "lin"), (prev_wheels_shoulders, "lin"), (prev_comm_out, "lin")], self.args.device, self.args.half)
+        start, episodes, steps, [prev_hidden_states, rgbd, sensors, father_comm, prev_wheels_shoulders, prev_comm_out] = model_start(
+            [(prev_hidden_states, "lin"), (rgbd, "lin"), (sensors, "lin"), (father_comm, "lin"), (prev_wheels_shoulders, "lin"), (prev_comm_out, "lin")], self.args.device, self.args.half, recurrent = True)
         
-        if(prev_hidden_states != None and len(prev_hidden_states.shape) == 2): 
+        """if(prev_hidden_states != None and len(prev_hidden_states.shape) == 2): 
             prev_hidden_states = prev_hidden_states.unsqueeze(1)
         if(rgbd != None and len(rgbd.shape) == 2): 
             rgbd = rgbd.unsqueeze(1)
@@ -215,12 +216,12 @@ class PVRNN(nn.Module):
         if(prev_wheels_shoulders != None and len(prev_wheels_shoulders.shape) == 2): 
             prev_wheels_shoulders = prev_wheels_shoulders.unsqueeze(1)
         if(prev_comm_out != None and len(prev_comm_out.shape) == 2): 
-            prev_comm_out = prev_comm_out.unsqueeze(1)
+            prev_comm_out = prev_comm_out.unsqueeze(1)"""
                                     
         new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is, father_comm_zq = \
             self.pvrnn_layer(
                 prev_hidden_states[:,0].unsqueeze(1), 
-                rgbd, sensors, father_comm, prev_wheels_shoulders, prev_comm_out)
+                Obs(rgbd, sensors, father_comm, father_comm), prev_wheels_shoulders, prev_comm_out)
             
         time = duration()
         if(self.args.show_duration): print("BOTTOM TO TOP STEP:", time - prev_time)
