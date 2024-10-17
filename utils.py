@@ -696,6 +696,24 @@ def calculate_dkl(mu_1, std_1, mu_2, std_2):
 
 
 
+def rolling_average(lst, window_size=500):
+    new_list = [0 if lst[0] is None else float(lst[0])]
+    for i in range(1, len(lst)):
+        if lst[i] is None:
+            new_list.append(new_list[-1])
+        else:
+            start_index = max(0, i - window_size + 1)
+            window = [x for x in lst[start_index:i+1] if x is not None]
+            if window:
+                new_value = sum(window) / len(window)
+            else:
+                new_value = 0 
+            new_list.append(new_value)
+    
+    return new_list
+
+
+
 def load_dicts(args):
     if(os.getcwd().split("/")[-1] != save_file): os.chdir(save_file)
     plot_dicts = [] ; min_max_dicts = []

@@ -98,30 +98,6 @@ def get_logs(quantile_dict):
 
 
 
-# This works, but it still has the instant drop in watching after introducing other tasks. 
-# But it seems this function is fine, so maybe the problem is elsewhere, or maybe that's just have it works?
-def rolling_average_with_none(arr, window_size = 500):
-    def process_row(row):
-        if row[0] is None:
-            row[0] = 0
-        for i in range(1, len(row)):
-            if row[i] is None:
-                row[i] = row[i-1]
-        row = np.array(row)
-        cumsum = np.cumsum(np.insert(row, 0, 0)) 
-        rolling_avg = (cumsum[window_size:] - cumsum[:-window_size]) / window_size
-        padded_rolling_avg = np.concatenate([np.full(window_size-1, np.nan), rolling_avg])
-        if np.isnan(padded_rolling_avg[0]):
-            padded_rolling_avg[0] = 0
-        for i in range(1, len(padded_rolling_avg)):
-            if np.isnan(padded_rolling_avg[i]):
-                padded_rolling_avg[i] = padded_rolling_avg[i-1]
-        return padded_rolling_avg
-    processed_arr = np.apply_along_axis(process_row, axis=1, arr=deepcopy(arr))
-    return processed_arr
-
-
-
 """example = np.array([[0, 0, 0, 0, 1, 1, 1, 1, 1, 0, None, None, None, 1, 1, 1]])
 def try_rolling(example):
     print("\n\n")
@@ -230,22 +206,10 @@ def plots(plot_dicts, min_max_dict):
         fig2.suptitle(plot_dict["arg_title"])  
         fig2_row_num = 0
                     
-        for task_name in task_name_list:
+        for task_name in task_name_list:            
             
-            #print(f"\n\n{task_name}\n\n")
-            
-            def get_rolled_wins(gen = False):
-                wins = plot_dict[f"{'gen_' if gen else ''}wins_" + task_name]
-                wins = np.array(wins)
-                #print("gen" if gen else "", wins.shape)
-                #print(wins)
-                wins_rolled = rolling_average_with_none(wins) * 100
-                plot_dict[f"{'gen_' if gen else ''}wins_rolled_" + task_name] = wins_rolled
-                win_dict = get_quantiles(plot_dict, f"{'gen_' if gen else ''}wins_rolled_" + task_name, levels = levels, adjust_xs = None)
-                return(win_dict)
-            
-            win_dict = get_rolled_wins()
-            gen_win_dict = get_rolled_wins(gen = True)
+            win_dict = get_quantiles(plot_dict, f"rolled_wins_{task_name}", levels = levels, adjust_xs = None)
+            gen_win_dict = get_quantiles(plot_dict, f"rolled_gen_wins_{task_name}", levels = levels, adjust_xs = None)
                 
             def plot_rolling_average_wins(here, gen = False):
                 awesome_plot(here, gen_win_dict if gen else win_dict, "pink" if gen else "turquoise", "WinRate", (0,100))
