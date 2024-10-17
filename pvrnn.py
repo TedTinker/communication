@@ -182,18 +182,20 @@ class PVRNN(nn.Module):
             
         self.predict_obs = Obs_OUT(args)
         
-        
-        
         self.apply(init_weights)
         self.to(self.args.device)
         if(self.args.half):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
+            
+            
         
     def predict(self, h, wheels_shoulders):
         h_w_wheels_shoulders = torch.cat([h, wheels_shoulders], dim = -1)
         pred_rgbd, pred_sensors, pred_father_comm = self.predict_obs(h_w_wheels_shoulders)
         return(pred_rgbd, pred_sensors, pred_father_comm)
+    
+    
         
     def bottom_to_top_step(self, prev_hidden_states, rgbd = None, sensors = None, father_comm = None, prev_wheels_shoulders = None, prev_comm_out = None):
         start_time = duration()
@@ -224,7 +226,9 @@ class PVRNN(nn.Module):
         if(self.args.show_duration): print("BOTTOM TO TOP STEP:", time - prev_time)
         prev_time = time
                 
-        return(new_hidden_states_p, new_hidden_states_q, rgbd_is.dkl, sensors_is.dkl, father_comm_is.dkl, father_comm_zq)
+        return(new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is)
+    
+    
     
     def forward(self, prev_hidden_states, rgbd, sensors, father_comm, prev_wheels_shoulders, prev_comm_out):
                 
@@ -233,12 +237,11 @@ class PVRNN(nn.Module):
         shape_labels = torch.argmax(father_comm[:, :, 2, :], dim=2)
         labels = torch.stack((task_labels, color_labels, shape_labels), dim = -1)
         
-        rgbd_dkl_list = []
-        sensors_dkl_list = []
-        father_comm_dkl_list = []
+        rgbd_is_list = []
+        sensors_is_list = []
+        father_comm_is_list = []
         new_hidden_states_p_list = []
         new_hidden_states_q_list = []
-        father_comm_zq_list = []
         
         prev_time = duration()
                 
@@ -253,22 +256,28 @@ class PVRNN(nn.Module):
         prev_comm_out = self.comm_out_in(prev_comm_out)
                                 
         for step in range(steps):
-            new_hidden_states_p, new_hidden_states_q, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq = \
+            new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is = \
             self.bottom_to_top_step(
                 prev_hidden_states, rgbd[:,step], sensors[:,step], father_comm[:,step], 
                 prev_wheels_shoulders[:,step], prev_comm_out[:,step])
                                 
             for l, o in zip(
-                [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_dkl_list, sensors_dkl_list, father_comm_dkl_list, father_comm_zq_list],
-                [new_hidden_states_p, new_hidden_states_q, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq.unsqueeze(1)]):     
+                [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_is_list, sensors_is_list, father_comm_is_list],
+                [new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is]):     
                 l.append(o)
                                 
             prev_hidden_states = new_hidden_states_q
                         
-        lists = [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_dkl_list, sensors_dkl_list, father_comm_dkl_list, father_comm_zq_list]
+        lists = [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_is_list, sensors_is_list, father_comm_is_list]
         for i in range(len(lists)):
-            lists[i] = torch.cat(lists[i], dim=1)
-        new_hidden_states_p, new_hidden_states_q, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq = lists
+            if(isinstance(lists[i][0], torch.Tensor)):
+                lists[i] = torch.cat(lists[i], dim=1)
+            else:
+                zp = torch.stack([inner_states.zp for inner_states in lists[i]], dim=1)
+                zq = torch.stack([inner_states.zq for inner_states in lists[i]], dim=1)
+                dkl = torch.cat([inner_states.dkl for inner_states in lists[i]], dim=1)
+                lists[i] = Inner_States(zp, zq, dkl)
+        new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is = lists
                 
         pred_rgbd_q, pred_sensors_q, pred_father_comm_q = self.predict(new_hidden_states_q[:, :-1], prev_wheels_shoulders[:, 1:])
                 
@@ -280,7 +289,7 @@ class PVRNN(nn.Module):
 
         labels = torch.cat((task_labels, color_labels, shape_labels), dim=-1)
                         
-        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, sensors_dkl, father_comm_dkl, pred_rgbd_q, pred_sensors_q, pred_father_comm_q, father_comm_zq, labels)
+        return(new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is, pred_rgbd_q, pred_sensors_q, pred_father_comm_q, labels)
         
         
         
