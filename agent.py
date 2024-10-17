@@ -492,17 +492,17 @@ class Agent:
                     
                     if(step != 0):
                         
-                        pred_rgbd_p, pred_sensors_p, pred_father_comm_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders)) 
-                        pred_rgbd_q, pred_sensors_q, pred_father_comm_q= self.forward.predict(hq.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders))
+                        pred_obs_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders)) 
+                        pred_obs_q= self.forward.predict(hq.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders))
 
-                        episode_dict[f"prior_predicted_rgbd_{agent_num}"].append(pred_rgbd_p[0,0][:,:,0:3])
-                        episode_dict[f"prior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_p[0,0]])
-                        prior_predicted_father_comm = onehots_to_string(pred_father_comm_p[0,0])
+                        episode_dict[f"prior_predicted_rgbd_{agent_num}"].append(pred_obs_p.rgbd[0,0][:,:,0:3])
+                        episode_dict[f"prior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_obs_p.sensors[0,0]])
+                        prior_predicted_father_comm = onehots_to_string(pred_obs_p.father_comm[0,0])
                         episode_dict[f"prior_predicted_father_comm_{agent_num}"].append("'{}' ({})".format(prior_predicted_father_comm, prior_predicted_father_comm))
                         
-                        episode_dict[f"posterior_predicted_rgbd_{agent_num}"].append(pred_rgbd_q[0,0][:,:,0:3])
-                        posterior_predicted_father_comm = onehots_to_string(pred_father_comm_q[0,0])
-                        episode_dict[f"posterior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_sensors_q[0,0]])
+                        episode_dict[f"posterior_predicted_rgbd_{agent_num}"].append(pred_obs_q.rgbd[0,0][:,:,0:3])
+                        episode_dict[f"posterior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_obs_q.sensors[0,0]])
+                        posterior_predicted_father_comm = onehots_to_string(pred_obs_q.father_comm[0,0])
                         episode_dict[f"posterior_predicted_father_comm_{agent_num}"].append("'{}' ({})".format(posterior_predicted_father_comm, posterior_predicted_father_comm))
                     
                 def display(step, agent_1 = True, done = False, stopping = False, wait = True):
@@ -600,9 +600,9 @@ class Agent:
         batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
         rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, done, mask, all_mask, episodes, steps = batch
         
-        hps, hqs, rgbd_is, sensors_is, father_comm_is, pred_rgbd_q, pred_sensors_q, pred_father_comm_q, labels = self.forward(
+        hps, hqs, rgbd_is, sensors_is, father_comm_is, pred_obs_q, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            rgbd, sensors, father_comm, wheels_shoulders, comm_out)
+            Obs(rgbd, sensors, father_comm, father_comm), wheels_shoulders, comm_out)
         
         father_comm_zq = father_comm_is.zq.detach().cpu().numpy()
         labels = labels.detach().cpu().numpy()
@@ -676,18 +676,18 @@ class Agent:
         
                 
         # Train forward
-        hps, hqs, rgbd_is, sensors_is, father_comm_is, pred_rgbd_q, pred_sensors_q, pred_father_comm_q, labels = self.forward(
+        hps, hqs, rgbd_is, sensors_is, father_comm_is, pred_obs_q, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            rgbd, sensors, father_comm, wheels_shoulders, comm_out)
+            Obs(rgbd, sensors, father_comm, mother_comm), wheels_shoulders, comm_out)
                                 
-        rgbd_loss = F.binary_cross_entropy(pred_rgbd_q, rgbd[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.rgbd_scaler
+        rgbd_loss = F.binary_cross_entropy(pred_obs_q.rgbd, rgbd[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.rgbd_scaler
                         
-        sensors_loss = F.mse_loss(pred_sensors_q, sensors[:,1:], reduction = "none")
+        sensors_loss = F.mse_loss(pred_obs_q.sensors, sensors[:,1:], reduction = "none")
         sensors_loss = sensors_loss.mean(-1).unsqueeze(-1) * mask * self.args.sensors_scaler
                         
         real_father_comm = father_comm[:,1:].reshape((episodes * steps, self.args.max_comm_len, self.args.comm_shape))
         real_father_comm = torch.argmax(real_father_comm, dim = -1)
-        pred_father_comm = pred_father_comm_q.reshape((pred_father_comm_q.shape[0] * pred_father_comm_q.shape[1], self.args.max_comm_len, self.args.comm_shape))
+        pred_father_comm = pred_obs_q.father_comm.reshape((pred_obs_q.father_comm.shape[0] * pred_obs_q.father_comm.shape[1], self.args.max_comm_len, self.args.comm_shape))
         pred_father_comm = pred_father_comm.transpose(1,2)
     
         father_comm_loss = F.cross_entropy(pred_father_comm, real_father_comm, reduction = "none")

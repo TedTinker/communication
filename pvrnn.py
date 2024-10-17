@@ -204,7 +204,7 @@ class PVRNN(nn.Module):
     def predict(self, h, wheels_shoulders):
         h_w_wheels_shoulders = torch.cat([h, wheels_shoulders], dim = -1)
         pred_rgbd, pred_sensors, pred_father_comm = self.predict_obs(h_w_wheels_shoulders)
-        return(pred_rgbd, pred_sensors, pred_father_comm)
+        return(Obs(pred_rgbd, pred_sensors, pred_father_comm, pred_father_comm))
     
     
         
@@ -228,11 +228,15 @@ class PVRNN(nn.Module):
     
     
     
-    def forward(self, prev_hidden_states, rgbd, sensors, father_comm, prev_wheels_shoulders, prev_comm_out):
-                
-        task_labels = torch.argmax(father_comm[:, :, 0, :], dim=2)
-        color_labels = torch.argmax(father_comm[:, :, 1, :], dim=2)
-        shape_labels = torch.argmax(father_comm[:, :, 2, :], dim=2)
+    def forward(self, prev_hidden_states, obs, prev_wheels_shoulders, prev_comm_out):
+                        
+        episodes, steps = episodes_steps(obs.rgbd)
+        if(prev_hidden_states == None):
+            prev_hidden_states = torch.zeros(episodes, 1, self.args.pvrnn_mtrnn_size)
+        
+        task_labels = torch.argmax(obs.father_comm[:, :, 0, :], dim=2)
+        color_labels = torch.argmax(obs.father_comm[:, :, 1, :], dim=2)
+        shape_labels = torch.argmax(obs.father_comm[:, :, 2, :], dim=2)
         labels = torch.stack((task_labels, color_labels, shape_labels), dim = -1)
         
         rgbd_is_list = []
@@ -243,18 +247,14 @@ class PVRNN(nn.Module):
         
         prev_time = duration()
                 
-        episodes, steps = episodes_steps(rgbd)
-        if(prev_hidden_states == None):
-            prev_hidden_states = torch.zeros(episodes, 1, self.args.pvrnn_mtrnn_size)
-        rgbd = self.rgbd_in(rgbd)
-        sensors = self.sensors_in(sensors)
-        father_comm = self.father_comm_in(father_comm)
+
+        obs = self.obs_in(obs)
         
         prev_wheels_shoulders = self.wheels_shoulders_in(prev_wheels_shoulders)
         prev_comm_out = self.comm_out_in(prev_comm_out)
                                 
         for step in range(steps):
-            step_obs = Obs(rgbd[:,step], sensors[:,step], father_comm[:,step], father_comm[:,step])
+            step_obs = Obs(obs.rgbd[:,step], obs.sensors[:,step], obs.father_comm[:,step], obs.father_comm[:,step])
             new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is = \
             self.bottom_to_top_step(prev_hidden_states, step_obs, prev_wheels_shoulders[:,step], prev_comm_out[:,step])
                                 
@@ -276,7 +276,7 @@ class PVRNN(nn.Module):
                 lists[i] = Inner_States(zp, zq, dkl)
         new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is = lists
                 
-        pred_rgbd_q, pred_sensors_q, pred_father_comm_q = self.predict(new_hidden_states_q[:, :-1], prev_wheels_shoulders[:, 1:])
+        pred_obs_q = self.predict(new_hidden_states_q[:, :-1], prev_wheels_shoulders[:, 1:])
                 
         task_labels = labels[:, :, 0].clone().unsqueeze(-1)
         color_labels = labels[:, :, 1].clone().unsqueeze(-1)
@@ -286,7 +286,7 @@ class PVRNN(nn.Module):
 
         labels = torch.cat((task_labels, color_labels, shape_labels), dim=-1)
                         
-        return(new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is, pred_rgbd_q, pred_sensors_q, pred_father_comm_q, labels)
+        return(new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is, pred_obs_q, labels)
         
         
         
