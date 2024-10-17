@@ -4,7 +4,7 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, calculate_dkl, duration
+from utils import default_args, calculate_dkl, duration, Inner_States
 from utils_submodule import init_weights, episodes_steps, var, sample
 from mtrnn import MTRNN
 from submodules import RGBD_IN, Sensors_IN, Comm_IN, Obs_OUT, Wheels_Shoulders_IN
@@ -65,7 +65,7 @@ class ZP_ZQ(nn.Module):
         zq = sample(zq_mu, zq_std, self.args.device)
         dkl = calculate_dkl(zp_mu, zp_std, zq_mu, zq_std)
                             
-        return(zp, zq, dkl)       
+        return(Inner_States(zp, zq, dkl))       
 
 
 
@@ -117,9 +117,9 @@ class PVRNN_LAYER(nn.Module):
         def process_z_func_outputs(zp_inputs, zq_inputs, z_func, episodes, steps, dtype=None):
             zp_inputs = reshape_and_to_dtype(zp_inputs, episodes, steps, dtype)
             zq_inputs = reshape_and_to_dtype(zq_inputs, episodes, steps, dtype)
-            zp, zq, kullback_leibler = z_func(zp_inputs, zq_inputs)
-            kullback_leibler = kullback_leibler.reshape((episodes, steps, kullback_leibler.shape[1]))
-            return(zp, zq, kullback_leibler)
+            inner_states = z_func(zp_inputs, zq_inputs)
+            inner_states.dkl = inner_states.dkl.reshape((episodes, steps, inner_states.dkl.shape[1]))
+            return(inner_states)
         
         prev_hidden_states = prev_hidden_states.to(self.args.device)
         zp_inputs = torch.cat([prev_hidden_states, prev_wheels_shoulders, prev_comm_out], dim=-1)
@@ -128,12 +128,12 @@ class PVRNN_LAYER(nn.Module):
         episodes, steps = episodes_steps(zp_inputs)
         dtype = torch.float16 if self.args.half else None
         
-        rgbd_zp, rgbd_zq, rgbd_dkl = process_z_func_outputs(zp_inputs, rgbd_zq_inputs, self.rgbd_z, episodes, steps, dtype)
-        sensors_zp, sensors_zq, sensors_dkl = process_z_func_outputs(zp_inputs, sensors_zq_inputs, self.sensors_z, episodes, steps, dtype)
-        father_comm_zp, father_comm_zq, father_comm_dkl = process_z_func_outputs(zp_inputs, father_comm_zq_inputs, self.father_comm_z, episodes, steps, dtype)
+        rgbd_is = process_z_func_outputs(zp_inputs, rgbd_zq_inputs, self.rgbd_z, episodes, steps, dtype)
+        sensors_is = process_z_func_outputs(zp_inputs, sensors_zq_inputs, self.sensors_z, episodes, steps, dtype)
+        father_comm_is = process_z_func_outputs(zp_inputs, father_comm_zq_inputs, self.father_comm_z, episodes, steps, dtype)
         
-        mtrnn_inputs_p = torch.cat([rgbd_zp, sensors_zp, father_comm_zp], dim=-1)
-        mtrnn_inputs_q = torch.cat([rgbd_zq, sensors_zq, father_comm_zq], dim=-1)
+        mtrnn_inputs_p = torch.cat([rgbd_is.zp, sensors_is.zp, father_comm_is.zp], dim=-1)
+        mtrnn_inputs_q = torch.cat([rgbd_is.zq, sensors_is.zq, father_comm_is.zq], dim=-1)
         
         mtrnn_inputs_p = mtrnn_inputs_p.reshape(episodes, steps, mtrnn_inputs_p.shape[1])
         mtrnn_inputs_q = mtrnn_inputs_q.reshape(episodes, steps, mtrnn_inputs_q.shape[1])
@@ -141,7 +141,7 @@ class PVRNN_LAYER(nn.Module):
         new_hidden_states_p = self.mtrnn(mtrnn_inputs_p, prev_hidden_states)
         new_hidden_states_q = self.mtrnn(mtrnn_inputs_q, prev_hidden_states)
         
-        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq)
+        return(new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is, father_comm_is.zq)
         
         
     
@@ -215,7 +215,7 @@ class PVRNN(nn.Module):
         if(prev_comm_out != None and len(prev_comm_out.shape) == 2): 
             prev_comm_out = prev_comm_out.unsqueeze(1)
                                     
-        new_hidden_states_p, new_hidden_states_q, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq = \
+        new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is, father_comm_zq = \
             self.pvrnn_layer(
                 prev_hidden_states[:,0].unsqueeze(1), 
                 rgbd, sensors, father_comm, prev_wheels_shoulders, prev_comm_out)
@@ -224,7 +224,7 @@ class PVRNN(nn.Module):
         if(self.args.show_duration): print("BOTTOM TO TOP STEP:", time - prev_time)
         prev_time = time
                 
-        return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, sensors_dkl, father_comm_dkl, father_comm_zq)
+        return(new_hidden_states_p, new_hidden_states_q, rgbd_is.dkl, sensors_is.dkl, father_comm_is.dkl, father_comm_zq)
     
     def forward(self, prev_hidden_states, rgbd, sensors, father_comm, prev_wheels_shoulders, prev_comm_out):
                 
@@ -275,11 +275,9 @@ class PVRNN(nn.Module):
         task_labels = labels[:, :, 0].clone().unsqueeze(-1)
         color_labels = labels[:, :, 1].clone().unsqueeze(-1)
         shape_labels = labels[:, :, 2].clone().unsqueeze(-1)
-        #task_labels[task_labels == 0] = 1
         color_labels[color_labels != 0] = color_labels[color_labels != 0] - 5  # 6-11 -> 1-6
         shape_labels[shape_labels != 0] = shape_labels[shape_labels != 0] - 11  # 12-16 -> 1-5
 
-        # Combine the filtered labels back into a single tensor
         labels = torch.cat((task_labels, color_labels, shape_labels), dim=-1)
                         
         return(new_hidden_states_p, new_hidden_states_q, rgbd_dkl, sensors_dkl, father_comm_dkl, pred_rgbd_q, pred_sensors_q, pred_father_comm_q, father_comm_zq, labels)

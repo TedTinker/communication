@@ -194,7 +194,7 @@ class To_Push:
             self.next_mother_comm.to("cpu"), 
             self.done)
 
-class Inner_State:
+class Inner_States:
     def __init__(self, zp, zq, dkl):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
 
