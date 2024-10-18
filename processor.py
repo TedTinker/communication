@@ -14,7 +14,7 @@ from arena import Arena, get_physics
 
 class Processor:
     
-    def __init__(self, arena_1, arena_2, tasks = [0], objects = 1, colors = [0], shapes = [0], parenting = True, args = default_args):
+    def __init__(self, arena_1, arena_2, tasks_and_weights = [(0, 1)], objects = 1, colors = [0], shapes = [0], parenting = True, args = default_args):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
         
@@ -22,7 +22,7 @@ class Processor:
     def begin(self, test = False, verbose = False):
         self.steps = 0            
         goal_task, self.current_objects_1, self.current_objects_2 = make_objects_and_task(
-            num_objects = self.objects, allowed_tasks = self.tasks, allowed_colors = self.colors, allowed_shapes = self.shapes, test = test)
+            num_objects = self.objects, allowed_tasks_and_weights = self.tasks_and_weights, allowed_colors = self.colors, allowed_shapes = self.shapes, test = test)
         goal_color, goal_shape = self.current_objects_1[0]
         self.goal = Goal(goal_task, goal_color, goal_shape, self.parenting)
         self.arena_1.begin(self.current_objects_1, self.goal, self.parenting)
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     physicsClient = get_physics(GUI = True, time_step = args.time_step, steps_per_step = args.steps_per_step)
     arena_1 = Arena(physicsClient)
     arena_2 = None
-    processor = Processor(arena_1, arena_2, tasks = [2], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0], parenting = True, args = args)
+    processor = Processor(arena_1, arena_2, tasks_and_weights = [(2, 1)], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0], parenting = True, args = args)
     
     def get_images():
         rgba = processor.arena_1.photo_from_above()

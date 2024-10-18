@@ -56,12 +56,27 @@ class Agent:
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.processors = {
-            "fp" :      Processor(self.arena_1, self.arena_2, tasks = [0],              objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "w" :       Processor(self.arena_1, self.arena_2, tasks = [1],              objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr" :   Processor(self.arena_1, self.arena_2, tasks = [1, 2, 3, 4, 5],  objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args)}
+            "fp" :      Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "w" :       Processor(self.arena_1, self.arena_2, tasks_and_weights = [(1, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            
+            "wpulr_1" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr_2" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 2), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr_3" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 3), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr_4" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 4), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr_5" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 5), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr_6" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 6), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr_7" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 7), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr_8" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 8), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr_9" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 9), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr_10" :  Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 10), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],  objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            
+            
+            
+            }
         
         self.all_processors = {f"{task_map[task].name}_{color_map[color].name}_{shape_map[shape].name}" : 
-            Processor(self.arena_1, self.arena_2, tasks = [task], objects = 1, colors = [color], shapes = [shape], parenting = True, args = self.args) for task, color, shape in \
+            Processor(self.arena_1, self.arena_2, tasks_and_weights = [(task, 1)], objects = 1, colors = [color], shapes = [shape], parenting = True, args = self.args) for task, color, shape in \
                 product([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
                 #product([0, 1], [0, 1], [0, 1])}
         all_processor_names = list(self.all_processors.keys())

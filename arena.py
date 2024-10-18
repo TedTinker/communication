@@ -528,7 +528,7 @@ if __name__ == "__main__":
         
     task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
         num_objects = 3,
-        allowed_tasks = [0],
+        allowed_tasks_and_weights = [(0, 1)],
         allowed_colors = [0, 1, 2, 3, 4, 5],
         allowed_shapes = [0, 1, 2, 3, 4])
         
@@ -553,7 +553,7 @@ if __name__ == "__main__":
     
     task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
         num_objects = 1,
-        allowed_tasks = [0],
+        allowed_tasks_and_weights = [(0, 1)],
         allowed_colors = [0, 1, 2, 3, 4, 5],
         allowed_shapes = [4],
         test = None)

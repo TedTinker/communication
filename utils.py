@@ -1,23 +1,14 @@
 #%% 
 
 # To do: most important 
-#   Give actions percentage chances when making a task.
 #   Save rolling wins, not just wins.
-#   Remove 'no action' in behavior analysis.
-#   Look at of-by-one error in components.
-#   Remove unused position
-#   Implement those classes
-
 #   Instead of either goal or free play, two comm in: Father for goal, Mother for description. 
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   "push" action detected at odd times. Should "left" and "right" only win when object is in gaze?
-#   Plotting sometimes shows big changes immedietely after changing epoch-list values. 
 
 # To do: less important 
-#   Why the heck to win-rate plotting take SOOO LOOONG?
 #   Allow multiple layers in PVRNN.
 #   Try predicting multiple steps into the future.
-#   Training forward, actor, and critic together works, but needs fine-tuning. 
 
 import os
 import pickle
@@ -29,7 +20,7 @@ import datetime
 import matplotlib
 import argparse, ast
 from math import exp, sqrt, log
-from random import choice, randint
+from random import choice, choices, randint
 import torch
 import platform
 import torch.nn.functional as F
@@ -292,8 +283,10 @@ def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shap
     color_num, shape_num = choice(these_combos)
     return(color_num, shape_num)
 
-def make_objects_and_task(num_objects, allowed_tasks, allowed_colors, allowed_shapes, test = False):
-    task_num = choice(allowed_tasks)
+def make_objects_and_task(num_objects, allowed_tasks_and_weights, allowed_colors, allowed_shapes, test = False):
+    tasks   = [v for v, w in allowed_tasks_and_weights]
+    weights = [w for v, w in allowed_tasks_and_weights]
+    task_num = choices(tasks, weights=weights, k=1)[0]
     goal_object = valid_color_shape(task_num, [], allowed_colors, allowed_shapes, test = test)
     colors_shapes_1 = [goal_object]
     colors_shapes_2 = [goal_object]
@@ -312,12 +305,12 @@ def make_objects_and_task(num_objects, allowed_tasks, allowed_colors, allowed_sh
 if(__name__ == "__main__"):
     print("Train")
     for i in range(1):
-        print(make_objects_and_task(2, [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4]))
+        print(make_objects_and_task(2, [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4]))
     print("\nTest")
     for i in range(1):
-        print(make_objects_and_task(2, [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True))
+        print(make_objects_and_task(2, [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True))
         
-    print(make_objects_and_task(1, [0], [0], [0]))
+    print(make_objects_and_task(1, [(0, 1)], [0], [0]))
         
         
         
@@ -709,7 +702,6 @@ def rolling_average(lst, window_size=500):
             else:
                 new_value = 0 
             new_list.append(new_value)
-    
     return new_list
 
 

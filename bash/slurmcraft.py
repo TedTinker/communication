@@ -101,6 +101,14 @@ add_this("comm_eta",   {
 add_this("comm_beta",   {
     "beta_comm" : [.03, .06, .1]})
 
+
+
+add_this("w_weights", {
+    "task_list" : "\"[  'fp',   'w',    'wpulr_9',  'wpulr_8',  'wpulr_7',  'wpulr_6',  'wpulr_5',  'wpulr_4',  'wpulr_3',  'wpulr_2',  'wpulr_1',  'wpulr']\"",
+    "epochs" : "\"[     10000,  5000,   3000,       3000,       3000,       3000,       3000,       3000,       3000,       3000,       3000,       3000]\""})
+
+
+
 #add_this("sensors",   {
 #    "beta_rgbd" : 0,
 #    "beta_comm" : 0,
