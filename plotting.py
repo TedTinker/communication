@@ -234,6 +234,11 @@ def plots(plot_dicts, min_max_dict):
             
             win_dict = get_quantiles(plot_dict, f"rolled_wins_{task_name}", levels = levels, adjust_xs = None)
             gen_win_dict = get_quantiles(plot_dict, f"rolled_gen_wins_{task_name}", levels = levels, adjust_xs = None)
+            
+            for key, value in win_dict.items():
+                if(key != "xs"):
+                    win_dict[key] *= 100
+                    gen_win_dict[key] *= 100
                 
             def plot_rolling_average_wins(here, gen = False):
                 awesome_plot(here, gen_win_dict if gen else win_dict, "pink" if gen else "turquoise", "WinRate", (0,100))

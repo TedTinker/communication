@@ -229,13 +229,10 @@ class Agent:
         self.plot_dict["accumulated_reward"] = list(accumulate(self.plot_dict["reward"]))
         self.plot_dict["accumulated_gen_reward"] = list(accumulate(self.plot_dict["gen_reward"]))
         
-        
-        
         for task_name in task_name_list + ["all"]:
             self.plot_dict["rolled_wins_" + task_name] = rolling_average(self.plot_dict["wins_" + task_name])
             self.plot_dict["rolled_gen_wins_" + task_name] = rolling_average(self.plot_dict["gen_wins_" + task_name])
             
-
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
             if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps", "behavior"]):
@@ -279,7 +276,7 @@ class Agent:
                 prev_comm_out = prev_comm_out_2 if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)) if agent_1 else prev_comm_out_1
                 hq = hq_1 if agent_1 else hq_2
                 mother_comm = mother_comm_1 if agent_1 else mother_comm_2
-                rgbd, sensors, father_comm = self.processor.obs(agent_1)
+                rgbd, sensors, father_comm, _ = self.processor.obs(agent_1)
                 
                 comm_in = mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else father_comm.unsqueeze(0) if parenting else prev_comm_out
                 hp, hq, rgbd_is, sensors_is, father_comm_is = self.forward.bottom_to_top_step(
@@ -313,14 +310,12 @@ class Agent:
 
             reward, done, win, mother_comm_1, mother_comm_2 = self.processor.step(wheels_shoulders_1[0,0].clone(), wheels_shoulders_2[0,0].clone(), sleep_time = sleep_time)
                         
-            next_rgbd_1, next_sensors_1, next_father_comm = self.processor.obs()
-            next_rgbd_2, next_sensors_2, _ = self.processor.obs(agent_1 = False)
+            next_rgbd_1, next_sensors_1, next_father_comm, _ = self.processor.obs()
+            next_rgbd_2, next_sensors_2, _, _ = self.processor.obs(agent_1 = False)
             
             next_comm_in_1 = mother_comm_1.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_father_comm.unsqueeze(0) if parenting else comm_out_2 
             next_comm_in_2 = mother_comm_2.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_father_comm.unsqueeze(0) if parenting else comm_out_1
                       
-            #     def __init__(self, rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_father_comm, next_mother_comm, done):
-
             to_push_1 = To_Push(rgbd_1, sensors_1, comm_in_1, comm_in_1, wheels_shoulders_1, comm_out_1, reward, next_rgbd_1, next_sensors_1, next_comm_in_1, next_comm_in_1, done)          
             
             if(parenting): 
@@ -487,7 +482,7 @@ class Agent:
                     agent_num = 1 if agent_1 else 2
                     
                     birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
-                    rgbd, sensors, father_comm = self.processor.obs(agent_1 = agent_1)
+                    rgbd, sensors, father_comm, _ = self.processor.obs(agent_1 = agent_1)
                     
                     episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
                     episode_dict[f"rgbd_{agent_num}"].append(rgbd[0,:,:,0:3])        

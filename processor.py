@@ -28,6 +28,8 @@ class Processor:
         self.arena_1.begin(self.current_objects_1, self.goal, self.parenting)
         if(not self.parenting):
             self.arena_2.begin(self.current_objects_2, self.goal, self.parenting)
+        self.mother_comm_1 = empty_goal
+        self.mother_comm_2 = empty_goal
                                 
         if(verbose):
             print(self)
@@ -58,7 +60,7 @@ class Processor:
     def obs(self, agent_1 = True):
         arena = self.get_arena(agent_1)
         if(arena == None):
-            return(torch.zeros((1, self.args.image_size, self.args.image_size, 4)), None, None)
+            return(torch.zeros((1, self.args.image_size, self.args.image_size, 4)), None, None, None)
                 
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
@@ -69,8 +71,10 @@ class Processor:
                 touched[i] += value
                 
         sensors = torch.tensor([touched]).float()
+        
+        mother_comm = self.mother_comm_1 if agent_1 else self.mother_comm_2
                 
-        return(rgbd, sensors, self.goal.one_hots.unsqueeze(0))
+        return(rgbd, sensors, self.goal.one_hots.unsqueeze(0), mother_comm)
     
     
             
@@ -102,6 +106,9 @@ class Processor:
             raw_reward_2, win_2, mother_comm_2 = self.act(wheels_shoulders_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
             raw_reward = max([raw_reward, raw_reward_2])
             win = win or win_2
+            
+        self.mother_comm_1 = mother_comm_1
+        self.mother_comm_2 = mother_comm_2
                     
         if(raw_reward > 0): 
             raw_reward *= self.args.step_cost ** (self.steps-1)
@@ -123,7 +130,7 @@ class Processor:
             if(done): 
                 print("Done.")
                                 
-        return(raw_reward, done, win, mother_comm_1, mother_comm_2)
+        return(raw_reward, done, win, self.mother_comm_1, self.mother_comm_2)
     
     
     
@@ -131,6 +138,9 @@ class Processor:
         self.arena_1.end()
         if(not self.parenting):
             self.arena_2.end()
+            
+        self.mother_comm_1 = empty_goal
+        self.mother_comm_2 = empty_goal
     
     
     
