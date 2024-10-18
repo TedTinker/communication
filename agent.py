@@ -56,20 +56,33 @@ class Agent:
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.processors = {
-            "fp" :      Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "w" :       Processor(self.arena_1, self.arena_2, tasks_and_weights = [(1, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "fp" :          Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
+                                      full_name = "Free Play"),
+            "w" :           Processor(self.arena_1, self.arena_2, tasks_and_weights = [(1, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
+                                      full_name = "Watch"),
+            "wpulr" :       Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
+                                      full_name = "All Tasks"),
             
-            "wpulr_1" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr_2" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 2), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr_3" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 3), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr_4" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 4), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr_5" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 5), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr_6" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 6), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr_7" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 7), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr_8" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 8), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr_9" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 9), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],   objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
-            "wpulr_10" :  Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 10), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],  objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args),
+            "wpulr_1" :     Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, linestyle = '--', args = self.args,
+                                      full_name = "All Tasks (1)"),
+            "wpulr_2" :     Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 2), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, linestyle = '--', args = self.args,
+                                      full_name = "All Tasks (2)"),
+            "wpulr_3" :     Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 3), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, linestyle = '--', args = self.args,
+                                      full_name = "All Tasks (3)"),
+            "wpulr_4" :     Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 4), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, linestyle = '--', args = self.args,
+                                      full_name = "All Tasks (4)"),
+            "wpulr_5" :     Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 5), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, linestyle = '--', args = self.args,
+                                      full_name = "All Tasks (5)"),
+            "wpulr_6" :     Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 6), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, linestyle = '--', args = self.args,
+                                      full_name = "All Tasks (6)"),
+            "wpulr_7" :     Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 7), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, linestyle = '--', args = self.args,
+                                      full_name = "All Tasks (7)"),
+            "wpulr_8" :     Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 8), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, linestyle = '--', args = self.args,
+                                      full_name = "All Tasks (8)"),
+            "wpulr_9" :     Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 9), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, linestyle = '--', args = self.args,
+                                      full_name = "All Tasks (9)"),
+            "wpulr_10" :    Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 10), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],    objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, linestyle = '--', args = self.args,
+                                      full_name = "All Tasks (10)"),
             
             
             
@@ -209,6 +222,7 @@ class Agent:
                 cumulative_epochs += epochs
                 if(self.epochs == cumulative_epochs):                     
                     self.regular_checks(force = True)
+                    linestyle = self.processors[self.processor_name].linestyle
                     self.processor_name = self.args.processor_list[i+1] 
                     self.old_memories.append(deepcopy(self.memory))
                     self.plot_dict["division_epochs"].append(self.total_epochs)
@@ -219,6 +233,7 @@ class Agent:
             if(q != None):
                 q.put((self.agent_num, percent_done))
             if(self.epochs >= sum(self.args.epochs)): 
+                linestyle = self.processors[self.processor_name].linestyle
                 self.plot_dict["division_epochs"].append(self.total_epochs) 
                 break
                         
@@ -276,12 +291,13 @@ class Agent:
                 prev_comm_out = prev_comm_out_2 if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)) if agent_1 else prev_comm_out_1
                 hq = hq_1 if agent_1 else hq_2
                 mother_comm = mother_comm_1 if agent_1 else mother_comm_2
-                rgbd, sensors, father_comm, _ = self.processor.obs(agent_1)
+                obs = self.processor.obs(agent_1)
                 
-                comm_in = mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else father_comm.unsqueeze(0) if parenting else prev_comm_out
+                comm_in = mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.unsqueeze(0) if parenting else prev_comm_out
+                obs.father_comm = comm_in
                 hp, hq, rgbd_is, sensors_is, father_comm_is = self.forward.bottom_to_top_step(
                     hq_1, 
-                    self.forward.obs_in(Obs(rgbd, sensors, comm_in, comm_in)), 
+                    self.forward.obs_in(obs), 
                     self.forward.wheels_shoulders_in(prev_wheels_shoulders), self.forward.comm_out_in(prev_comm_out)) 
 
                 wheels_shoulders, comm_out, _, _ = self.actor(hq.detach(), parenting) 
@@ -290,11 +306,11 @@ class Agent:
                     value = self.critics[i](wheels_shoulders, comm_out, hq.detach()) 
                     values.append(round(value.item(), 3))
                 
-                return(rgbd, sensors, comm_in, wheels_shoulders, comm_out, hp, hq, values, rgbd_is, sensors_is, father_comm_is)
+                return(obs, wheels_shoulders, comm_out, hp, hq, values, rgbd_is, sensors_is, father_comm_is)
             
             
             
-            rgbd_1, sensors_1, comm_in_1, wheels_shoulders_1, comm_out_1, hp_1, hq_1, values_1, rgbd_is_1, sensors_is_1, father_comm_is_1 = agent_step()
+            obs_1, wheels_shoulders_1, comm_out_1, hp_1, hq_1, values_1, rgbd_is_1, sensors_is_1, father_comm_is_1 = agent_step()
             
             if(parenting):
                 wheels_shoulders_2 = torch.zeros_like(wheels_shoulders_1)
@@ -306,22 +322,28 @@ class Agent:
                 sensors_is_2 = None
                 father_comm_is_2 = None
             else:
-                rgbd_2, sensors_2, comm_in_2, wheels_shoulders_2, comm_out_2, hp_2, hq_2, values_2, rgbd_is_2, sensors_is_2, father_comm_is_2 = agent_step(agent_1 = False)
+                obs_2, wheels_shoulders_2, comm_out_2, hp_2, hq_2, values_2, rgbd_is_2, sensors_is_2, father_comm_is_2 = agent_step(agent_1 = False)
 
             reward, done, win, mother_comm_1, mother_comm_2 = self.processor.step(wheels_shoulders_1[0,0].clone(), wheels_shoulders_2[0,0].clone(), sleep_time = sleep_time)
                         
-            next_rgbd_1, next_sensors_1, next_father_comm, _ = self.processor.obs()
-            next_rgbd_2, next_sensors_2, _, _ = self.processor.obs(agent_1 = False)
+            next_obs_1 = self.processor.obs()
+            next_obs_2 = self.processor.obs(agent_1 = False)
             
-            next_comm_in_1 = mother_comm_1.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_father_comm.unsqueeze(0) if parenting else comm_out_2 
-            next_comm_in_2 = mother_comm_2.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_father_comm.unsqueeze(0) if parenting else comm_out_1
+            next_comm_in_1 = mother_comm_1.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_obs_1.father_comm.unsqueeze(0) if parenting else comm_out_2 
+            if(parenting):
+                next_comm_in_2 = None 
+            else:
+                next_comm_in_2 = mother_comm_2.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_obs_2.father_comm.unsqueeze(0) if parenting else comm_out_1
+            
+            next_obs_1.father_comm = next_comm_in_1
+            next_obs_2.father_comm = next_comm_in_2
                       
-            to_push_1 = To_Push(rgbd_1, sensors_1, comm_in_1, comm_in_1, wheels_shoulders_1, comm_out_1, reward, next_rgbd_1, next_sensors_1, next_comm_in_1, next_comm_in_1, done)          
+            to_push_1 = To_Push(obs_1, wheels_shoulders_1, comm_out_1, reward, next_obs_1, done)          
             
             if(parenting): 
                 to_push_2 = None
             else:
-                to_push_2 = To_Push(rgbd_2, sensors_2, comm_in_2, comm_in_2, wheels_shoulders_2, comm_out_2, reward, next_rgbd_2, next_sensors_2, next_comm_in_2, next_comm_in_2, done)          
+                to_push_2 = To_Push(obs_2, wheels_shoulders_2, comm_out_2, reward, next_obs_2, done)          
 
         torch.cuda.empty_cache()
         
@@ -482,16 +504,16 @@ class Agent:
                     agent_num = 1 if agent_1 else 2
                     
                     birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
-                    rgbd, sensors, father_comm, _ = self.processor.obs(agent_1 = agent_1)
+                    obs = self.processor.obs(agent_1 = agent_1)
                     
                     episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
-                    episode_dict[f"rgbd_{agent_num}"].append(rgbd[0,:,:,0:3])        
-                    episode_dict[f"sensors_{agent_num}"].append(sensors.tolist()[0])
+                    episode_dict[f"rgbd_{agent_num}"].append(obs.rgbd[0,:,:,0:3])        
+                    episode_dict[f"sensors_{agent_num}"].append(obs.sensors.tolist()[0])
                     
                     if(agent_1):
-                        comm_in = mother_comm_1 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(father_comm[0]) if parenting else prev_comm_out_2[0,0]
+                        comm_in = mother_comm_1 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(obs.father_comm[0]) if parenting else prev_comm_out_2[0,0]
                     else:
-                        comm_in = mother_comm_2 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(father_comm[0]) if parenting else prev_comm_out_1[0,0]
+                        comm_in = mother_comm_2 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(obs.father_comm[0]) if parenting else prev_comm_out_1[0,0]
                     episode_dict[f"father_comm_{agent_num}"].append("'{}' ({})".format(comm_in, comm_in))
                     
                     if(agent_1):

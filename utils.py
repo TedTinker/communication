@@ -167,22 +167,22 @@ class Obs:
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
 class To_Push:
-    def __init__(self, rgbd, sensors, father_comm, mother_comm, wheels_shoulders, comm_out, reward, next_rgbd, next_sensors, next_father_comm, next_mother_comm, done):
+    def __init__(self, obs, wheels_shoulders, comm_out, reward, next_obs, done):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
     def push(self, memory):
         memory.push(
-            self.rgbd.to("cpu"),
-            self.sensors.to("cpu"),
-            self.father_comm.to("cpu"),
-            self.mother_comm.to("cpu"),
+            self.obs.rgbd.to("cpu"),
+            self.obs.sensors.to("cpu"),
+            self.obs.father_comm.to("cpu"),
+            self.obs.mother_comm.one_hots.to("cpu"),
             self.wheels_shoulders.to("cpu"), 
             self.comm_out.to("cpu"),
             self.reward, 
-            self.next_rgbd.to("cpu"),
-            self.next_sensors.to("cpu"),
-            self.next_father_comm.to("cpu"), 
-            self.next_mother_comm.to("cpu"), 
+            self.next_obs.rgbd.to("cpu"),
+            self.next_obs.sensors.to("cpu"),
+            self.next_obs.father_comm.to("cpu"), 
+            self.next_obs.mother_comm.one_hots.to("cpu"), 
             self.done)
 
 class Inner_States:

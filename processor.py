@@ -14,7 +14,7 @@ from arena import Arena, get_physics
 
 class Processor:
     
-    def __init__(self, arena_1, arena_2, tasks_and_weights = [(0, 1)], objects = 1, colors = [0], shapes = [0], parenting = True, args = default_args):
+    def __init__(self, arena_1, arena_2, tasks_and_weights = [(0, 1)], objects = 1, colors = [0], shapes = [0], parenting = True, linestyle = '-', full_name = "", args = default_args):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
         
@@ -60,7 +60,7 @@ class Processor:
     def obs(self, agent_1 = True):
         arena = self.get_arena(agent_1)
         if(arena == None):
-            return(torch.zeros((1, self.args.image_size, self.args.image_size, 4)), None, None, None)
+            return(Obs(torch.zeros((1, self.args.image_size, self.args.image_size, 4)), None, None, None))
                 
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
@@ -74,7 +74,7 @@ class Processor:
         
         mother_comm = self.mother_comm_1 if agent_1 else self.mother_comm_2
                 
-        return(rgbd, sensors, self.goal.one_hots.unsqueeze(0), mother_comm)
+        return(Obs(rgbd, sensors, self.goal.one_hots.unsqueeze(0), mother_comm))
     
     
             
