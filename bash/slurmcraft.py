@@ -109,6 +109,9 @@ add_this("w_weights", {
 
 
 
+"""bash communication/bash/maze.sh "arg_list=(e ef_only_comm ef e_w_weights ef_only_comm_w_weights ef_w_weights)" "comp=deigo" "agents=180""""
+
+
 #add_this("sensors",   {
 #    "beta_rgbd" : 0,
 #    "beta_comm" : 0,

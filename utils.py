@@ -166,6 +166,10 @@ class Obs:
     def __init__(self, rgbd, sensors, father_comm, mother_comm):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
+class Action:
+    def __init__(self, wheels_shoulders, comm_out):
+        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
+        
 class To_Push:
     def __init__(self, obs, wheels_shoulders, comm_out, reward, next_obs, done):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})

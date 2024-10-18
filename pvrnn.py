@@ -4,7 +4,7 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, calculate_dkl, duration, Obs, Inner_States
+from utils import default_args, calculate_dkl, duration, Obs, Inner_States, Action
 from utils_submodule import init_weights, episodes_steps, var, sample, model_start
 from mtrnn import MTRNN
 from submodules import RGBD_IN, Sensors_IN, Comm_IN, Obs_OUT, Wheels_Shoulders_IN
@@ -198,6 +198,11 @@ class PVRNN(nn.Module):
             self.sensors_in(obs.sensors),
             self.father_comm_in(obs.father_comm),
             obs.mother_comm))
+        
+        
+        
+    def actions_in(self, wheels_shoulders, comm_out):
+        return(self.wheels_shoulders_in(wheels_shoulders), self.comm_out_in(comm_out))
     
             
         
@@ -208,7 +213,7 @@ class PVRNN(nn.Module):
     
     
         
-    def bottom_to_top_step(self, prev_hidden_states, obs, prev_wheels_shoulders = None, prev_comm_out = None):
+    def bottom_to_top_step(self, prev_hidden_states, obs, prev_wheels_shoulders, prev_comm_out):
         start_time = duration()
         prev_time = duration()
         
@@ -250,8 +255,7 @@ class PVRNN(nn.Module):
 
         obs = self.obs_in(obs)
         
-        prev_wheels_shoulders = self.wheels_shoulders_in(prev_wheels_shoulders)
-        prev_comm_out = self.comm_out_in(prev_comm_out)
+        prev_wheels_shoulders, prev_comm_out = self.actions_in(prev_wheels_shoulders, prev_comm_out)
                                 
         for step in range(steps):
             step_obs = Obs(obs.rgbd[:,step], obs.sensors[:,step], obs.father_comm[:,step], obs.father_comm[:,step])
