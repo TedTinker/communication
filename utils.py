@@ -1,6 +1,8 @@
 #%% 
 
 # To do: most important 
+#   See if rolled wins works.
+#   Use processor's full name and linestyle in plot-divisions.
 #   Save rolling wins, not just wins.
 #   Instead of either goal or free play, two comm in: Father for goal, Mother for description. 
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.

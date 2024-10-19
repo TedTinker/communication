@@ -107,7 +107,7 @@ class PVRNN_LAYER(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
             
-    def forward(self, prev_hidden_states, obs, prev_wheels_shoulders=None, prev_comm_out=None):
+    def forward(self, prev_hidden_states, obs, prev_action):
         
         # Complicated and ridiculous :C
         def reshape_and_to_dtype(inputs, episodes, steps, dtype=None):
@@ -124,7 +124,7 @@ class PVRNN_LAYER(nn.Module):
             return(inner_states)
         
         prev_hidden_states = prev_hidden_states.to(self.args.device)
-        zp_inputs = torch.cat([prev_hidden_states, prev_wheels_shoulders, prev_comm_out], dim=-1)
+        zp_inputs = torch.cat([prev_hidden_states, prev_action.wheels_shoulders, prev_action.comm_out], dim=-1)
         rgbd_zq_inputs, sensors_zq_inputs, father_comm_zq_inputs = [torch.cat([zp_inputs, input_data], dim=-1) for input_data in (obs.rgbd, obs.sensors, obs.father_comm)]
         
         episodes, steps = episodes_steps(zp_inputs)
@@ -201,8 +201,10 @@ class PVRNN(nn.Module):
         
         
         
-    def actions_in(self, wheels_shoulders, comm_out):
-        return(self.wheels_shoulders_in(wheels_shoulders), self.comm_out_in(comm_out))
+    def action_in(self, action):
+        return(Action(
+            self.wheels_shoulders_in(action.wheels_shoulders), 
+            self.comm_out_in(action.comm_out)))
     
             
         
@@ -213,17 +215,18 @@ class PVRNN(nn.Module):
     
     
         
-    def bottom_to_top_step(self, prev_hidden_states, obs, prev_wheels_shoulders, prev_comm_out):
+    def bottom_to_top_step(self, prev_hidden_states, obs, prev_action):
         start_time = duration()
         prev_time = duration()
         
         start, episodes, steps, [prev_hidden_states, rgbd, sensors, father_comm, prev_wheels_shoulders, prev_comm_out] = model_start(
-            [(prev_hidden_states, "lin"), (obs.rgbd, "lin"), (obs.sensors, "lin"), (obs.father_comm, "lin"), (prev_wheels_shoulders, "lin"), (prev_comm_out, "lin")], self.args.device, self.args.half, recurrent = True)
+            [(prev_hidden_states, "lin"), (obs.rgbd, "lin"), (obs.sensors, "lin"), (obs.father_comm, "lin"), 
+             (prev_action.wheels_shoulders, "lin"), (prev_action.comm_out, "lin")], self.args.device, self.args.half, recurrent = True)
                                     
         new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is, father_comm_zq = \
             self.pvrnn_layer(
                 prev_hidden_states[:,0].unsqueeze(1), 
-                Obs(rgbd, sensors, father_comm, father_comm), prev_wheels_shoulders, prev_comm_out)
+                Obs(rgbd, sensors, father_comm, father_comm), Action(prev_wheels_shoulders, prev_comm_out))
             
         time = duration()
         if(self.args.show_duration): print("BOTTOM TO TOP STEP:", time - prev_time)
@@ -233,7 +236,7 @@ class PVRNN(nn.Module):
     
     
     
-    def forward(self, prev_hidden_states, obs, prev_wheels_shoulders, prev_comm_out):
+    def forward(self, prev_hidden_states, obs, prev_action):
                         
         episodes, steps = episodes_steps(obs.rgbd)
         if(prev_hidden_states == None):
@@ -252,15 +255,14 @@ class PVRNN(nn.Module):
         
         prev_time = duration()
                 
-
         obs = self.obs_in(obs)
-        
-        prev_wheels_shoulders, prev_comm_out = self.actions_in(prev_wheels_shoulders, prev_comm_out)
+        prev_action = self.action_in(prev_action)
                                 
         for step in range(steps):
             step_obs = Obs(obs.rgbd[:,step], obs.sensors[:,step], obs.father_comm[:,step], obs.father_comm[:,step])
+            step_action = Action(prev_action.wheels_shoulders[:,step], prev_action.comm_out[:,step])
             new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is = \
-            self.bottom_to_top_step(prev_hidden_states, step_obs, prev_wheels_shoulders[:,step], prev_comm_out[:,step])
+            self.bottom_to_top_step(prev_hidden_states, step_obs, step_action)
                                 
             for l, o in zip(
                 [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_is_list, sensors_is_list, father_comm_is_list],
@@ -280,7 +282,7 @@ class PVRNN(nn.Module):
                 lists[i] = Inner_States(zp, zq, dkl)
         new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is = lists
                 
-        pred_obs_q = self.predict(new_hidden_states_q[:, :-1], prev_wheels_shoulders[:, 1:])
+        pred_obs_q = self.predict(new_hidden_states_q[:, :-1], prev_action.wheels_shoulders[:, 1:])
                 
         task_labels = labels[:, :, 0].clone().unsqueeze(-1)
         color_labels = labels[:, :, 1].clone().unsqueeze(-1)

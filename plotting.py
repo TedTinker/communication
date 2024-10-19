@@ -207,16 +207,17 @@ def plots(plot_dicts, min_max_dict):
             if(type(xs) == dict): xs = xs["xs"]
             length_xs = len(xs)
             mapped_values = []
-            for epoch in epochs:
-                position = (epoch / epochs[-1]) * (length_xs - 1)
+            for epoch, linestyle, full_name in epochs:
+                position = (epoch / epochs[-1][0]) * (length_xs - 1)
                 index = round(position)
-                mapped_values.append(xs[index])
-            for x in mapped_values: 
-                here.axvline(x=x, color = (0,0,0,.2))
+                x_val = xs[index]
+                here.axvline(x=x_val, color = (0,0,0,.2), linestyle = linestyle)
+                here.text(x_val, here.get_ylim()[1] * 0.95, full_name,                  # This name works great, but consider revising.
+                  rotation=90, verticalalignment='top', fontsize=10, color='black')
                 
                 
                 
-        """# Rolling win-rate
+        # Rolling win-rate
         try: os.mkdir("thesis_pics/rolling_win_rate")
         except: pass
     
@@ -264,11 +265,11 @@ def plots(plot_dicts, min_max_dict):
             
         fig2.savefig(f"thesis_pics/rolling_win_rate/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
-        print(f"\t\tFinished win-rates.")"""
+        print(f"\t\tFinished win-rates.")
         
         
         
-        # Rolling win-rate
+        """# Rolling win-rate
         try: os.mkdir("thesis_pics/rolling_win_rate")
         except: pass
     
@@ -323,7 +324,7 @@ def plots(plot_dicts, min_max_dict):
             
         fig2.savefig(f"thesis_pics/rolling_win_rate/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
-        print(f"\t\tFinished win-rates.")
+        print(f"\t\tFinished win-rates.")"""
             
                 
                 

@@ -104,12 +104,18 @@ add_this("comm_beta",   {
 
 
 add_this("w_weights", {
-    "task_list" : "\"[  'fp',   'w',    'wpulr_9',  'wpulr_8',  'wpulr_7',  'wpulr_6',  'wpulr_5',  'wpulr_4',  'wpulr_3',  'wpulr_2',  'wpulr_1',  'wpulr']\"",
-    "epochs" : "\"[     10000,  5000,   3000,       3000,       3000,       3000,       3000,       3000,       3000,       3000,       3000,       3000]\""})
+    "processor_list" : "\"[     'fp',   'w',    'wpulr_9',  'wpulr_8',  'wpulr_7',  'wpulr_6',  'wpulr_5',  'wpulr_4',  'wpulr_3',  'wpulr_2',  'wpulr_1',  'wpulr']\"",
+    "epochs" : "\"[             100,    50,     30,         30,         30,         30,         30,         30,         30,         30,         30,         30]\""})
 
 
 
-"""bash communication/bash/maze.sh "arg_list=(e ef_only_comm ef e_w_weights ef_only_comm_w_weights ef_w_weights)" "comp=deigo" "agents=180""""
+"""add_this("w_weights", {
+    "processor_list" : "\"[     'fp',   'w',    'wpulr_9',  'wpulr_8',  'wpulr_7',  'wpulr_6',  'wpulr_5',  'wpulr_4',  'wpulr_3',  'wpulr_2',  'wpulr_1',  'wpulr']\"",
+    "epochs" : "\"[             10000,  5000,   3000,       3000,       3000,       3000,       3000,       3000,       3000,       3000,       3000,       3000]\""})"""
+
+
+
+"""bash communication/bash/maze.sh "arg_list=(e ef_only_comm ef e_w_weights ef_only_comm_w_weights ef_w_weights)" "comp=deigo" "agents=180"""
 
 
 #add_this("sensors",   {

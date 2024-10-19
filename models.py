@@ -7,7 +7,7 @@ from torch.distributions import Normal
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, print, duration
+from utils import default_args, print, duration, Action
 from utils_submodule import init_weights, episodes_steps, var, sample, model_start, model_end
 from mtrnn import MTRNN
 from submodules import Obs_IN, Wheels_Shoulders_IN, Comm_IN, Comm_OUT
@@ -87,7 +87,7 @@ class Actor(nn.Module):
                 comm_out = comm_out.to(dtype=torch.float16)
                 comm_log_prob = comm_log_prob.to(dtype=torch.float16)
         
-        return wheels_shoulders, comm_out, log_prob, comm_log_prob
+        return Action(wheels_shoulders, comm_out), log_prob, comm_log_prob
     
     
     
@@ -141,10 +141,10 @@ class Critic(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, wheels_shoulders, comm_out, forward_hidden):        
+    def forward(self, action, forward_hidden):        
         
         start, episodes, steps, [wheels_shoulders, comm_out, forward_hidden] = model_start(
-            [(wheels_shoulders, "lin"), (comm_out, "comm"), (forward_hidden, "lin")], device = self.args.device, half = self.args.half)
+            [(action.wheels_shoulders, "lin"), (action.comm_out, "comm"), (forward_hidden, "lin")], device = self.args.device, half = self.args.half)
                 
         wheels_shoulders = self.wheels_shoulders_in(wheels_shoulders)
         comm_out = self.comm_out_in(comm_out)
