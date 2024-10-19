@@ -74,7 +74,7 @@ class Processor:
         
         mother_comm = self.mother_comm_1 if agent_1 else self.mother_comm_2
                 
-        return(Obs(rgbd, sensors, self.goal.one_hots.unsqueeze(0), mother_comm))
+        return(Obs(rgbd, sensors, self.goal, mother_comm))
     
     
             
@@ -90,8 +90,8 @@ class Processor:
             round(left_wheel, 2), round(right_wheel, 2), round(left_shoulder, 2), round(right_shoulder, 2)))
             
         arena.step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = verbose, sleep_time = sleep_time)
-        raw_reward, win, mother_comm = arena.rewards()
-        return(raw_reward, win, mother_comm)
+        reward, win, mother_comm = arena.rewards()
+        return(reward, win, mother_comm)
     
     
         
@@ -99,26 +99,26 @@ class Processor:
         self.steps += 1
         done = False
         
-        raw_reward, win, mother_comm_1 = self.act(wheels_shoulders_1, verbose = verbose, sleep_time = sleep_time)
+        reward, win, mother_comm_1 = self.act(wheels_shoulders_1, verbose = verbose, sleep_time = sleep_time)
         if(self.parenting): 
             mother_comm_2 = empty_goal
         else:
-            raw_reward_2, win_2, mother_comm_2 = self.act(wheels_shoulders_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
-            raw_reward = max([raw_reward, raw_reward_2])
+            reward_2, win_2, mother_comm_2 = self.act(wheels_shoulders_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
+            reward = max([reward, reward_2])
             win = win or win_2
             
         self.mother_comm_1 = mother_comm_1
         self.mother_comm_2 = mother_comm_2
                     
-        if(raw_reward > 0): 
-            raw_reward *= self.args.step_cost ** (self.steps-1)
+        if(reward > 0): 
+            reward *= self.args.step_cost ** (self.steps-1)
         end = self.steps >= self.args.max_steps
                                 
         if(end and not win): 
             done = True
             goal_task = self.arena_1.goal.task
             if(goal_task.name != "FREEPLAY"):
-                raw_reward += self.args.step_lim_punishment 
+                reward += self.args.step_lim_punishment 
             if(verbose):
                 print("Episode end!", end = " ")
         if(win):
@@ -126,11 +126,11 @@ class Processor:
             if(verbose):
                 print("Correct!", end = " ")
         if(verbose):
-            print("Raw reward:", raw_reward)
+            print("Raw reward:", reward)
             if(done): 
                 print("Done.")
                                 
-        return(raw_reward, done, win, self.mother_comm_1, self.mother_comm_2)
+        return(reward, done, win, self.mother_comm_1, self.mother_comm_2)
     
     
     
@@ -194,7 +194,7 @@ if __name__ == "__main__":
             example_images(get_images())
             recommendation = torch.zeros((4,)) 
             print("Got recommendation:", recommendation)
-            raw_reward, done, win, mother_comm_1, mother_comm_2 = processor.step(recommendation, verbose = True)
+            reward, done, win, mother_comm_1, mother_comm_2 = processor.step(recommendation, verbose = True)
             print("Done:", done)
             rgbd, _, _ = processor.obs()
             rgb = rgbd[0,:,:,0:3]

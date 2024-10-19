@@ -295,7 +295,7 @@ class Agent:
                 mother_comm = mother_comm_1 if agent_1 else mother_comm_2
                 obs = self.processor.obs(agent_1)
                 
-                comm_in = mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.unsqueeze(0) if parenting else partner_prev_comm_out
+                comm_in = mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.one_hots.unsqueeze(0).unsqueeze(0) if parenting else partner_prev_comm_out
                 obs.father_comm = comm_in
                 hp, hq, rgbd_is, sensors_is, father_comm_is = self.forward.bottom_to_top_step(
                     hq_1, self.forward.obs_in(obs), self.forward.action_in(prev_action))
@@ -328,11 +328,11 @@ class Agent:
             next_obs_1 = self.processor.obs()
             next_obs_2 = self.processor.obs(agent_1 = False)
             
-            next_comm_in_1 = mother_comm_1.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_obs_1.father_comm.unsqueeze(0) if parenting else comm_out_2 
+            next_comm_in_1 = mother_comm_1.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_obs_1.father_comm.one_hots.unsqueeze(0).unsqueeze(0) if parenting else comm_out_2 
             if(parenting):
                 next_comm_in_2 = None 
             else:
-                next_comm_in_2 = mother_comm_2.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_obs_2.father_comm.unsqueeze(0) if parenting else comm_out_1
+                next_comm_in_2 = mother_comm_2.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_obs_2.father_commone_hots.unsqueeze(0).unsqueeze(0) if parenting else comm_out_1
             
             next_obs_1.father_comm = next_comm_in_1
             next_obs_2.father_comm = next_comm_in_2
@@ -508,9 +508,9 @@ class Agent:
                     episode_dict[f"sensors_{agent_num}"].append(obs.sensors.tolist()[0])
                     
                     if(agent_1):
-                        comm_in = mother_comm_1 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(obs.father_comm[0]) if parenting else prev_action_2.comm_out[0,0]
+                        comm_in = mother_comm_1 if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.char_text if parenting else prev_action_2.comm_out[0,0]
                     else:
-                        comm_in = mother_comm_2 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(obs.father_comm[0]) if parenting else prev_action_1.comm_out[0,0]
+                        comm_in = mother_comm_2 if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.char_text if parenting else prev_action_1.comm_out[0,0]
                     episode_dict[f"father_comm_{agent_num}"].append("'{}' ({})".format(comm_in, comm_in))
                     
                     if(agent_1):
