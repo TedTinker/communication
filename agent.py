@@ -547,26 +547,20 @@ class Agent:
                             
                     episode_dict["reward"].append(str(round(reward, 3)))
                     
-                    episode_dict["wheels_shoulders_1"].append(prev_action_1.wheels_shoulders)
-                    episode_dict["wheels_shoulders_text_1"].append(wheels_shoulders_to_string(prev_action_1.wheels_shoulders))
-                    comm_out_1 = onehots_to_string(prev_action_1.comm_out)
-                    episode_dict["comm_out_1"].append("{} ({})".format(prev_action_1.comm_out, prev_action_1.comm_out))
-                    episode_dict["rgbd_dkl_1"].append(rgbd_is_1.dkl.sum().item())
-                    episode_dict["sensors_dkl_1"].append(sensors_is_1.dkl.sum().item())
-                    episode_dict["father_comm_dkl_1"].append(father_comm_is_1.dkl.sum().item())
-                    episode_dict["critic_predictions_1"].append(values_1)
-                    episode_dict["reward_1"].append(str(round(reward, 3)))
-                        
-                    if(not self.processor.parenting):
-                        episode_dict["wheels_shoulders_2"].append(prev_action_2.wheels_shoulders)
-                        episode_dict["wheels_shoulders_text_2"].append(wheels_shoulders_to_string(prev_action_2.wheels_shoulders))
-                        comm_out_2 = onehots_to_string(prev_action_2.comm_out)
-                        episode_dict["comm_out_2"].append("{} ({})".format(prev_action_2.comm_out, prev_action_2.comm_out))
-                        episode_dict["rgbd_dkl_2"].append(rgbd_is_2.dkl.sum().item())
-                        episode_dict["sensors_dkl_2"].append(sensors_is_2.dkl.sum().item())
-                        episode_dict["father_comm_dkl_2"].append(father_comm_is_2.dkl.sum().item())
-                        episode_dict["critic_predictions_2"].append(values_2)
-                        episode_dict["reward_2"].append(str(round(reward_2, 3)))
+                    def update_episode_dict(index, prev_action, rgbd_is, sensors_is, father_comm_is, values, reward):
+                        episode_dict[f"wheels_shoulders_{index}"].append(prev_action.wheels_shoulders)
+                        episode_dict[f"wheels_shoulders_text_{index}"].append(wheels_shoulders_to_string(prev_action.wheels_shoulders))
+                        comm_out = onehots_to_string(prev_action.comm_out)
+                        episode_dict[f"comm_out_{index}"].append(f"{prev_action.comm_out} ({prev_action.comm_out})")
+                        episode_dict[f"rgbd_dkl_{index}"].append(rgbd_is.dkl.sum().item())
+                        episode_dict[f"sensors_dkl_{index}"].append(sensors_is.dkl.sum().item())
+                        episode_dict[f"father_comm_dkl_{index}"].append(father_comm_is.dkl.sum().item())
+                        episode_dict[f"critic_predictions_{index}"].append(values)
+                        episode_dict[f"reward_{index}"].append(str(round(reward, 3)))
+
+                    update_episode_dict(1, prev_action_1, rgbd_is_1, sensors_is_1, father_comm_is_1, values_1, reward)
+                    if not self.processor.parenting:
+                        update_episode_dict(2, prev_action_2, rgbd_is_2, sensors_is_2, father_comm_is_2, values_2, reward_2)
                     
                     if(done):
                         save_step(step, hp_1, hq_1, wheels_shoulders = prev_action_1.wheels_shoulders, agent_1 = True)    
