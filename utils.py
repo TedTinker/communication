@@ -173,7 +173,7 @@ class Action:
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
 class To_Push:
-    def __init__(self, obs, wheels_shoulders, comm_out, reward, next_obs, done):
+    def __init__(self, obs, action, reward, next_obs, done):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
     def push(self, memory):
@@ -182,8 +182,8 @@ class To_Push:
             self.obs.sensors.to("cpu"),
             self.obs.father_comm.to("cpu"),
             self.obs.mother_comm.one_hots.to("cpu"),
-            self.wheels_shoulders.to("cpu"), 
-            self.comm_out.to("cpu"),
+            self.action.wheels_shoulders.to("cpu"), 
+            self.action.comm_out.to("cpu"),
             self.reward, 
             self.next_obs.rgbd.to("cpu"),
             self.next_obs.sensors.to("cpu"),

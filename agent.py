@@ -281,17 +281,16 @@ class Agent:
     
     
     def step_in_episode(self, 
-                        prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
-                        prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2, sleep_time = None):
+                        prev_action_1, hq_1, mother_comm_1,
+                        prev_action_2, hq_2, mother_comm_2, sleep_time = None):
 
         with torch.no_grad():
             self.eval()
             parenting = self.processor.parenting
                         
             def agent_step(agent_1 = True):
-                prev_wheels_shoulders = prev_wheels_shoulders_1 if agent_1 else prev_wheels_shoulders_2
-                prev_comm_out = prev_comm_out_1 if agent_1 else prev_comm_out_2
-                partner_prev_comm_out = prev_comm_out_2 if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)) if agent_1 else prev_comm_out_1
+                prev_action = prev_action_1 if agent_1 else prev_action_2
+                partner_prev_comm_out = prev_action_2.comm_out if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)) if agent_1 else prev_action_1.comm_out
                 hq = hq_1 if agent_1 else hq_2
                 mother_comm = mother_comm_1 if agent_1 else mother_comm_2
                 obs = self.processor.obs(agent_1)
@@ -299,7 +298,7 @@ class Agent:
                 comm_in = mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.unsqueeze(0) if parenting else partner_prev_comm_out
                 obs.father_comm = comm_in
                 hp, hq, rgbd_is, sensors_is, father_comm_is = self.forward.bottom_to_top_step(
-                    hq_1, self.forward.obs_in(obs), self.forward.action_in(Action(prev_wheels_shoulders, prev_comm_out)))
+                    hq_1, self.forward.obs_in(obs), self.forward.action_in(prev_action))
 
                 action, _, _ = self.actor(hq.detach(), parenting) 
                 values = []
@@ -307,15 +306,14 @@ class Agent:
                     value = self.critics[i](action, hq.detach()) 
                     values.append(round(value.item(), 3))
                 
-                return(obs, action.wheels_shoulders, action.comm_out, hp, hq, values, rgbd_is, sensors_is, father_comm_is)
+                return(obs, action, hp, hq, values, rgbd_is, sensors_is, father_comm_is)
             
             
             
-            obs_1, wheels_shoulders_1, comm_out_1, hp_1, hq_1, values_1, rgbd_is_1, sensors_is_1, father_comm_is_1 = agent_step()
+            obs_1, action_1, hp_1, hq_1, values_1, rgbd_is_1, sensors_is_1, father_comm_is_1 = agent_step()
             
             if(parenting):
-                wheels_shoulders_2 = torch.zeros_like(wheels_shoulders_1)
-                comm_out_2 = None
+                action_2 = None
                 hp_2 = hq_2
                 hq_2 = hq_2
                 values_2 = None
@@ -323,9 +321,9 @@ class Agent:
                 sensors_is_2 = None
                 father_comm_is_2 = None
             else:
-                obs_2, wheels_shoulders_2, comm_out_2, hp_2, hq_2, values_2, rgbd_is_2, sensors_is_2, father_comm_is_2 = agent_step(agent_1 = False)
+                obs_2, action_2, hp_2, hq_2, values_2, rgbd_is_2, sensors_is_2, father_comm_is_2 = agent_step(agent_1 = False)
 
-            reward, done, win, mother_comm_1, mother_comm_2 = self.processor.step(wheels_shoulders_1[0,0].clone(), wheels_shoulders_2[0,0].clone(), sleep_time = sleep_time)
+            reward, done, win, mother_comm_1, mother_comm_2 = self.processor.step(action_1.wheels_shoulders[0,0].clone(), None if action_2 == None else action_2.wheels_shoulders[0,0].clone(), sleep_time = sleep_time)
                         
             next_obs_1 = self.processor.obs()
             next_obs_2 = self.processor.obs(agent_1 = False)
@@ -339,17 +337,17 @@ class Agent:
             next_obs_1.father_comm = next_comm_in_1
             next_obs_2.father_comm = next_comm_in_2
                       
-            to_push_1 = To_Push(obs_1, wheels_shoulders_1, comm_out_1, reward, next_obs_1, done)          
+            to_push_1 = To_Push(obs_1, action_1, reward, next_obs_1, done)          
             
             if(parenting): 
                 to_push_2 = None
             else:
-                to_push_2 = To_Push(obs_2, wheels_shoulders_2, comm_out_2, reward, next_obs_2, done)          
+                to_push_2 = To_Push(obs_2, action_1_2, reward, next_obs_2, done)          
 
         torch.cuda.empty_cache()
         
-        return(wheels_shoulders_1, comm_out_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), rgbd_is_1, sensors_is_1, father_comm_is_1, mother_comm_1,
-               wheels_shoulders_2, comm_out_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1), rgbd_is_2, sensors_is_2, father_comm_is_2, mother_comm_2,
+        return(action_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), rgbd_is_1, sensors_is_1, father_comm_is_1, mother_comm_1,
+               action_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1), rgbd_is_2, sensors_is_2, father_comm_is_2, mother_comm_2,
                reward, done, win, to_push_1, to_push_2)
             
            
@@ -360,27 +358,25 @@ class Agent:
         steps = 0
                 
         to_push_list_1 = []
-        prev_wheels_shoulders_1 = torch.zeros((1, 1, self.args.wheels_shoulders_shape))
-        prev_comm_out_1 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
+        prev_action_1 = Action(torch.zeros((1, 1, self.args.wheels_shoulders_shape)), torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)))
         hq_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
         mother_comm_1 = empty_goal
         
         to_push_list_2 = []
-        prev_wheels_shoulders_2 = torch.zeros((1, 1, self.args.wheels_shoulders_shape))
-        prev_comm_out_2 = torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape))
+        prev_action_2 = Action(torch.zeros((1, 1, self.args.wheels_shoulders_shape)), torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)))
         hq_2 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
         mother_comm_2 = empty_goal
                 
         return(done, complete_reward, steps, 
-               to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
-               to_push_list_2, prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2)
+               to_push_list_1, prev_action_1, hq_1, mother_comm_1,
+               to_push_list_2, prev_action_2, hq_2, mother_comm_2)
            
            
     
     def training_episode(self):        
         done, complete_reward, steps, \
-            to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1, \
-            to_push_list_2, prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
+            to_push_list_1, prev_action_1, hq_1, mother_comm_1, \
+            to_push_list_2, prev_action_2, hq_2, mother_comm_2 = self.start_episode()
                     
         self.episodes += 1 
         self.total_episodes += 1
@@ -393,11 +389,11 @@ class Agent:
             self.total_steps += 1                                                                  
             if(not done):
                 steps += 1
-                prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_comm_is_1, mother_comm_1, \
-                    prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_comm_is_2, mother_comm_2, \
+                prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_comm_is_1, mother_comm_1, \
+                    prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_comm_is_2, mother_comm_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                            prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
-                            prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2)
+                            prev_action_1, hq_1, mother_comm_1,
+                            prev_action_2, hq_2, mother_comm_2)
                         
                 if(self.args.agents_per_behavior_analysis == -1 or self.agent_num <= self.args.agents_per_behavior_analysis):  
                     self.plot_dict["behavior"][self.episodes].append(mother_comm_1)
@@ -432,8 +428,8 @@ class Agent:
         
     def gen_test(self):
         done, complete_reward, steps, \
-            to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1, \
-            to_push_list_2, prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
+            to_push_list_1, prev_action_1, hq_1, mother_comm_1, \
+            to_push_list_2, prev_action_2, hq_2, mother_comm_2 = self.start_episode()
                 
         try:
             self.processor = self.processors[self.processor_name]
@@ -441,11 +437,11 @@ class Agent:
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
-                    prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_comm_is_1, mother_comm_1, \
-                        prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_comm_is_2, mother_comm_2, \
+                    prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_comm_is_1, mother_comm_1, \
+                        prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_comm_is_2, mother_comm_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
-                                prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2)
+                                prev_action_1, hq_1, mother_comm_1,
+                                prev_action_2, hq_2, mother_comm_2)
                     complete_reward += reward
                 #print("DONE")
             self.processor.done()
@@ -492,8 +488,8 @@ class Agent:
                 done = False
                 
                 done, complete_reward, steps, \
-                    to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1, \
-                    to_push_list_2, prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
+                    to_push_list_1, prev_action_1, hq_1, mother_comm_1, \
+                    to_push_list_2, prev_action_2, hq_2, mother_comm_2 = self.start_episode()
                         
                 hp_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
                 hq_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
@@ -512,9 +508,9 @@ class Agent:
                     episode_dict[f"sensors_{agent_num}"].append(obs.sensors.tolist()[0])
                     
                     if(agent_1):
-                        comm_in = mother_comm_1 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(obs.father_comm[0]) if parenting else prev_comm_out_2[0,0]
+                        comm_in = mother_comm_1 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(obs.father_comm[0]) if parenting else prev_action_2.comm_out[0,0]
                     else:
-                        comm_in = mother_comm_2 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(obs.father_comm[0]) if parenting else prev_comm_out_1[0,0]
+                        comm_in = mother_comm_2 if self.processor.goal.task.name == "FREEPLAY" else onehots_to_string(obs.father_comm[0]) if parenting else prev_action_1.comm_out[0,0]
                     episode_dict[f"father_comm_{agent_num}"].append("'{}' ({})".format(comm_in, comm_in))
                     
                     if(agent_1):
@@ -549,24 +545,24 @@ class Agent:
                             WAITING = input("WAITING")
                 
                 for step in range(self.args.max_steps + 1):
-                    save_step(step, hp_1, hq_1, wheels_shoulders = prev_wheels_shoulders_1, agent_1 = True)    
+                    save_step(step, hp_1, hq_1, wheels_shoulders = prev_action_1.wheels_shoulders, agent_1 = True)    
                     if(not self.processor.parenting):
-                        save_step(step, hp_2, hq_2, wheels_shoulders = prev_wheels_shoulders_2, agent_1 = False)  
+                        save_step(step, hp_2, hq_2, wheels_shoulders = prev_action_2.wheels_shoulders, agent_1 = False)  
                         
                     display(step)
                     
-                    prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_comm_is_1, mother_comm_1, \
-                        prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_comm_is_2, mother_comm_2, \
+                    prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_comm_is_1, mother_comm_1, \
+                        prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_comm_is_2, mother_comm_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
-                                prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2, sleep_time) 
+                                prev_action_1, hq_1, mother_comm_1,
+                                prev_action_2, hq_2, mother_comm_2, sleep_time) 
                             
                     episode_dict["reward"].append(str(round(reward, 3)))
                     
-                    episode_dict["wheels_shoulders_1"].append(prev_wheels_shoulders_1)
-                    episode_dict["wheels_shoulders_text_1"].append(wheels_shoulders_to_string(prev_wheels_shoulders_1))
-                    comm_out_1 = onehots_to_string(prev_comm_out_1)
-                    episode_dict["comm_out_1"].append("{} ({})".format(comm_out_1, comm_out_1))
+                    episode_dict["wheels_shoulders_1"].append(prev_action_1.wheels_shoulders)
+                    episode_dict["wheels_shoulders_text_1"].append(wheels_shoulders_to_string(prev_action_1.wheels_shoulders))
+                    comm_out_1 = onehots_to_string(prev_action_1.comm_out)
+                    episode_dict["comm_out_1"].append("{} ({})".format(prev_action_1.comm_out, prev_action_1.comm_out))
                     episode_dict["rgbd_dkl_1"].append(rgbd_is_1.dkl.sum().item())
                     episode_dict["sensors_dkl_1"].append(sensors_is_1.dkl.sum().item())
                     episode_dict["father_comm_dkl_1"].append(father_comm_is_1.dkl.sum().item())
@@ -574,10 +570,10 @@ class Agent:
                     episode_dict["reward_1"].append(str(round(reward, 3)))
                         
                     if(not self.processor.parenting):
-                        episode_dict["wheels_shoulders_2"].append(prev_wheels_shoulders_2)
-                        episode_dict["wheels_shoulders_text_2"].append(wheels_shoulders_to_string(prev_wheels_shoulders_2))
-                        comm_out_2 = onehots_to_string(prev_comm_out_2)
-                        episode_dict["comm_out_2"].append("{} ({})".format(comm_out_1, comm_out_2))
+                        episode_dict["wheels_shoulders_2"].append(prev_action_2.wheels_shoulders)
+                        episode_dict["wheels_shoulders_text_2"].append(wheels_shoulders_to_string(prev_action_2.wheels_shoulders))
+                        comm_out_2 = onehots_to_string(prev_action_2.comm_out)
+                        episode_dict["comm_out_2"].append("{} ({})".format(prev_action_2.comm_out, prev_action_2.comm_out))
                         episode_dict["rgbd_dkl_2"].append(rgbd_is_2.dkl.sum().item())
                         episode_dict["sensors_dkl_2"].append(sensors_is_2.dkl.sum().item())
                         episode_dict["father_comm_dkl_2"].append(father_comm_is_2.dkl.sum().item())
@@ -585,9 +581,9 @@ class Agent:
                         episode_dict["reward_2"].append(str(round(reward_2, 3)))
                     
                     if(done):
-                        save_step(step, hp_1, hq_1, wheels_shoulders = prev_wheels_shoulders_1, agent_1 = True)    
+                        save_step(step, hp_1, hq_1, wheels_shoulders = prev_action_1.wheels_shoulders, agent_1 = True)    
                         if(not self.processor.parenting):
-                            save_step(step, hp_2, hq_2, wheels_shoulders = prev_wheels_shoulders_2, agent_1 = False) 
+                            save_step(step, hp_2, hq_2, wheels_shoulders = prev_action_2.wheels_shoulders, agent_1 = False) 
                         display(step + 1, done = True, wait = False)
                         self.processor.done()
                         break
@@ -611,17 +607,17 @@ class Agent:
             #print(self.processor.processor)
             self.processor.begin(test = None)    
             done, complete_reward, steps, \
-                to_push_list_1, prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1, \
-                to_push_list_2, prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2 = self.start_episode()
+                to_push_list_1, prev_action_1, hq_1, mother_comm_1, \
+                to_push_list_2, prev_action_2, hq_2, mother_comm_2 = self.start_episode()
                      
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
-                    prev_wheels_shoulders_1, prev_comm_out_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_comm_is_1, mother_comm_1, \
-                        prev_wheels_shoulders_2, prev_comm_out_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_comm_is_2, mother_comm_2, \
+                    prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_comm_is_1, mother_comm_1, \
+                        prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_comm_is_2, mother_comm_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                prev_wheels_shoulders_1, prev_comm_out_1, hq_1, mother_comm_1,
-                                prev_wheels_shoulders_2, prev_comm_out_2, hq_2, mother_comm_2)
+                                prev_action_1, hq_1, mother_comm_1,
+                                prev_action_2, hq_2, mother_comm_2)
                 to_push_list_1.append(to_push_1)
                 if(done): break
             #print("DONE")
