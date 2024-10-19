@@ -288,7 +288,13 @@ class Agent:
             self.eval()
             parenting = self.processor.parenting
                         
+                        
+                        
             def agent_step(agent_1 = True):
+                
+                if(parenting and not agent_1):
+                    return(None, None, hq_2, hq_2, None, None, None, None, )
+                
                 prev_action = prev_action_1 if agent_1 else prev_action_2
                 partner_prev_comm_out = prev_action_2.comm_out if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)) if agent_1 else prev_action_1.comm_out
                 hq = hq_1 if agent_1 else hq_2
@@ -308,41 +314,35 @@ class Agent:
                 
                 return(obs, action, hp, hq, values, rgbd_is, sensors_is, father_comm_is)
             
-            
-            
             obs_1, action_1, hp_1, hq_1, values_1, rgbd_is_1, sensors_is_1, father_comm_is_1 = agent_step()
-            
-            if(parenting):
-                action_2 = None
-                hp_2 = hq_2
-                hq_2 = hq_2
-                values_2 = None
-                rgbd_is_2 = None 
-                sensors_is_2 = None
-                father_comm_is_2 = None
-            else:
-                obs_2, action_2, hp_2, hq_2, values_2, rgbd_is_2, sensors_is_2, father_comm_is_2 = agent_step(agent_1 = False)
+            obs_2, action_2, hp_2, hq_2, values_2, rgbd_is_2, sensors_is_2, father_comm_is_2 = agent_step(agent_1 = False)
+
+
 
             reward, done, win, mother_comm_1, mother_comm_2 = self.processor.step(action_1.wheels_shoulders[0,0].clone(), None if action_2 == None else action_2.wheels_shoulders[0,0].clone(), sleep_time = sleep_time)
-                        
-            next_obs_1 = self.processor.obs()
-            next_obs_2 = self.processor.obs(agent_1 = False)
             
-            next_comm_in_1 = mother_comm_1.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_obs_1.father_comm.one_hots.unsqueeze(0).unsqueeze(0) if parenting else comm_out_2 
-            if(parenting):
-                next_comm_in_2 = None 
-            else:
-                next_comm_in_2 = mother_comm_2.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_obs_2.father_commone_hots.unsqueeze(0).unsqueeze(0) if parenting else comm_out_1
+
             
-            next_obs_1.father_comm = next_comm_in_1
-            next_obs_2.father_comm = next_comm_in_2
-                      
-            to_push_1 = To_Push(obs_1, action_1, reward, next_obs_1, done)          
+            def next_agent_step(agent_1 = True):
+                
+                if(parenting and not agent_1):
+                    return(None, None)
+                
+                next_obs = self.processor.obs(agent_1)
+                mother_comm = mother_comm_1 if agent_1 else mother_comm_2 
+                obs = obs_1 if agent_1 else obs_2 
+                action = action_1 if agent_1 else action_2
+                partner_comm_out = None if parenting else action_2.comm_out if agent_1 else action_1.comm_out
+                next_comm_in = mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else next_obs.father_comm.one_hots.unsqueeze(0).unsqueeze(0) if parenting else partner_comm_out
+                next_obs.father_comm = next_comm_in
+                to_push = To_Push(obs, action, reward, next_obs, done)     
+                return(next_obs, to_push)
             
-            if(parenting): 
-                to_push_2 = None
-            else:
-                to_push_2 = To_Push(obs_2, action_1_2, reward, next_obs_2, done)          
+            next_obs_1, to_push_1 = next_agent_step()
+            next_obs_2, to_push_2 = next_agent_step(agent_1 = False)
+            
+            
+            
 
         torch.cuda.empty_cache()
         
