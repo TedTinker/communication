@@ -317,11 +317,7 @@ class Agent:
             obs_1, action_1, hp_1, hq_1, values_1, rgbd_is_1, sensors_is_1, father_comm_is_1 = agent_step()
             obs_2, action_2, hp_2, hq_2, values_2, rgbd_is_2, sensors_is_2, father_comm_is_2 = agent_step(agent_1 = False)
 
-
-
             reward, done, win, mother_comm_1, mother_comm_2 = self.processor.step(action_1.wheels_shoulders[0,0].clone(), None if action_2 == None else action_2.wheels_shoulders[0,0].clone(), sleep_time = sleep_time)
-            
-
             
             def next_agent_step(agent_1 = True):
                 
@@ -341,9 +337,6 @@ class Agent:
             next_obs_1, to_push_1 = next_agent_step()
             next_obs_2, to_push_2 = next_agent_step(agent_1 = False)
             
-            
-            
-
         torch.cuda.empty_cache()
         
         return(action_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), rgbd_is_1, sensors_is_1, father_comm_is_1, mother_comm_1,
@@ -356,27 +349,22 @@ class Agent:
         done = False
         complete_reward = 0
         steps = 0
-                
-        to_push_list_1 = []
-        prev_action_1 = Action(torch.zeros((1, 1, self.args.wheels_shoulders_shape)), torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)))
-        hq_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
-        mother_comm_1 = empty_goal
         
-        to_push_list_2 = []
-        prev_action_2 = Action(torch.zeros((1, 1, self.args.wheels_shoulders_shape)), torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)))
-        hq_2 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
-        mother_comm_2 = empty_goal
+        def start_agent(agent_1 = True):
+            to_push_list = []
+            prev_action = Action(torch.zeros((1, 1, self.args.wheels_shoulders_shape)), torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)))
+            hq = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
+            mother_comm = empty_goal
+            return(to_push_list, prev_action, hq, mother_comm)
                 
-        return(done, complete_reward, steps, 
-               to_push_list_1, prev_action_1, hq_1, mother_comm_1,
-               to_push_list_2, prev_action_2, hq_2, mother_comm_2)
+        return(done, complete_reward, steps, start_agent(), start_agent(agent_1 = False))
            
            
     
     def training_episode(self):        
         done, complete_reward, steps, \
-            to_push_list_1, prev_action_1, hq_1, mother_comm_1, \
-            to_push_list_2, prev_action_2, hq_2, mother_comm_2 = self.start_episode()
+            (to_push_list_1, prev_action_1, hq_1, mother_comm_1), \
+            (to_push_list_2, prev_action_2, hq_2, mother_comm_2) = self.start_episode()
                     
         self.episodes += 1 
         self.total_episodes += 1
@@ -428,8 +416,8 @@ class Agent:
         
     def gen_test(self):
         done, complete_reward, steps, \
-            to_push_list_1, prev_action_1, hq_1, mother_comm_1, \
-            to_push_list_2, prev_action_2, hq_2, mother_comm_2 = self.start_episode()
+            (to_push_list_1, prev_action_1, hq_1, mother_comm_1), \
+            (to_push_list_2, prev_action_2, hq_2, mother_comm_2) = self.start_episode()
                 
         try:
             self.processor = self.processors[self.processor_name]
@@ -488,8 +476,8 @@ class Agent:
                 done = False
                 
                 done, complete_reward, steps, \
-                    to_push_list_1, prev_action_1, hq_1, mother_comm_1, \
-                    to_push_list_2, prev_action_2, hq_2, mother_comm_2 = self.start_episode()
+                    (to_push_list_1, prev_action_1, hq_1, mother_comm_1), \
+                    (to_push_list_2, prev_action_2, hq_2, mother_comm_2) = self.start_episode()
                         
                 hp_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
                 hq_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
@@ -607,8 +595,8 @@ class Agent:
             #print(self.processor.processor)
             self.processor.begin(test = None)    
             done, complete_reward, steps, \
-                to_push_list_1, prev_action_1, hq_1, mother_comm_1, \
-                to_push_list_2, prev_action_2, hq_2, mother_comm_2 = self.start_episode()
+                (to_push_list_1, prev_action_1, hq_1, mother_comm_1), \
+                (to_push_list_2, prev_action_2, hq_2, mother_comm_2) = self.start_episode()
                      
             for step in range(self.args.max_steps):
                 #print("Step", step)
