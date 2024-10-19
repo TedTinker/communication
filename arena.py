@@ -32,12 +32,6 @@ def get_joint_index(body_id, joint_name, physicsClient):
             return i
     return -1  # Return -1 if no joint with the given name is found
 
-def adjust_sign(number1, number2):
-    sign_of_first_number = -1 if number1 < 0 else 1
-    min_abs_value = min(abs(number1), abs(number2))
-    result = sign_of_first_number * min_abs_value
-    return result
-
 def find_key_by_value(my_dict, target_value):
     for key, value in my_dict.items():
         if value == target_value:
@@ -124,12 +118,16 @@ class Arena():
                 self.loaded[i].append((object_index, (pos[0], pos[1], self.lower_starting_pos)))
                 self.object_indexs.append(object_index)
                 
+                
+                
     def end(self):
         for (_, _, idle_pos), object_index in self.objects_in_play.items():
             p.resetBasePositionAndOrientation(object_index, idle_pos, self.default_orn, physicsClientId = self.physicsClient)
             
     def stop(self):
         p.disconnect(physicsClientId = self.physicsClient)
+        
+        
                                 
     def begin(self, objects, goal, parenting, set_positions = None):
         self.set_pos()
@@ -168,8 +166,6 @@ class Arena():
                 if "white" not in joint_name.lower(): 
                     p.changeVisualShape(object_index, i, rgbaColor=rgba, physicsClientId=self.physicsClient)
                         
-                        
-                        
             self.objects_in_play[(color_index, shape_index, idle_pos)] = object_index
             self.watching[object_index] = 0
             
@@ -180,6 +176,8 @@ class Arena():
         for object_index, touch_dict in self.objects_touch.items():
            for body_part in touch_dict.keys():
                touch_dict[body_part] = 0 
+               
+               
         
     def step(self, left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = False, sleep_time = None):
         
@@ -240,6 +238,8 @@ class Arena():
         if(sleep_time != None):
             p.setTimeStep(self.args.time_step / self.args.steps_per_step, physicsClientId=self.physicsClient)  # More accurate time step
             p.setPhysicsEngineParameter(numSolverIterations=1, numSubSteps=1, physicsClientId=self.physicsClient)
+            
+            
             
     def set_pos(self, pos = (0, 0)):
         pos = (pos[0], pos[1], agent_upper_starting_pos)
@@ -354,6 +354,8 @@ class Arena():
             object_positions.append(pos)
         return(object_positions)
         
+        
+        
     def rewards(self, verbose = False):
         win = False
         reward = 0
@@ -455,8 +457,6 @@ class Arena():
                     win = False 
                     reward = 0
                     break
-                            
-        
 
         if(self.goal.task.name == "FREEPLAY"):
             reward = 0
@@ -468,6 +468,8 @@ class Arena():
             print("Win:", win)
                         
         return(reward, win, mother_comm)
+    
+    
     
     def photo_from_above(self):
         pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)

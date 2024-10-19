@@ -290,12 +290,13 @@ class Agent:
                         
             def agent_step(agent_1 = True):
                 prev_wheels_shoulders = prev_wheels_shoulders_1 if agent_1 else prev_wheels_shoulders_2
-                prev_comm_out = prev_comm_out_2 if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)) if agent_1 else prev_comm_out_1
+                prev_comm_out = prev_comm_out_1 if agent_1 else prev_comm_out_2
+                partner_prev_comm_out = prev_comm_out_2 if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_comm_len, self.args.comm_shape)) if agent_1 else prev_comm_out_1
                 hq = hq_1 if agent_1 else hq_2
                 mother_comm = mother_comm_1 if agent_1 else mother_comm_2
                 obs = self.processor.obs(agent_1)
                 
-                comm_in = mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.unsqueeze(0) if parenting else prev_comm_out
+                comm_in = mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.unsqueeze(0) if parenting else partner_prev_comm_out
                 obs.father_comm = comm_in
                 hp, hq, rgbd_is, sensors_is, father_comm_is = self.forward.bottom_to_top_step(
                     hq_1, self.forward.obs_in(obs), self.forward.action_in(Action(prev_wheels_shoulders, prev_comm_out)))

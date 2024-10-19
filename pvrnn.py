@@ -262,7 +262,7 @@ class PVRNN(nn.Module):
             step_obs = Obs(obs.rgbd[:,step], obs.sensors[:,step], obs.father_comm[:,step], obs.father_comm[:,step])
             step_action = Action(prev_action.wheels_shoulders[:,step], prev_action.comm_out[:,step])
             new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_comm_is = \
-            self.bottom_to_top_step(prev_hidden_states, step_obs, step_action)
+                self.bottom_to_top_step(prev_hidden_states, step_obs, step_action)
                                 
             for l, o in zip(
                 [new_hidden_states_p_list, new_hidden_states_q_list, rgbd_is_list, sensors_is_list, father_comm_is_list],
