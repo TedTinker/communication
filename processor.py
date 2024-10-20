@@ -91,6 +91,10 @@ class Processor:
             
         arena.step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = verbose, sleep_time = sleep_time)
         reward, win, mother_comm = arena.rewards()
+        if(agent_1): 
+            self.mother_comm_1 = mother_comm
+        else:
+            self.mother_comm_2 = mother_comm
         return(reward, win, mother_comm)
     
     
@@ -130,7 +134,7 @@ class Processor:
             if(done): 
                 print("Done.")
                                 
-        return(reward, done, win, self.mother_comm_1, self.mother_comm_2)
+        return(reward, done, win)
     
     
     

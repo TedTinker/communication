@@ -498,9 +498,9 @@ parser.add_argument("--beta_rgbd",                      type=float,         defa
                     help='Relative importance of complexity for rgbd.')
 parser.add_argument("--beta_sensors",                   type=float,         default = .3,
                     help='Relative importance of complexity for sensors.')     
-parser.add_argument("--beta_father_comm",                      type=float,         default = .06,
+parser.add_argument("--beta_father_comm",                      type=float,  default = .06,
                     help='Relative importance of complexity for comm.')
-parser.add_argument("--beta_mother_comm",                      type=float,         default = .06,
+parser.add_argument("--beta_mother_comm",                      type=float,  default = .06,
                     help='Relative importance of complexity for comm.')
 
 
@@ -557,6 +557,8 @@ parser.add_argument('--agents_per_component_data',      type=int,           defa
 
 parser.add_argument('--agents_per_behavior_analysis',   type=int,           default = 1,
                     help='How many agents to save episodes.')
+
+
 
 try:
     default_args = parser.parse_args([])
