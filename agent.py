@@ -457,11 +457,9 @@ class Agent:
                 return
             for episode_num in range(self.args.episodes_in_episode_dict):
                 common_keys = [
-                    "rgbd", "sensors", "father_comm", "wheels_shoulders", "wheels_shoulders_text", "comm_out", 
-                    "birds_eye", "reward", "critic_predictions", "prior_predicted_rgbd", 
-                    "prior_predicted_sensors", "prior_predicted_father_comm", "posterior_predicted_rgbd", 
-                    "posterior_predicted_sensors", "posterior_predicted_father_comm", 
-                    "rgbd_dkl", "sensors_dkl", "father_comm_dkl", "mother_comm"]
+                    "obs", "action", 
+                    "birds_eye", "reward", "critic_predictions", "prior_predictions", "posterior_predictions", 
+                    "rgbd_dkl", "sensors_dkl", "father_comm_dkl", "mother_comm_dkl"]
                 episode_dict = {}
                 for agent_id in [0, 1]:
                     for key in common_keys:
@@ -476,44 +474,23 @@ class Agent:
                     (to_push_list_1, prev_action_1, hq_1), \
                     (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
                         
-                hp_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
-                hq_1 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
-
-                hp_2 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
-                hq_2 = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
+                hp_1 = deepcopy(hq_1)
+                hp_2 = deepcopy(hp_1)
                                 
                 def save_step(step, hp, hq, wheels_shoulders, agent_1 = True):
                     agent_num = 1 if agent_1 else 2
-                    
                     birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
                     obs = self.processor.obs(agent_1 = agent_1)
-                    
+                    if(agent_1):    comm_in = obs.mother_comm if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.char_text if parenting else prev_action_2.comm_out[0,0]
+                    else:           comm_in = obs.mother_comm if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.char_text if parenting else prev_action_1.comm_out[0,0]
+                    obs.father_comm = comm_in
+                    episode_dict[f"obs_{agent_num}"].append(obs) 
                     episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
-                    episode_dict[f"rgbd_{agent_num}"].append(obs.rgbd[0,:,:,0:3])        
-                    episode_dict[f"sensors_{agent_num}"].append(obs.sensors.tolist()[0])
-                    
-                    if(agent_1):
-                        comm_in = obs.mother_comm if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.char_text if parenting else prev_action_2.comm_out[0,0]
-                    else:
-                        comm_in = obs.mother_comm if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.char_text if parenting else prev_action_1.comm_out[0,0]
-                    episode_dict[f"father_comm_{agent_num}"].append("'{}' ({})".format(comm_in, comm_in))
-
-                    episode_dict[f"mother_comm_{agent_num}"].append(obs.mother_comm)
-                    
                     if(step != 0):
-                        
                         pred_obs_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders)) 
-                        pred_obs_q= self.forward.predict(hq.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders))
-
-                        episode_dict[f"prior_predicted_rgbd_{agent_num}"].append(pred_obs_p.rgbd[0,0][:,:,0:3])
-                        episode_dict[f"prior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_obs_p.sensors[0,0]])
-                        prior_predicted_father_comm = onehots_to_string(pred_obs_p.father_comm[0,0])
-                        episode_dict[f"prior_predicted_father_comm_{agent_num}"].append("'{}' ({})".format(prior_predicted_father_comm, prior_predicted_father_comm))
-                        
-                        episode_dict[f"posterior_predicted_rgbd_{agent_num}"].append(pred_obs_q.rgbd[0,0][:,:,0:3])
-                        episode_dict[f"posterior_predicted_sensors_{agent_num}"].append([round(o.item(), 2) for o in pred_obs_q.sensors[0,0]])
-                        posterior_predicted_father_comm = onehots_to_string(pred_obs_q.father_comm[0,0])
-                        episode_dict[f"posterior_predicted_father_comm_{agent_num}"].append("'{}' ({})".format(posterior_predicted_father_comm, posterior_predicted_father_comm))
+                        pred_obs_q = self.forward.predict(hq.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders))
+                        episode_dict[f"prior_predictions_{agent_num}"].append(pred_obs_p)
+                        episode_dict[f"posterior_predictions_{agent_num}"].append(pred_obs_q)
                     
                 def display(step, agent_1 = True, done = False, stopping = False, wait = True):
                     if(for_display):
@@ -541,10 +518,7 @@ class Agent:
                     episode_dict["reward"].append(str(round(reward, 3)))
                     
                     def update_episode_dict(index, prev_action, rgbd_is, sensors_is, father_comm_is, values, reward):
-                        episode_dict[f"wheels_shoulders_{index}"].append(prev_action.wheels_shoulders)
-                        episode_dict[f"wheels_shoulders_text_{index}"].append(wheels_shoulders_to_string(prev_action.wheels_shoulders))
-                        comm_out = onehots_to_string(prev_action.comm_out)
-                        episode_dict[f"comm_out_{index}"].append(f"{prev_action.comm_out} ({prev_action.comm_out})")
+                        episode_dict[f"action_{index}"].append(prev_action)
                         episode_dict[f"rgbd_dkl_{index}"].append(rgbd_is.dkl.sum().item())
                         episode_dict[f"sensors_dkl_{index}"].append(sensors_is.dkl.sum().item())
                         episode_dict[f"father_comm_dkl_{index}"].append(father_comm_is.dkl.sum().item())
