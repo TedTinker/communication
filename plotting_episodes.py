@@ -37,7 +37,7 @@ def plot_episode(key, episode_dict, arg_name, saving = True):
             pass
         os.chdir(f"{arg_name}/epoch_{epoch}_episode_{episode_num}_agent_{agent_num}_swapping_{swapping}")
         print("Saving {}: agent {}, epoch {}, episode {}.{}".format(arg_name, agent_num, epoch, episode_num, " Swapping!" if swapping == 1 else ""))
-    steps = len(episode_dict["rgbd_1"])
+    steps = len(episode_dict["obs_1"])
     for step in range(steps):
         plot_step(step, episode_dict, last_step = step + 1 == steps, saving = saving)
         if(episode_dict["processor"]).parenting: pass 
@@ -52,40 +52,58 @@ def plot_episode(key, episode_dict, arg_name, saving = True):
 def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = True):
     agent_num = 1 if agent_1 else 2
     
+    obs = episode_dict[f"obs_{agent_num}"][step]
+    rgbd = obs.rgbd[0,:,:,:-1]
+    sensors = obs.sensors.tolist()[0]
+    father_comm = obs.father_comm
+    mother_comm = obs.mother_comm
+    if(step != 0):
+        prior = episode_dict[f"prior_predictions_{agent_num}"][step-1]
+        prior_rgbd = prior.rgbd 
+        prior_sensors = prior.sensors 
+        prior_father_comm = prior.father_comm 
+        posterior = episode_dict[f"posterior_predictions_{agent_num}"][step-1]
+        posterior_rgbd = posterior.rgbd 
+        posterior_sensors = posterior.sensors 
+        posterior_father_comm = posterior.father_comm 
+        action = episode_dict[f"action_{agent_num}"][step-1]
+    
     data = []
     
     data.append(["Goal", [episode_dict["goal"]], .1])
     if not step == 0:
-        data.append(["Acheived Goal", [episode_dict[f"mother_comm_{agent_num}"][step-1]], .1])
+        data.append(["Acheived Goal", [mother_comm], .1])
         
     data.append(["Bird's Eye View", [episode_dict[f"birds_eye_{agent_num}"][step], "image"], 1])
     
     if(not step == 0):
         data.append(["", ["Real"], ["Prior"], ["Posterior"], .1])
     
+
+    
     if(step == 0):
-        data.append([f"RGBD ({agent_num})", [episode_dict[f"rgbd_{agent_num}"][step], "image"], 1])
-        data.append([f"Sensors ({agent_num})", [episode_dict[f"sensors_{agent_num}"][step], "sensors"], 1])
-        data.append([f"Father Comm ({agent_num})", [episode_dict[f"father_comm_{agent_num}"][step]], 1])
+        data.append([f"RGBD ({agent_num})", [rgbd, "image"], 1])
+        data.append([f"Sensors ({agent_num})", [sensors, "sensors"], 1])
+        data.append([f"Father Comm ({agent_num})", [father_comm], 1])
     else:
         data.append(
             [f"RGBD ({agent_num})", 
-            [episode_dict[f"rgbd_{agent_num}"][step], "image"],
-            [episode_dict[f"prior_predicted_rgbd_{agent_num}"][step-1], "image"],
-            [episode_dict[f"posterior_predicted_rgbd_{agent_num}"][step-1], "image"], 1])
+            [rgbd, "image"],
+            [prior_rgbd, "image"],
+            [posterior_rgbd, "image"], 1])
         data.append(
             [f"Sensors ({agent_num})", 
-            [episode_dict[f"sensors_{agent_num}"][step], "sensors"],
-            [episode_dict[f"prior_predicted_sensors_{agent_num}"][step-1], "sensors"],
-            [episode_dict[f"posterior_predicted_sensors_{agent_num}"][step-1], "sensors"], 1])
+            [sensors, "sensors"],
+            [prior_sensors, "sensors"],
+            [posterior_sensors, "sensors"], 1])
         data.append(
             [f"Father Comm ({agent_num})",
-            [episode_dict[f"father_comm_{agent_num}"][step]],
-            ["\n\n" + episode_dict[f"prior_predicted_father_comm_{agent_num}"][step-1]],
-            ["\n\n\n\n" + episode_dict[f"posterior_predicted_father_comm_{agent_num}"][step-1]], .3])
+            [father_comm],
+            ["\n\n" + prior_father_comm],
+            ["\n\n\n\n" + posterior_father_comm], .3])
         
-        data.append([f"Wheels, Shoulders ({agent_num})", [episode_dict[f"wheels_shoulders_text_{agent_num}"][step-1]], .1])
-        data.append([f"Comms Out ({agent_num})", [episode_dict[f"comm_out_{agent_num}"][step-1]], .1])
+        data.append([f"Wheels, Shoulders ({agent_num})", [action.wheels_shoulders], .1])
+        data.append([f"Comms Out ({agent_num})", [action.comm_out], .1])
         
         data.append([f"RGBD DKL ({agent_num})", [episode_dict[f"rgbd_dkl_{agent_num}"][:step], "plot"], .5])
         data.append([f"Sensors DKL ({agent_num})", [episode_dict[f"sensors_dkl_{agent_num}"][:step], "plot"], .5])
