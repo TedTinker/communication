@@ -92,8 +92,12 @@ class PVRNN_LAYER(nn.Module):
             zp_in_features = self.args.h_w_wheels_shoulders_size + self.args.comm_encode_size,
             zq_in_features = self.args.h_w_wheels_shoulders_size + self.args.comm_encode_size + self.args.comm_encode_size, 
             out_features = self.args.comm_state_size, args = self.args)
+        
+        self.mother_comm_z = ZP_ZQ(
+            zp_in_features = self.args.h_w_wheels_shoulders_size + self.args.comm_encode_size,
+            zq_in_features = self.args.h_w_wheels_shoulders_size + self.args.comm_encode_size + self.args.comm_encode_size, 
+            out_features = self.args.comm_state_size, args = self.args)
     
-                            
         # New hidden state: Previous hidden state, zq value, plus higher-layer hidden state if not top.
         self.mtrnn = MTRNN(
                 input_size = self.args.rgbd_state_size + self.args.sensors_state_size + self.args.comm_state_size,
@@ -177,6 +181,7 @@ class PVRNN(nn.Module):
         self.rgbd_in = RGBD_IN(self.args)
         self.sensors_in = Sensors_IN(self.args)
         self.father_comm_in = Comm_IN(self.args)
+        self.mother_comm_in = Comm_IN(self.args)
         self.wheels_shoulders_in = Wheels_Shoulders_IN(self.args)
         self.comm_out_in = Comm_IN(self.args)
 

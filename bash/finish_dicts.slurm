@@ -5,4 +5,4 @@
 #SBATCH --time 24:00:00
 #SBATCH --mem=50G
 module load singularity
-singularity exec maze.sif python communication/finish_dicts.py --comp deigo --arg_title ___e+ef_only_comm+ef___ --arg_name finishing_dictionaries
+singularity exec maze.sif python communication/finish_dicts.py --comp deigo --arg_title ___e+ef_only_comm+ef+e_w_weights+ef_only_comm_w_weights+ef_w_weights___ --arg_name finishing_dictionaries
