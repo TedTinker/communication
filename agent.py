@@ -15,7 +15,7 @@ from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
 from utils import default_args, onehots_to_string, wheels_shoulders_to_string, cpu_memory_usage, \
-    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots
+    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots, Goal
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from processor import Processor
@@ -300,6 +300,8 @@ class Agent:
                 hq = hq_1 if agent_1 else hq_2
                 obs = self.processor.obs(agent_1)
                 
+                print(obs.mother_comm.one_hots)
+                
                 comm_in = obs.mother_comm.one_hots.unsqueeze(0).unsqueeze(0) if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.one_hots.unsqueeze(0).unsqueeze(0) if parenting else partner_prev_comm_out
                 obs.father_comm = comm_in
                 hp, hq, rgbd_is, sensors_is, father_comm_is = self.forward.bottom_to_top_step(
@@ -466,7 +468,7 @@ class Agent:
                         episode_dict[f"{key}_{agent_id}"] = []
                 episode_dict["reward"] = []
                 episode_dict["processor"] = self.processor
-                episode_dict["goal"] = "'{}' ({})".format(self.processor.goal.char_text, self.processor.goal.human_text)
+                episode_dict["goal"] = self.processor.goal
                 
                 done = False
                 
@@ -483,7 +485,8 @@ class Agent:
                     obs = self.processor.obs(agent_1 = agent_1)
                     if(agent_1):    comm_in = obs.mother_comm if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm if parenting else prev_action_2.comm_out
                     else:           comm_in = obs.mother_comm if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm if parenting else prev_action_1.comm_out
-                    obs.father_comm = comm_in
+                    if(type(comm_in) != Goal):
+                        obs.father_comm = get_goal_from_one_hots(comm_in)
                     episode_dict[f"obs_{agent_num}"].append(obs) 
                     episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
                     if(step != 0):

@@ -8,8 +8,13 @@ import re
 import imageio
 import numpy as np
 
-from utils import print, args, duration, load_dicts
+from utils import print, args, duration, load_dicts, wheels_shoulders_to_string, get_goal_from_one_hots
 from pybullet_data.robot_maker import how_to_plot_sensors
+
+
+
+def human_friendly_text(goal):
+    return(f"{goal.human_text} ({goal.char_text})")
 
 
 
@@ -59,20 +64,20 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
     mother_comm = obs.mother_comm
     if(step != 0):
         prior = episode_dict[f"prior_predictions_{agent_num}"][step-1]
-        prior_rgbd = prior.rgbd 
-        prior_sensors = prior.sensors 
+        prior_rgbd = prior.rgbd[0,0,:,:,:-1]
+        prior_sensors = prior.sensors.tolist()[0][0]
         prior_father_comm = prior.father_comm 
         posterior = episode_dict[f"posterior_predictions_{agent_num}"][step-1]
-        posterior_rgbd = posterior.rgbd 
-        posterior_sensors = posterior.sensors 
+        posterior_rgbd = posterior.rgbd[0,0,:,:,:-1]
+        posterior_sensors = posterior.sensors.tolist()[0][0]
         posterior_father_comm = posterior.father_comm 
         action = episode_dict[f"action_{agent_num}"][step-1]
-    
+            
     data = []
     
-    data.append(["Goal", [episode_dict["goal"]], .1])
+    data.append(["Goal", [human_friendly_text(episode_dict["goal"])], .1])
     if not step == 0:
-        data.append(["Acheived Goal", [mother_comm], .1])
+        data.append(["Acheived Goal", [human_friendly_text(mother_comm)], .1])
         
     data.append(["Bird's Eye View", [episode_dict[f"birds_eye_{agent_num}"][step], "image"], 1])
     
@@ -84,7 +89,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
     if(step == 0):
         data.append([f"RGBD ({agent_num})", [rgbd, "image"], 1])
         data.append([f"Sensors ({agent_num})", [sensors, "sensors"], 1])
-        data.append([f"Father Comm ({agent_num})", [father_comm], 1])
+        data.append([f"Father Comm ({agent_num})", [human_friendly_text(father_comm)], 1])
     else:
         data.append(
             [f"RGBD ({agent_num})", 
@@ -98,16 +103,16 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
             [posterior_sensors, "sensors"], 1])
         data.append(
             [f"Father Comm ({agent_num})",
-            [father_comm],
-            ["\n\n" + prior_father_comm],
-            ["\n\n\n\n" + posterior_father_comm], .3])
+            [human_friendly_text(father_comm)],
+            ["\n\n" + human_friendly_text(prior_father_comm)],
+            ["\n\n\n\n" + human_friendly_text(posterior_father_comm)], .3])
         
-        data.append([f"Wheels, Shoulders ({agent_num})", [action.wheels_shoulders], .1])
-        data.append([f"Comms Out ({agent_num})", [action.comm_out], .1])
+        data.append([f"Wheels, Shoulders ({agent_num})", [wheels_shoulders_to_string(action.wheels_shoulders)], .1])
+        data.append([f"Comms Out ({agent_num})", [human_friendly_text(get_goal_from_one_hots(action.comm_out))], .1])
         
         data.append([f"RGBD DKL ({agent_num})", [episode_dict[f"rgbd_dkl_{agent_num}"][:step], "plot"], .5])
         data.append([f"Sensors DKL ({agent_num})", [episode_dict[f"sensors_dkl_{agent_num}"][:step], "plot"], .5])
-        data.append([f"Father Comm ({agent_num})", [episode_dict[f"father_comm_dkl_{agent_num}"][:step], "plot"], .5])
+        data.append([f"Father Comm DKL ({agent_num})", [episode_dict[f"father_comm_dkl_{agent_num}"][:step], "plot"], .5])
         
     max_sublist_len = 0
     for sublist in data:
