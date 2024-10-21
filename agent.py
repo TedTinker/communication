@@ -15,7 +15,7 @@ from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
 from utils import default_args, onehots_to_string, wheels_shoulders_to_string, cpu_memory_usage, \
-    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action
+    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from processor import Processor
@@ -481,14 +481,18 @@ class Agent:
                     agent_num = 1 if agent_1 else 2
                     birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
                     obs = self.processor.obs(agent_1 = agent_1)
-                    if(agent_1):    comm_in = obs.mother_comm if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.char_text if parenting else prev_action_2.comm_out[0,0]
-                    else:           comm_in = obs.mother_comm if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm.char_text if parenting else prev_action_1.comm_out[0,0]
+                    if(agent_1):    comm_in = obs.mother_comm if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm if parenting else prev_action_2.comm_out
+                    else:           comm_in = obs.mother_comm if self.processor.goal.task.name == "FREEPLAY" else obs.father_comm if parenting else prev_action_1.comm_out
                     obs.father_comm = comm_in
                     episode_dict[f"obs_{agent_num}"].append(obs) 
                     episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
                     if(step != 0):
                         pred_obs_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders)) 
                         pred_obs_q = self.forward.predict(hq.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders))
+                        
+                        pred_obs_p.father_comm = get_goal_from_one_hots(pred_obs_p.father_comm)
+                        pred_obs_q.father_comm = get_goal_from_one_hots(pred_obs_q.father_comm)
+                        
                         episode_dict[f"prior_predictions_{agent_num}"].append(pred_obs_p)
                         episode_dict[f"posterior_predictions_{agent_num}"].append(pred_obs_q)
                     

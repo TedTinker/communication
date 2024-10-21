@@ -163,6 +163,26 @@ class Goal:
 empty_goal = Goal(task_map[0], task_map[0], task_map[0], parenting = False)
 
 
+
+def get_goal_from_one_hots(one_hots):
+    while(len(one_hots.shape) > 2):
+        one_hots = one_hots.squeeze(0)
+    task_one_hot = one_hots[0, :len(task_map)]
+    color_one_hot = one_hots[1, :len(color_map)]
+    shape_one_hot = one_hots[2, :len(shape_map)]
+    
+    task_index = torch.argmax(task_one_hot).item()
+    color_index = torch.argmax(color_one_hot).item()
+    shape_index = torch.argmax(shape_one_hot).item()
+    
+    task = task_map[task_index]
+    color = color_map[color_index]
+    shape = shape_map[shape_index]
+    
+    goal = Goal(task, color, shape, parenting=False)
+    return goal
+
+
         
 class Obs:
     def __init__(self, rgbd, sensors, father_comm, mother_comm):
