@@ -44,7 +44,6 @@ for folder in folders:
     print("{} files in folder {}.".format(len(files), folder))
 
     # Only process files matching the expected patterns
-    print(f"\n\n{plot_dict_pattern}\n{min_max_dict_pattern}\n{files}\n\n")
     filtered_files = [file for file in files if plot_dict_pattern.match(file) or min_max_dict_pattern.match(file)]
     
     if len(filtered_files) == 0:

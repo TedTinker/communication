@@ -430,10 +430,7 @@ parser.add_argument('--load_agents',                    type=literal,       defa
 
 
     # Things which have list-values.
-"""parser.add_argument('--epochs_per_processor',                 type=literal,       default = [(10000, "f"), (40000, "wpulr")],
-                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')"""
-                    
-parser.add_argument('--epochs_per_processor',           type=literal,       default = [(70000, "wpulr")],
+parser.add_argument('--epochs_per_processor',           type=literal,       default = [(700, "wpulr")],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 
     
@@ -537,15 +534,7 @@ parser.add_argument('--half',                           type=literal,       defa
 parser.add_argument('--capacity',                       type=int,           default = 256,
                     help='How many episodes can the memory buffer contain.')
 parser.add_argument('--batch_size',                     type=int,           default = 32, 
-                    help='How many episodes are sampled for each epoch.')      
-parser.add_argument('--rgbd_scaler',                    type=float,         default = 5, 
-                    help='How much to consider rgbd prediction in accuracy compared to voice and sensors.')  
-parser.add_argument('--sensors_scaler',                 type=float,         default = .3, 
-                    help='How much to consider sensors prediction in accuracy compared to rgbd and voice.')   
-parser.add_argument('--father_voice_scaler',            type=float,         default = 3,
-                    help='How much to consider father voice prediction in accuracy compared to rgbd and sensors.')       
-parser.add_argument('--mother_voice_scaler',            type=float,         default = 3, 
-                    help='How much to consider mother voice prediction in accuracy compared to rgbd and sensors.')       
+                    help='How many episodes are sampled for each epoch.')       
 parser.add_argument('--weight_decay',                   type=float,         default = .00001,
                     help='Weight decay for modules.')       
 parser.add_argument('--lr',                             type=float,         default = .0003,
@@ -558,22 +547,6 @@ parser.add_argument('--GAMMA',                          type=float,         defa
                     help='How heavily critics consider the future.')
 parser.add_argument("--d",                              type=int,           default = 2,
                     help='Delay for training actors.') 
-
-
-
-    # Complexity 
-parser.add_argument('--std_min',                        type=int,           default = exp(-20),
-                    help='Minimum value for standard deviation.')
-parser.add_argument('--std_max',                        type=int,           default = exp(2),
-                    help='Maximum value for standard deviation.')
-parser.add_argument("--beta_rgbd",                      type=float,         default = .03,
-                    help='Relative importance of complexity for rgbd.')
-parser.add_argument("--beta_sensors",                   type=float,         default = .3,
-                    help='Relative importance of complexity for sensors.')     
-parser.add_argument("--beta_father_voice",              type=float,         default = .1,
-                    help='Relative importance of complexity for voice.')
-parser.add_argument("--beta_mother_voice",              type=float,         default = .1,
-                    help='Relative importance of complexity for voice.')
 
 
 
@@ -592,29 +565,61 @@ parser.add_argument("--normal_alpha",                   type=float,         defa
 
 
     # Curiosity
+parser.add_argument('--std_min',                        type=int,           default = exp(-20),
+                    help='Minimum value for standard deviation.')
+parser.add_argument('--std_max',                        type=int,           default = exp(2),
+                    help='Maximum value for standard deviation.')
 parser.add_argument("--curiosity",                      type=str,           default = "none",
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
 parser.add_argument("--dkl_max",                        type=float,         default = 1,
                     help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')   
 
+
+
+    # RGBD
+parser.add_argument('--rgbd_scaler',                    type=float,         default = 5, 
+                    help='How much to consider rgbd prediction in accuracy compared to voice and sensors.')   
+parser.add_argument("--beta_rgbd",                      type=float,         default = .03,
+                    help='Relative importance of complexity for rgbd.')
 parser.add_argument("--prediction_error_eta_rgbd",      type=float,         default = .3,
                     help='Nonnegative value, how much to consider prediction_error curiosity for rgbd.')    
-parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = .03,
-                    help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')   
-parser.add_argument("--prediction_error_eta_father_voice", type=float,      default = 0,
-                    help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
-parser.add_argument("--prediction_error_eta_mother_voice", type=float,      default = 1,
-                    help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
-
 parser.add_argument("--hidden_state_eta_rgbd",          type=float,         default = .3,
                     help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
+
+
+    # Sensors
+parser.add_argument('--sensors_scaler',                 type=float,         default = .3, 
+                    help='How much to consider sensors prediction in accuracy compared to rgbd and voice.')   
+parser.add_argument("--beta_sensors",                   type=float,         default = .3,
+                    help='Relative importance of complexity for sensors.')     
+parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = .03,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')   
 parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = .03,
                     help='Nonnegative values, how much to consider hidden_state curiosity for sensors.') 
+
+
+
+    # Father Voice
+parser.add_argument('--father_voice_scaler',            type=float,         default = 3,
+                    help='How much to consider father voice prediction in accuracy compared to rgbd and sensors.') 
+parser.add_argument("--beta_father_voice",              type=float,         default = .1,
+                    help='Relative importance of complexity for voice.')
+parser.add_argument("--prediction_error_eta_father_voice", type=float,      default = 0,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for voice.')    
 parser.add_argument("--hidden_state_eta_father_voice",  type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
+
+
+
+    # Mother Voice
+parser.add_argument('--mother_voice_scaler',            type=float,         default = 3, 
+                    help='How much to consider mother voice prediction in accuracy compared to rgbd and sensors.')     
+parser.add_argument("--beta_mother_voice",              type=float,         default = .1,
+                    help='Relative importance of complexity for voice.')
+parser.add_argument("--prediction_error_eta_mother_voice", type=float,      default = 1,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
 parser.add_argument("--hidden_state_eta_mother_voice",  type=float,         default = 1.5,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
-# put hidden_state_eta_mother_voice here 
 
 
 
