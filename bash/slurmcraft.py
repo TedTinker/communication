@@ -79,7 +79,17 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_rgbd" : 0,
     "hidden_state_eta_sensors" : 0})
 
-add_this("t",   {"try_thing" : "True"})             # Agents with curiosity (hidden state)
+add_this("t",   {
+    "try_thing_1" : ["True", "False"],
+    "try_thing_2" : ["True", "False"],
+    "try_thing_3" : ["True", "False"],
+    "try_thing_4" : ["True", "False"],
+    "try_thing_5" : ["True", "False"],
+    "try_thing_6" : ["True", "False"],
+    #"try_thing_7" : ["True", "False"],
+    #"try_thing_8" : ["True", "False"],
+    #"try_thing_9" : ["True", "False"],
+    })             
 
 add_this("g",   {
     "epochs_per_processor" : 
@@ -134,7 +144,8 @@ if(__name__ == "__main__" and args.arg_list == []):
     print("ALL POSSIBLE HYPERPARAMETERS:")
     for key, value in slurm_dict.items(): 
         print(key, ":", value)
-    interesting = [f"ecj_d2_t1_{i}" for i in range(1, 9)]
+    interesting = [f"eft_{i}" for i in [48]]
+    #     interesting = [f"eft_{i}" for i in [2, 3, 7, 9, 10, 13, 15, 17, 19, 20, 22, 26, 27, 28, 30, 32, 33, 37, 39, 43, 45, 47, 49, 50, 51, 53, 54, 55, 56, 57, 58, 59, 60, 63, 63]]
     if(len(interesting) != 0):
         print("\n\n\nTHESE HYPERPARAMETERS:")
         for this in interesting:

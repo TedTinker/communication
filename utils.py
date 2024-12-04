@@ -400,6 +400,12 @@ parser.add_argument("--hidden_state_eta_mother_voice_reduction_type",  type=str,
                     help='How should interest in mother_voice chance?') 
 parser.add_argument('--steps_ahead',                    type=int,           default = 1,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
+parser.add_argument('--try_thing_7',                      type=literal,       default = False,
+                    help='Is there something experimental we are trying?')  
+parser.add_argument('--try_thing_8',                      type=literal,       default = False,
+                    help='Is there something experimental we are trying?')  
+parser.add_argument('--try_thing_9',                      type=literal,       default = False,
+                    help='Is there something experimental we are trying?')  
 
     
 
@@ -430,7 +436,7 @@ parser.add_argument('--load_agents',                    type=literal,       defa
 
 
     # Things which have list-values.
-parser.add_argument('--epochs_per_processor',           type=literal,       default = [(700, "wpulr")],
+parser.add_argument('--epochs_per_processor',           type=literal,       default = [(70000, "wpulr")],
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 
     
@@ -626,8 +632,6 @@ parser.add_argument("--hidden_state_eta_mother_voice",  type=float,         defa
     # Saving data
 parser.add_argument('--keep_data',                      type=int,           default = 250,
                     help='How many epochs should pass before keep data.')
-parser.add_argument('--try_thing',                      type=literal,       default = False,
-                    help='Is there something experimental we are trying?')  
 parser.add_argument('--temp',                           type=literal,       default = False,
                     help='Should this use data saved temporarily?')      
 

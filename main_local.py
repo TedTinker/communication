@@ -20,6 +20,16 @@ args.time_step = .2/5
 args.steps_per_step = int(20/5)
 args.reward_inflation_type = "exp_10"
 
+args.try_thing_1 = True
+args.try_thing_2 = True
+args.try_thing_3 = True
+args.try_thing_4 = True
+args.try_thing_5 = True
+args.try_thing_6 = True
+args.try_thing_7 = True
+args.try_thing_8 = True
+args.try_thing_9 = True
+
 args.show_duration = True
 
 def run():

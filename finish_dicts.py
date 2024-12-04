@@ -59,6 +59,7 @@ for folder in folders:
         else:
             continue  # Skip files that don't match expected patterns
         with open(os.path.join(folder, file), "rb") as handle:
+            print(os.path.join(folder, file))
             saved_d = pickle.load(handle)
         for key in saved_d.keys():
             if key not in d:
