@@ -1,6 +1,7 @@
 #%% 
 
 # To do:
+#   Add a little transparent bit to the robot, to prevent seeing through things.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
 #       You'll probably need to make PVRNN multilayer, 

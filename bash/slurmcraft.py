@@ -80,15 +80,9 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_sensors" : 0})
 
 add_this("t",   {
-    "try_thing_1" : ["True", "False"],
-    "try_thing_2" : ["True", "False"],
-    "try_thing_3" : ["True", "False"],
-    "try_thing_4" : ["True", "False"],
-    "try_thing_5" : ["True", "False"],
-    "try_thing_6" : ["True", "False"],
-    #"try_thing_7" : ["True", "False"],
-    #"try_thing_8" : ["True", "False"],
-    #"try_thing_9" : ["True", "False"],
+    "try_thing_7" : ["True", "False"],
+    "try_thing_8" : ["True", "False"],
+    "try_thing_9" : ["True", "False"],
     })             
 
 add_this("g",   {

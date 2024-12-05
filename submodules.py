@@ -237,7 +237,7 @@ if __name__ == "__main__":
 #%%
 
 
-#args.try_thing_7 = True
+
 class Voice_IN(nn.Module):
 
     def __init__(self, args = default_args):
@@ -245,30 +245,23 @@ class Voice_IN(nn.Module):
         
         self.args = args
         
+        self.a = nn.Sequential(
+            nn.Embedding(
+                num_embeddings = self.args.voice_shape,
+                embedding_dim = self.args.char_encode_size),
+            nn.PReLU(),
+            nn.Dropout(self.args.dropout),
+            nn.Linear(
+                in_features = self.args.char_encode_size,
+                out_features = self.args.hidden_size))
+        
         if(self.args.try_thing_7):
-            self.a = nn.Sequential(
-                nn.Embedding(
-                    num_embeddings = self.args.voice_shape,
-                    embedding_dim = self.args.char_encode_size),
-                nn.PReLU(),
-                nn.Dropout(self.args.dropout),
-                nn.Linear(
-                    in_features = self.args.char_encode_size,
-                    out_features = self.args.hidden_size),
-                nn.BatchNorm1d(self.args.hidden_size),
-                nn.PReLU())
+            self.ab = nn.Sequential(
+                nn.BatchNorm1d(self.args.hidden_size))
         else:
-            self.a = nn.Sequential(
-                nn.Embedding(
-                    num_embeddings = self.args.voice_shape,
-                    embedding_dim = self.args.char_encode_size),
-                nn.PReLU(),
-                nn.Dropout(self.args.dropout),
-                nn.Linear(
-                    in_features = self.args.char_encode_size,
-                    out_features = self.args.hidden_size),
-                #nn.BatchNorm1d(self.args.sensors_encode_size),
-                nn.PReLU())
+            self.ab = nn.Sequential()
+            
+        self.ac = nn.Sequential(nn.PReLU())
                 
         self.b = nn.GRU(
             input_size = self.args.hidden_size,
@@ -277,17 +270,15 @@ class Voice_IN(nn.Module):
                 
         if(self.args.try_thing_8):
             self.c = nn.Sequential(
-                nn.BatchNorm1d(self.args.hidden_size),
-                nn.PReLU(),
-                nn.Linear(
-                    in_features = self.args.hidden_size, 
-                    out_features = self.args.voice_encode_size))
+                nn.BatchNorm1d(self.args.hidden_size))
         else:
-            self.c = nn.Sequential(
-                nn.PReLU(),
-                nn.Linear(
-                    in_features = self.args.hidden_size, 
-                    out_features = self.args.voice_encode_size))
+            self.c = nn.Sequential()
+            
+        self.cb = nn.Sequential(
+            nn.PReLU(),
+            nn.Linear(
+                in_features = self.args.hidden_size, 
+                out_features = self.args.voice_encode_size))
                 
         self.apply(init_weights)
         self.to(self.args.device)
@@ -301,11 +292,18 @@ class Voice_IN(nn.Module):
         voice = pad_zeros(voice, self.args.max_voice_len)
         voice = torch.argmax(voice, dim = -1).int()
                 
-        #print(voice.shape)
         a = self.a(voice)
+        a = a.permute(0, 2, 1)  # Change from (batch, seq_len, hidden_size) to (batch, hidden_size, seq_len)
+        a = self.ab(a)
+        a = a.permute(0, 2, 1)  # Change back to (batch, seq_len, hidden_size)
+        a = self.ac(a)
         _, b = self.b(a)    
         b = b.reshape(episodes, steps, self.args.hidden_size)
-        encoding = self.c(b)
+        
+        b = b.permute(0, 2, 1)
+        c = self.c(b)
+        c = c.permute(0, 2, 1)
+        encoding = self.cb(c)
         
         [encoding] = model_end(start_time, episodes, steps, [(encoding, "lin")], "\tVoice_IN")
         return(encoding)
@@ -330,7 +328,6 @@ if __name__ == "__main__":
 #%%
 
 
-
 class Voice_OUT(nn.Module):
 
     def __init__(self, actor = False, args = default_args):
@@ -339,20 +336,18 @@ class Voice_OUT(nn.Module):
         self.args = args
         self.actor = actor
         
+        self.a = nn.Sequential(
+                nn.Linear(
+                    in_features = self.args.h_w_wheels_shoulders_size, 
+                    out_features = self.args.hidden_size * self.args.max_voice_len))
+        
         if(self.args.try_thing_9):
-            self.a = nn.Sequential(
-                nn.Linear(
-                    in_features = self.args.h_w_wheels_shoulders_size, 
-                    out_features = self.args.hidden_size * self.args.max_voice_len),
-                #nn.BatchNorm1d(self.args.hidden_size * self.args.max_voice_len),
-                nn.PReLU(),
-                nn.Dropout(self.args.dropout))
+            self.ab = nn.Sequential(
+                nn.BatchNorm1d(self.args.hidden_size * self.args.max_voice_len))
         else:
-            self.a = nn.Sequential(
-                nn.Linear(
-                    in_features = self.args.h_w_wheels_shoulders_size, 
-                    out_features = self.args.hidden_size * self.args.max_voice_len),
-                nn.BatchNorm1d(self.args.hidden_size * self.args.max_voice_len),
+            self.ab = nn.Sequential()
+            
+        self.ac = nn.Sequential(
                 nn.PReLU(),
                 nn.Dropout(self.args.dropout))
             
@@ -384,6 +379,8 @@ class Voice_OUT(nn.Module):
                 
         h_w_wheels_shoulders = h_w_wheels_shoulders.reshape(episodes * steps, self.args.h_w_wheels_shoulders_size)
         a = self.a(h_w_wheels_shoulders)
+        a = self.ab(a)
+        a = self.ac(a)
         a = a.reshape(episodes * steps, self.args.max_voice_len, self.args.hidden_size)
         b, _ = self.b(a)
         
