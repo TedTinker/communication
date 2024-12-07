@@ -724,7 +724,7 @@
         <parent link="left_hand"/> 
         <child link="left_hand_sensor_0_stop"/> 
         <origin xyz="0 -0.35 0" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 
@@ -755,7 +755,7 @@
         <parent link="left_hand"/> 
         <child link="left_hand_sensor_0_top"/> 
         <origin xyz="0.2 0 0" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 
@@ -786,7 +786,7 @@
         <parent link="left_hand"/> 
         <child link="left_hand_sensor_0_bottom"/> 
         <origin xyz="-0.2 0 0" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 
@@ -817,7 +817,7 @@
         <parent link="left_hand"/> 
         <child link="left_hand_sensor_0_left"/> 
         <origin xyz="0 0 0.25" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 
@@ -848,7 +848,7 @@
         <parent link="left_hand"/> 
         <child link="left_hand_sensor_0_right"/> 
         <origin xyz="0 0 -0.25" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 
@@ -857,7 +857,7 @@
         <parent link="left_arm"/> 
         <child link="left_hand"/> 
         <origin xyz="1.3 -0.55 0" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 
@@ -1406,7 +1406,7 @@
         <parent link="right_hand"/> 
         <child link="right_hand_sensor_0_start"/> 
         <origin xyz="0 0.35 0" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 
@@ -1437,7 +1437,7 @@
         <parent link="right_hand"/> 
         <child link="right_hand_sensor_0_top"/> 
         <origin xyz="0.2 0 0" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 
@@ -1468,7 +1468,7 @@
         <parent link="right_hand"/> 
         <child link="right_hand_sensor_0_bottom"/> 
         <origin xyz="-0.2 0 0" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 
@@ -1499,7 +1499,7 @@
         <parent link="right_hand"/> 
         <child link="right_hand_sensor_0_left"/> 
         <origin xyz="0 0 0.25" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 
@@ -1530,7 +1530,7 @@
         <parent link="right_hand"/> 
         <child link="right_hand_sensor_0_right"/> 
         <origin xyz="0 0 -0.25" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 
@@ -1539,7 +1539,7 @@
         <parent link="right_arm"/> 
         <child link="right_hand"/> 
         <origin xyz="1.3 0.55 0" rpy="0 0 0"/> 
-        <axis xyz="0 0 0"/> 
+        <axis xyz="0 0 1"/> 
     </joint>
 
 

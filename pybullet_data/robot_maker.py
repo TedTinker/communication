@@ -198,7 +198,7 @@ parts = [
         shape = (.4, .7, arm_thickness),
         joint_parent = "left_arm", 
         joint_origin = (1.3, -.55, 0), 
-        joint_axis = (0, 0, 0),
+        joint_axis = (0, 0, 1),
         joint_type = "fixed",
         sensors = 1,
         sensor_angle = 1,
@@ -231,50 +231,17 @@ parts = [
         shape = (.4, .7, arm_thickness),
         joint_parent = "right_arm", 
         joint_origin = (1.3, .55, 0), 
-        joint_axis = (0, 0, 0),
+        joint_axis = (0, 0, 1),
         joint_type = "fixed",
         sensors = 1,
         sensor_angle = 1,
         sensor_sides = ["top", "bottom", "left", "right", "start"])
-    
-
 ]
 
 for part in parts:
     part.sensor_text = part.get_sensors_text(parts)
     part.joint_text = part.get_joint_text()
-    
 
-
-"""    
-arrow_base_len = .3
-arrow_base_width = .2
-arrow_base_start = .1
-arrow_head_len = .5
-arrow_head_width = .5
-arrow_head_layers = 10
-arrow_head_part_len = arrow_head_len/arrow_head_layers
-
-parts.append(Part(
-    name = "arrow_base",
-    mass = 0,
-    shape = (arrow_base_len, arrow_base_width, .02),
-    joint_parent = "body", 
-    joint_origin = (-.5 + arrow_base_len/2 + arrow_base_start, 0, .51), 
-    joint_axis = (0, 0, 1),
-    joint_type = "fixed"))
-
-for i in range(arrow_head_layers):
-    parts.append(
-        Part(    
-            name = f"arrow_{i}",
-            mass = 0,
-            shape = (arrow_head_part_len, arrow_head_width - (arrow_head_width/arrow_head_layers) * i, .02),
-            joint_parent = "arrow_base" if i == 0 else f"arrow_{i-1}", 
-            joint_origin = (arrow_base_len/2 if i == 0 else arrow_head_part_len, 0, 0),    
-            joint_axis = (0, 0, 1),
-            joint_type = "fixed"))
-"""
 
 
 add_this = "pybullet_data/" if(os.getcwd().split("/")[-1] != "pybullet_data") else ""

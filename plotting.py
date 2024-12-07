@@ -306,17 +306,15 @@ def plots(plot_dicts, min_max_dict):
         rgbd_dict = get_quantiles(plot_dict, "rgbd_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         sensors_dict = get_quantiles(plot_dict, "sensors_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         father_voice_dict = get_quantiles(plot_dict, "father_voice_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        if(args.joint_dialogue):
-            mother_voice_dict = get_quantiles(plot_dict, "mother_voice_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        mother_voice_dict = get_quantiles(plot_dict, "mother_voice_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         accuracy_dict = get_quantiles(plot_dict, "accuracy", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         comp_dict = get_quantiles(plot_dict, "complexity", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        forward_losses_min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["sensors_loss"], min_max_dict["father_voice_loss"], min_max_dict["accuracy"]] + ([min_max_dict["mother_voice_loss"]] if args.joint_dialogue else []))
+        forward_losses_min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["sensors_loss"], min_max_dict["father_voice_loss"], min_max_dict["accuracy"], min_max_dict["mother_voice_loss"]])
         
         log_rgbd_dict = get_logs(rgbd_dict)
         log_sensors_dict = get_logs(sensors_dict)
         log_father_voice_dict = get_logs(father_voice_dict)
-        if(args.joint_dialogue):
-            log_mother_voice_dict = get_logs(mother_voice_dict)
+        log_mother_voice_dict = get_logs(mother_voice_dict)
         log_accuracy_dict = get_logs(accuracy_dict)
         log_comp_dict = get_logs(comp_dict)
         if(forward_losses_min_max[0] == 0):
@@ -330,8 +328,7 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(here, log_rgbd_dict if log else rgbd_dict, "blue", "RGBD-Loss", min_max))
             handles.append(awesome_plot(here, log_sensors_dict if log else sensors_dict, "orange", "Sensors-Loss", min_max))
             handles.append(awesome_plot(here, log_father_voice_dict if log else father_voice_dict, "red", "Father voice-Loss", min_max))
-            if(args.joint_dialogue):
-                handles.append(awesome_plot(here, log_mother_voice_dict if log else mother_voice_dict, "red", "Mother voice-Loss", min_max))
+            handles.append(awesome_plot(here, log_mother_voice_dict if log else mother_voice_dict, "red", "Mother voice-Loss", min_max))
             handles.append(awesome_plot(here, log_accuracy_dict if log else accuracy_dict, "purple", "Accuracy", min_max))
             handles.append(awesome_plot(here, log_comp_dict if log else comp_dict, "green",  "Complexity", min_max))
             here.set_ylabel("Loss")
@@ -493,15 +490,13 @@ def plots(plot_dicts, min_max_dict):
         rgbd_prediction_error_dict = get_quantiles(plot_dict, "rgbd_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         sensors_prediction_error_dict = get_quantiles(plot_dict, "sensors_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         father_voice_prediction_error_dict = get_quantiles(plot_dict, "father_voice_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
-        if(args.joint_dialogue):
-            mother_voice_prediction_error_dict = get_quantiles(plot_dict, "mother_voice_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        mother_voice_prediction_error_dict = get_quantiles(plot_dict, "mother_voice_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         prediction_error_dict = get_quantiles(plot_dict, "prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         
         rgbd_hidden_state_dict = get_quantiles(plot_dict, "rgbd_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         sensors_hidden_state_dict = get_quantiles(plot_dict, "sensors_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         father_voice_hidden_state_dict = get_quantiles(plot_dict, "father_voice_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
-        if(args.joint_dialogue):
-            mother_voice_hidden_state_dict = get_quantiles(plot_dict, "mother_voice_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        mother_voice_hidden_state_dict = get_quantiles(plot_dict, "mother_voice_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         hidden_state_dict = get_quantiles(plot_dict, "hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         
         curiosity_min_max = many_min_max(
@@ -512,20 +507,18 @@ def plots(plot_dicts, min_max_dict):
             min_max_dict["rgbd_hidden_state_curiosity"],
             min_max_dict["sensors_hidden_state_curiosity"],
             min_max_dict["father_voice_hidden_state_curiosity"],
-            min_max_dict["hidden_state_curiosity"]] + ([min_max_dict["mother_voice_prediction_error_curiosity"], min_max_dict["mother_voice_hidden_state_curiosity"]] if args.joint_dialogue else []))
+            min_max_dict["hidden_state_curiosity"]] + ([min_max_dict["mother_voice_prediction_error_curiosity"], min_max_dict["mother_voice_hidden_state_curiosity"]]))
         
         log_rgbd_prediction_error_dict = get_logs(rgbd_prediction_error_dict)
         log_sensors_prediction_error_dict = get_logs(sensors_prediction_error_dict)
         log_father_voice_prediction_error_dict = get_logs(father_voice_prediction_error_dict)
-        if(args.joint_dialogue):
-            log_mother_voice_prediction_error_dict = get_logs(mother_voice_prediction_error_dict)
+        log_mother_voice_prediction_error_dict = get_logs(mother_voice_prediction_error_dict)
         log_prediction_error_dict = get_logs(prediction_error_dict)
         
         log_rgbd_hidden_state_dict = get_logs(rgbd_hidden_state_dict)
         log_sensors_hidden_state_dict = get_logs(sensors_hidden_state_dict)
         log_father_voice_hidden_state_dict = get_logs(father_voice_hidden_state_dict)
-        if(args.joint_dialogue):
-            log_mother_voice_hidden_state_dict = get_logs(mother_voice_hidden_state_dict)
+        log_mother_voice_hidden_state_dict = get_logs(mother_voice_hidden_state_dict)
         log_hidden_state_dict = get_logs(hidden_state_dict)
         
         if(curiosity_min_max[0] == 0):
@@ -540,9 +533,8 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(here, log_prediction_error_dict if log else prediction_error_dict, "green", "Total " + ("log " if log else "") + "Prediction Error", min_max = this_min_max, linestyle = "solid"))
             handles.append(awesome_plot(here, log_rgbd_prediction_error_dict if log else rgbd_prediction_error_dict, "green", "RGBD", min_max = this_min_max, linestyle = "dotted"))
             handles.append(awesome_plot(here, log_sensors_prediction_error_dict if log else sensors_prediction_error_dict, "green", "Sensors", min_max = this_min_max, linestyle = custom_ls))
-            handles.append(awesome_plot(here, log_father_voice_prediction_error_dict if log else father_voice_prediction_error_dict, "green", "Father voice" if args.joint_dialogue else "Voice", min_max = this_min_max, letter = "F" if args.joint_dialogue else "V"))
-            if(args.joint_dialogue):
-                handles.append(awesome_plot(here, log_mother_voice_prediction_error_dict if log else mother_voice_prediction_error_dict, "green", "Mother voice", min_max = this_min_max, letter = "M"))
+            handles.append(awesome_plot(here, log_father_voice_prediction_error_dict if log else father_voice_prediction_error_dict, "green", "Father voice", min_max = this_min_max, letter = "F"))
+            handles.append(awesome_plot(here, log_mother_voice_prediction_error_dict if log else mother_voice_prediction_error_dict, "green", "Mother voice", min_max = this_min_max, letter = "M"))
             here.set_ylabel("Prediction Error Curiosity")
             here.set_xlabel("Epochs")
             here.legend(handles = handles)
@@ -555,9 +547,8 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(here, log_hidden_state_dict if log else hidden_state_dict, "red", "Total Hidden State", min_max = this_min_max, linestyle = "solid"))
             handles.append(awesome_plot(here, log_rgbd_hidden_state_dict if log else rgbd_hidden_state_dict, "red", "RGBD", min_max = this_min_max, linestyle = "dotted"))
             handles.append(awesome_plot(here, log_sensors_hidden_state_dict if log else sensors_hidden_state_dict, "red", "Sensors", min_max = this_min_max, linestyle = custom_ls))
-            handles.append(awesome_plot(here, log_father_voice_hidden_state_dict if log else father_voice_hidden_state_dict, "red", "Father voice" if args.joint_dialogue else "Voice", min_max = this_min_max, letter = "F" if args.joint_dialogue else "V"))
-            if(args.joint_dialogue):
-                handles.append(awesome_plot(here, log_mother_voice_hidden_state_dict if log else mother_voice_hidden_state_dict, "red", "Mother voice", min_max = this_min_max, letter = "M"))
+            handles.append(awesome_plot(here, log_father_voice_hidden_state_dict if log else father_voice_hidden_state_dict, "red", "Father voice", min_max = this_min_max, letter = "F"))
+            handles.append(awesome_plot(here, log_mother_voice_hidden_state_dict if log else mother_voice_hidden_state_dict, "red", "Mother voice", min_max = this_min_max, letter = "M"))
             here.set_ylabel("Hidden State Curiosity")
             here.set_xlabel("Epochs")
             here.legend(handles = handles)

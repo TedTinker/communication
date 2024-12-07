@@ -343,8 +343,6 @@ class Agent:
                                 
                 obs.father_voice = obs.father_voice.one_hots.unsqueeze(0).unsqueeze(0) 
                 obs.mother_voice = obs.mother_voice.one_hots.unsqueeze(0).unsqueeze(0) 
-                if(not self.args.joint_dialogue):
-                    obs.father_voice = obs.mother_voice if self.processor.goal.task.name == "SILENCE" else obs.father_voice if parenting else partner_prev_voice_out
 
                 hp, hq, rgbd_is, sensors_is, father_voice_is, mother_voice_is = self.forward.bottom_to_top_step(
                     hq_1, self.forward.obs_in(obs), self.forward.action_in(prev_action))
@@ -376,8 +374,6 @@ class Agent:
                 
                 next_obs.father_voice = next_obs.father_voice.one_hots.unsqueeze(0).unsqueeze(0)
                 next_obs.mother_voice = next_obs.mother_voice.one_hots.unsqueeze(0).unsqueeze(0)
-                if(not self.args.joint_dialogue):
-                    next_obs.father_voice = next_obs.mother_voice if self.processor.goal.task.name == "SILENCE" else next_obs.father_voice if parenting else partner_voice_out
 
                 to_push = To_Push(obs, action, reward, next_obs, done)     
                 return(next_obs, to_push)
@@ -558,8 +554,7 @@ class Agent:
                     birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
                     obs = self.processor.obs(agent_1 = agent_1)
                     
-                    if(self.args.joint_dialogue):
-                        obs.father_voice = obs.mother_voice if self.processor.goal.task.name == "SILENCE" else obs.father_voice if parenting else prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
+                    obs.father_voice = obs.mother_voice if self.processor.goal.task.name == "SILENCE" else obs.father_voice if parenting else prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
                     if(type(obs.father_voice) != Goal):
                         obs.father_voice = get_goal_from_one_hots(obs.father_voice)
                     if(type(obs.mother_voice) != Goal):
@@ -736,11 +731,14 @@ class Agent:
         batch = self.get_batch(self.memory, batch_size)
         if(batch == False):
             return(False)
-        batch_size = batch[0].shape[0]
         
         rgbd, sensors, father_voice, mother_voice, wheels_shoulders, voice_out, reward, done, mask, all_mask, episodes, steps = batch
         obs = Obs(rgbd, sensors, father_voice, mother_voice)
         actions = Action(wheels_shoulders, voice_out)
+        
+        if(self.args.try_multi_step):
+            if(episodes == 1):
+                return
         
         
                 
@@ -749,8 +747,8 @@ class Agent:
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
             obs, actions)
         
-        #if(self.args.try_thing):
-        #    predictions = self.forward.multi_step_prediction(hqs, actions)
+        if(self.args.try_multi_step):
+            predictions = self.forward.multi_step_prediction(hqs, actions)
                                 
         rgbd_loss = F.binary_cross_entropy(pred_obs_q.rgbd, rgbd[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.rgbd_scaler
                         
@@ -770,22 +768,15 @@ class Agent:
         father_voice_loss, pred_father_voice = compute_individual_voice_loss(
             father_voice, pred_obs_q.father_voice, self.args.father_voice_scaler)
 
-        if self.args.joint_dialogue:
-            mother_voice_loss, pred_mother_voice = compute_individual_voice_loss(
-                mother_voice, pred_obs_q.mother_voice, self.args.mother_voice_scaler)
-        else:
-            mother_voice_loss = torch.tensor(0.0)
-            pred_mother_voice = pred_father_voice
+        mother_voice_loss, pred_mother_voice = compute_individual_voice_loss(
+            mother_voice, pred_obs_q.mother_voice, self.args.mother_voice_scaler)
         
         accuracy = (rgbd_loss + sensors_loss + father_voice_loss + mother_voice_loss).mean()
         
         rgbd_complexity = rgbd_is.dkl.mean(-1).unsqueeze(-1) * all_mask
         sensors_complexity = sensors_is.dkl.mean(-1).unsqueeze(-1) * all_mask
         father_voice_complexity = father_voice_is.dkl.mean(-1).unsqueeze(-1) * all_mask
-        if(self.args.joint_dialogue):
-            mother_voice_complexity = mother_voice_is.dkl.mean(-1).unsqueeze(-1) * all_mask
-        else:
-            mother_voice_complexity = torch.tensor(0.0)
+        mother_voice_complexity = mother_voice_is.dkl.mean(-1).unsqueeze(-1) * all_mask
                 
         complexity = sum([
             self.args.beta_rgbd * rgbd_complexity.mean(),
@@ -802,39 +793,7 @@ class Agent:
         rgbd_complexity = rgbd_complexity[:,1:]
         sensors_complexity = sensors_complexity[:,1:]
         father_voice_complexity = father_voice_complexity[:,1:]
-        if(self.args.joint_dialogue):
-            mother_voice_complexity = mother_voice_complexity[:,1:]
-        
-        if(self.args.ignore_silence):
-            
-            def remove_silence(values, voice, pred_voice):
-                max_indices_voice = torch.argmax(voice, dim=2)
-                max_indices_pred_voice = torch.argmax(pred_voice, dim=2)
-                silence_mask_voice = max_indices_voice[:, :, 0] == 0
-                silence_mask_pred_voice = max_indices_pred_voice[:, :, 0] == 0
-                combined_silence_mask = silence_mask_voice & silence_mask_pred_voice
-                combined_silence_mask_expanded = combined_silence_mask.unsqueeze(-1)
-                values = values * ~combined_silence_mask_expanded
-                return values
-            
-            father_voice = father_voice[:,1:]
-            mother_voice = mother_voice[:,1:]
-            pred_father_voice = pred_father_voice.reshape(episodes, steps, 3, 17)
-            pred_mother_voice = pred_mother_voice.reshape(episodes, steps, 3, 17)
-            """print()
-            print("father voice:", father_voice.shape)
-            print("mother voice:", mother_voice.shape)
-            print("father pred:", pred_father_voice.shape)
-            print("mother pred:", pred_mother_voice.shape)
-            print("father loss:", father_voice_loss.shape)
-            print("mother loss:", mother_voice_loss.shape)
-            print("father complexity:", father_voice_complexity.shape)
-            print("mother complexity:", mother_voice_complexity.shape)"""
-            
-            father_voice_loss = remove_silence(father_voice_loss, father_voice, pred_father_voice) 
-            mother_voice_loss = remove_silence(mother_voice_loss, mother_voice, pred_mother_voice) 
-            father_voice_complexity = remove_silence(father_voice_complexity, father_voice, pred_father_voice) 
-            mother_voice_complexity = remove_silence(mother_voice_complexity, mother_voice, pred_mother_voice) 
+        mother_voice_complexity = mother_voice_complexity[:,1:]
                                     
                         
         
@@ -842,19 +801,13 @@ class Agent:
         rgbd_prediction_error_curiosity             = self.args.prediction_error_eta_rgbd           * rgbd_loss
         sensors_prediction_error_curiosity          = self.args.prediction_error_eta_sensors        * sensors_loss
         father_voice_prediction_error_curiosity     = self.args.prediction_error_eta_father_voice   * father_voice_loss
-        if(self.args.joint_dialogue):
-            mother_voice_prediction_error_curiosity = self.args.prediction_error_eta_mother_voice   * mother_voice_loss
-        else:
-            mother_voice_prediction_error_curiosity = torch.tensor(0.0)
+        mother_voice_prediction_error_curiosity = self.args.prediction_error_eta_mother_voice   * mother_voice_loss
         prediction_error_curiosity                  = rgbd_prediction_error_curiosity + sensors_prediction_error_curiosity + father_voice_prediction_error_curiosity + mother_voice_prediction_error_curiosity
         
         rgbd_hidden_state_curiosity                 = self.args.hidden_state_eta_rgbd               * torch.clamp(rgbd_complexity, min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
         sensors_hidden_state_curiosity              = self.args.hidden_state_eta_sensors            * torch.clamp(sensors_complexity, min = 0, max = self.args.dkl_max)
         father_voice_hidden_state_curiosity         = self.args.hidden_state_eta_father_voice       * torch.clamp(father_voice_complexity, min = 0, max = self.args.dkl_max)
-        if(self.args.joint_dialogue):
-            mother_voice_hidden_state_curiosity     = self.args.hidden_state_eta_mother_voice       * torch.clamp(mother_voice_complexity, min = 0, max = self.args.dkl_max) * self.hidden_state_eta_mother_voice_reduction
-        else:
-            mother_voice_hidden_state_curiosity = torch.tensor(0.0)
+        mother_voice_hidden_state_curiosity     = self.args.hidden_state_eta_mother_voice       * torch.clamp(mother_voice_complexity, min = 0, max = self.args.dkl_max) * self.hidden_state_eta_mother_voice_reduction
         hidden_state_curiosity                      = rgbd_hidden_state_curiosity + sensors_hidden_state_curiosity + father_voice_hidden_state_curiosity + mother_voice_hidden_state_curiosity
         
         if(self.args.curiosity == "prediction_error"):  curiosity = prediction_error_curiosity

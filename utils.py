@@ -1,7 +1,8 @@
 #%% 
 
 # To do:
-#   Add a little transparent bit to the robot, to prevent seeing through things.
+#   Seems I messed up which batchnorms help :C
+#   Make it so future predictions can skip steps (ie, see 1, 3, and 5 steps ahead, but now 2 or 4)
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
 #       You'll probably need to make PVRNN multilayer, 
@@ -388,24 +389,22 @@ def literal(arg_string): return(ast.literal_eval(arg_string))
 
 parser = argparse.ArgumentParser()
 
-    # Stuff I'm testing right now
-parser.add_argument('--joint_dialogue',                 type=literal,       default = True,
-                    help='Should father and mother be heard at the same time?')   
-parser.add_argument('--ignore_silence',                 type=literal,       default = False,
-                    help='Should the agent be curious about the mother\'s silence?')    
-parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
-                    help='How should reward increase?')   
-parser.add_argument('--reward',                         type=float,         default = 10,
-                    help='Extrinsic reward for choosing correct task, shape, and color.') 
-parser.add_argument("--hidden_state_eta_mother_voice_reduction_type",  type=str,         default = "None",
-                    help='How should interest in mother_voice chance?') 
+    # Stuff I'm testing right now   
 parser.add_argument('--steps_ahead',                    type=int,           default = 1,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
-parser.add_argument('--try_thing_7',                      type=literal,       default = False,
+parser.add_argument('--try_batchnorm_1',                      type=literal,       default = False,
                     help='Is there something experimental we are trying?')  
-parser.add_argument('--try_thing_8',                      type=literal,       default = False,
+parser.add_argument('--try_batchnorm_2',                      type=literal,       default = False,
                     help='Is there something experimental we are trying?')  
-parser.add_argument('--try_thing_9',                      type=literal,       default = False,
+parser.add_argument('--try_batchnorm_3',                      type=literal,       default = False,
+                    help='Is there something experimental we are trying?')  
+parser.add_argument('--try_batchnorm_4',                      type=literal,       default = False,
+                    help='Is there something experimental we are trying?')  
+parser.add_argument('--try_batchnorm_5',                      type=literal,       default = False,
+                    help='Is there something experimental we are trying?')  
+parser.add_argument('--try_batchnorm_6',                      type=literal,       default = False,
+                    help='Is there something experimental we are trying?')  
+parser.add_argument('--try_multi_step',                      type=literal,       default = False,
                     help='Is there something experimental we are trying?')  
 
     
@@ -475,7 +474,10 @@ parser.add_argument('--max_shoulder_speed',             type=float,         defa
 
 
     # Processor details
-# put reward here
+parser.add_argument('--reward',                         type=float,         default = 10,
+                    help='Extrinsic reward for choosing correct task, shape, and color.') 
+parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
+                    help='How should reward increase?')   
 parser.add_argument('--max_steps',                      type=int,           default = 10,
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
@@ -627,6 +629,8 @@ parser.add_argument("--prediction_error_eta_mother_voice", type=float,      defa
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
 parser.add_argument("--hidden_state_eta_mother_voice",  type=float,         default = 1.5,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
+parser.add_argument("--hidden_state_eta_mother_voice_reduction_type",  type=str,         default = "None",
+                    help='How should interest in mother_voice chance?') 
 
 
 

@@ -100,7 +100,7 @@ class PVRNN_LAYER(nn.Module):
     
         # New hidden state: Previous hidden state, zq value, plus higher-layer hidden state if not top.
         self.mtrnn = MTRNN(
-                input_size = self.args.rgbd_state_size + self.args.sensors_state_size + self.args.voice_state_size + (self.args.voice_state_size if self.args.joint_dialogue else 0),
+                input_size = self.args.rgbd_state_size + self.args.sensors_state_size + self.args.voice_state_size + self.args.voice_state_size,
                 hidden_size = self.args.pvrnn_mtrnn_size, 
                 time_constant = time_scale,
                 args = self.args)
@@ -139,8 +139,8 @@ class PVRNN_LAYER(nn.Module):
         father_voice_is = process_z_func_outputs(zp_inputs, father_voice_zq_inputs, self.father_voice_z, episodes, steps, dtype)
         mother_voice_is = process_z_func_outputs(zp_inputs, mother_voice_zq_inputs, self.mother_voice_z, episodes, steps, dtype)
         
-        mtrnn_inputs_p = torch.cat([rgbd_is.zp, sensors_is.zp, father_voice_is.zp] + ([mother_voice_is.zp] if self.args.joint_dialogue else []), dim=-1)
-        mtrnn_inputs_q = torch.cat([rgbd_is.zq, sensors_is.zq, father_voice_is.zq] + ([mother_voice_is.zq] if self.args.joint_dialogue else []), dim=-1)
+        mtrnn_inputs_p = torch.cat([rgbd_is.zp, sensors_is.zp, father_voice_is.zp, mother_voice_is.zp], dim=-1)
+        mtrnn_inputs_q = torch.cat([rgbd_is.zq, sensors_is.zq, father_voice_is.zq, mother_voice_is.zq], dim=-1)
         
         mtrnn_inputs_p = mtrnn_inputs_p.reshape(episodes, steps, mtrnn_inputs_p.shape[1])
         mtrnn_inputs_q = mtrnn_inputs_q.reshape(episodes, steps, mtrnn_inputs_q.shape[1])
@@ -257,8 +257,7 @@ class PVRNN(nn.Module):
 
         # Concatenate zp to form MTRNN inputs
         mtrnn_inputs_p = torch.cat(
-            [rgbd_zp, sensors_zp, father_voice_zp] + 
-            ([mother_voice_zp] if self.args.joint_dialogue else []), 
+            [rgbd_zp, sensors_zp, father_voice_zp, mother_voice_zp], 
             dim=-1
         )
 

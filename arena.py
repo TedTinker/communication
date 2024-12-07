@@ -43,7 +43,7 @@ fov_x_deg = 90
 fov_y_deg = 90
 fov_x_rad = radians(fov_x_deg)
 fov_y_rad = radians(fov_y_deg)
-near = 1
+near = .91
 far = 9
 right = near * tan(fov_x_rad / 2)
 left = -right
@@ -549,8 +549,8 @@ if __name__ == "__main__":
     task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
         num_objects = 1,
         allowed_tasks_and_weights = [(0, 1)],
-        allowed_colors = [0, 1, 2, 3, 4, 5],
-        allowed_shapes = [4],
+        allowed_colors = [0],
+        allowed_shapes = [0],
         test = None)
     
     

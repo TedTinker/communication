@@ -33,17 +33,29 @@ class RGBD_IN(nn.Module):
         rgbd_size = (1, image_dims, self.args.image_size, self.args.image_size)
         example = torch.zeros(rgbd_size)
         
-        self.a = nn.Sequential()
+        if(self.args.try_batchnorm_1):
+            self.a = nn.Sequential(nn.BatchNorm2d(image_dims))
+        else:
+            self.a = nn.Sequential()
         
         example = self.a(example)
         rgbd_latent_size = example.flatten(1).shape[1]
                 
-        self.b = nn.Sequential(
-            nn.Linear(
-                in_features = rgbd_latent_size, 
-                out_features = self.args.rgbd_encode_size),
-            nn.PReLU(),
-            nn.Dropout(self.args.dropout))
+        if(self.args.try_batchnorm_2):
+            self.b = nn.Sequential(
+                nn.Linear(
+                    in_features = rgbd_latent_size, 
+                    out_features = self.args.rgbd_encode_size),
+                nn.BatchNorm1d(self.args.rgbd_encode_size),
+                nn.PReLU(),
+                nn.Dropout(self.args.dropout))
+        else:
+            self.b = nn.Sequential(
+                nn.Linear(
+                    in_features = rgbd_latent_size, 
+                    out_features = self.args.rgbd_encode_size),
+                nn.PReLU(),
+                nn.Dropout(self.args.dropout))
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -93,18 +105,33 @@ class RGBD_OUT(nn.Module):
                 in_features = self.args.h_w_wheels_shoulders_size,
                 out_features = self.out_features_channels * (self.args.image_size//self.args.divisions) * (self.args.image_size//self.args.divisions)))
         
-        self.b = nn.Sequential(
-            nn.PReLU(),
-            nn.Dropout(self.args.dropout),
-        
-            nn.Conv2d(
-                in_channels = self.out_features_channels, 
-                out_channels = 4 * (1 if self.args.divisions == 1 else 2 ** self.args.divisions),
-                kernel_size = 3,
-                padding = 1,
-                padding_mode = "reflect"),
-            nn.PixelShuffle(self.args.divisions),
-            nn.Tanh())
+        if(self.args.try_batchnorm_3): # Seems to be better with this
+            self.b = nn.Sequential(
+                nn.BatchNorm2d(self.out_features_channels),
+                nn.PReLU(),
+                nn.Dropout(self.args.dropout),
+            
+                nn.Conv2d(
+                    in_channels = self.out_features_channels, 
+                    out_channels = 4 * (1 if self.args.divisions == 1 else 2 ** self.args.divisions),
+                    kernel_size = 3,
+                    padding = 1,
+                    padding_mode = "reflect"),
+                nn.PixelShuffle(self.args.divisions),
+                nn.Tanh())
+        else:
+            self.b = nn.Sequential(
+                nn.PReLU(),
+                nn.Dropout(self.args.dropout),
+            
+                nn.Conv2d(
+                    in_channels = self.out_features_channels, 
+                    out_channels = 4 * (1 if self.args.divisions == 1 else 2 ** self.args.divisions),
+                    kernel_size = 3,
+                    padding = 1,
+                    padding_mode = "reflect"),
+                nn.PixelShuffle(self.args.divisions),
+                nn.Tanh())
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -152,11 +179,19 @@ class Sensors_IN(nn.Module):
         
         self.args = args 
         
-        self.a = nn.Sequential(
-            nn.Linear(
-                in_features = self.args.sensors_shape,
-                out_features = self.args.sensors_encode_size),
-            nn.PReLU())
+        if(self.args.try_batchnorm_4):    # Seems to be better with this
+            self.a = nn.Sequential(
+                nn.Linear(
+                    in_features = self.args.sensors_shape,
+                    out_features = self.args.sensors_encode_size),
+                nn.BatchNorm1d(self.args.sensors_encode_size),
+                nn.PReLU())
+        else:
+            self.a = nn.Sequential(
+                nn.Linear(
+                    in_features = self.args.sensors_shape,
+                    out_features = self.args.sensors_encode_size),
+                nn.PReLU())
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -246,39 +281,39 @@ class Voice_IN(nn.Module):
         self.args = args
         
         self.a = nn.Sequential(
-            nn.Embedding(
-                num_embeddings = self.args.voice_shape,
-                embedding_dim = self.args.char_encode_size),
-            nn.PReLU(),
-            nn.Dropout(self.args.dropout),
-            nn.Linear(
-                in_features = self.args.char_encode_size,
-                out_features = self.args.hidden_size))
+                nn.Embedding(
+                    num_embeddings = self.args.voice_shape,
+                    embedding_dim = self.args.char_encode_size),
+                nn.PReLU(),
+                nn.Dropout(self.args.dropout),
+                nn.Linear(
+                    in_features = self.args.char_encode_size,
+                    out_features = self.args.hidden_size))
         
-        if(self.args.try_thing_7):
+        if(self.args.try_batchnorm_5):
             self.ab = nn.Sequential(
-                nn.BatchNorm1d(self.args.hidden_size))
+                nn.BatchNorm1d(self.args.hidden_size),
+                nn.PReLU())
         else:
-            self.ab = nn.Sequential()
-            
-        self.ac = nn.Sequential(nn.PReLU())
+            self.ab = nn.Sequential(
+                nn.PReLU())
                 
         self.b = nn.GRU(
             input_size = self.args.hidden_size,
             hidden_size = self.args.hidden_size,
             batch_first = True)
-                
-        if(self.args.try_thing_8):
+                            
+        if(self.args.try_batchnorm_6):
             self.c = nn.Sequential(
                 nn.BatchNorm1d(self.args.hidden_size))
         else:
             self.c = nn.Sequential()
             
         self.cb = nn.Sequential(
-            nn.PReLU(),
-            nn.Linear(
-                in_features = self.args.hidden_size, 
-                out_features = self.args.voice_encode_size))
+                nn.PReLU(),
+                nn.Linear(
+                    in_features = self.args.hidden_size, 
+                    out_features = self.args.voice_encode_size))
                 
         self.apply(init_weights)
         self.to(self.args.device)
@@ -293,10 +328,9 @@ class Voice_IN(nn.Module):
         voice = torch.argmax(voice, dim = -1).int()
                 
         a = self.a(voice)
-        a = a.permute(0, 2, 1)  # Change from (batch, seq_len, hidden_size) to (batch, hidden_size, seq_len)
+        a = a.permute(0, 2, 1)
         a = self.ab(a)
-        a = a.permute(0, 2, 1)  # Change back to (batch, seq_len, hidden_size)
-        a = self.ac(a)
+        a = a.permute(0, 2, 1)
         _, b = self.b(a)    
         b = b.reshape(episodes, steps, self.args.hidden_size)
         
@@ -328,6 +362,7 @@ if __name__ == "__main__":
 #%%
 
 
+
 class Voice_OUT(nn.Module):
 
     def __init__(self, actor = False, args = default_args):
@@ -337,19 +372,16 @@ class Voice_OUT(nn.Module):
         self.actor = actor
         
         self.a = nn.Sequential(
-                nn.Linear(
-                    in_features = self.args.h_w_wheels_shoulders_size, 
-                    out_features = self.args.hidden_size * self.args.max_voice_len))
+            nn.Linear(
+                in_features = self.args.h_w_wheels_shoulders_size, 
+                out_features = self.args.hidden_size * self.args.max_voice_len))
         
-        if(self.args.try_thing_9):
-            self.ab = nn.Sequential(
-                nn.BatchNorm1d(self.args.hidden_size * self.args.max_voice_len))
-        else:
-            self.ab = nn.Sequential()
+        self.ab = nn.Sequential(
+            nn.BatchNorm1d(self.args.hidden_size * self.args.max_voice_len))
             
         self.ac = nn.Sequential(
-                nn.PReLU(),
-                nn.Dropout(self.args.dropout))
+            nn.PReLU(),
+            nn.Dropout(self.args.dropout))
             
         self.b = nn.GRU(
             input_size = self.args.hidden_size,
@@ -374,8 +406,8 @@ class Voice_OUT(nn.Module):
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
                 
     def forward(self, h_w_wheels_shoulders):
-        
-        start_time, episodes, steps, [h_w_wheels_shoulders] = model_start([(h_w_wheels_shoulders, "lin")], self.args.device, self.args.half)
+
+        start_time, episodes, steps, [h_w_wheels_shoulders] = model_start([(h_w_wheels_shoulders, "lin")], self.args.device, self.args.half)        
                 
         h_w_wheels_shoulders = h_w_wheels_shoulders.reshape(episodes * steps, self.args.h_w_wheels_shoulders_size)
         a = self.a(h_w_wheels_shoulders)
@@ -476,7 +508,6 @@ class Wheels_Shoulders_IN(nn.Module):
             nn.Linear(
                 in_features = self.args.wheels_shoulders_shape, 
                 out_features = self.args.wheels_shoulders_encode_size),
-            #nn.BatchNorm1d(self.args.encode_wheels_shoulders_size),
             nn.PReLU())
         
         self.apply(init_weights)

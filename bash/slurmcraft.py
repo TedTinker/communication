@@ -80,21 +80,15 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_sensors" : 0})
 
 add_this("t",   {
-    "try_thing_7" : ["True", "False"],
-    "try_thing_8" : ["True", "False"],
-    "try_thing_9" : ["True", "False"],
-    })             
+    "try_batchnorm_1" : ["False", "True"],
+    "try_batchnorm_2" : ["False", "True"],
+    "try_batchnorm_3" : ["False", "True"],
+    "try_batchnorm_4" : ["False", "True"],
+    "try_batchnorm_5" : ["False", "True"]})         
 
-add_this("g",   {
-    "epochs_per_processor" : 
-        #"\"[(5000, 'f'),            (40000, 'wpulr')]\"",
-        #"\"[(10000, 'f'),           (35000, 'wpulr')]\"",
-        "\"[(50000, 'wpulr')]\"",
-        #"\"[(5000, 'fwpulr_u'),    (40000, 'wpulr')]\"",
-        #"\"[(10000, 'fwpulr_u'),    (35000, 'wpulr')]\"",
-        #"\"[(5000, 'fwpulr_50'),    (40000, 'wpulr')]\"",
-        #"\"[(10000, 'fwpulr_50'),    (35000, 'wpulr')]\"",
-        })
+add_this("m",   {
+    "try_multi_step" : ["False", "True"],
+    "steps_ahead" : 2})     
 
 
  
