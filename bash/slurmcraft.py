@@ -79,12 +79,7 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_rgbd" : 0,
     "hidden_state_eta_sensors" : 0})
 
-add_this("t",   {
-    "try_batchnorm_1" : ["False", "True"],
-    "try_batchnorm_2" : ["False", "True"],
-    "try_batchnorm_3" : ["False", "True"],
-    "try_batchnorm_4" : ["False", "True"],
-    "try_batchnorm_5" : ["False", "True"]})         
+add_this("t",   {})         
 
 add_this("m",   {
     "try_multi_step" : ["False", "True"],
