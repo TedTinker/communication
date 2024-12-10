@@ -113,7 +113,6 @@ class PVRNN_LAYER(nn.Module):
             
     def forward(self, prev_hidden_states, obs, prev_action):
         
-        # Complicated and ridiculous :C
         def reshape_and_to_dtype(inputs, episodes, steps, dtype=None):
             inputs = inputs.reshape(episodes * steps, inputs.shape[2])
             if dtype:
@@ -226,10 +225,7 @@ class PVRNN(nn.Module):
     
     
     
-    def predict_step(self, prev_hidden_states, action):
-        new_hidden_states_p = self.bottom_to_top_step_prediction(prev_hidden_states, action)
-        pred_obs_p = self.predict(new_hidden_states_p, action.wheels_shoulders)
-        return new_hidden_states_p, pred_obs_p
+
 
 
 
@@ -295,7 +291,8 @@ class PVRNN(nn.Module):
                 action = self.action_in(action)
 
                 # Perform one prediction step
-                h, pred_obs = self.predict_step(h, action)
+                h = self.bottom_to_top_step_prediction(h, action)
+                pred_obs = self.predict(h, action.wheels_shoulders)
 
                 # Store the prediction
                 step_predictions.append(pred_obs)

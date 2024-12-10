@@ -1,7 +1,7 @@
 #%% 
 
 # To do:
-#   Seems I messed up which batchnorms help :C
+#   Make sure multi-step-predictions are done right. Should they get the real observations or day-dream?
 #   Make it so future predictions can skip steps (ie, see 1, 3, and 5 steps ahead, but now 2 or 4)
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
