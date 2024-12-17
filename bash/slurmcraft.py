@@ -86,16 +86,26 @@ add_this("m",   {
     "steps_ahead" : 2})     
 
 
- 
-"""add_this("5",   {                                           # Five times stuff!
-    "max_steps" : 50,
-    "time_step" : .04,
-    "steps_per_Step" : 4,
-    "max_speed" : 2,
-    "max_shoulder_speed", 1.6,
-    "step_cost" : 1,
-    "watch_duration" : 15
-    })"""
+"""
+parser.add_argument('--push_amount',                    type=float,         default = .75,
+                    help='Needed distance of an object for push/pull/left/right.')
+parser.add_argument('--pull_amount',                    type=float,         default = .25,
+                    help='Needed distance of an object for push/pull/left/right.')
+parser.add_argument('--left_right_amount',              type=float,         default = .25,
+                    help='Needed distance of an object for push/pull/left/right.')
+                    """
+def add_steps(x):
+    add_this(str(x),   {                                           # Five times stuff!
+        "max_steps" : int(10 * x),
+        "time_step" : .2 / x,
+        "steps_per_step" : int(20 / x),
+        "push_amount" : .75 / x,
+        "pull_amount" : .25 / x,
+        "left_right_amount" : .25 / x
+        })
+    
+add_steps(2)
+add_steps(4)
 
 
 
@@ -127,8 +137,7 @@ if(__name__ == "__main__" and args.arg_list == []):
     print("ALL POSSIBLE HYPERPARAMETERS:")
     for key, value in slurm_dict.items(): 
         print(key, ":", value)
-    interesting = [f"eft_{i}" for i in [48]]
-    #     interesting = [f"eft_{i}" for i in [2, 3, 7, 9, 10, 13, 15, 17, 19, 20, 22, 26, 27, 28, 30, 32, 33, 37, 39, 43, 45, 47, 49, 50, 51, 53, 54, 55, 56, 57, 58, 59, 60, 63, 63]]
+    interesting = []
     if(len(interesting) != 0):
         print("\n\n\nTHESE HYPERPARAMETERS:")
         for this in interesting:
@@ -145,7 +154,7 @@ if(__name__ == "__main__" and args.arg_list != []):
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time 48:00:00
+#SBATCH --time 72:00:00
 #SBATCH --mem=50G"""
 
     if(args.comp == "saion"):

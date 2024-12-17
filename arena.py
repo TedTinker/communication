@@ -9,7 +9,9 @@ from math import pi, sin, cos, tan, radians, degrees, sqrt, isnan
 from time import sleep
 from skimage.transform import resize
 
-from utils import default_args, shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, make_objects_and_task, duration#, print
+from utils import args, default_args, shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, make_objects_and_task, duration#, print
+
+
 
 def get_physics(GUI, time_step, steps_per_step, w = 10, h = 10):
     if(GUI):
@@ -505,6 +507,18 @@ class Arena():
     
 if __name__ == "__main__":
     args = default_args
+    
+    # THIS SHOWS THE ADD_STEPS HYPERPARAMS AREN'T RIGHT!
+    x = 4
+    args.max_steps = int(10 * x)
+    args.time_step = .2 / x
+    args.steps_per_step = int(20 / x)
+    args.push_amount = .75 / x
+    args.pull_amount = .25 / x
+    args.left_right_amount = .25 / x
+    
+    print(f"\n\n{args.time_step, args.steps_per_step}\n\n")
+    
     physicsClient = get_physics(GUI = True, time_step = args.time_step, steps_per_step = args.steps_per_step)
     arena = Arena(physicsClient, args = args)
     sleep_time = 1
@@ -552,6 +566,22 @@ if __name__ == "__main__":
         allowed_colors = [0],
         allowed_shapes = [0],
         test = None)
+    
+    
+    
+    print("\nSHOW MOVEMENT")
+    goal = Goal(task_map[2], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(10,0)])
+    show_them()
+    arena.rewards(verbose = True)
+    for i in range(4):
+        for lw, rw, ls, rs in [[1, -1, -1, 1]] * x + [[-1, 1, 1, -1]] * x:
+            arena.step(lw, rw, ls, rs, verbose = True, sleep_time = sleep_time)
+            show_them()
+            reward, win, mother_voice = arena.rewards(verbose = True)
+            if(win):
+                break
+    arena.end()
     
     
     

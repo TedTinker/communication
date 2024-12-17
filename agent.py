@@ -736,19 +736,12 @@ class Agent:
         obs = Obs(rgbd, sensors, father_voice, mother_voice)
         actions = Action(wheels_shoulders, voice_out)
         
-        if(self.args.try_multi_step):
-            if(episodes == 1):
-                return
-        
         
                 
         # Train forward
         hps, hqs, rgbd_is, sensors_is, father_voice_is, mother_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
             obs, actions)
-        
-        if(self.args.try_multi_step):
-            predictions = self.forward.multi_step_prediction(hqs, actions)
                                 
         rgbd_loss = F.binary_cross_entropy(pred_obs_q.rgbd, rgbd[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.rgbd_scaler
                         

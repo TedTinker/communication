@@ -392,20 +392,6 @@ parser = argparse.ArgumentParser()
     # Stuff I'm testing right now   
 parser.add_argument('--steps_ahead',                    type=int,           default = 1,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
-parser.add_argument('--try_batchnorm_1',                      type=literal,       default = False,
-                    help='Is there something experimental we are trying?')  
-parser.add_argument('--try_batchnorm_2',                      type=literal,       default = False,
-                    help='Is there something experimental we are trying?')  
-parser.add_argument('--try_batchnorm_3',                      type=literal,       default = False,
-                    help='Is there something experimental we are trying?')  
-parser.add_argument('--try_batchnorm_4',                      type=literal,       default = False,
-                    help='Is there something experimental we are trying?')  
-parser.add_argument('--try_batchnorm_5',                      type=literal,       default = False,
-                    help='Is there something experimental we are trying?')  
-parser.add_argument('--try_batchnorm_6',                      type=literal,       default = False,
-                    help='Is there something experimental we are trying?')  
-parser.add_argument('--try_multi_step',                      type=literal,       default = False,
-                    help='Is there something experimental we are trying?')  
 
     
 
@@ -470,6 +456,21 @@ parser.add_argument('--max_shoulder_angle',             type=float,         defa
                     help='Agent\'s maximum shoulder velocity.')
 parser.add_argument('--max_shoulder_speed',             type=float,         default = 8,
                     help='Max shoulder speed.')
+
+"""parser.add_argument('--min_shoulder_angle',             type=float,         default = -pi/2,
+                    help='Agent\'s maximum shoulder velocity.')
+parser.add_argument('--max_shoulder_angle',             type=float,         default = 0,
+                    help='Agent\'s maximum shoulder velocity.')"""
+
+parser.add_argument('--min_elbow_angle',             type=float,         default = 0,
+                    help='Agent\'s maximum shoulder velocity.')
+parser.add_argument('--max_elbow_angle',             type=float,         default = pi/2,
+                    help='Agent\'s maximum shoulder velocity.')
+
+parser.add_argument('--min_wrist_angle',             type=float,         default = 0,
+                    help='Agent\'s maximum shoulder velocity.')
+parser.add_argument('--max_wrist_angle',             type=float,         default = pi/2,
+                    help='Agent\'s maximum shoulder velocity.')
 
 
 
