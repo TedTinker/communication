@@ -1,5 +1,6 @@
 #%%
 import os
+    
 import matplotlib.pyplot as plt
 from random import uniform
 import numpy as np
@@ -8,10 +9,112 @@ import math
 from math import pi, sin, cos, tan, radians, degrees, sqrt, isnan
 from time import sleep
 from skimage.transform import resize
+import tkinter as tk
 
 from utils import args, default_args, shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, make_objects_and_task, duration#, print
 
 
+
+from fractions import Fraction
+
+def fraction_pi_string(angle, max_denominator=12):
+    """
+    Return a string representing 'angle' as a fraction of π, 
+    e.g. "π/2", "3π/4", or "2π". Uses 'max_denominator' to keep
+    fractions standard (like 1/2, 3/4, 5/6, etc.).
+    """
+    frac = Fraction(angle / math.pi).limit_denominator(max_denominator)
+    num, den = frac.numerator, frac.denominator
+
+    # If denominator = 1, just show "π", "2π", etc.
+    if den == 1:
+        # e.g. 1π, 2π
+        return f"{num}π"
+    else:
+        # e.g. 1π/2, 3π/4, 5π/3
+        return f"{num}π/{den}"
+
+def percentage_between(min_val, current_val, max_val):
+    """
+    Return a string like "42%" indicating how far 'current_val' is between
+    'min_val' and 'max_val'. If max_val == min_val, return "---%" to avoid
+    division by zero.
+    """
+    span = max_val - min_val
+    if abs(span) < 1e-9:
+        return "---%"
+    frac = (current_val - min_val) / span
+    return f"{frac * 100:.0f}%"
+
+def print_joint_angles(self, shoulder_pitch_angle, shoulder_roll_angle, elbow_pitch_angle):
+    # Convert min/max to fraction-of-π strings, and middle to percentage
+    s1_min_str = fraction_pi_string(self.args.min_shoulder_pitch_angle)
+    s1_mid_str = percentage_between(self.args.min_shoulder_pitch_angle, shoulder_pitch_angle, self.args.max_shoulder_pitch_angle)
+    s1_max_str = fraction_pi_string(self.args.max_shoulder_pitch_angle)
+    
+    s2_min_str = fraction_pi_string(self.args.min_shoulder_roll_angle)
+    s2_mid_str = percentage_between(self.args.min_shoulder_roll_angle, shoulder_roll_angle, self.args.max_shoulder_roll_angle)
+    s2_max_str = fraction_pi_string(self.args.max_shoulder_roll_angle)
+    
+    e_min_str = fraction_pi_string(self.args.min_elbow_pitch_angle)
+    e_mid_str = percentage_between(self.args.min_elbow_pitch_angle, elbow_pitch_angle, self.args.max_elbow_pitch_angle)
+    e_max_str = fraction_pi_string(self.args.max_elbow_pitch_angle)
+
+    # Find column widths so we can align everything nicely.
+    min_col_width = max(len(s1_min_str), len(s2_min_str), len(e_min_str))
+    mid_col_width = max(len(s1_mid_str), len(s2_mid_str), len(e_mid_str))
+    max_col_width = max(len(s1_max_str), len(s2_max_str), len(e_max_str))
+
+    #print()
+    #print(f"shoulder_pitch: {s1_min_str:>{min_col_width}}  {s1_mid_str:>{mid_col_width}}  {s1_max_str:>{max_col_width}}")
+    #print(f"shoulder_roll: {s2_min_str:>{min_col_width}}  {s2_mid_str:>{mid_col_width}}  {s2_max_str:>{max_col_width}}")
+    #print(f"elbow_pitch:      {e_min_str:>{min_col_width}}  {e_mid_str:>{mid_col_width}}  {e_max_str:>{max_col_width}}")
+    #print()
+
+
+
+def get_link_index_for_name(link_name, robot_index, physicsClient=None):
+    num_joints = p.getNumJoints(robot_index, physicsClientId=physicsClient)
+    for joint_index in range(num_joints):
+        joint_info = p.getJointInfo(robot_index, joint_index, physicsClientId=physicsClient)
+        # The child link name is at index 12 (as bytes, so decode it)
+        child_link_name = joint_info[12].decode('utf-8')
+        if child_link_name == link_name:
+            return joint_index
+    raise ValueError(f"Link name '{link_name}' not found in the robot's URDF.")
+    
+
+
+def wait_for_button_press(button_label="Continue"):
+    """
+    Displays a tkinter button and waits for the user to click it.
+
+    Parameters:
+    button_label (str): The label for the button.
+
+    Returns:
+    None
+    """
+    def on_button_click():
+        nonlocal continue_simulation
+        continue_simulation = True
+        root.destroy()
+
+    # Create the tkinter window
+    root = tk.Tk()
+    root.title("Wait for Input")
+    root.geometry("200x100")
+
+    # Add the button
+    button = tk.Button(root, text=button_label, command=on_button_click)
+    button.pack(expand=True)
+
+    continue_simulation = False
+
+    # Run the tkinter main loop
+    root.mainloop()
+    
+    
 
 def get_physics(GUI, time_step, steps_per_step, w = 10, h = 10):
     if(GUI):
@@ -21,18 +124,32 @@ def get_physics(GUI, time_step, steps_per_step, w = 10, h = 10):
         physicsClient = p.connect(p.DIRECT)
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0, physicsClientId = physicsClient)
     p.setAdditionalSearchPath("pybullet_data")
-    p.setGravity(0, 0, -100, physicsClientId = physicsClient)
+    p.setGravity(0, 0, -10, physicsClientId = physicsClient)
     p.setTimeStep(time_step / steps_per_step, physicsClientId=physicsClient)  # More accurate time step
     p.setPhysicsEngineParameter(numSolverIterations=1, numSubSteps=1, physicsClientId=physicsClient)  # Increased solver iterations for potentially better stability
     return(physicsClient)
     
-def get_joint_index(body_id, joint_name, physicsClient):
+def get_joint_index(body_id, joint_name, physicsClient=0):
     num_joints = p.getNumJoints(body_id, physicsClientId = physicsClient)
     for i in range(num_joints):
         info = p.getJointInfo(body_id, i, physicsClientId = physicsClient)
         if info[1].decode() == joint_name:
             return i
     return -1  # Return -1 if no joint with the given name is found
+
+def get_link_index(body_id, link_name, physicsClientId=0):
+    """
+    Returns the link index of the given link_name in the specified robot_id.
+    If no match is found, returns -1.
+    """
+    n_joints = p.getNumJoints(body_id, physicsClientId=physicsClientId)
+    for i in range(n_joints):
+        joint_info = p.getJointInfo(body_id, i, physicsClientId=physicsClientId)
+        # joint_info[12] is the child link name in bytes, so decode to string
+        child_link_name = joint_info[12].decode("utf-8")
+        if child_link_name == link_name:
+            return i
+    return -1
 
 def find_key_by_value(my_dict, target_value):
     for key, value in my_dict.items():
@@ -46,14 +163,15 @@ fov_y_deg = 90
 fov_x_rad = radians(fov_x_deg)
 fov_y_rad = radians(fov_y_deg)
 near = .91
-far = 9
+far = 13
 right = near * tan(fov_x_rad / 2)
 left = -right
 top = near * tan(fov_y_rad / 2)
 bottom = -top
 
-agent_upper_starting_pos = 2.02
-object_upper_starting_pos = 1.12
+# I think these heights are okay
+agent_upper_starting_pos = .3
+object_upper_starting_pos = .3
 object_lower_starting_pos = -8.85
 
 if(__name__ == "__main__"):
@@ -72,33 +190,66 @@ class Arena():
         
         self.upper_starting_pos = object_upper_starting_pos
         self.lower_starting_pos = object_lower_starting_pos
+        self.num_bars = 12
+        self.hand_radius = .8
         
+        floor_friction = 1
         # Make floor and lower level.
-        plane_positions = [[0, 0]]
-        plane_ids = []
-        for position in plane_positions:
-            plane_id = p.loadURDF("plane.urdf", position + [0], globalScaling=2, useFixedBase=True, physicsClientId=self.physicsClient)
-            plane_ids.append(plane_id)
-            plane_id = p.loadURDF("plane.urdf", position + [-10], globalScaling=2, useFixedBase=True, physicsClientId=self.physicsClient)
-            plane_ids.append(plane_id)
+        plane_id = p.loadURDF("plane.urdf", [0, 0, -10], globalScaling=2, useFixedBase=True, physicsClientId=self.physicsClient)
+        p.changeDynamics(plane_id, -1, lateralFriction=floor_friction, physicsClientId=self.physicsClient)
+        
+        plane_positions = [([20, 20], "white"), ([20, -20], "black"), ([-20, 20], "black"), ([-20, -20], "white")]
+        for position, color in plane_positions:
+            plane_id = p.loadURDF("plane.urdf", position + [0], globalScaling=.4, useFixedBase=True, physicsClientId=self.physicsClient)
+            p.changeDynamics(plane_id, -1, lateralFriction=floor_friction, physicsClientId=self.physicsClient)
+            if(color == "black"):
+                p.changeVisualShape(plane_id, -1, rgbaColor = [0, 0, 0, 1])
+        
+        x_dist = 10
+        y_dist = 8
+        plane_positions = [([8, -8], "black"), ([-8, 8], "black")]
+        angle = p.getQuaternionFromEuler([pi/4, pi/2, 0])
+        for position, color in plane_positions:
+            plane_id = p.loadURDF("plane.urdf", position + [5], angle, globalScaling=.225, useFixedBase=True, physicsClientId=self.physicsClient)
+            p.changeVisualShape(plane_id, -1, rgbaColor = [0, 0, 0, 1])
+            p.changeDynamics(plane_id, -1, lateralFriction=floor_friction, physicsClientId=self.physicsClient)
+                
             
         # Place robot. 
         self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = self.physicsClient)
-        self.robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
+        self.robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=True, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
         
-        p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
+        body_shoulder_pitch_index = get_joint_index(self.robot_index, "body_shoulder_pitch_joint", self.physicsClient)
+        shoulder_pitch_shoulder_roll_index = get_joint_index(self.robot_index, "shoulder_pitch_shoulder_roll_joint", self.physicsClient)
+        arm_1_elbow_pitch_index = get_joint_index(self.robot_index, "arm_1_elbow_pitch_joint", self.physicsClient)
+        
+        for joint_index in [body_shoulder_pitch_index, shoulder_pitch_shoulder_roll_index, arm_1_elbow_pitch_index]:
+            p.setJointMotorControl2(
+                bodyIndex=self.robot_index,
+                jointIndex=joint_index,
+                controlMode=p.POSITION_CONTROL,
+                force=1000)
+        
+        p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5, 1), physicsClientId = self.physicsClient)
         p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
         self.sensors = []
         for link_index in range(p.getNumJoints(self.robot_index, physicsClientId = self.physicsClient)):
             joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
             link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
-            p.changeDynamics(self.robot_index, link_index, maxJointVelocity = 10000)
+            p.changeDynamics(self.robot_index, link_index, maxJointVelocity = 10000)             
+            if("hand" in link_name):
+                p.changeDynamics(self.robot_index, link_index, lateralFriction=0.01, physicsClientId=self.physicsClient)
             if("sensor" in link_name):
                 self.sensors.append((link_index, link_name))
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 0, 0, sensor_alpha), physicsClientId = self.physicsClient)
-            else:
+                p.changeDynamics(self.robot_index, link_index, lateralFriction=0.01, physicsClientId=self.physicsClient)
+            elif("face" in link_name):
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
+            else:
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (.5, .5, .5, 1), physicsClientId = self.physicsClient)
                         
+
+                
         # Place objects on lower level for future use.
         self.loaded = {key : [] for key in shape_map.keys()}
         self.object_indexs = []
@@ -111,6 +262,7 @@ class Arena():
                 for link_index in range(p.getNumJoints(object_index, physicsClientId = self.physicsClient)):
                     joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
                     p.changeDynamics(object_index, link_index, maxJointVelocity = 10000)
+                    p.changeDynamics(object_index, link_index, lateralFriction=0.01, physicsClientId=self.physicsClient)
                 self.loaded[i].append((object_index, (pos[0], pos[1], self.lower_starting_pos)))
                 self.object_indexs.append(object_index)
                 
@@ -129,8 +281,9 @@ class Arena():
         self.set_pos()
         self.set_yaw()
         self.set_wheel_speeds()
-        self.set_shoulder_angle(self.args.max_shoulder_angle, self.args.max_shoulder_angle)
-        self.set_shoulder_speed()
+        self.set_arm_angles(shoulder_pitch = 1, shoulder_roll = 0, elbow_pitch = -1)
+        self.set_arm_speeds()
+        self.reset_wrist_angles()
         self.goal = goal
         self.parenting = parenting
         
@@ -173,8 +326,10 @@ class Arena():
                
                
         
-    def step(self, left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = False, sleep_time = None):
+    def step(self, wheel, shoulder_pitch, shoulder_roll, elbow_pitch, verbose = False, sleep_time = None):
         
+        shoulder_roll *= -1
+                
         if(sleep_time != None):
             p.setTimeStep(self.args.time_step / self.args.steps_per_step, physicsClientId=self.physicsClient)  # More accurate time step
             
@@ -184,40 +339,23 @@ class Arena():
         for object_index, touch_dict in touching.items():
            for body_part in touch_dict.keys():
                touch_dict[body_part] = 0 
- 
-        # We'll need to ditch this if using 50 steps.
-        if(left_shoulder < 0): 
-            left_shoulder = -1
-        else:
-            left_shoulder = 1
-        if(right_shoulder < 0):
-            right_shoulder = -1
-        else:
-            right_shoulder = 1
 
         if(verbose): 
-            WAITING = input("WAITING")
+            #WAITING = wait_for_button_press()
+            pass
         for step in range(self.args.steps_per_step):
-            self.set_shoulder_speed(left_shoulder, right_shoulder) 
-            self.set_wheel_speeds(left_wheel, right_wheel)
+            shoulder_pitch_angle, shoulder_roll_angle, elbow_pitch_angle = self.get_arm_angles()
+            if(verbose):
+                print_joint_angles(self, shoulder_pitch_angle, shoulder_roll_angle, elbow_pitch_angle)
+                
+            #self.set_pos()
+            
+            self.set_arm_speeds(shoulder_pitch, shoulder_roll, elbow_pitch) 
+            self.set_wheel_speeds(wheel)
             if(sleep_time != None):
                 sleep(sleep_time / self.args.steps_per_step)
             p.stepSimulation(physicsClientId = self.physicsClient)
-            
-            left_shoulder_angle, right_shoulder_angle = self.get_shoulder_angle()
-            if(left_shoulder_angle > self.args.max_shoulder_angle):
-                self.set_shoulder_angle(left_shoulder = self.args.max_shoulder_angle)
-                left_shoulder = 0
-            if(left_shoulder_angle < self.args.min_shoulder_angle):
-                self.set_shoulder_angle(left_shoulder = self.args.min_shoulder_angle)
-                left_shoulder = 0
-                
-            if(right_shoulder_angle > self.args.max_shoulder_angle):
-                self.set_shoulder_angle(right_shoulder = self.args.max_shoulder_angle)
-                right_shoulder = 0
-            if(right_shoulder_angle < self.args.min_shoulder_angle):
-                self.set_shoulder_angle(right_shoulder = self.args.min_shoulder_angle)
-                right_shoulder = 0
+            #self.reset_wrist_angles()
                 
             touching_now = self.touching_any_object()
             for object_index, touch_dict in touching_now.items():
@@ -243,19 +381,15 @@ class Arena():
         p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
         
     def set_yaw(self, yaw = 0):
-        orn = p.getQuaternionFromEuler([0, 0, yaw], physicsClientId = self.physicsClient)
-        pos, _, _ = self.get_pos_yaw_spe(self.robot_index)
-        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
-            
-    def set_wheel_speeds(self, left_wheel = 0, right_wheel = 0):
-        left_wheel = relative_to(left_wheel, -self.args.max_speed, self.args.max_speed)
-        right_wheel = relative_to(right_wheel, -self.args.max_speed, self.args.max_speed)
-        linear_velocity = (left_wheel + right_wheel) / 2
-        _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
-        x = linear_velocity * cos(yaw)
-        y = linear_velocity * sin(yaw)
-        angular_velocity = (right_wheel - left_wheel) * self.args.angular_scaler
-        p.resetBaseVelocity(self.robot_index, linearVelocity=[x, y, 0], angularVelocity=[0, 0, angular_velocity], physicsClientId = self.physicsClient)
+        body_joint_index = get_joint_index(self.robot_index, 'base_body_joint', physicsClient = self.physicsClient)
+        p.resetJointState(self.robot_index, body_joint_index, yaw, physicsClientId=self.physicsClient)
+        
+    def set_wheel_speeds(self, wheel=0):
+        wheel = relative_to(wheel, -self.args.max_speed, self.args.max_speed)
+        angular_velocity = wheel * 2 * self.args.angular_scaler
+        
+        body_index = get_joint_index(self.robot_index, 'base_body_joint', physicsClient = self.physicsClient)
+        p.setJointMotorControl2(self.robot_index, body_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = angular_velocity, physicsClientId=self.physicsClient)
         
     def get_pos_yaw_spe(self, index):
         pos, ors = p.getBasePositionAndOrientation(index, physicsClientId = self.physicsClient)
@@ -266,39 +400,67 @@ class Arena():
         spe = float(np.dot(velocity_vec, forward_dir))
         return(pos, yaw, spe)
     
-    def set_shoulder_speed(self, left_shoulder = 0, right_shoulder = 0):
-        left_shoulder = relative_to(left_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
-        left_joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
-        p.setJointMotorControl2(self.robot_index, left_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = left_shoulder, physicsClientId=self.physicsClient)
+    def set_arm_speeds(self, shoulder_pitch = 0, shoulder_roll = 0, elbow_pitch = 0):
+        
+        shoulder_pitch = relative_to(shoulder_pitch, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
+        shoulder_roll = relative_to(shoulder_roll, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
+        elbow_pitch = relative_to(elbow_pitch, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
+                
+        shoulder_pitch_index = get_joint_index(self.robot_index, 'body_shoulder_pitch_joint', physicsClient = self.physicsClient)
+        p.setJointMotorControl2(self.robot_index, shoulder_pitch_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = shoulder_pitch, physicsClientId=self.physicsClient)
 
-        right_shoulder = relative_to(right_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
-        right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
-        p.setJointMotorControl2(self.robot_index, right_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = right_shoulder, physicsClientId=self.physicsClient)
-        
-    def set_shoulder_angle(self, left_shoulder = None, right_shoulder = None):
-        if(left_shoulder == None):
+        shoulder_roll_index = get_joint_index(self.robot_index, 'shoulder_pitch_shoulder_roll_joint', physicsClient = self.physicsClient)
+        p.setJointMotorControl2(self.robot_index, shoulder_roll_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = shoulder_roll, physicsClientId=self.physicsClient)
+
+        elbow_pitch_index = get_joint_index(self.robot_index, 'arm_1_elbow_pitch_joint', physicsClient = self.physicsClient)
+        p.setJointMotorControl2(self.robot_index, elbow_pitch_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = elbow_pitch, physicsClientId=self.physicsClient)
+
+    def set_arm_angles(self, shoulder_pitch = None, shoulder_roll = None, elbow_pitch = None):
+        if(shoulder_pitch == None):
             pass 
         else:
-            limb_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
-            p.resetJointState(self.robot_index, limb_index, left_shoulder, physicsClientId=self.physicsClient)
-        if(right_shoulder == None):
+            shoulder_pitch = relative_to(shoulder_pitch, self.args.min_shoulder_pitch_angle, self.args.max_shoulder_pitch_angle)
+            limb_index = get_joint_index(self.robot_index, 'body_shoulder_pitch_joint', physicsClient = self.physicsClient)
+            p.resetJointState(self.robot_index, limb_index, shoulder_pitch, physicsClientId=self.physicsClient)
+            
+        if(shoulder_roll == None):
             pass 
         else:
-            limb_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
-            p.resetJointState(self.robot_index, limb_index, right_shoulder, physicsClientId=self.physicsClient)
+            shoulder_roll = relative_to(shoulder_roll, self.args.min_shoulder_roll_angle, self.args.max_shoulder_roll_angle)
+            limb_index = get_joint_index(self.robot_index, 'shoulder_pitch_shoulder_roll_joint', physicsClient = self.physicsClient)
+            p.resetJointState(self.robot_index, limb_index, shoulder_roll, physicsClientId=self.physicsClient)
+            
+        if(elbow_pitch == None):
+            pass 
+        else:
+            elbow_pitch = relative_to(elbow_pitch, self.args.min_elbow_pitch_angle, self.args.max_elbow_pitch_angle)
+            limb_index = get_joint_index(self.robot_index, 'arm_1_elbow_pitch_joint', physicsClient = self.physicsClient)
+            p.resetJointState(self.robot_index, limb_index, elbow_pitch, physicsClientId=self.physicsClient)
+            
+    def get_arm_angles(self):
+        shoulder_pitch_joint_index = get_joint_index(self.robot_index, 'body_shoulder_pitch_joint', physicsClient = self.physicsClient)
+        shoulder_pitch_state = p.getJointState(self.robot_index, shoulder_pitch_joint_index, physicsClientId=self.physicsClient)
         
-    def get_shoulder_angle(self):
-        left_joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
-        left_joint_state = p.getJointState(self.robot_index, left_joint_index, physicsClientId=self.physicsClient)
-        right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
-        right_joint_state = p.getJointState(self.robot_index, right_joint_index, physicsClientId=self.physicsClient)
-        return left_joint_state[0], right_joint_state[0]
+        shoulder_roll_joint_index = get_joint_index(self.robot_index, 'shoulder_pitch_shoulder_roll_joint', physicsClient = self.physicsClient)
+        shoulder_roll_state = p.getJointState(self.robot_index, shoulder_roll_joint_index, physicsClientId=self.physicsClient)
         
-    def generate_positions(self, n, distence = 4):
+        elbow_pitch_joint_index = get_joint_index(self.robot_index, 'arm_1_elbow_pitch_joint', physicsClient = self.physicsClient)
+        elbow_pitch_state = p.getJointState(self.robot_index, elbow_pitch_joint_index, physicsClientId=self.physicsClient)
+
+        return shoulder_pitch_state[0], shoulder_roll_state[0], elbow_pitch_state[0]
+    
+        
+    def reset_wrist_angles(self):
+        pass 
+
+
+        
+    def generate_positions(self, n):
+        distance = self.args.max_object_distance
         base_angle = uniform(0, 2 * pi)
-        x1 = distence * cos(base_angle)
-        y1 = distence * sin(base_angle)
-        r = distence 
+        x1 = distance * cos(base_angle)
+        y1 = distance * sin(base_angle)
+        r = distance 
         angle_step = (2 * pi) / n
         positions = [(x1, y1)]
         for i in range(1, n):
@@ -368,7 +530,9 @@ class Arena():
             
             # Distance and angle from agent to object.
             object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
-            agent_pos, agent_ori = p.getBasePositionAndOrientation(self.robot_index, physicsClientId = self.physicsClient)
+            agent_pos, _ = p.getBasePositionAndOrientation(self.robot_index, physicsClientId = self.physicsClient)
+            link_index = get_link_index(self.robot_index, "body")
+            agent_ori = p.getLinkState(self.robot_index, link_index, physicsClientId=self.physicsClient)[1]
             distance_vector = np.subtract(object_pos[:2], agent_pos[:2])
             distance = np.linalg.norm(distance_vector)
             normalized_distance_vector = distance_vector / distance
@@ -404,6 +568,51 @@ class Arena():
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             lefting = movement_left >= self.args.left_right_amount and touching
             righting = movement_left <= -self.args.left_right_amount and touching
+            
+            if(verbose):
+                print(f"\n\nWatching ({watching})")
+                print(f"Pushing ({pushing}): \n\t{movement_forward} out of {self.args.push_amount}, Touching: {touching}")
+                print(f"Pulling ({pulling}): \n\t{movement_forward} out of {-self.args.pull_amount}, Touching: {touching}")
+                print(f"Lefting ({lefting}): \n\t{movement_left} out of {self.args.left_amount}, Touching: {touching}")
+                print(f"Righting ({righting}): \n\t{movement_left} out of {-self.args.right_amount}, Touching: {touching}\n\n")
+                    
+            # List to hold all active -ing flags and their dramatic changes
+            active_changes = []
+
+            if pushing:
+                active_changes.append(("pushing", movement_forward))
+            if pulling:
+                active_changes.append(("pulling", abs(movement_forward)))  # Take absolute value for pulling
+            if lefting:
+                active_changes.append(("lefting", movement_left))
+            if righting:
+                active_changes.append(("righting", abs(movement_left)))  # Take absolute value for righting
+
+            # If there are multiple active -ing flags, retain only the one with the highest dramatic change
+            if len(active_changes) > 1:
+                # Find the -ing with the highest dramatic change
+                active_changes.sort(key=lambda x: x[1], reverse=True)
+                highest_change = active_changes[0][0]
+
+                # Reset all -ing flags to False
+                pushing, pulling, lefting, righting = False, False, False, False
+
+                # Set only the highest_change flag to True
+                if highest_change == "pushing":
+                    pushing = True
+                elif highest_change == "pulling":
+                    pulling = True
+                elif highest_change == "lefting":
+                    lefting = True
+                elif highest_change == "righting":
+                    righting = True   
+                    
+            if(verbose):
+                print(f"After consideration:")
+                print(f"Pushing ({pushing})")
+                print(f"Pulling ({pulling})")
+                print(f"Lefting ({lefting})")
+                print(f"Righting ({righting})\n\n")        
                 
             def update_duration(action_name, action_now, object_index, duration_threshold):
                 if action_now:
@@ -411,12 +620,15 @@ class Arena():
                 else:
                     self.durations[action_name][object_index] = 0
                 return self.durations[action_name][object_index] >= duration_threshold
-
+            
             watched = update_duration("watch", watching, object_index, self.args.watch_duration)
             pushed  = update_duration("push",  pushing,  object_index, self.args.push_duration)
             pulled  = update_duration("pull",  pulling,  object_index, self.args.pull_duration)
             lefted  = update_duration("left",  lefting,  object_index, self.args.left_duration)
             righted = update_duration("right", righting, object_index, self.args.right_duration)
+            
+            if(verbose):
+                print(self.durations)
                 
             objects_goals[(color_map[color_index], shape_map[shape_index])] = [watched, pushed, pulled, lefted, righted, watching, pushing, pulling, lefting, righting]
                         
@@ -457,7 +669,8 @@ class Arena():
             reward = 0
             
         if(verbose):
-            print(f"\nWhich goal message: \'{mother_voice.human_text}\'")
+            print(f"\nTry goal: \'{self.goal.human_text}\'")
+            print(f"Done goal: \'{mother_voice.human_text}\'")
             print("Raw reward:", round(reward, 2))
             print("Total reward:", reward)
             print("Win:", win)
@@ -483,11 +696,13 @@ class Arena():
         return(rgba)
     
     def photo_for_agent(self):
-        pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        link_index = get_link_index(self.robot_index, "body")
+        pos, ors = p.getLinkState(self.robot_index, link_index, physicsClientId=self.physicsClient)[:2]
+        yaw = p.getEulerFromQuaternion(ors, physicsClientId=self.physicsClient)[-1]
         x, y = cos(yaw), sin(yaw)
         view_matrix = p.computeViewMatrix(
-            cameraEyePosition = [pos[0] + x*.1, pos[1] + y*.1, 2], 
-            cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    
+            cameraEyePosition = [pos[0] + x*.64, pos[1] + y*.64, 1.5], 
+            cameraTargetPosition = [pos[0] + x * self.args.max_object_distance, pos[1] + y * self.args.max_object_distance, 1],    
             cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
         proj_matrix = proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far)
         _, _, rgba, depth, _ = p.getCameraImage(
@@ -508,20 +723,19 @@ class Arena():
 if __name__ == "__main__":
     args = default_args
     
-    # THIS SHOWS THE ADD_STEPS HYPERPARAMS AREN'T RIGHT!
     x = 4
-    args.max_steps = int(10 * x)
-    args.time_step = .2 / x
-    args.steps_per_step = int(20 / x)
-    args.push_amount = .75 / x
-    args.pull_amount = .25 / x
-    args.left_right_amount = .25 / x
-    
-    print(f"\n\n{args.time_step, args.steps_per_step}\n\n")
-    
+    args.max_steps          = int(args.max_steps * x)
+    args.time_step          = args.time_step / x
+    args.steps_per_step     = 100
+    args.push_amount        = args.push_amount / x
+    args.pull_amount        = args.pull_amount / x
+    args.left_right_amount  = args.left_right_amount / x
+    args.left_amount        = args.left_right_amount
+    args.right_amount       = args.left_right_amount
+        
     physicsClient = get_physics(GUI = True, time_step = args.time_step, steps_per_step = args.steps_per_step)
     arena = Arena(physicsClient, args = args)
-    sleep_time = 1
+    sleep_time = .5
     
     def show_them():
         above_rgba = arena.photo_from_above()
@@ -533,31 +747,6 @@ if __name__ == "__main__":
         plt.show()
         plt.close()
         
-        
-        
-    task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
-        num_objects = 3,
-        allowed_tasks_and_weights = [(0, 1)],
-        allowed_colors = [0, 1, 2, 3, 4, 5],
-        allowed_shapes = [0, 1, 2, 3, 4])
-        
-        
-    """
-    print("\nFREE PLAY")
-    goal = [-1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False)
-    steps = 0
-    while(True):
-        steps += 1
-        p.stepSimulation(physicsClientId = arena.physicsClient)
-        if(steps % 50 == 0): 
-            print("\n\n")
-            arena.rewards(verbose = True)
-            
-        sleep(.05)
-    arena.end()
-    """
-    
     
     
     task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
@@ -569,194 +758,258 @@ if __name__ == "__main__":
     
     
     
-    print("\nSHOW MOVEMENT")
+    """print("\nSHOW MOVEMENTS")
+    moves = [
+        [-1, 0, 0, 0], [1, 0, 0, 0], # Spin
+        [0, -1, 0, 0], [0, 1, 0, 0], # Shoulder pitch
+        [0, 0, -1, 0], [0, 0, 1, 0], # Shoulder roll
+        [0, 0, 0, -1], [0, 0, 0, 1], # elbow_pitch roll
+        ]
+    
+    goal = empty_goal
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(10,0)])
+    show_them()
+    arena.rewards(verbose = True)
+    WAITING = wait_for_button_press()
+        
+
+
+    for i, (w, a1, a2, a3) in enumerate(moves):  
+        print(f"\n\nMove {i} : {w, a1, a2, a3}\n\n")
+        arena.step(w, a1, a2, a3, verbose = True, sleep_time = sleep_time)
+        sleep(.3)
+        show_them()
+        WAITING = wait_for_button_press()
+        reward, win, mother_voice = arena.rewards(verbose = True)
+        if(win):
+            break
+    arena.end()"""
+    
+    
+    
+
+
+    
+    def eulerian_cycle_all_pairs_excl_selfloops():
+        """
+        Returns a sequence (a list of states) that visits every directed edge
+        (i -> j, i != j) in the set of 8 states exactly once.
+        """
+    
+        # 1. Define all possible states: [0, ±1, ±1, ±1].
+        #    We'll store them in a list so we can index them 0..7.
+        from itertools import product
+    
+        states = []
+        for triple in product([-1, 1], repeat=3):
+            states.append([0] + list(triple))
+    
+        # 2. Create adjacency info:
+        #    For each node i, it connects to every node j != i.
+        #    We'll store adjacency as a list of lists, where
+        #    graph[i] = [all j such that j != i].
+        n = len(states)
+        graph = [[] for _ in range(n)]
+        for i in range(n):
+            for j in range(n):
+                if j != i:
+                    graph[i].append(j)
+    
+        # 3. Use Hierholzer's algorithm to find an Eulerian cycle in this directed graph.
+        #
+        #    The graph is guaranteed to have an Eulerian cycle because
+        #    - each vertex has in-degree = out-degree = 7
+        #    - it's strongly connected minus self-loops
+        #
+        #    We'll pick an arbitrary starting node (0 in this example).
+        #    This returns a list of node indices in a cycle that uses every edge exactly once.
+        def hierholzer_eulerian_cycle(start, graph):
+            # Make a local copy of adjacency so we can "pop" edges safely.
+            local_graph = [neighbors[:] for neighbors in graph]
+            stack = [start]
+            path = []  # This will store the final cycle (in reverse initially)
+            while stack:
+                v = stack[-1]
+                if local_graph[v]:  # Still has outgoing edges
+                    w = local_graph[v].pop()  # Remove one edge
+                    stack.append(w)
+                else:
+                    # No more edges from v, so pop it off stack & put it in the path
+                    path.append(stack.pop())
+            return path[::-1]  # Reverse to get actual order
+    
+        cycle_node_indices = hierholzer_eulerian_cycle(0, graph)
+        # cycle_node_indices is of length 56+1=57 for 8 nodes and 7 edges from each node.
+    
+        # 4. Convert node indices to actual states
+        moves = [states[idx] for idx in cycle_node_indices]
+        return moves
+    
+    # Actually build and print the moves:
+    moves = eulerian_cycle_all_pairs_excl_selfloops()
+    moves = [move for move in moves for _ in range(4)]
+    moves = [[0, 1, 1, 1]] * int(x/2) + moves
+        
+    """print("\nSHOW ALL MOVEMENTS")
     goal = Goal(task_map[2], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(10,0)])
     show_them()
     arena.rewards(verbose = True)
-    for i in range(4):
-        for lw, rw, ls, rs in [[1, -1, -1, 1]] * x + [[-1, 1, 1, -1]] * x:
-            arena.step(lw, rw, ls, rs, verbose = True, sleep_time = sleep_time)
-            show_them()
-            reward, win, mother_voice = arena.rewards(verbose = True)
-            if(win):
-                break
-    arena.end()
-    
-    
-    
-    """    
-    print("\nHIT")
-    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(4.5,0)])
-    show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    for j in range(3):
-        arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-    arena.end()
-    """
+    WAITING = wait_for_button_press()
         
-        
-        
-    """    
-    print("\nAPPROACH")
-    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(15,0)])
-    show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    for j in range(15):
-        arena.step(1, 1, 1, verbose = True, sleep_time = sleep_time)
-        show_them()
+
+
+    for i, (w, a1, a2, a3) in enumerate(moves):  
+        print(f"\n\nMove {i} : {w, a1, a2, a3}\n\n")
+        arena.step(w, a1, a2, a3, verbose = True, sleep_time = sleep_time)
+        sleep(.3)
+        #show_them()
         reward, win, mother_voice = arena.rewards(verbose = True)
-    arena.end()
-    """
+        if(win):
+            break
+    arena.end()"""
     
-    """
-    print("\nAIM")
-    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(8,0)])
-    show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    for j in range(15):
-        arena.step(-.1, .1, 1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-    arena.end()
-    """
     
-    """
-    print("\nNO GOAL")
-    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(8,0)])
-    show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    i = 1
-    show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    for j in range(5):
-        i *= -1
-        arena.step(1, -1, i, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-    arena.end()
-    """
     
-    """
+    
     print("\nWATCH")
     goal = Goal(task_map[1], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(6,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,3)])
     show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    while(True):
-        arena.step(0, 0, 0, 0, verbose = True, sleep_time = .1)
+    arena.rewards(verbose = True)
+    WAITING = wait_for_button_press()
+    
+    moves = [
+       [1, 0, 0, 0],
+       [1, 0, 0, 0],
+       [0, 0, 0, 0],
+       [0, 0, 0, 0],
+    ]
+    
+
+    
+    for i, (w, a1, a2, a3) in enumerate(moves):  
+        print(f"\n\n{i} : {w, a1, a2, a3}\n\n")
+        arena.step(w, a1, a2, a3, verbose = True, sleep_time = sleep_time)
         show_them()
+        WAITING = wait_for_button_press()
+        #show_them()
         reward, win, mother_voice = arena.rewards(verbose = True)
         if(win):
             break
     arena.end()
-    """
     
-    #"""
+    
+    
     print("\nPUSH")
     goal = Goal(task_map[2], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(5,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(4,0)])
     show_them()
     arena.rewards(verbose = True)
-    while(True):
-        arena.step(1, 1, 1, 1, verbose = True, sleep_time = sleep_time)
+    WAITING = wait_for_button_press()
+    
+    moves = [
+        [0, -1, 0, 0],
+        [0, -1, 0, 0],
+        [0, -1, 0, 0],
+        [0, -1, 0, 0], # Got the object!
+        [0, 0, 0, .5],
+        [0, 0, 0, .5],
+        [0, 0, 0, .5],
+        [0, 0, 0, .5],
+        [0, 0, 0, .5],
+        [0, 0, 0, .5]]
+    
+
+    
+    for i, (w, a1, a2, a3) in enumerate(moves):  
+        print(f"\n\n{i} : {w, a1, a2, a3}\n\n")
+        arena.step(w, a1, a2, a3, verbose = True, sleep_time = sleep_time)
         show_them()
+        WAITING = wait_for_button_press()
+        #show_them()
         reward, win, mother_voice = arena.rewards(verbose = True)
         if(win):
             break
     arena.end()
-    #"""
     
-    #"""
-    print("\nPULL") 
+    
+    
+    print("\nPULL")
     goal = Goal(task_map[3], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(4,0)])
     show_them()
     arena.rewards(verbose = True)
-    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
-    show_them()
-    arena.rewards(verbose = True)
-    while(True):
-        arena.step(-1, -1, -1, -1, verbose = True, sleep_time = sleep_time)
+    WAITING = wait_for_button_press()
+    
+    moves = [
+        [0, -1, 0, 0],
+        [0, -1, 0, 0],
+        [0, -1, 0, 0],
+        [0, -1, 0, 0], # Got the object!
+        [-.5, 0, -.5, -.5],
+        [-.5, 0, -.5, -.5],
+        [-.5, 0, -.5, -.5],
+        [-.5, 0, -.5, -.5],
+        [-.5, 0, -.5, -.5],
+        [-.5, 0, -.5, -.5],
+        [-.5, 0, -.5, -.5],
+        [-.5, 0, -.5, -.5],
+        [-.5, 0, -.5, -.5],
+        [-.5, 0, -.5, -.5],
+        ]
+
+    
+    for i, (w, a1, a2, a3) in enumerate(moves):  
+        print(f"\n\n{i} : {w, a1, a2, a3}\n\n")
+        arena.step(w, a1, a2, a3, verbose = True, sleep_time = sleep_time)
         show_them()
+        WAITING = wait_for_button_press()
+        #show_them()
         reward, win, mother_voice = arena.rewards(verbose = True)
         if(win):
             break
     arena.end()
-    #"""
     
-    """
-    print("\nPULL BACKWARD")
-    goal = [2, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(-3,0)])
-    show_them()
-    arena.rewards(verbose = True)
-    for i in range(4):
-        arena.step(-1, -1, -1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-        if(win):
-            break
-    #arena.end()
-    """
     
-    #"""   
+    
     print("\nLEFT")
     goal = Goal(task_map[4], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
+    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(4,0)])
     show_them()
     arena.rewards(verbose = True)
-    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
-    show_them()
-    arena.rewards(verbose = True)
-    while(True):
-        arena.step(-1, 1, -1, -1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-        if(win):
-            break
-    arena.end()
-    #"""
+    WAITING = wait_for_button_press()
     
-    #"""   
-    print("\nLEFT AGAIN")
-    goal = Goal(task_map[4], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(2,3.5)])
-    show_them()
-    arena.rewards(verbose = True)
-    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
-    show_them()
-    arena.rewards(verbose = True)
-    while(True):
-        arena.step(-1, 1, -1, -1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-        if(win):
-            break
-    arena.end()
-    #"""
+    moves = [
+        [0, -1, 0, 0],
+        [0, -1, 0, 0],
+        [0, -1, 0, 0],
+        [0, -1, 0, 0], # Got the object!
+        [1, 0, -.5, -.5],
+        [1, 0, -.5, -.5],
+        [1, 0, -.5, -.5],
+        [1, 0, -.5, -.5],
+        [1, 0, -.5, -.5],
+        [1, 0, -.5, -.5],
+        [1, 0, -.5, -.5],
+        ]
+
     
-    #"""
-    print("\nRIGHT")
-    goal = Goal(task_map[5], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
-    show_them()
-    arena.rewards(verbose = True)
-    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
-    show_them()
-    arena.rewards(verbose = True)
-    while(True):
-        arena.step(1, -1, -1, -1, verbose = True, sleep_time = sleep_time)
+    for i, (w, a1, a2, a3) in enumerate(moves):  
+        print(f"\n\n{i} : {w, a1, a2, a3}\n\n")
+        arena.step(w, a1, a2, a3, verbose = True, sleep_time = sleep_time)
         show_them()
+        WAITING = wait_for_button_press()
+        #show_them()
         reward, win, mother_voice = arena.rewards(verbose = True)
         if(win):
             break
     arena.end()
-    #"""
+    
+    
+
+    
+    
+    
+    
 # %%

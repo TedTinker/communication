@@ -72,18 +72,21 @@ def add_this(name, args):
         slurm_dict[new_key] = new_value
 
 add_this("e",   {"alpha" : "None", "normal_alpha" : .1})    # Agents with entropy
-add_this("n",   {"curiosity" : "prediction_error"})         # Agents with curiosity (prediction error)
+#add_this("n",   {"curiosity" : "prediction_error"})         # Agents with curiosity (prediction error)
 add_this("f",   {"curiosity" : "hidden_state"})             # Agents with curiosity (hidden state)
 add_this("c",   {                                           # Curiosity of language only
     "curiosity" : "hidden_state",
     "hidden_state_eta_rgbd" : 0,
     "hidden_state_eta_sensors" : 0})
 
-add_this("t",   {})         
+add_this("watch_and_this", {
+    "epochs_per_processor" : [
+        "\"[(70000, 'w')]\"",
+        "\"[(70000, 'wp')]\"",
+        "\"[(70000, 'wu')]\"",
+        "\"[(70000, 'wl')]\""]})
 
-add_this("m",   {
-    "try_multi_step" : ["False", "True"],
-    "steps_ahead" : 2})     
+ 
 
 
 """
@@ -94,7 +97,7 @@ parser.add_argument('--pull_amount',                    type=float,         defa
 parser.add_argument('--left_right_amount',              type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
                     """
-def add_steps(x):
+"""def add_steps(x):
     add_this(str(x),   {                                           # Five times stuff!
         "max_steps" : int(10 * x),
         "time_step" : .2 / x,
@@ -105,7 +108,7 @@ def add_steps(x):
         })
     
 add_steps(2)
-add_steps(4)
+add_steps(4)"""
 
 
 

@@ -33,7 +33,7 @@ f"""
             </geometry>
         </collision>
         <inertial>
-            <mass value="100"/>
+            <mass value=".1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
     </link>
@@ -41,7 +41,7 @@ f"""
 
 
 
-def innards(lengths, radia):
+def innards(lengths, radia, mass = 25):
     text = "<!-- Definition of the shape -->\n"
     
     length_so_far = .05
@@ -64,7 +64,7 @@ f"""
             </geometry>
         </collision>
         <inertial>
-            <mass value=".1"/>
+            <mass value="{mass}"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
     </link>
@@ -88,7 +88,7 @@ hourglass_part = [max_radius - i/11 for i in range(6)]
 hourglass_part_reversed = deepcopy(hourglass_part)
 hourglass_part_reversed.reverse()
 all_hourglass = hourglass_part[1:] + hourglass_part_reversed[1:]
-hourglass = innards([.1] * 10, all_hourglass)
+hourglass = innards([.1] * 10, all_hourglass, mass = 25 / len(all_hourglass))
 
 current_dir = os.getcwd()
 last_folder = os.path.basename(os.getcwd())

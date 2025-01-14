@@ -80,6 +80,20 @@ class Agent:
                                       full_name = "Free Play"),
             "w" :           Processor(self.arena_1, self.arena_2, tasks_and_weights = [(1, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
                                       full_name = "Watch"),
+            
+            
+            "wp" :           Processor(self.arena_1, self.arena_2, tasks_and_weights = [(1, 1), (2, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
+                                      full_name = "Watch and Push"),
+            
+            "wu" :           Processor(self.arena_1, self.arena_2, tasks_and_weights = [(1, 1), (3, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
+                                      full_name = "Watch and Pusll"),
+            
+            "wl" :           Processor(self.arena_1, self.arena_2, tasks_and_weights = [(1, 1), (4, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
+                                      full_name = "Watch and Left"),
+            
+            
+            
+            
             "wpulr" :       Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
                                       full_name = "All Tasks"),
             

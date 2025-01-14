@@ -1,8 +1,9 @@
 #%% 
 
 # To do:
-#   Make sure multi-step-predictions are done right. Should they get the real observations or day-dream?
-#   Make it so future predictions can skip steps (ie, see 1, 3, and 5 steps ahead, but now 2 or 4)
+#   "Watch" looks at base, not body.
+#   Fix movements. Why do objects move away well, but no other direction?
+#   Find a better way to predict farther in the future.
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
 #       You'll probably need to make PVRNN multilayer, 
@@ -385,6 +386,11 @@ if(__name__ == "__main__"):
 # Arguments to parse. 
 def literal(arg_string): return(ast.literal_eval(arg_string))
 
+print()
+
+
+#%%
+
 
 
 parser = argparse.ArgumentParser()
@@ -430,7 +436,7 @@ parser.add_argument('--epochs_per_processor',           type=literal,       defa
     # Simulation details
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
                     help='How far objects must start from each other.')
-parser.add_argument('--max_object_distance',            type=float,         default = 6,
+parser.add_argument('--max_object_distance',            type=float,         default = 4.8,
                     help='How far objects can start from the agent.')
 parser.add_argument('--object_size',                    type=float,         default = 2,
                     help='How large is the agent\'s body?')    
@@ -450,26 +456,22 @@ parser.add_argument('--max_speed',                      type=float,         defa
                     help='Max wheel speed.')
 parser.add_argument('--angular_scaler',                 type=float,         default = .4,
                     help='How to scale angular velocity vs linear velocity.')
-parser.add_argument('--min_shoulder_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_shoulder_angle',             type=float,         default = pi/2,
-                    help='Agent\'s maximum shoulder velocity.')
+
 parser.add_argument('--max_shoulder_speed',             type=float,         default = 8,
                     help='Max shoulder speed.')
-
-"""parser.add_argument('--min_shoulder_angle',             type=float,         default = -pi/2,
+parser.add_argument('--min_shoulder_pitch_angle',             type=float,         default = -pi/2,
                     help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_shoulder_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum shoulder velocity.')"""
-
-parser.add_argument('--min_elbow_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_elbow_angle',             type=float,         default = pi/2,
+parser.add_argument('--max_shoulder_pitch_angle',             type=float,         default = 0,
                     help='Agent\'s maximum shoulder velocity.')
 
-parser.add_argument('--min_wrist_angle',             type=float,         default = 0,
+parser.add_argument('--min_shoulder_roll_angle',             type=float,         default = 0,
                     help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_wrist_angle',             type=float,         default = pi/2,
+parser.add_argument('--max_shoulder_roll_angle',             type=float,         default = pi/2,
+                    help='Agent\'s maximum shoulder velocity.')
+
+parser.add_argument('--min_elbow_pitch_angle',             type=float,         default = -pi/2,
+                    help='Agent\'s maximum shoulder velocity.')
+parser.add_argument('--max_elbow_pitch_angle',             type=float,         default = 0,
                     help='Agent\'s maximum shoulder velocity.')
 
 
@@ -732,19 +734,6 @@ save_file = f"saved_{args.comp}"
 os.makedirs(f"{save_file}", exist_ok=True)
 os.makedirs(f"{save_file}/thesis_pics", exist_ok=True)
 os.makedirs(f"{save_file}/thesis_pics/final", exist_ok=True)
-
-def move_to_bucket(start_address):
-    file_name = start_address.split("/")[-1]
-    rest_of_address = "/".join(start_address.split("/")[:-1])
-    target_address = os.path.join("sftp://theodore-tinker@deigo.oist.jp/bucket/TaniU/Members/ted/" + rest_of_address, file_name)
-    print(file_name, rest_of_address, target_address)
-    try:
-        shutil.move(start_address, target_address)
-        print(f"File moved to {target_address} successfully.")
-    except PermissionError:
-        print("Permission denied. Could not move the file to the target folder.")
-    except Exception as e:
-        print(f"An error occurred while moving the file: {e}")
     
 folder = f"{save_file}/{args.arg_name}"
 if(args.arg_title[:3] != "___" and not args.arg_name in ["default", "finishing_dictionaries", "plotting", "plotting_predictions", "plotting_positions"]):
