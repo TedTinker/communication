@@ -436,7 +436,7 @@ parser.add_argument('--epochs_per_processor',           type=literal,       defa
     # Simulation details
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
                     help='How far objects must start from each other.')
-parser.add_argument('--max_object_distance',            type=float,         default = 4.8,
+parser.add_argument('--max_object_distance',            type=float,         default = 4.35,
                     help='How far objects can start from the agent.')
 parser.add_argument('--object_size',                    type=float,         default = 2,
                     help='How large is the agent\'s body?')    
@@ -474,6 +474,14 @@ parser.add_argument('--min_elbow_pitch_angle',             type=float,         d
 parser.add_argument('--max_elbow_pitch_angle',             type=float,         default = 0,
                     help='Agent\'s maximum shoulder velocity.')
 
+parser.add_argument('--arm_pull_speed',             type=float,         default = 10,
+                    help='Agent\'s maximum shoulder velocity.')
+
+parser.add_argument('--min_arm_pull_amount',             type=float,         default = -2,
+                    help='Agent\'s maximum shoulder velocity.')
+parser.add_argument('--max_arm_pull_amount',             type=float,         default = 0,
+                    help='Agent\'s maximum shoulder velocity.')
+
 
 
     # Processor details
@@ -485,7 +493,7 @@ parser.add_argument('--max_steps',                      type=int,           defa
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
                     help='Extrinsic punishment for taking max_steps steps.')
-parser.add_argument('--step_cost',                      type=float,         default = .975,
+parser.add_argument('--step_cost',                      type=float,         default = 1,
                     help='How much extrinsic rewards are reduced per step.')
 parser.add_argument('--max_voice_len',                  type=int,           default = 3,
                     help='Maximum length of voice.')
@@ -494,14 +502,14 @@ parser.add_argument('--watch_distance',                 type=float,         defa
 
 parser.add_argument('--watch_duration',                 type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--push_duration',                  type=int,           default = 3,
+parser.add_argument('--push_duration',                  type=int,           default = 1,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--pull_duration',                  type=int,           default = 3,
+parser.add_argument('--pull_duration',                  type=int,           default = 1,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--left_duration',                  type=int,           default = 3,   
+parser.add_argument('--left_duration',                  type=int,           default = 1,   
                     help='How long must the agent watch the object to achieve watching.')
 
-parser.add_argument('--push_amount',                    type=float,         default = .75,
+parser.add_argument('--push_amount',                    type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--pull_amount',                    type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
@@ -691,7 +699,7 @@ for arg_set in [default_args, args]:
     arg_set.sensors_shape = num_sensors
     arg_set.sensor_names = sensors
     arg_set.voice_shape = len(voice_map)
-    arg_set.wheels_shoulders_shape = 4 
+    arg_set.wheels_shoulders_shape = 3
     arg_set.obs_encode_size = arg_set.rgbd_encode_size + arg_set.sensors_encode_size + arg_set.voice_encode_size
     arg_set.h_w_wheels_shoulders_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_shoulders_encode_size
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_shoulders_encode_size + arg_set.voice_encode_size

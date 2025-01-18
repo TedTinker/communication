@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from PIL import Image
 from time import sleep
+from scipy.spatial.transform import Rotation as R
+
 
 
 class Part:
@@ -92,7 +94,7 @@ f"""\n\n
         
         self.sensor_positions.append(transformed_position)
         self.sensor_dimensions.append(size)
-        self.sensor_angles.append(" ")
+        self.sensor_angles.append(self.joint_rpy)
                 
         sensor = Part(
             name = f"{self.name}_sensor_{i}_{side}",
@@ -166,7 +168,7 @@ f"""\n\n
         <origin xyz="{self.joint_origin[0]} {self.joint_origin[1]} {self.joint_origin[2]}"
                 rpy="{self.joint_rpy[0]} {self.joint_rpy[1]} {self.joint_rpy[2]}"/>
         <axis xyz="{self.joint_axis[0]} {self.joint_axis[1]} {self.joint_axis[2]}"/>
-        {"" if self.joint_type != "revolute" else f'<limit lower="{self.joint_limits[0]}" upper="{self.joint_limits[1]}" effort="{self.joint_limits[2]}" velocity="{self.joint_limits[3]}"/>'}
+        {"" if self.joint_type == "fixed" else f'<limit lower="{self.joint_limits[0]}" upper="{self.joint_limits[1]}" effort="{self.joint_limits[2]}" velocity="{self.joint_limits[3]}"/>'}
     </joint>"""
 
 
@@ -204,47 +206,17 @@ parts = [
         joint_limits = [-1.5, 0, 100, 10]),
     
     Part(
-        name = "shoulder_roll",
-        mass = 10,
-        size = (.1, .1, .1),
-        joint_parent = "shoulder_pitch", 
-        joint_origin = (.15, 0, 0), 
-        joint_axis = (1, 0, 0),
-        joint_type = "revolute",
-        sensors = 0,
-        joint_limits = [0, 1.5, 100, 10]),
-    
-    Part(
         name = "arm_1",
         mass = 10,
-        size = (.1, .1, 1),
-        joint_parent = "shoulder_roll", 
-        joint_origin = (0, 0, .55), 
+        size = (.1, 1.5, .1),
+        joint_parent = "shoulder_pitch", 
+        joint_origin = (.15, 0, .7), 
         joint_axis = (0, -1, 0),
-        joint_type = "fixed",
-        sensors = 0),
-    
-    Part(
-        name = "elbow_pitch",
-        mass = 10,
-        size = (.1, .1, .1),
-        joint_parent = "arm_1", 
-        joint_origin = (0, 0, .55), 
-        joint_axis = (1, 0, 0),
-        joint_type = "revolute",
+        joint_type = "prismatic",
         sensors = 0,
-        joint_limits = [-1.5, 0, 100, 10]),
+        joint_rpy = (-1.5707, 0, 0),
+        joint_limits = [-1, 0, 100, 10]),
     
-    Part(
-        name = "arm_2",
-        mass = 10,
-        size = (.1, .1, .75),
-        joint_parent = "elbow_pitch", 
-        joint_origin = (0, .15, .35), 
-        joint_axis = (0, -1, 0),
-        joint_type = "fixed",
-        sensors = 0,
-        joint_rpy = (-.5, 0, 0)),
     ]
     
 
@@ -252,27 +224,36 @@ parts = [
 # Number of bars and radius of the circle
 num_bars = 12
 hand_radius = 0.8
+tilt_amount = .4
+phase = 0
 bar_len = 2 * hand_radius * math.sin(math.pi / num_bars) + .05
-horizontal_offset = hand_radius - 1
-verticle_offset = 1.2
+horizontal_offset = hand_radius - .2
+verticle_offset = -1.4
 
 for i in range(num_bars):
     angle = 2 * math.pi * i / num_bars 
     x = .2
     y = hand_radius * math.sin(angle)
     z = hand_radius * math.cos(angle)
+    
+    pitch = -math.cos(angle) * tilt_amount
+    yaw   = math.sin(angle) * tilt_amount
+
+    # The first component is still -angle (roll),
+    # so each bar orients radially around the circle.
+    joint_rpy = (-angle, pitch, yaw)
 
     parts.append(
         Part(
             name=f"hand_{i}",
             mass=1,
             size=(.5, bar_len, .1),
-            joint_parent="arm_2",
-            joint_origin=(x, y + horizontal_offset, z + verticle_offset),
+            joint_parent="arm_1",
+            joint_origin=(x, y + verticle_offset, z + horizontal_offset),
             joint_axis=(0, 0, 1),
             joint_type="fixed",
             sensors=1,
-            joint_rpy=(-angle, 0, 0),
+            joint_rpy=joint_rpy,
             sensor_sides = ["top", "bottom", "start", "stop"]
         )
     )
@@ -284,6 +265,7 @@ for part in parts:
 
 
 
+#add_this = "desktop/communication/communication/pybullet_data/" if(os.getcwd().split("/")[-1] != "pybullet_data") else ""
 add_this = "pybullet_data/" if(os.getcwd().split("/")[-1] != "pybullet_data") else ""
 
 squares_per_side = 9
@@ -357,7 +339,7 @@ if last_folder == "shapes":
     new_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
     os.chdir(new_dir)
 
-with open("new_robot.urdf", 'w') as file:
+with open(f"robot.urdf", 'w') as file:
     file.write(robot)
     
 
@@ -371,6 +353,13 @@ for part in parts:
     sensor_dimensions.extend(part.sensor_dimensions)
     sensor_angles.extend(part.sensor_angles)
 sensor_values = [0.1] * len(sensor_positions)  # Adjust values for testing
+
+
+
+def apply_rotation(vertices, position, angle):
+    rotation = R.from_euler('xyz', angle, degrees=False)  # Ensure radians are used
+    rotated_vertices = rotation.apply(vertices - position) + position
+    return rotated_vertices
 
 
 
@@ -394,6 +383,9 @@ def how_to_plot_sensors(sensor_values, sensor_positions = sensor_positions, sens
             [x + dx / 2, y + dy / 2, z + dz / 2],
             [x - dx / 2, y + dy / 2, z + dz / 2],
         ])
+        
+        angle = (angle[0], 0, 0)
+        vertices = apply_rotation(vertices, np.array(position), np.array(angle))
 
         faces = [
             [vertices[0], vertices[1], vertices[2], vertices[3]],
@@ -462,10 +454,11 @@ if(__name__ == "__main__"):
     how_to_plot_sensors(sensor_values, show = True)
         
     physicsClient = p.connect(p.GUI)
+    p.setGravity(0, 0, -10, physicsClientId = physicsClient)
     p.resetDebugVisualizerCamera(1,90,-89, 3, physicsClientId = physicsClient)
     p.setAdditionalSearchPath("pybullet_data")
 
-    robot_index = p.loadURDF("{}".format("new_robot.urdf"), (-1, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+    robot_index = p.loadURDF("{}".format("robot.urdf"), (-1, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                                 useFixedBase=True, globalScaling = 2, physicsClientId=physicsClient)
     p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
 

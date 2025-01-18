@@ -28,7 +28,7 @@
     <link name="body">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="10"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -51,7 +51,7 @@
         <origin xyz="0 0 1.05"
                 rpy="0 0 0"/>
         <axis xyz="0 0 1"/>
-        
+        <limit lower="0" upper="0" effort="0" velocity="0"/>
     </joint>
 
 
@@ -59,7 +59,7 @@
     <link name="shoulder_pitch">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="10"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -86,127 +86,34 @@
     </joint>
 
 
-    <!-- shoulder_roll -->
-    <link name="shoulder_roll">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
-            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.1 0.1 0.1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.1 0.1 0.1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: shoulder_pitch, shoulder_roll -->
-    <joint name="shoulder_pitch_shoulder_roll_joint" type="revolute">
-        <parent link="shoulder_pitch"/>
-        <child link="shoulder_roll"/>
-        <origin xyz="0.15 0 0"
-                rpy="0 0 0"/>
-        <axis xyz="1 0 0"/>
-        <limit lower="0" upper="1.5" effort="100" velocity="10"/>
-    </joint>
-
-
     <!-- arm_1 -->
     <link name="arm_1">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="10"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.1 0.1 1"/>
+                <box size="0.1 1.5 0.1"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.1 0.1 1"/>
+                <box size="0.1 1.5 0.1"/>
             </geometry>
         </collision>
     </link>
-    <!-- Joint: shoulder_roll, arm_1 -->
-    <joint name="shoulder_roll_arm_1_joint" type="fixed">
-        <parent link="shoulder_roll"/>
+    <!-- Joint: shoulder_pitch, arm_1 -->
+    <joint name="shoulder_pitch_arm_1_joint" type="prismatic">
+        <parent link="shoulder_pitch"/>
         <child link="arm_1"/>
-        <origin xyz="0 0 0.55"
-                rpy="0 0 0"/>
+        <origin xyz="0.15 0 0.7"
+                rpy="-1.5707 0 0"/>
         <axis xyz="0 -1 0"/>
-        
-    </joint>
-
-
-    <!-- elbow_pitch -->
-    <link name="elbow_pitch">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
-            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.1 0.1 0.1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.1 0.1 0.1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: arm_1, elbow_pitch -->
-    <joint name="arm_1_elbow_pitch_joint" type="revolute">
-        <parent link="arm_1"/>
-        <child link="elbow_pitch"/>
-        <origin xyz="0 0 0.55"
-                rpy="0 0 0"/>
-        <axis xyz="1 0 0"/>
-        <limit lower="-1.5" upper="0" effort="100" velocity="10"/>
-    </joint>
-
-
-    <!-- arm_2 -->
-    <link name="arm_2">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
-            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.1 0.1 0.75"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.1 0.1 0.75"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: elbow_pitch, arm_2 -->
-    <joint name="elbow_pitch_arm_2_joint" type="fixed">
-        <parent link="elbow_pitch"/>
-        <child link="arm_2"/>
-        <origin xyz="0 0.15 0.35"
-                rpy="-0.5 0 0"/>
-        <axis xyz="0 -1 0"/>
-        
+        <limit lower="-1" upper="0" effort="100" velocity="10"/>
     </joint>
 
 
@@ -214,7 +121,7 @@
     <link name="hand_0">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -354,12 +261,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_0 -->
-    <joint name="arm_2_hand_0_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_0 -->
+    <joint name="arm_1_hand_0_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_0"/>
-        <origin xyz="0.2 -0.19999999999999996 2.0"
-                rpy="-0.0 0 0"/>
+        <origin xyz="0.2 -1.4 1.4000000000000001"
+                rpy="-0.0 -0.4 0.0"/>
         <axis xyz="0 0 1"/>
         
     </joint>
@@ -369,7 +276,7 @@
     <link name="hand_1">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -509,12 +416,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_1 -->
-    <joint name="arm_2_hand_1_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_1 -->
+    <joint name="arm_1_hand_1_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_1"/>
-        <origin xyz="0.2 0.2 1.8928203230275509"
-                rpy="-0.5235987755982988 0 0"/>
+        <origin xyz="0.2 -1.0 1.2928203230275512"
+                rpy="-0.5235987755982988 -0.3464101615137755 0.19999999999999998"/>
         <axis xyz="0 0 1"/>
         
     </joint>
@@ -524,7 +431,7 @@
     <link name="hand_2">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -664,12 +571,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_2 -->
-    <joint name="arm_2_hand_2_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_2 -->
+    <joint name="arm_1_hand_2_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_2"/>
-        <origin xyz="0.2 0.49282032302755097 1.6"
-                rpy="-1.0471975511965976 0 0"/>
+        <origin xyz="0.2 -0.707179676972449 1.0000000000000002"
+                rpy="-1.0471975511965976 -0.20000000000000007 0.34641016151377546"/>
         <axis xyz="0 0 1"/>
         
     </joint>
@@ -679,7 +586,7 @@
     <link name="hand_3">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -819,12 +726,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_3 -->
-    <joint name="arm_2_hand_3_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_3 -->
+    <joint name="arm_1_hand_3_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_3"/>
-        <origin xyz="0.2 0.6000000000000001 1.2"
-                rpy="-1.5707963267948966 0 0"/>
+        <origin xyz="0.2 -0.5999999999999999 0.6000000000000001"
+                rpy="-1.5707963267948966 -2.4492935982947065e-17 0.4"/>
         <axis xyz="0 0 1"/>
         
     </joint>
@@ -834,7 +741,7 @@
     <link name="hand_4">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -974,12 +881,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_4 -->
-    <joint name="arm_2_hand_4_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_4 -->
+    <joint name="arm_1_hand_4_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_4"/>
-        <origin xyz="0.2 0.4928203230275511 0.8"
-                rpy="-2.0943951023931953 0 0"/>
+        <origin xyz="0.2 -0.7071796769724489 0.20000000000000023"
+                rpy="-2.0943951023931953 0.19999999999999993 0.3464101615137755"/>
         <axis xyz="0 0 1"/>
         
     </joint>
@@ -989,7 +896,7 @@
     <link name="hand_5">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -1129,12 +1036,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_5 -->
-    <joint name="arm_2_hand_5_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_5 -->
+    <joint name="arm_1_hand_5_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_5"/>
-        <origin xyz="0.2 0.2 0.5071796769724489"
-                rpy="-2.6179938779914944 0 0"/>
+        <origin xyz="0.2 -1.0 -0.09282032302755094"
+                rpy="-2.6179938779914944 0.3464101615137755 0.19999999999999998"/>
         <axis xyz="0 0 1"/>
         
     </joint>
@@ -1144,7 +1051,7 @@
     <link name="hand_6">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -1284,12 +1191,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_6 -->
-    <joint name="arm_2_hand_6_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_6 -->
+    <joint name="arm_1_hand_6_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_6"/>
-        <origin xyz="0.2 -0.19999999999999984 0.3999999999999999"
-                rpy="-3.141592653589793 0 0"/>
+        <origin xyz="0.2 -1.4 -0.19999999999999996"
+                rpy="-3.141592653589793 0.4 4.898587196589413e-17"/>
         <axis xyz="0 0 1"/>
         
     </joint>
@@ -1299,7 +1206,7 @@
     <link name="hand_7">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -1439,12 +1346,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_7 -->
-    <joint name="arm_2_hand_7_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_7 -->
+    <joint name="arm_1_hand_7_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_7"/>
-        <origin xyz="0.2 -0.5999999999999998 0.5071796769724488"
-                rpy="-3.665191429188092 0 0"/>
+        <origin xyz="0.2 -1.7999999999999998 -0.09282032302755105"
+                rpy="-3.665191429188092 0.34641016151377557 -0.1999999999999999"/>
         <axis xyz="0 0 1"/>
         
     </joint>
@@ -1454,7 +1361,7 @@
     <link name="hand_8">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -1594,12 +1501,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_8 -->
-    <joint name="arm_2_hand_8_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_8 -->
+    <joint name="arm_1_hand_8_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_8"/>
-        <origin xyz="0.2 -0.8928203230275508 0.7999999999999996"
-                rpy="-4.1887902047863905 0 0"/>
+        <origin xyz="0.2 -2.0928203230275506 0.19999999999999973"
+                rpy="-4.1887902047863905 0.20000000000000018 -0.34641016151377535"/>
         <axis xyz="0 0 1"/>
         
     </joint>
@@ -1609,7 +1516,7 @@
     <link name="hand_9">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -1749,12 +1656,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_9 -->
-    <joint name="arm_2_hand_9_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_9 -->
+    <joint name="arm_1_hand_9_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_9"/>
-        <origin xyz="0.2 -1.0 1.1999999999999997"
-                rpy="-4.71238898038469 0 0"/>
+        <origin xyz="0.2 -2.2 0.6"
+                rpy="-4.71238898038469 7.347880794884119e-17 -0.4"/>
         <axis xyz="0 0 1"/>
         
     </joint>
@@ -1764,7 +1671,7 @@
     <link name="hand_10">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -1904,12 +1811,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_10 -->
-    <joint name="arm_2_hand_10_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_10 -->
+    <joint name="arm_1_hand_10_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_10"/>
-        <origin xyz="0.2 -0.8928203230275509 1.6"
-                rpy="-5.235987755982989 0 0"/>
+        <origin xyz="0.2 -2.092820323027551 1.0000000000000002"
+                rpy="-5.235987755982989 -0.20000000000000007 -0.34641016151377546"/>
         <axis xyz="0 0 1"/>
         
     </joint>
@@ -1919,7 +1826,7 @@
     <link name="hand_11">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0.1"/>
+            <mass value="1"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
         <visual>
@@ -2059,12 +1966,12 @@
         <axis xyz="0 0 1"/>
         
     </joint>
-    <!-- Joint: arm_2, hand_11 -->
-    <joint name="arm_2_hand_11_joint" type="fixed">
-        <parent link="arm_2"/>
+    <!-- Joint: arm_1, hand_11 -->
+    <joint name="arm_1_hand_11_joint" type="fixed">
+        <parent link="arm_1"/>
         <child link="hand_11"/>
-        <origin xyz="0.2 -0.6000000000000003 1.8928203230275507"
-                rpy="-5.759586531581287 0 0"/>
+        <origin xyz="0.2 -1.8000000000000003 1.2928203230275508"
+                rpy="-5.759586531581287 -0.34641016151377535 -0.20000000000000018"/>
         <axis xyz="0 0 1"/>
         
     </joint>

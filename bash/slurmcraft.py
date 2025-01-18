@@ -84,31 +84,24 @@ add_this("watch_and_this", {
         "\"[(70000, 'w')]\"",
         "\"[(70000, 'wp')]\"",
         "\"[(70000, 'wu')]\"",
-        "\"[(70000, 'wl')]\""]})
+        "\"[(70000, 'wl')]\"",
+        "\"[(70000, 'wpulr')]\""]})
 
  
 
 
-"""
-parser.add_argument('--push_amount',                    type=float,         default = .75,
-                    help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--pull_amount',                    type=float,         default = .25,
-                    help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--left_right_amount',              type=float,         default = .25,
-                    help='Needed distance of an object for push/pull/left/right.')
-                    """
-"""def add_steps(x):
-    add_this(str(x),   {                                           # Five times stuff!
+
+def add_steps(x):
+    add_this(f"{x}_steps",   {                                           # Five times stuff!
         "max_steps" : int(10 * x),
         "time_step" : .2 / x,
         "steps_per_step" : int(20 / x),
-        "push_amount" : .75 / x,
+        "push_amount" : .25 / x,
         "pull_amount" : .25 / x,
         "left_right_amount" : .25 / x
         })
     
-add_steps(2)
-add_steps(4)"""
+add_steps(4)
 
 
 

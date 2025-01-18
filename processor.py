@@ -85,15 +85,15 @@ class Processor:
         if(arena == None):
             return(None, None)
         
-        left_wheel, right_wheel, left_shoulder, right_shoulder = \
-            wheels_shoulders[0].item(), wheels_shoulders[1].item(), wheels_shoulders[2].item(), wheels_shoulders[3].item()
+        left_wheel, right_wheel, left_shoulder = \
+            wheels_shoulders[0].item(), wheels_shoulders[1].item(), wheels_shoulders[2].item()
                   
         if(verbose): 
             print("\n\nStep {}:".format(self.steps))
             print("Wheels: {}, {}. Shoulders: {}, {}.".format(
-            round(left_wheel, 2), round(right_wheel, 2), round(left_shoulder, 2), round(right_shoulder, 2)))
+            round(left_wheel, 2), round(right_wheel, 2), round(left_shoulder, 2)))
             
-        arena.step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = verbose, sleep_time = sleep_time)
+        arena.step(left_wheel, right_wheel, left_shoulder, verbose = verbose, sleep_time = sleep_time)
         reward, win, mother_voice = arena.rewards()
         if(agent_1): 
             self.mother_voice_1 = mother_voice

@@ -1,9 +1,0 @@
-#!/bin/bash -l
-#SBATCH --partition=compute
-#SBATCH --nodes=1
-#SBATCH --cpus-per-task=1
-#SBATCH --time 72:00:00
-#SBATCH --mem=50G
-#SBATCH --ntasks=30
-module load singularity
-singularity exec maze.sif python communication/main.py --comp deigo --arg_name e4 --alpha None --normal_alpha 0.1 --max_steps 40 --time_step 0.05 --steps_per_step 5 --push_amount 0.1875 --pull_amount 0.0625 --left_right_amount 0.0625  --agents $agents_per_job --previous_agents $previous_agents
