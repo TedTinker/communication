@@ -8,6 +8,7 @@ import math
 from math import pi, sin, cos, tan, radians, degrees, sqrt, isnan
 from time import sleep
 from skimage.transform import resize
+import tkinter as tk
 
 from utils import args, default_args, shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, make_objects_and_task, duration#, print
 
@@ -40,19 +41,48 @@ def find_key_by_value(my_dict, target_value):
             return key
     return None  # If the value is not found
 
+def wait_for_button_press(button_label="Continue"):
+    """
+    Displays a tkinter button and waits for the user to click it.
+
+    Parameters:
+    button_label (str): The label for the button.
+
+    Returns:
+    None
+    """
+    def on_button_click():
+        nonlocal continue_simulation
+        continue_simulation = True
+        root.destroy()
+
+    # Create the tkinter window
+    root = tk.Tk()
+    root.title("Wait for Input")
+    root.geometry("200x100")
+
+    # Add the button
+    button = tk.Button(root, text=button_label, command=on_button_click)
+    button.pack(expand=True)
+
+    continue_simulation = False
+
+    # Run the tkinter main loop
+    root.mainloop()
+
 # FOV of agent vision.
 fov_x_deg = 90
 fov_y_deg = 90
 fov_x_rad = radians(fov_x_deg)
 fov_y_rad = radians(fov_y_deg)
-near = .91
+near = .9
 far = 9
 right = near * tan(fov_x_rad / 2)
 left = -right
 top = near * tan(fov_y_rad / 2)
 bottom = -top
 
-agent_upper_starting_pos = 2.02
+agent_upper_starting_pos = 3.52
 object_upper_starting_pos = 1.12
 object_lower_starting_pos = -8.85
 
@@ -196,7 +226,7 @@ class Arena():
             right_shoulder = 1
 
         if(verbose): 
-            WAITING = input("WAITING")
+            WAITING = wait_for_button_press()
         for step in range(self.args.steps_per_step):
             self.set_shoulder_speed(left_shoulder, right_shoulder) 
             self.set_wheel_speeds(left_wheel, right_wheel)
@@ -404,7 +434,16 @@ class Arena():
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             lefting = movement_left >= self.args.left_right_amount and touching
             righting = movement_left <= -self.args.left_right_amount and touching
-                
+            
+            if(verbose):
+                print(f"\n\nWatching ({watching})")
+                print(f"Pushing ({pushing}): \n\t{movement_forward} out of {self.args.push_amount}, Touching: {touching}")
+                print(f"Pulling ({pulling}): \n\t{movement_forward} out of {-self.args.pull_amount}, Touching: {touching}")
+                print(f"Lefting ({lefting}): \n\t{movement_left} out of {self.args.left_right_amount}, Touching: {touching}")
+                print(f"Righting ({righting}): \n\t{movement_left} out of {-self.args.left_right_amount}, Touching: {touching}\n\n")
+
+    
+
             def update_duration(action_name, action_now, object_index, duration_threshold):
                 if action_now:
                     self.durations[action_name][object_index] += 1
@@ -486,8 +525,8 @@ class Arena():
         pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
         x, y = cos(yaw), sin(yaw)
         view_matrix = p.computeViewMatrix(
-            cameraEyePosition = [pos[0] + x*.1, pos[1] + y*.1, 2], 
-            cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    
+            cameraEyePosition = [pos[0] + x*3, pos[1] + y*3, 6], 
+            cameraTargetPosition = [pos[0] + x*5, pos[1] + y*5, 2],    
             cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
         proj_matrix = proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far)
         _, _, rgba, depth, _ = p.getCameraImage(
@@ -509,13 +548,14 @@ if __name__ == "__main__":
     args = default_args
     
     # THIS SHOWS THE ADD_STEPS HYPERPARAMS AREN'T RIGHT!
-    x = 4
+    x = 1
+    """
     args.max_steps = int(10 * x)
     args.time_step = .2 / x
     args.steps_per_step = int(20 / x)
     args.push_amount = .75 / x
     args.pull_amount = .25 / x
-    args.left_right_amount = .25 / x
+    args.left_right_amount = .25 / x"""
     
     print(f"\n\n{args.time_step, args.steps_per_step}\n\n")
     
@@ -532,33 +572,6 @@ if __name__ == "__main__":
         plt.imshow(agent_rgbd[:,:,:-1])
         plt.show()
         plt.close()
-        
-        
-        
-    task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
-        num_objects = 3,
-        allowed_tasks_and_weights = [(0, 1)],
-        allowed_colors = [0, 1, 2, 3, 4, 5],
-        allowed_shapes = [0, 1, 2, 3, 4])
-        
-        
-    """
-    print("\nFREE PLAY")
-    goal = [-1, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False)
-    steps = 0
-    while(True):
-        steps += 1
-        p.stepSimulation(physicsClientId = arena.physicsClient)
-        if(steps % 50 == 0): 
-            print("\n\n")
-            arena.rewards(verbose = True)
-            
-        sleep(.05)
-    arena.end()
-    """
-    
-    
     
     task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
         num_objects = 1,
@@ -567,196 +580,121 @@ if __name__ == "__main__":
         allowed_shapes = [0],
         test = None)
     
+    do_these = [
+        #"show_movements",
+        "watch",
+        "push",
+        "pull",
+        "left",
+        "right"
+        ]
+    
+    verbose = True
     
     
-    print("\nSHOW MOVEMENT")
-    goal = Goal(task_map[2], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(10,0)])
-    show_them()
-    arena.rewards(verbose = True)
-    for i in range(4):
-        for lw, rw, ls, rs in [[1, -1, -1, 1]] * x + [[-1, 1, 1, -1]] * x:
-            arena.step(lw, rw, ls, rs, verbose = True, sleep_time = sleep_time)
+    
+    if("show_movements" in do_these):
+        print("\nSHOW MOVEMENT")
+        goal = Goal(task_map[2], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
+        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(10,0)])
+        show_them()
+        arena.rewards(verbose = True)
+        for i in range(4):
+            for lw, rw, ls, rs in [[1, -1, -1, 1]] * x + [[-1, 1, 1, -1]] * x:
+                arena.step(lw, rw, ls, rs, verbose = True, sleep_time = sleep_time)
+                show_them()
+                reward, win, mother_voice = arena.rewards(verbose = True)
+                if(win):
+                    break
+        arena.end()
+    
+
+    
+    if("watch" in do_these):
+        print("\nWATCH")
+        goal = Goal(task_map[1], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
+        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(6,0)])
+        show_them()
+        reward, win, mother_voice = arena.rewards(verbose = True)
+        while(True):
+            arena.step(0, 0, 0, 0, verbose = True, sleep_time = .1)
             show_them()
             reward, win, mother_voice = arena.rewards(verbose = True)
             if(win):
                 break
-    arena.end()
+        arena.end()
     
-    
-    
-    """    
-    print("\nHIT")
-    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(4.5,0)])
-    show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    for j in range(3):
-        arena.step(0, 0, -1, verbose = True, sleep_time = sleep_time)
+    if("push" in do_these):
+        print("\nPUSH")
+        goal = Goal(task_map[2], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
+        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(5,0)])
         show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-    arena.end()
-    """
+        arena.rewards(verbose = True)
+        while(True):
+            arena.step(1, 1, 1, 1, verbose = True, sleep_time = sleep_time)
+            show_them()
+            reward, win, mother_voice = arena.rewards(verbose = True)
+            if(win):
+                break
+        arena.end()
+    
+    if("pull" in do_these):
+        print("\nPULL") 
+        goal = Goal(task_map[3], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
+        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
+        show_them()
+        arena.rewards(verbose = True)
+        arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
+        show_them()
+        arena.rewards(verbose = True)
+        while(True):
+            arena.step(-1, -1, -1, -1, verbose = True, sleep_time = sleep_time)
+            show_them()
+            reward, win, mother_voice = arena.rewards(verbose = True)
+            if(win):
+                break
+        arena.end()
+    
+
+    if("left" in do_these):
+        print("\nLEFT")
+        goal = Goal(task_map[4], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
+        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
+        show_them()
+        arena.rewards(verbose = True)
+        arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
+        show_them()
+        arena.rewards(verbose = True)
+        while(True):
+            arena.step(-.25, .25, -1, -1, verbose = True, sleep_time = sleep_time)
+            show_them()
+            reward, win, mother_voice = arena.rewards(verbose = True)
+            if(win):
+                break
+        arena.end()
+
+    
+    if("right" in do_these):
+        print("\nRIGHT")
+        goal = Goal(task_map[5], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
+        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
+        show_them()
+        arena.rewards(verbose = True)
+        arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
+        show_them()
+        arena.rewards(verbose = True)
+        while(True):
+            arena.step(.25, -.25, -1, -1, verbose = True, sleep_time = sleep_time)
+            show_them()
+            reward, win, mother_voice = arena.rewards(verbose = True)
+            if(win):
+                break
+        arena.end()
         
-        
-        
-    """    
-    print("\nAPPROACH")
-    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(15,0)])
-    show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    for j in range(15):
-        arena.step(1, 1, 1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-    arena.end()
-    """
-    
-    """
-    print("\nAIM")
-    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(8,0)])
-    show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    for j in range(15):
-        arena.step(-.1, .1, 1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-    arena.end()
-    """
-    
-    """
-    print("\nNO GOAL")
-    goal = [0, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(8,0)])
-    show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    i = 1
-    show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    for j in range(5):
-        i *= -1
-        arena.step(1, -1, i, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-    arena.end()
-    """
-    
-    """
-    print("\nWATCH")
-    goal = Goal(task_map[1], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(6,0)])
-    show_them()
-    reward, win, mother_voice = arena.rewards(verbose = True)
-    while(True):
-        arena.step(0, 0, 0, 0, verbose = True, sleep_time = .1)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-        if(win):
-            break
-    arena.end()
-    """
-    
-    #"""
-    print("\nPUSH")
-    goal = Goal(task_map[2], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(5,0)])
-    show_them()
-    arena.rewards(verbose = True)
-    while(True):
-        arena.step(1, 1, 1, 1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-        if(win):
-            break
-    arena.end()
-    #"""
-    
-    #"""
-    print("\nPULL") 
-    goal = Goal(task_map[3], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
+    goal = Goal(task_map[0], task_map[0],task_map[0], parenting = True)
     arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
-    show_them()
-    arena.rewards(verbose = True)
-    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
-    show_them()
-    arena.rewards(verbose = True)
     while(True):
-        arena.step(-1, -1, -1, -1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-        if(win):
-            break
-    arena.end()
-    #"""
-    
-    """
-    print("\nPULL BACKWARD")
-    goal = [2, colors_shapes_1[0][0], colors_shapes_1[0][1]]
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(-3,0)])
-    show_them()
-    arena.rewards(verbose = True)
-    for i in range(4):
-        arena.step(-1, -1, -1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-        if(win):
-            break
-    #arena.end()
-    """
-    
-    #"""   
-    print("\nLEFT")
-    goal = Goal(task_map[4], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
-    show_them()
-    arena.rewards(verbose = True)
-    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
-    show_them()
-    arena.rewards(verbose = True)
-    while(True):
-        arena.step(-1, 1, -1, -1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-        if(win):
-            break
-    arena.end()
-    #"""
-    
-    #"""   
-    print("\nLEFT AGAIN")
-    goal = Goal(task_map[4], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(2,3.5)])
-    show_them()
-    arena.rewards(verbose = True)
-    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
-    show_them()
-    arena.rewards(verbose = True)
-    while(True):
-        arena.step(-1, 1, -1, -1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-        if(win):
-            break
-    arena.end()
-    #"""
-    
-    #"""
-    print("\nRIGHT")
-    goal = Goal(task_map[5], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-    arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(3,0)])
-    show_them()
-    arena.rewards(verbose = True)
-    arena.step(0, 0, -1, -1, verbose = True, sleep_time = sleep_time)
-    show_them()
-    arena.rewards(verbose = True)
-    while(True):
-        arena.step(1, -1, -1, -1, verbose = True, sleep_time = sleep_time)
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
-        if(win):
-            break
-    arena.end()
-    #"""
+        p.stepSimulation(physicsClientId = arena.physicsClient)
+        sleep(.0001)
+
 # %%

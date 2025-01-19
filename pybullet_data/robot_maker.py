@@ -7,6 +7,7 @@ from math import pi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from PIL import Image
+from time import sleep
 
 
 class Part:
@@ -167,7 +168,7 @@ parts = [
     Part(
         name = "body", 
         mass = 100, 
-        shape = (1, 1, 1),
+        shape = (1, 1, 2.5),
         sensors = 1,
         sensor_sides = ["start", "stop", "top", "left", "right"]),
     
@@ -176,7 +177,7 @@ parts = [
         mass = .1, 
         shape = (.4, .3, arm_thickness), 
         joint_parent = "body", 
-        joint_origin = (0, .65, 0), 
+        joint_origin = (0, .65, -.75), 
         joint_axis = (0, -1, 0),
         joint_type = "continuous"),
     
@@ -210,7 +211,7 @@ parts = [
         mass = .1,
         shape = (.4, .3, arm_thickness),
         joint_parent = "body", 
-        joint_origin = (0, -.65, 0), 
+        joint_origin = (0, -.65, -.75), 
         joint_axis = (0, -1, 0),
         joint_type = "continuous"),
     
@@ -323,31 +324,6 @@ with open("robot.urdf", 'w') as file:
     
     
     
-    
-    
-if(__name__ == "__main__"):
-    print("\n\n")
-    print(robot)
-    print("\n\n")
-        
-
-    physicsClient = p.connect(p.GUI)
-    p.setAdditionalSearchPath("pybullet_data")
-
-    robot_index = p.loadURDF("{}".format("robot.urdf"), (-5, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
-                                                useFixedBase=False, globalScaling = 2, physicsClientId=physicsClient)
-    p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
-
-    for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
-        joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
-        link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
-        p.changeDynamics(robot_index, link_index, maxJointVelocity = 10000)
-        
-        if("sensor" in link_name):
-            p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, .15), physicsClientId = physicsClient)
-        else:
-            p.changeVisualShape(robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = physicsClient)
-
 
 
 
@@ -444,6 +420,43 @@ def how_to_plot_sensors(sensor_values, sensor_positions = sensor_positions, sens
         image_array = np.array(image)
         os.remove('temp_plot.png')  # Delete the temporary image file
         return(image_array)
+    
+    
 
 if(__name__ == "__main__"):
+    
+    print("\n\n")
+    print(robot)
+    print("\n\n")
+    
     how_to_plot_sensors(sensor_values, show = True)
+        
+    physicsClient = p.connect(p.GUI)
+    p.setGravity(0, 0, -10, physicsClientId = physicsClient)
+    p.resetDebugVisualizerCamera(1,90,-89, 3, physicsClientId = physicsClient)
+    p.setAdditionalSearchPath("pybullet_data")
+
+    robot_index = p.loadURDF("{}".format("robot.urdf"), (-1, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+                                                useFixedBase=True, globalScaling = 2, physicsClientId=physicsClient)
+    p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
+
+    for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
+        joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
+        link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
+        p.changeDynamics(robot_index, link_index, maxJointVelocity = 10000)
+        
+        if("sensor" in link_name):
+            p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, .15), physicsClientId = physicsClient)
+        elif("face" in link_name):
+            p.changeVisualShape(robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = physicsClient)
+        else:
+            p.changeVisualShape(robot_index, link_index, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
+            
+    initial_position = (-5, 0, 0)  # Replace with the actual starting position
+    initial_orientation = p.getQuaternionFromEuler([0, 0, pi/2])  # Replace with the actual starting orientation
+        
+    # Simulation loop
+    while True:
+        sleep(0.05)
+        p.stepSimulation(physicsClientId=physicsClient)
+    

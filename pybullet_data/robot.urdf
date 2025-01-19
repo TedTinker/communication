@@ -12,13 +12,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1 1 1"/>
+                <box size="1 1 2.5"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1 1 1"/>
+                <box size="1 1 2.5"/>
             </geometry>
         </collision>
     </link>
@@ -34,13 +34,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.02 1 1"/>
+                <box size="0.02 1 2.5"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.02 1 1"/>
+                <box size="0.02 1 2.5"/>
             </geometry>
         </collision>
     </link>
@@ -65,13 +65,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.02 1 1"/>
+                <box size="0.02 1 2.5"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.02 1 1"/>
+                <box size="0.02 1 2.5"/>
             </geometry>
         </collision>
     </link>
@@ -112,7 +112,7 @@
     <joint name="body_body_sensor_0_top_joint" type="fixed"> 
         <parent link="body"/> 
         <child link="body_sensor_0_top"/> 
-        <origin xyz="0 0 0.5" rpy="0 0 0"/> 
+        <origin xyz="0 0 1.25" rpy="0 0 0"/> 
         <axis xyz="1 0 0"/> 
     </joint>
 
@@ -127,13 +127,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1.0 0.02 1"/>
+                <box size="1.0 0.02 2.5"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1.0 0.02 1"/>
+                <box size="1.0 0.02 2.5"/>
             </geometry>
         </collision>
     </link>
@@ -158,13 +158,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1.0 0.02 1"/>
+                <box size="1.0 0.02 2.5"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="1.0 0.02 1"/>
+                <box size="1.0 0.02 2.5"/>
             </geometry>
         </collision>
     </link>
@@ -205,7 +205,7 @@
     <joint name="body_left_shoulder_joint" type="continuous"> 
         <parent link="body"/> 
         <child link="left_shoulder"/> 
-        <origin xyz="0 0.65 0" rpy="0 0 0"/> 
+        <origin xyz="0 0.65 -0.75" rpy="0 0 0"/> 
         <axis xyz="0 -1 0"/> 
     </joint>
 
@@ -887,7 +887,7 @@
     <joint name="body_right_shoulder_joint" type="continuous"> 
         <parent link="body"/> 
         <child link="right_shoulder"/> 
-        <origin xyz="0 -0.65 0" rpy="0 0 0"/> 
+        <origin xyz="0 -0.65 -0.75" rpy="0 0 0"/> 
         <axis xyz="0 -1 0"/> 
     </joint>
 
