@@ -112,6 +112,21 @@ class Arena():
             plane_id = p.loadURDF("plane.urdf", position + [-10], globalScaling=2, useFixedBase=True, physicsClientId=self.physicsClient)
             plane_ids.append(plane_id)
             
+        # Place some black pillars to establish 3d environment.
+        for pos in [[8, 0], [0, 8], [-8, 0], [0, -8]]:
+            object_index = p.loadURDF("plane.urdf", pos + [1], globalScaling=.025, useFixedBase=True, physicsClientId=self.physicsClient)
+            p.changeDynamics(object_index, -1, contactStiffness=0, contactDamping=0, lateralFriction=0, restitution=0)
+            p.setCollisionFilterGroupMask(object_index, -1, 0, 0)
+            p.changeVisualShape(object_index, -1, rgbaColor=(0, 0, 0, 1), physicsClientId=self.physicsClient)
+            
+        for pos in [[5.66, 5.66], [-5.66, 5.66], [5.66, -5.66], [-5.66, -5.66]]:
+            object_index = p.loadURDF("plane.urdf", pos + [1], p.getQuaternionFromEuler([0, 0, math.radians(45)]), globalScaling=.025, useFixedBase=True, physicsClientId=self.physicsClient)
+            p.changeDynamics(object_index, -1, contactStiffness=0, contactDamping=0, lateralFriction=0, restitution=0)
+            p.setCollisionFilterGroupMask(object_index, -1, 0, 0)
+            p.changeVisualShape(object_index, -1, rgbaColor=(0, 0, 0, 1), physicsClientId=self.physicsClient)
+            
+
+            
         # Place robot. 
         self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = self.physicsClient)
         self.robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
@@ -168,7 +183,7 @@ class Arena():
         self.durations = {"watch" : {}, "push" : {}, "pull" : {}, "left" : {}, "right" : {}}
         already_in_play = {key : 0 for key in shape_map.keys()}
         if(set_positions == None):
-            set_positions = self.generate_positions(len(objects))
+            set_positions = self.generate_positions(len(objects), self.args.max_object_distance)
         for i, (color, shape) in enumerate(objects):
             color_index = find_key_by_value(color_map, color)
             shape_index = find_key_by_value(shape_map, shape)
@@ -696,5 +711,3 @@ if __name__ == "__main__":
     while(True):
         p.stepSimulation(physicsClientId = arena.physicsClient)
         sleep(.0001)
-
-# %%

@@ -430,7 +430,7 @@ parser.add_argument('--epochs_per_processor',           type=literal,       defa
     # Simulation details
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
                     help='How far objects must start from each other.')
-parser.add_argument('--max_object_distance',            type=float,         default = 6,
+parser.add_argument('--max_object_distance',            type=float,         default = 4,
                     help='How far objects can start from the agent.')
 parser.add_argument('--object_size',                    type=float,         default = 2,
                     help='How large is the agent\'s body?')    
