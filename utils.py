@@ -1,6 +1,8 @@
 #%% 
 
 # To do:
+#   Add punishment for different actions.
+#   Give the robot a clear 'helmet'
 #   Make sure multi-step-predictions are done right. Should they get the real observations or day-dream?
 #   Make it so future predictions can skip steps (ie, see 1, 3, and 5 steps ahead, but now 2 or 4)
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
@@ -24,6 +26,7 @@ import torch
 import psutil
 from itertools import product
 
+#os.chdir("C:/Users/Ted/Desktop/communication")
 if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
 print(os.getcwd())
 
@@ -72,23 +75,6 @@ def cpu_memory_usage():
     mem_usage_gb = mem_usage_bytes / (1024 ** 3)  # Convert bytes to gigabytes
     print('memory use:', mem_usage_gb, "gigabytes")
     
-# Checking robot parts.
-physicsClient = p.connect(p.DIRECT)
-default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
-robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
-sensors = []
-for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
-    joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
-    link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
-    if("sensor" in link_name):
-        sensors.append(link_name)
-p.disconnect(physicsClientId = physicsClient)
-num_sensors = len(sensors)
-
-if(__name__ == "__main__"):
-    print("Sensors:", num_sensors)
-
-
 
 #%%
 
@@ -392,6 +378,20 @@ parser = argparse.ArgumentParser()
     # Stuff I'm testing right now   
 parser.add_argument('--steps_ahead',                    type=int,           default = 1,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
+parser.add_argument('--robot_num',                      type=int,           default = 1,
+                    help='Which robot?') 
+parser.add_argument('--max_speed',                      type=float,         default = 10,
+                    help='Max wheel speed.')
+parser.add_argument('--angular_scaler',                 type=float,         default = .4,
+                    help='How to scale angular velocity vs linear velocity.')
+parser.add_argument('--max_shoulder_speed',             type=float,         default = 10,
+                    help='Max shoulder speed.')
+
+    # Continuousness 
+parser.add_argument('--wheel_punishment',                type=float,         default = 1,
+                    help='How much the agent is punished for unsmooth in wheel-speed actions.')
+parser.add_argument('--joint_punishment',                type=float,         default = 1,
+                    help='How much the agent is punished for unsmooth in joint-speed actions.')
 
     
 
@@ -430,7 +430,7 @@ parser.add_argument('--epochs_per_processor',           type=literal,       defa
     # Simulation details
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
                     help='How far objects must start from each other.')
-parser.add_argument('--max_object_distance',            type=float,         default = 4,
+parser.add_argument('--max_object_distance',            type=float,         default = 6,
                     help='How far objects can start from the agent.')
 parser.add_argument('--object_size',                    type=float,         default = 2,
                     help='How large is the agent\'s body?')    
@@ -438,7 +438,7 @@ parser.add_argument('--body_size',                      type=float,         defa
                     help='How large is the agent\'s body?')        
 parser.add_argument('--time_step',                      type=float,         default = .2,
                     help='numSubSteps in pybullet environment.')
-parser.add_argument('--steps_per_step',                 type=int,           default = 20,
+parser.add_argument('--steps_per_step',                 type=int,           default = 50,
                     help='numSubSteps in pybullet environment.')
 
 
@@ -446,31 +446,10 @@ parser.add_argument('--steps_per_step',                 type=int,           defa
     # Agent details
 parser.add_argument('--image_size',                     type=int,           default = 16, #20,
                     help='Dimensions of the images observed.')
-parser.add_argument('--max_speed',                      type=float,         default = 10,
-                    help='Max wheel speed.')
-parser.add_argument('--angular_scaler',                 type=float,         default = .4,
-                    help='How to scale angular velocity vs linear velocity.')
-parser.add_argument('--min_shoulder_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum shoulder velocity.')
+parser.add_argument('--min_shoulder_angle',             type=float,         default = -pi/2,
+                    help='Agent\'s maximum shoulder angle.')
 parser.add_argument('--max_shoulder_angle',             type=float,         default = pi/2,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_shoulder_speed',             type=float,         default = 8,
-                    help='Max shoulder speed.')
-
-"""parser.add_argument('--min_shoulder_angle',             type=float,         default = -pi/2,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_shoulder_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum shoulder velocity.')"""
-
-parser.add_argument('--min_elbow_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_elbow_angle',             type=float,         default = pi/2,
-                    help='Agent\'s maximum shoulder velocity.')
-
-parser.add_argument('--min_wrist_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_wrist_angle',             type=float,         default = pi/2,
-                    help='Agent\'s maximum shoulder velocity.')
+                    help='Agent\'s minimum shoulder angle.')
 
 
 
@@ -479,19 +458,20 @@ parser.add_argument('--reward',                         type=float,         defa
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
                     help='How should reward increase?')   
-parser.add_argument('--max_steps',                      type=int,           default = 10,
+parser.add_argument('--max_steps',                      type=int,           default = 20,
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
                     help='Extrinsic punishment for taking max_steps steps.')
-parser.add_argument('--step_cost',                      type=float,         default = .975,
+parser.add_argument('--step_cost',                      type=float,         default = 1,
                     help='How much extrinsic rewards are reduced per step.')
 parser.add_argument('--max_voice_len',                  type=int,           default = 3,
                     help='Maximum length of voice.')
-parser.add_argument('--watch_distance',                 type=float,         default = 8,
-                    help='How close must the agent watch the object to achieve watching.')
 
+parser.add_argument('--watch_distance',                 type=float,         default = 12,
+                    help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--watch_duration',                 type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
+
 parser.add_argument('--push_duration',                  type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--pull_duration',                  type=int,           default = 3,
@@ -508,6 +488,10 @@ parser.add_argument('--left_right_amount',              type=float,         defa
 
 
 
+
+
+
+
     # Module  
 parser.add_argument('--hidden_size',                    type=int,           default = 64,
                     help='Parameters in hidden layers.')   
@@ -515,17 +499,13 @@ parser.add_argument('--pvrnn_mtrnn_size',               type=int,           defa
                     help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
 parser.add_argument('--rgbd_state_size',                type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--sensors_state_size',             type=int,           default = num_sensors,
-                    help='Parameters in prior and posterior inner-states.')
 parser.add_argument('--voice_state_size',               type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
 
 parser.add_argument('--char_encode_size',               type=int,           default = 8,
                     help='Parameters in encoding.')   
 parser.add_argument('--rgbd_encode_size',               type=int,           default = 128,
-                    help='Parameters in encoding image.')   
-parser.add_argument('--sensors_encode_size',            type=int,           default = num_sensors,
-                    help='Parameters in encoding sensors, angles, speed.')   
+                    help='Parameters in encoding image.')    
 parser.add_argument('--voice_encode_size',              type=int,           default = 128,
                     help='Parameters in encoding voice.')   
 parser.add_argument('--wheels_shoulders_encode_size',   type=int,           default = 8,
@@ -682,14 +662,31 @@ def extend_list_to_match_length(target_list, length, value):
         target_list.append(value)
     return target_list
 
+# Checking robot parts.
+physicsClient = p.connect(p.DIRECT)
+default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
+robot_file_name = f"{os.getcwd()}/pybullet_data/robot_{args.robot_num}.urdf"
+print(f"\n\n{robot_file_name}\n\n")
+robot_index = p.loadURDF(robot_file_name, (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
+sensors = []
+for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
+    joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
+    link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
+    if("sensor" in link_name):
+        sensors.append(link_name)
+p.disconnect(physicsClientId = physicsClient)
+num_sensors = len(sensors) + 1
+
 for arg_set in [default_args, args]:
     if(arg_set.comp == "deigo"):
         arg_set.half = False
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.sensors_shape = num_sensors
+    arg_set.sensors_encode_size = num_sensors
+    arg_set.sensors_state_size = num_sensors
     arg_set.sensor_names = sensors
     arg_set.voice_shape = len(voice_map)
-    arg_set.wheels_shoulders_shape = 4 
+    arg_set.wheels_shoulders_shape = 3
     arg_set.obs_encode_size = arg_set.rgbd_encode_size + arg_set.sensors_encode_size + arg_set.voice_encode_size
     arg_set.h_w_wheels_shoulders_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_shoulders_encode_size
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_shoulders_encode_size + arg_set.voice_encode_size

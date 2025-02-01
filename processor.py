@@ -5,7 +5,7 @@ import numpy as np
 from time import sleep
 from random import uniform, choice
 
-from utils import default_args, task_map, shape_map, color_map, make_objects_and_task, print, Goal, Obs, empty_goal
+from utils import default_args, task_map, shape_map, color_map, make_objects_and_task, print, Goal, Obs, empty_goal, opposite_relative_to
 from utils_submodule import pad_zeros
 from arena import Arena, get_physics
 
@@ -67,33 +67,36 @@ class Processor:
         rgbd = arena.photo_for_agent()
         rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
         
-        touched = [0] * self.args.sensors_shape
+        touched = [0] * (self.args.sensors_shape - 1)
         for object_key, object_dict in arena.objects_touch.items(): 
             for i, (link_name, value) in enumerate(object_dict.items()):
                 touched[i] += value
                 
         sensors = torch.tensor([touched]).float()
-        
+        shoulder_angle = arena.get_shoulder_angle()
+        shoulder_angle = (opposite_relative_to(shoulder_angle, self.args.min_shoulder_angle, self.args.max_shoulder_angle) + 1) / 2
+        shoulder_angle = torch.tensor([[shoulder_angle]])
+        sensors = torch.cat((sensors, shoulder_angle), dim = 1)
+                
         mother_voice = self.mother_voice_1 if agent_1 else self.mother_voice_2
                         
         return(Obs(rgbd, sensors, self.goal, mother_voice))
     
     
             
-    def act(self, wheels_shoulders, agent_1 = True, verbose = False, sleep_time = None):
+    def act(self, wheels_shoulders, agent_1 = True, verbose = False, sleep_time = None, waiting = False):
         arena = self.get_arena(agent_1)
         if(arena == None):
             return(None, None)
-        
-        left_wheel, right_wheel, left_shoulder, right_shoulder = \
-            wheels_shoulders[0].item(), wheels_shoulders[1].item(), wheels_shoulders[2].item(), wheels_shoulders[3].item()
+                
+        left_wheel, right_wheel, shoulder_speed = \
+            wheels_shoulders[0].item(), wheels_shoulders[1].item(), wheels_shoulders[2].item()
                   
         if(verbose): 
-            print("\n\nStep {}:".format(self.steps))
-            print("Wheels: {}, {}. Shoulders: {}, {}.".format(
-            round(left_wheel, 2), round(right_wheel, 2), round(left_shoulder, 2), round(right_shoulder, 2)))
+            print(f"\n\nStep {self.steps}:")
+            print(f"Wheels: {left_wheel, right_wheel}. Shoulders: {shoulder_speed}.")
             
-        arena.step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = verbose, sleep_time = sleep_time)
+        arena.step(left_wheel, right_wheel, shoulder_speed, verbose = verbose, sleep_time = sleep_time, waiting = waiting)
         reward, win, mother_voice = arena.rewards()
         if(agent_1): 
             self.mother_voice_1 = mother_voice
@@ -103,7 +106,7 @@ class Processor:
     
     
         
-    def step(self, wheels_shoulders_1, wheels_shoulders_2 = None, verbose = False, sleep_time = None):
+    def step(self, wheels_shoulders_1, wheels_shoulders_2 = None, verbose = False, sleep_time = None, waiting = False):
         self.steps += 1
         done = False
         
@@ -195,7 +198,7 @@ if __name__ == "__main__":
             j += 1 
             print("step", j)
             example_images(get_images())
-            recommendation = torch.zeros((4,)) 
+            recommendation = (torch.rand((3,)) * 2) - 1
             print("Got recommendation:", recommendation)
             reward, done, win = processor.step(recommendation, verbose = True)
             print("Done:", done)

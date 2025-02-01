@@ -82,6 +82,8 @@ class Agent:
                                       full_name = "Watch"),
             "wpulr" :       Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
                                       full_name = "All Tasks"),
+            "wplr" :       Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
+                                      full_name = "All Tasks"),
             
             "fwpulr_u" :    Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
                                       full_name = "Uniform free-play"),
@@ -340,7 +342,7 @@ class Agent:
                 partner_prev_voice_out = prev_action_2.voice_out if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape)) if agent_1 else prev_action_1.voice_out
                 hq = hq_1 if agent_1 else hq_2
                 obs = self.processor.obs(agent_1)
-                                
+                                                
                 obs.father_voice = obs.father_voice.one_hots.unsqueeze(0).unsqueeze(0) 
                 obs.mother_voice = obs.mother_voice.one_hots.unsqueeze(0).unsqueeze(0) 
 
@@ -713,8 +715,8 @@ class Agent:
                 mask.to(dtype=torch.float16), wheels_shoulders.to(dtype=torch.float16), voice_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
         
         #print("\n\n")
-        #print("Agent {}, epoch {}. rgbd: {}. voice in: {}. wheels_shoulders: {}. voice out: {}. reward: {}.  done: {}. mask: {}.".format(
-        #    self.agent_num, self.epochs, rgbd.shape, voice_in.shape, wheels_shoulders.shape, voice_out.shape, reward.shape, done.shape, mask.shape))
+        #print("Agent {}, epoch {}. rgbd: {}. father voice: {} mother voice: {}. wheels_shoulders: {}. voice out: {}. reward: {}.  done: {}. mask: {}.".format(
+        #    self.agent_num, self.epochs, rgbd.shape, father_voice.shape, mother_voice.shape, wheels_shoulders.shape, voice_out.shape, reward.shape, done.shape, mask.shape))
         #print("\n\n")
         
         return(rgbd, sensors, father_voice, mother_voice, wheels_shoulders, voice_out, reward, done, mask, all_mask, episodes, steps)
@@ -735,6 +737,15 @@ class Agent:
         rgbd, sensors, father_voice, mother_voice, wheels_shoulders, voice_out, reward, done, mask, all_mask, episodes, steps = batch
         obs = Obs(rgbd, sensors, father_voice, mother_voice)
         actions = Action(wheels_shoulders, voice_out)
+        
+        def get_changes_in_wheels_shoulders(next_actions = wheels_shoulders[:,1:]):
+            changes_in_wheels_shoulders = wheels_shoulders[:,:-1] - next_actions
+            changes_in_wheels_shoulders = torch.abs(changes_in_wheels_shoulders)
+            changes_in_wheels_shoulders[:,:,0] *= self.args.wheel_punishment
+            changes_in_wheels_shoulders[:,:,1] *= self.args.joint_punishment
+            return(changes_in_wheels_shoulders)
+            # Where exactly should this go? I'm guessing, where we put entropy.
+        
         
         
                 
@@ -816,6 +827,7 @@ class Agent:
         with torch.no_grad():
             new_action, log_pis_next, log_pis_next_text = \
                 self.actor(hqs.detach(), parenting)
+                # Also get new_changes_in_wheels_shoulders here
             Q_target_nexts = []
             for i in range(self.args.critics):
                 Q_target_next = self.critic_targets[i](new_action, hqs.detach())
@@ -857,6 +869,7 @@ class Agent:
             if self.args.alpha_text == None: alpha_text = self.alpha_text 
             else:                            alpha_text = self.args.alpha_text
             new_action, log_pis, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
+            # Also get new_changes_in_wheels_shoulders here
             
             loc = torch.zeros(self.args.wheels_shoulders_shape, dtype=torch.float64).to(self.args.device).float()
             n = self.args.wheels_shoulders_shape

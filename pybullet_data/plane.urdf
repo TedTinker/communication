@@ -10,9 +10,10 @@
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
 				<box size="100 100 1"/>
+        <mesh filename="plane.obj" scale="2 2 1"/>
       </geometry>
        <material name="white">
-        <color rgba="1 1 1 1"/>
+        <texture filename="plane.png"/>
       </material>
     </visual>
     <collision>

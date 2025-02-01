@@ -79,33 +79,9 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_rgbd" : 0,
     "hidden_state_eta_sensors" : 0})
 
-add_this("t",   {})         
-
-add_this("m",   {
-    "try_multi_step" : ["False", "True"],
-    "steps_ahead" : 2})     
-
-
-"""
-parser.add_argument('--push_amount',                    type=float,         default = .75,
-                    help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--pull_amount',                    type=float,         default = .25,
-                    help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--left_right_amount',              type=float,         default = .25,
-                    help='Needed distance of an object for push/pull/left/right.')
-                    """
-def add_steps(x):
-    add_this(str(x),   {                                           # Five times stuff!
-        "max_steps" : int(10 * x),
-        "time_step" : .2 / x,
-        "steps_per_step" : int(20 / x),
-        "push_amount" : .75 / x,
-        "pull_amount" : .25 / x,
-        "left_right_amount" : .25 / x
-        })
-    
-add_steps(2)
-add_steps(4)
+add_this("t",   {
+    "max_object_distance" : [4, 5, 6],
+    "robot_num" : [5, 2, 3, 4]}) # I have no idea why, but it can't load robot_1.urdf, even though robot_5.urdf is identical.      
 
 
 

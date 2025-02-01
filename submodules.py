@@ -180,6 +180,7 @@ class Sensors_IN(nn.Module):
     
 if __name__ == "__main__":
     
+    print(args.sensors_shape)
     sensors_in = Sensors_IN(args = args)
     
     print("\n\n")

@@ -9,7 +9,7 @@ import imageio
 import numpy as np
 
 from utils import print, args, duration, load_dicts, wheels_shoulders_to_string, get_goal_from_one_hots
-from pybullet_data.robot_maker import how_to_plot_sensors
+from pybullet_data.robot_maker_1 import how_to_plot_sensors
 
 
 
