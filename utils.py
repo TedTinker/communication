@@ -1,14 +1,15 @@
 #%% 
 
 # To do:
-#   Make sure multi-step-predictions are done right. Should they get the real observations or day-dream?
-#   Make it so future predictions can skip steps (ie, see 1, 3, and 5 steps ahead, but now 2 or 4)
+#   Problems: 
+#       One-arm robot oddly powerful.
+#       Smooth-action applies relative-to too early.
+
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
 #       You'll probably need to make PVRNN multilayer, 
 #       and make curiosity look several steps ahead,
 #       and add mini-rewards for partially doing tasks. 
-#       Mother should tell goals even when duration not completed.
 
 import os
 import pickle
@@ -71,22 +72,6 @@ def cpu_memory_usage():
     mem_usage_bytes = process.memory_info().rss  # rss is the Resident Set Size
     mem_usage_gb = mem_usage_bytes / (1024 ** 3)  # Convert bytes to gigabytes
     print('memory use:', mem_usage_gb, "gigabytes")
-    
-# Checking robot parts.
-physicsClient = p.connect(p.DIRECT)
-default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
-robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
-sensors = []
-for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
-    joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
-    link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
-    if("sensor" in link_name):
-        sensors.append(link_name)
-p.disconnect(physicsClientId = physicsClient)
-num_sensors = len(sensors)
-
-if(__name__ == "__main__"):
-    print("Sensors:", num_sensors)
 
 
 
@@ -390,6 +375,14 @@ def literal(arg_string): return(ast.literal_eval(arg_string))
 parser = argparse.ArgumentParser()
 
     # Stuff I'm testing right now   
+parser.add_argument('--robot_name',                    type=str,           default = "one_arm",
+                    help='Extrinsic reward for choosing correct task, shape, and color.') 
+parser.add_argument('--smooth_steps',                    type=literal,           default = True,
+                    help='Extrinsic reward for choosing correct task, shape, and color.') 
+parser.add_argument('--consideration',                    type=literal,           default = False,
+                    help='Extrinsic reward for choosing correct task, shape, and color.') 
+
+
 parser.add_argument('--steps_ahead',                    type=int,           default = 1,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 
@@ -515,8 +508,6 @@ parser.add_argument('--pvrnn_mtrnn_size',               type=int,           defa
                     help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
 parser.add_argument('--rgbd_state_size',                type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--sensors_state_size',             type=int,           default = num_sensors,
-                    help='Parameters in prior and posterior inner-states.')
 parser.add_argument('--voice_state_size',               type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
 
@@ -524,8 +515,6 @@ parser.add_argument('--char_encode_size',               type=int,           defa
                     help='Parameters in encoding.')   
 parser.add_argument('--rgbd_encode_size',               type=int,           default = 128,
                     help='Parameters in encoding image.')   
-parser.add_argument('--sensors_encode_size',            type=int,           default = num_sensors,
-                    help='Parameters in encoding sensors, angles, speed.')   
 parser.add_argument('--voice_encode_size',              type=int,           default = 128,
                     help='Parameters in encoding voice.')   
 parser.add_argument('--wheels_shoulders_encode_size',   type=int,           default = 8,
@@ -677,6 +666,24 @@ except:
     try:    args    = parser.parse_args()
     except: args, _ = parser.parse_known_args()
     
+    
+# Checking robot parts.
+physicsClient = p.connect(p.DIRECT)
+default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
+robot_index = p.loadURDF(f"pybullet_data/robot_{args.robot_name}.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
+sensors = []
+for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
+    joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
+    link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
+    if("sensor" in link_name):
+        sensors.append(link_name)
+p.disconnect(physicsClientId = physicsClient)
+num_sensors = len(sensors)
+
+if(__name__ == "__main__"):
+    print("Sensors:", num_sensors)
+    
+    
 def extend_list_to_match_length(target_list, length, value):
     while len(target_list) < length:
         target_list.append(value)
@@ -686,6 +693,8 @@ for arg_set in [default_args, args]:
     if(arg_set.comp == "deigo"):
         arg_set.half = False
     arg_set.steps_per_epoch = arg_set.max_steps
+    arg_set.sensors_state_size = num_sensors
+    arg_set.sensors_encode_size = num_sensors 
     arg_set.sensors_shape = num_sensors
     arg_set.sensor_names = sensors
     arg_set.voice_shape = len(voice_map)

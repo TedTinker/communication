@@ -1,6 +1,7 @@
 #%%
 from copy import deepcopy
 import argparse, json
+from math import pi
 parser = argparse.ArgumentParser()
 parser.add_argument("--comp",         type=str,  default = "deigo")
 parser.add_argument("--agents",       type=int,  default = 10)
@@ -79,7 +80,16 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_rgbd" : 0,
     "hidden_state_eta_sensors" : 0})
 
-add_this("t",   {})         
+add_this("t",   {
+    "smooth_steps" : [False, True],
+    "consideration" : [False, True]
+})         
+
+add_this("one_arm",
+         {"robot_name" : "one_arm",
+          "min_shoulder_angle" : -pi/2})
+
+
 
 add_this("m",   {
     "try_multi_step" : ["False", "True"],

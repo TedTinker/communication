@@ -84,7 +84,7 @@ class Arena():
             
         # Place robot. 
         self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = self.physicsClient)
-        self.robot_index = p.loadURDF("pybullet_data/robot.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
+        self.robot_index = p.loadURDF(f"pybullet_data/robot_{self.args.robot_name}.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
         
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
         p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
@@ -129,7 +129,8 @@ class Arena():
         self.set_pos()
         self.set_yaw()
         self.set_wheel_speeds()
-        self.set_shoulder_angle(self.args.max_shoulder_angle, self.args.max_shoulder_angle)
+        start_shoulder_angle = self.args.max_shoulder_angle if self.args.robot_name == "two_arm" else 0
+        self.set_shoulder_angle(start_shoulder_angle, start_shoulder_angle)
         self.set_shoulder_speed()
         self.goal = goal
         self.parenting = parenting
@@ -173,10 +174,13 @@ class Arena():
                
                
         
-    def step(self, left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = False, sleep_time = None):
+    def step(self, left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = False, sleep_time = None):        
+        if(self.args.smooth_steps):
+            self.smooth_step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose, sleep_time = sleep_time)
+        else:
+            self.rough_step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose, sleep_time = sleep_time)
         
-        if(sleep_time != None):
-            p.setTimeStep(self.args.time_step / self.args.steps_per_step, physicsClientId=self.physicsClient)  # More accurate time step
+    def rough_step(self, left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = False, sleep_time = None):
             
         self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
         self.objects_start = self.object_positions()
@@ -230,9 +234,72 @@ class Arena():
         self.objects_end = self.object_positions()
         self.objects_touch = touching
             
-        if(sleep_time != None):
-            p.setTimeStep(self.args.time_step / self.args.steps_per_step, physicsClientId=self.physicsClient)  # More accurate time step
-            p.setPhysicsEngineParameter(numSolverIterations=1, numSubSteps=1, physicsClientId=self.physicsClient)
+    def smooth_step(self, left_wheel, right_wheel, left_shoulder, right_shoulder, speed, verbose = False, sleep_time = None, waiting = False):
+        self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
+        self.objects_start = self.object_positions()
+        touching = self.touching_any_object()
+        for object_index, touch_dict in touching.items():
+           for body_part in touch_dict.keys():
+               touch_dict[body_part] = 0 
+
+        if(waiting): 
+            WAITING = wait_for_button_press()
+            
+        left_wheel_start, right_wheel_start = self.get_wheel_speeds()
+
+        left_wheel_end = relative_to(left_wheel, -self.args.max_speed, self.args.max_speed)
+        right_wheel_end = relative_to(right_wheel, -self.args.max_speed, self.args.max_speed)
+        
+        change_in_left_wheel = left_wheel_end - left_wheel_start
+        change_in_right_wheel = right_wheel_end - right_wheel_start
+        
+        change_in_left_wheel_per_step = change_in_left_wheel / self.args.steps_per_step
+        change_in_right_wheel_per_step = change_in_right_wheel / self.args.steps_per_step
+        
+        #print(f"\n\nleft_wheel_start: {left_wheel_start} \tleft_wheel_end: {left_wheel_end} \tchange_in_left_wheel: {change_in_left_wheel} \tchange_in_left_wheel_per_step: {change_in_left_wheel_per_step}")
+        #print(f"right_wheel_start: {right_wheel_start} \tright_wheel_end: {right_wheel_end} \tchange_in_right_wheel: {change_in_right_wheel} \tchange_in_right_wheel_per_step: {change_in_right_wheel_per_step}")
+            
+        for step in range(self.args.steps_per_step):
+            left_wheel_step = left_wheel_start + change_in_left_wheel_per_step * (step + 1)
+            right_wheel_step = right_wheel_start + change_in_right_wheel_per_step * (step + 1)
+            #print(f"\nleft_wheel_steed_step {step}: {left_wheel_step}")
+            #print(f"right_wheel_steed_step {step}: {right_wheel_step}")
+            self.set_shoulder_speed(left_shoulder, right_shoulder)            
+            self.set_wheel_speeds(
+                left_wheel_step, 
+                right_wheel_step)     
+            if(sleep_time != None):
+                sleep(sleep_time / self.args.steps_per_step)
+            #print(f"Get Wheel Speeds (before step): {self.get_wheel_speeds()}")
+            p.stepSimulation(physicsClientId = self.physicsClient)
+            #print(f"Get Wheel Speeds (after step): {self.get_wheel_speeds()}")
+                        
+            left_shoulder_angle, right_shoulder_angle = self.get_shoulder_angle()
+            if(left_shoulder_angle > self.args.max_shoulder_angle):
+                self.set_shoulder_angle(left_shoulder = self.args.max_shoulder_angle)
+                left_shoulder = 0
+            if(left_shoulder_angle < self.args.min_shoulder_angle):
+                self.set_shoulder_angle(left_shoulder = self.args.min_shoulder_angle)
+                left_shoulder = 0
+                
+            if(right_shoulder_angle > self.args.max_shoulder_angle):
+                self.set_shoulder_angle(right_shoulder = self.args.max_shoulder_angle)
+                right_shoulder = 0
+            if(right_shoulder_angle < self.args.min_shoulder_angle):
+                self.set_shoulder_angle(right_shoulder = self.args.min_shoulder_angle)
+                right_shoulder = 0
+                                
+            #self.face_upward()
+                            
+            touching_now = self.touching_any_object()
+            for object_index, touch_dict in touching_now.items():
+                for body_part, value in touch_dict.items():
+                    if(value):
+                        touching[object_index][body_part] += 1/self.args.steps_per_step
+                        if(touching[object_index][body_part]) > 1:
+                            touching[object_index][body_part] = 1
+                
+        self.objects_end = self.object_positions()
             
             
             
@@ -246,7 +313,21 @@ class Arena():
         orn = p.getQuaternionFromEuler([0, 0, yaw], physicsClientId = self.physicsClient)
         pos, _, _ = self.get_pos_yaw_spe(self.robot_index)
         p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
-            
+        
+    def get_robot_velocities(self):
+        linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_index, physicsClientId=self.physicsClient)
+        vx, vy, _ = linear_velocity  # Get only x, y velocities
+        _, _, wz = angular_velocity  # Get yaw rotation
+        _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        local_vx = cos(yaw) * vx + sin(yaw) * vy  # Forward speed in local frame
+        return local_vx, wz  
+        
+    def get_wheel_speeds(self):
+        linear_velocity, angular_velocity = self.get_robot_velocities()
+        left_wheel = linear_velocity - (angular_velocity / self.args.angular_scaler)/2
+        right_wheel = linear_velocity + (angular_velocity / self.args.angular_scaler)/2
+        return left_wheel, right_wheel
+    
     def set_wheel_speeds(self, left_wheel = 0, right_wheel = 0):
         left_wheel = relative_to(left_wheel, -self.args.max_speed, self.args.max_speed)
         right_wheel = relative_to(right_wheel, -self.args.max_speed, self.args.max_speed)
@@ -267,35 +348,58 @@ class Arena():
         return(pos, yaw, spe)
     
     def set_shoulder_speed(self, left_shoulder = 0, right_shoulder = 0):
-        left_shoulder = relative_to(left_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
-        left_joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
-        p.setJointMotorControl2(self.robot_index, left_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = left_shoulder, physicsClientId=self.physicsClient)
+        if(self.args.robot_name == "two_arm"):
+            left_shoulder = relative_to(left_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
+            left_joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
+            p.setJointMotorControl2(self.robot_index, left_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = left_shoulder, physicsClientId=self.physicsClient)
 
-        right_shoulder = relative_to(right_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
-        right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
-        p.setJointMotorControl2(self.robot_index, right_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = right_shoulder, physicsClientId=self.physicsClient)
+            right_shoulder = relative_to(right_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
+            right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
+            p.setJointMotorControl2(self.robot_index, right_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = right_shoulder, physicsClientId=self.physicsClient)
+        else:
+            left_shoulder = relative_to(left_shoulder, -self.args.max_shoulder_speed, self.args.max_shoulder_speed)
+            left_joint_index = get_joint_index(self.robot_index, 'body_shoulder_joint', physicsClient = self.physicsClient)
+            p.setJointMotorControl2(self.robot_index, left_joint_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = left_shoulder, physicsClientId=self.physicsClient)
         
     def set_shoulder_angle(self, left_shoulder = None, right_shoulder = None):
-        if(left_shoulder == None):
-            pass 
+        if(self.args.robot_name == "two_arm"):
+            if(left_shoulder == None):
+                pass 
+            else:
+                limb_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
+                p.resetJointState(self.robot_index, limb_index, left_shoulder, physicsClientId=self.physicsClient)
+            if(right_shoulder == None):
+                pass 
+            else:
+                limb_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
+                p.resetJointState(self.robot_index, limb_index, right_shoulder, physicsClientId=self.physicsClient)
         else:
-            limb_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
-            p.resetJointState(self.robot_index, limb_index, left_shoulder, physicsClientId=self.physicsClient)
-        if(right_shoulder == None):
-            pass 
-        else:
-            limb_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
-            p.resetJointState(self.robot_index, limb_index, right_shoulder, physicsClientId=self.physicsClient)
+            if(left_shoulder == None):
+                pass 
+            else:
+                limb_index = get_joint_index(self.robot_index, 'body_shoulder_joint', physicsClient = self.physicsClient)
+                p.resetJointState(self.robot_index, limb_index, left_shoulder, physicsClientId=self.physicsClient)
         
     def get_shoulder_angle(self):
-        left_joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
-        left_joint_state = p.getJointState(self.robot_index, left_joint_index, physicsClientId=self.physicsClient)
-        right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
-        right_joint_state = p.getJointState(self.robot_index, right_joint_index, physicsClientId=self.physicsClient)
+        if(self.args.robot_name == "two_arm"):
+            left_joint_index = get_joint_index(self.robot_index, 'body_left_shoulder_joint', physicsClient = self.physicsClient)
+            left_joint_state = p.getJointState(self.robot_index, left_joint_index, physicsClientId=self.physicsClient)
+            right_joint_index = get_joint_index(self.robot_index, 'body_right_shoulder_joint', physicsClient = self.physicsClient)
+            right_joint_state = p.getJointState(self.robot_index, right_joint_index, physicsClientId=self.physicsClient)
+        else:
+            left_joint_index = get_joint_index(self.robot_index, 'body_shoulder_joint', physicsClient = self.physicsClient)
+            left_joint_state = p.getJointState(self.robot_index, left_joint_index, physicsClientId=self.physicsClient)
+            right_joint_state = [0]
         return left_joint_state[0], right_joint_state[0]
-        
+    
     def generate_positions(self, n, distence = 4):
-        base_angle = uniform(0, 2 * pi)
+        closest_angle = 30
+        base_angle = 0
+        while( 
+                (base_angle < radians(closest_angle)) or 
+                (base_angle > radians(360 - closest_angle)) or 
+                (base_angle > radians(180 - closest_angle) and base_angle < radians(180 + closest_angle)) ):
+            base_angle = uniform(0, 2 * pi)
         x1 = distence * cos(base_angle)
         y1 = distence * sin(base_angle)
         r = distence 
@@ -404,6 +508,61 @@ class Arena():
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             lefting = movement_left >= self.args.left_right_amount and touching
             righting = movement_left <= -self.args.left_right_amount and touching
+                
+                
+                
+
+            if(self.args.consideration):
+                """if(verbose):
+                    print(f"\n\nWatching ({watching})")
+                    print(f"Pushing ({pushing}): \n\t{movement_forward} out of {self.args.push_amount}, Touching: {touching}")
+                    print(f"Pulling ({pulling}): \n\t{movement_forward} out of {-self.args.pull_amount}, Touching: {touching}")
+                    print(f"Lefting ({lefting}): \n\t{movement_left} out of {self.args.left_right_amount}, Touching: {touching}")
+                    print(f"Righting ({righting}): \n\t{movement_left} out of {-self.args.left_right_amount}, Touching: {touching}\n\n")"""
+                        
+                # List to hold all active -ing flags and their dramatic changes
+                active_changes = []
+
+                if pushing:
+                    active_changes.append(("pushing", movement_forward))
+                if pulling:
+                    active_changes.append(("pulling", abs(movement_forward)))  # Take absolute value for pulling
+                if lefting:
+                    active_changes.append(("lefting", movement_left))
+                if righting:
+                    active_changes.append(("righting", abs(movement_left)))  # Take absolute value for righting
+
+                # If there are multiple active -ing flags, retain only the one with the highest dramatic change
+                if len(active_changes) > 1:
+                    # Find the -ing with the highest dramatic change
+                    active_changes.sort(key=lambda x: x[1], reverse=True)
+                    highest_change = active_changes[0][0]
+
+                    # Reset all -ing flags to False
+                    pushing, pulling, lefting, righting = False, False, False, False
+
+                    # Set only the highest_change flag to True
+                    if highest_change == "pushing":
+                        pushing = True
+                    elif highest_change == "pulling":
+                        pulling = True
+                    elif highest_change == "lefting":
+                        lefting = True
+                    elif highest_change == "righting":
+                        righting = True   
+                        
+                """if(verbose):
+                    print(f"After consideration:")
+                    print(f"Watching: ({watching})")
+                    print(f"Pushing ({pushing})")
+                    print(f"Pulling ({pulling})")
+                    print(f"Lefting ({lefting})")
+                    print(f"Righting ({righting})\n")"""
+
+
+
+                
+                
                 
             def update_duration(action_name, action_now, object_index, duration_threshold):
                 if action_now:

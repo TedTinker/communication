@@ -9,7 +9,10 @@ import imageio
 import numpy as np
 
 from utils import print, args, duration, load_dicts, wheels_shoulders_to_string, get_goal_from_one_hots
-from pybullet_data.robot_maker import how_to_plot_sensors
+if(args.robot_name == "two_arm"):
+    from pybullet_data.robot_maker_two_arm import how_to_plot_sensors
+if(args.robot_name == "one_arm"):
+    from pybullet_data.robot_maker_one_arm import how_to_plot_sensors
 
 
 

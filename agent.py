@@ -204,44 +204,44 @@ class Agent:
         
         
         
-    def regular_checks(self, force = False, swapping = False):
+    def regular_checks(self, force = False, swapping = False, sleep_time = None):
         if(force):
-            self.gen_test()
-            self.get_component_data()
-            self.save_episodes(swapping = swapping)
+            self.gen_test(sleep_time = sleep_time)
+            self.get_component_data(sleep_time = sleep_time)
+            self.save_episodes(swapping = swapping, sleep_time = sleep_time)
             self.save_agent()
             return
         if(self.epochs % self.args.epochs_per_gen_test == 0):
-            self.gen_test()  
+            self.gen_test(sleep_time = sleep_time)  
         else:
             self.plot_dict["gen_wins_all"].append(None)
             win_dict_list = [self.plot_dict["gen_wins_" + task.name] for task in task_map.values()]
             for i, win_dict in enumerate(win_dict_list):
                 win_dict.append(None)
         if(self.epochs % self.args.epochs_per_component_data == 0):
-            self.get_component_data()  
+            self.get_component_data(sleep_time = sleep_time)  
         if(self.epochs % self.args.epochs_per_episode_dict == 0):
-            self.save_episodes(swapping = swapping)
+            self.save_episodes(swapping = swapping, sleep_time = sleep_time)
         if(self.epochs % self.args.epochs_per_agent_list == 0):
             self.save_agent()
         
         
         
-    def training(self, q = None):      
-        self.regular_checks(force = True)
+    def training(self, q = None, sleep_time = None):      
+        self.regular_checks(force = True, sleep_time = sleep_time)
         while(True):
             cumulative_epochs = 0
             for i, epochs in enumerate(self.args.epochs): 
                 cumulative_epochs += epochs
                 if(self.epochs == cumulative_epochs):                     
-                    self.regular_checks(force = True)
+                    self.regular_checks(force = True, sleep_time = sleep_time)
                     linestyle = self.processors[self.processor_name].linestyle
                     full_name = self.processors[self.processor_name].full_name
                     self.processor_name = self.args.processor_list[i+1] 
                     self.old_memories.append(deepcopy(self.memory))
                     self.plot_dict["division_epochs"].append((self.total_epochs, linestyle, full_name))
-                    self.regular_checks(force = True, swapping = True)
-            step = self.training_episode()
+                    self.regular_checks(force = True, swapping = True, sleep_time = sleep_time)
+            step = self.training_episode(sleep_time = sleep_time)
             if(self.check_ping()):
                 self.save_dicts()
 
@@ -254,7 +254,7 @@ class Agent:
                 self.plot_dict["division_epochs"].append((self.total_epochs, linestyle, full_name))
                 break
                         
-            self.regular_checks()
+            self.regular_checks(sleep_time = sleep_time)
         
         self.regular_checks(force = True)
         self.save_dicts(final = True)
@@ -404,7 +404,7 @@ class Agent:
            
            
     
-    def training_episode(self):        
+    def training_episode(self, sleep_time = None):        
         done, complete_reward, steps, \
             (to_push_list_1, prev_action_1, hq_1), \
             (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
@@ -426,7 +426,7 @@ class Agent:
                     prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_action_1, hq_1,
-                            prev_action_2, hq_2)
+                            prev_action_2, hq_2, sleep_time = sleep_time)
                         
                 if(self.args.agents_per_behavior_analysis == -1 or self.agent_num <= self.args.agents_per_behavior_analysis):  
                     self.plot_dict["behavior"][self.episodes].append(get_goal_from_one_hots(to_push_1.next_obs.mother_voice)) 
@@ -483,7 +483,7 @@ class Agent:
         
         
         
-    def gen_test(self):
+    def gen_test(self, sleep_time = None):
         done, complete_reward, steps, \
             (to_push_list_1, prev_action_1, hq_1), \
             (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
@@ -498,7 +498,7 @@ class Agent:
                         prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, hq_1,
-                                prev_action_2, hq_2)
+                                prev_action_2, hq_2, sleep_time = sleep_time)
                     complete_reward += reward
                 #print("DONE")
             self.processor.done()
@@ -596,7 +596,7 @@ class Agent:
                         prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, hq_1,
-                                prev_action_2, hq_2, sleep_time) 
+                                prev_action_2, hq_2, sleep_time = sleep_time) 
                             
                     episode_dict["reward"].append(str(round(reward, 3)))
                     
@@ -628,7 +628,7 @@ class Agent:
                     
                     
                     
-    def get_component_data(self):
+    def get_component_data(self, sleep_time = None):
         if(self.args.agents_per_component_data != -1 and self.agent_num > self.args.agents_per_component_data): 
             return
         adjusted_args = deepcopy(self.args)
@@ -650,7 +650,7 @@ class Agent:
                         prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, hq_1,
-                                prev_action_2, hq_2)
+                                prev_action_2, hq_2, sleep_time = sleep_time)
                 to_push_list_1.append(to_push_1)
                 if(done): break
             #print("DONE")
