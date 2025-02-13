@@ -7,7 +7,7 @@ from torchinfo import summary as torch_summary
 from utils import default_args, calculate_dkl, duration, Obs, Inner_States, Action
 from utils_submodule import init_weights, episodes_steps, var, sample, model_start
 from mtrnn import MTRNN
-from submodules import RGBD_IN, Sensors_IN, Voice_IN, Obs_OUT, Wheels_Shoulders_IN
+from submodules import RGBD_IN, Sensors_IN, Voice_IN, Obs_OUT, Wheels_Joints_IN
 
 
 
@@ -76,7 +76,7 @@ class PVRNN_LAYER(nn.Module):
         
         self.args = args 
             
-        # Prior: Previous hidden state and wheels_shoulders.  
+        # Prior: Previous hidden state and wheels_joints.  
         # Posterior: Include observation.
         self.rgbd_z = ZP_ZQ(
             zp_in_features = self.args.h_w_action_size,
@@ -127,7 +127,7 @@ class PVRNN_LAYER(nn.Module):
             return(inner_states)
         
         prev_hidden_states = prev_hidden_states.to(self.args.device)
-        zp_inputs = torch.cat([prev_hidden_states, prev_action.wheels_shoulders, prev_action.voice_out], dim=-1)
+        zp_inputs = torch.cat([prev_hidden_states, prev_action.wheels_joints, prev_action.voice_out], dim=-1)
         rgbd_zq_inputs, sensors_zq_inputs, father_voice_zq_inputs, mother_voice_zq_inputs = [torch.cat([zp_inputs, input_data], dim=-1) for input_data in (obs.rgbd, obs.sensors, obs.father_voice, obs.mother_voice)]
         
         episodes, steps = episodes_steps(zp_inputs)
@@ -165,7 +165,7 @@ if __name__ == "__main__":
                                 (episodes, 1, args.rgbd_encode_size),
                                 (episodes, 1, args.sensors_encode_size),
                                 (episodes, 1, args.voice_encode_size),
-                                (episodes, 1, args.wheels_shoulders_encode_size),
+                                (episodes, 1, args.wheels_joints_encode_size),
                                 (episodes, 1, args.voice_encode_size))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
@@ -187,7 +187,7 @@ class PVRNN(nn.Module):
         self.father_voice_in = Voice_IN(self.args) 
         self.mother_voice_in = Voice_IN(self.args) 
         self.self_voice_in = Voice_IN(self.args) 
-        self.wheels_shoulders_in = Wheels_Shoulders_IN(self.args)
+        self.wheels_joints_in = Wheels_Joints_IN(self.args)
 
         self.pvrnn_layer = PVRNN_LAYER(1, args = self.args)
             
@@ -212,15 +212,15 @@ class PVRNN(nn.Module):
         
     def action_in(self, action):
         return(Action(
-            self.wheels_shoulders_in(action.wheels_shoulders), 
+            self.wheels_joints_in(action.wheels_joints), 
             self.father_voice_in(action.voice_out)))
     
     
             
     # I think voice_out should be here too.
-    def predict(self, h, wheels_shoulders):
-        h_w_wheels_shoulders = torch.cat([h, wheels_shoulders], dim = -1)
-        pred_rgbd, pred_sensors, pred_father_voice, pred_mother_voice = self.predict_obs(h_w_wheels_shoulders)
+    def predict(self, h, wheels_joints):
+        h_w_wheels_joints = torch.cat([h, wheels_joints], dim = -1)
+        pred_rgbd, pred_sensors, pred_father_voice, pred_mother_voice = self.predict_obs(h_w_wheels_joints)
         return(Obs(pred_rgbd, pred_sensors, pred_father_voice, pred_mother_voice))
     
     
@@ -230,14 +230,14 @@ class PVRNN(nn.Module):
         start_time = duration()
         prev_time = duration()
         
-        start, episodes, steps, [prev_hidden_states, rgbd, sensors, father_voice, mother_voice, prev_wheels_shoulders, prev_voice_out] = model_start(
+        start, episodes, steps, [prev_hidden_states, rgbd, sensors, father_voice, mother_voice, prev_wheels_joints, prev_voice_out] = model_start(
             [(prev_hidden_states, "lin"), (obs.rgbd, "lin"), (obs.sensors, "lin"), (obs.father_voice, "lin"), (obs.mother_voice, "lin"), 
-             (prev_action.wheels_shoulders, "lin"), (prev_action.voice_out, "lin")], self.args.device, self.args.half, recurrent = True)
+             (prev_action.wheels_joints, "lin"), (prev_action.voice_out, "lin")], self.args.device, self.args.half, recurrent = True)
         
         new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_voice_is, mother_voice_is = \
             self.pvrnn_layer(
                 prev_hidden_states[:,0].unsqueeze(1), 
-                Obs(rgbd, sensors, father_voice, mother_voice), Action(prev_wheels_shoulders, prev_voice_out))       
+                Obs(rgbd, sensors, father_voice, mother_voice), Action(prev_wheels_joints, prev_voice_out))       
             
         time = duration()
         #if(self.args.show_duration): print("BOTTOM TO TOP STEP:", time - prev_time)
@@ -272,7 +272,7 @@ class PVRNN(nn.Module):
                                 
         for step in range(steps):
             step_obs = Obs(obs.rgbd[:,step], obs.sensors[:,step], obs.father_voice[:,step], obs.mother_voice[:,step])
-            step_action = Action(prev_action.wheels_shoulders[:,step], prev_action.voice_out[:,step])
+            step_action = Action(prev_action.wheels_joints[:,step], prev_action.voice_out[:,step])
             new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_voice_is, mother_voice_is = \
                 self.bottom_to_top_step(prev_hidden_states, step_obs, step_action)
                                 
@@ -294,8 +294,8 @@ class PVRNN(nn.Module):
                 lists[i] = Inner_States(zp, zq, dkl)
         new_hidden_states_p, new_hidden_states_q, rgbd_is, sensors_is, father_voice_is, mother_voice_is = lists
                 
-        pred_obs_p = self.predict(new_hidden_states_p[:, :-1], prev_action.wheels_shoulders[:, 1:])
-        pred_obs_q = self.predict(new_hidden_states_q[:, :-1], prev_action.wheels_shoulders[:, 1:])
+        pred_obs_p = self.predict(new_hidden_states_p[:, :-1], prev_action.wheels_joints[:, 1:])
+        pred_obs_q = self.predict(new_hidden_states_q[:, :-1], prev_action.wheels_joints[:, 1:])
                 
         task_labels = labels[:, :, 0].clone().unsqueeze(-1)
         color_labels = labels[:, :, 1].clone().unsqueeze(-1)
@@ -323,7 +323,7 @@ if __name__ == "__main__":
                                 (episodes, steps+1, args.image_size, args.image_size, 4), 
                                 (episodes, steps+1, args.sensors_shape),
                                 (episodes, steps+1, args.max_voice_len, args.voice_shape),
-                                (episodes, steps+1, args.wheels_shoulders_shape),
+                                (episodes, steps+1, args.wheels_joints_shape),
                                 (episodes, steps+1, args.max_voice_len, args.voice_shape))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 

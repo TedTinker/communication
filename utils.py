@@ -2,8 +2,8 @@
 
 # To do:
 #   Problems: 
-#       One-arm robot oddly powerful.
-#       Smooth-action applies relative-to too early.
+#       One-arm robot oddly powerful. Try different masses for arm.
+#       There are some pauses in movement (rough or smooth). 
 
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
@@ -24,6 +24,9 @@ from random import choice, choices
 import torch
 import psutil
 from itertools import product
+import tkinter as tk
+import matplotlib.pyplot as plt
+
 
 if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
 print(os.getcwd())
@@ -194,7 +197,7 @@ class Obs:
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
 class Action:
-    def __init__(self, wheels_shoulders, voice_out):
+    def __init__(self, wheels_joints, voice_out):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
 class To_Push:
@@ -207,7 +210,7 @@ class To_Push:
             self.obs.sensors.to("cpu"),
             self.obs.father_voice.to("cpu"),
             self.obs.mother_voice.to("cpu"),
-            self.action.wheels_shoulders.to("cpu"), 
+            self.action.wheels_joints.to("cpu"), 
             self.action.voice_out.to("cpu"),
             self.reward, 
             self.next_obs.rgbd.to("cpu"),
@@ -375,13 +378,12 @@ def literal(arg_string): return(ast.literal_eval(arg_string))
 parser = argparse.ArgumentParser()
 
     # Stuff I'm testing right now   
-parser.add_argument('--robot_name',                    type=str,           default = "one_arm",
-                    help='Extrinsic reward for choosing correct task, shape, and color.') 
-parser.add_argument('--smooth_steps',                    type=literal,           default = True,
+parser.add_argument('--robot_name',                    type=str,           default = "two_head_arm",
+                    help='Options: two_side_arm, one_head_arm.') 
+parser.add_argument('--smooth_steps',                    type=literal,           default = False,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--consideration',                    type=literal,           default = False,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
-
 
 parser.add_argument('--steps_ahead',                    type=int,           default = 1,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
@@ -405,6 +407,8 @@ parser.add_argument('--device',                         type=str,           defa
                     help='Which device to use for Torch.')
 parser.add_argument('--cpu',                            type=int,           default = 0,
                     help='Which cpu for affinity.')
+parser.add_argument('--local',                          type=bool,          default = False,
+                    help='Is this running on a local machine for testing?')
 parser.add_argument('--show_duration',                  type=bool,          default = False,
                     help='Should durations be printed?')
 parser.add_argument('--save_agents',                    type=literal,       default = False,
@@ -421,49 +425,42 @@ parser.add_argument('--epochs_per_processor',           type=literal,       defa
     
 
     # Simulation details
+parser.add_argument('--time_step',                      type=float,         default = .2,
+                    help='numSubSteps in pybullet environment.')
+parser.add_argument('--steps_per_step',                 type=int,           default = 50,
+                    help='numSubSteps in pybullet environment.')
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
                     help='How far objects must start from each other.')
-parser.add_argument('--max_object_distance',            type=float,         default = 6,
+parser.add_argument('--max_object_distance',            type=float,         default = 4,
                     help='How far objects can start from the agent.')
 parser.add_argument('--object_size',                    type=float,         default = 2,
                     help='How large is the agent\'s body?')    
 parser.add_argument('--body_size',                      type=float,         default = 2,
                     help='How large is the agent\'s body?')        
-parser.add_argument('--time_step',                      type=float,         default = .2,
-                    help='numSubSteps in pybullet environment.')
-parser.add_argument('--steps_per_step',                 type=int,           default = 20,
-                    help='numSubSteps in pybullet environment.')
 
 
 
     # Agent details
 parser.add_argument('--image_size',                     type=int,           default = 16, #20,
                     help='Dimensions of the images observed.')
-parser.add_argument('--max_speed',                      type=float,         default = 10,
+parser.add_argument('--max_wheel_speed',                      type=float,         default = 10,
                     help='Max wheel speed.')
 parser.add_argument('--angular_scaler',                 type=float,         default = .4,
                     help='How to scale angular velocity vs linear velocity.')
-parser.add_argument('--min_shoulder_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_shoulder_angle',             type=float,         default = pi/2,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_shoulder_speed',             type=float,         default = 8,
-                    help='Max shoulder speed.')
 
-"""parser.add_argument('--min_shoulder_angle',             type=float,         default = -pi/2,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_shoulder_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum shoulder velocity.')"""
+parser.add_argument('--min_joint_1_angle',             type=float,         default = 0,
+                    help='Agent\'s maximum joint velocity.')
+parser.add_argument('--max_joint_1_angle',             type=float,         default = pi/2,
+                    help='Agent\'s maximum joint velocity.')
+parser.add_argument('--max_joint_1_speed',             type=float,         default = 8,
+                    help='Max joint speed.')
 
-parser.add_argument('--min_elbow_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_elbow_angle',             type=float,         default = pi/2,
-                    help='Agent\'s maximum shoulder velocity.')
-
-parser.add_argument('--min_wrist_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum shoulder velocity.')
-parser.add_argument('--max_wrist_angle',             type=float,         default = pi/2,
-                    help='Agent\'s maximum shoulder velocity.')
+parser.add_argument('--min_joint_2_angle',             type=float,         default = 0,
+                    help='Agent\'s maximum joint velocity.')
+parser.add_argument('--max_joint_2_angle',             type=float,         default = pi/2,
+                    help='Agent\'s maximum joint velocity.')
+parser.add_argument('--max_joint_2_speed',             type=float,         default = 8,
+                    help='Max joint speed.')
 
 
 
@@ -492,7 +489,7 @@ parser.add_argument('--pull_duration',                  type=int,           defa
 parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
 
-parser.add_argument('--push_amount',                    type=float,         default = .75,
+parser.add_argument('--push_amount',                    type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--pull_amount',                    type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
@@ -517,8 +514,8 @@ parser.add_argument('--rgbd_encode_size',               type=int,           defa
                     help='Parameters in encoding image.')   
 parser.add_argument('--voice_encode_size',              type=int,           default = 128,
                     help='Parameters in encoding voice.')   
-parser.add_argument('--wheels_shoulders_encode_size',   type=int,           default = 8,
-                    help='Parameters in encoding wheels_shoulders.')   
+parser.add_argument('--wheels_joints_encode_size',   type=int,           default = 8,
+                    help='Parameters in encoding wheels_joints.')   
 
 parser.add_argument('--dropout',                        type=float,         default = .001,
                     help='Dropout percentage.')
@@ -553,7 +550,7 @@ parser.add_argument("--d",                              type=int,           defa
 parser.add_argument("--alpha",                          type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
 parser.add_argument("--target_entropy",                 type=float,         default = -1,
-                    help='Target for choosing alpha if alpha set to None. Recommended: negative size of wheels_shoulders-space.')      
+                    help='Target for choosing alpha if alpha set to None. Recommended: negative size of wheels_joints-space.')      
 parser.add_argument("--alpha_text",                     type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy regarding agent voice. Set to None to use target_entropy_text.')        
 parser.add_argument("--target_entropy_text",            type=float,         default = -2,
@@ -630,29 +627,16 @@ parser.add_argument('--keep_data',                      type=int,           defa
 parser.add_argument('--temp',                           type=literal,       default = False,
                     help='Should this use data saved temporarily?')      
 
-
 parser.add_argument('--epochs_per_gen_test',            type=int,           default = 25,
                     help='How many epochs should pass before trying generalization test.')
 
-parser.add_argument('--epochs_per_episode_dict',        type=int,           default = 999999,
-                    help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_episode_dict',        type=int,           default = 1,
-                    help='How many agents to save episodes.')
-parser.add_argument('--episodes_in_episode_dict',       type=int,           default = 1,
-                    help='How many episodes to save per agent.')
-
-parser.add_argument('--epochs_per_agent_list',          type=int,           default = 999999,
-                    help='How many epochs should pass before saving agent model.')
-parser.add_argument('--agents_per_agent_list',          type=int,           default = 3,
-                    help='How many agents to save.') 
-
-parser.add_argument('--epochs_per_component_data',      type=int,           default = 2500,
-                    help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_component_data',      type=int,           default = 0,
-                    help='How many agents to save episodes.')
-
 parser.add_argument('--agents_per_behavior_analysis',   type=int,           default = 1,
                     help='How many agents to save episodes.')
+
+parser.add_argument('--epochs_per_agent_save',          type=int,           default = 35000,
+                    help='How many epochs should pass before saving agent model.')
+parser.add_argument('--agents_per_agent_save',          type=int,           default = 2,
+                    help='How many epochs should pass before saving agent model.')
 
 
 
@@ -665,6 +649,7 @@ except:
     default_args = parser.parse_args([])
     try:    args    = parser.parse_args()
     except: args, _ = parser.parse_known_args()
+    
     
     
 # Checking robot parts.
@@ -692,16 +677,18 @@ def extend_list_to_match_length(target_list, length, value):
 for arg_set in [default_args, args]:
     if(arg_set.comp == "deigo"):
         arg_set.half = False
+    if("head" in arg_set.robot_name):
+        arg_set.min_joint_1_angle = -arg_set.max_joint_1_angle
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.sensors_state_size = num_sensors
     arg_set.sensors_encode_size = num_sensors 
     arg_set.sensors_shape = num_sensors
     arg_set.sensor_names = sensors
     arg_set.voice_shape = len(voice_map)
-    arg_set.wheels_shoulders_shape = 4 
+    arg_set.wheels_joints_shape = 4 if arg_set.robot_name.startswith("two") else 3
     arg_set.obs_encode_size = arg_set.rgbd_encode_size + arg_set.sensors_encode_size + arg_set.voice_encode_size
-    arg_set.h_w_wheels_shoulders_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_shoulders_encode_size
-    arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_shoulders_encode_size + arg_set.voice_encode_size
+    arg_set.h_w_wheels_joints_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size
+    arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size + arg_set.voice_encode_size
     arg_set.epochs = [epochs_for_processor[0] for epochs_for_processor in arg_set.epochs_per_processor]
     arg_set.processor_list = [epochs_for_processor[1] for epochs_for_processor in arg_set.epochs_per_processor]
     arg_set.right_duration = arg_set.left_duration
@@ -785,14 +772,70 @@ if(not args.show_duration):
 
 
 
-def wheels_shoulders_to_string(wheels_shoulders):
-    while(len(wheels_shoulders.shape) > 1):
-        wheels_shoulders = wheels_shoulders.squeeze(0)
-    string = "Left Wheel: {} ".format(round(wheels_shoulders[0].item(),2))
-    string += "Right Wheel: {} ".format(round(wheels_shoulders[1].item(),2))
-    string += "Left Shoulder: {} ".format(round(wheels_shoulders[2].item(),2))
-    string += "Right Shoulder: {} ".format(round(wheels_shoulders[3].item(),2))
+def wait_for_button_press(button_label="Continue"):
+    """
+    Displays a tkinter button and waits for the user to click it.
+
+    Parameters:
+    button_label (str): The label for the button.
+
+    Returns:
+    None
+    """
+    def on_button_click():
+        nonlocal continue_simulation
+        continue_simulation = True
+        root.destroy()
+
+    # Create the tkinter window
+    root = tk.Tk()
+    root.title("Wait for Input")
+    root.geometry("200x100")
+
+    # Add the button
+    button = tk.Button(root, text=button_label, command=on_button_click)
+    button.pack(expand=True)
+
+    continue_simulation = False
+
+    # Run the tkinter main loop
+    root.mainloop()
+
+
+
+#%%
+
+
+
+def wheels_joints_to_string(wheels_joints):
+    while(len(wheels_joints.shape) > 1):
+        wheels_joints = wheels_joints.squeeze(0)
+    print(f"\n\nIN WHEEL_JOINTS_TO_STRING: {wheels_joints}\n\n")
+    string = "Left Wheel: {} ".format(round(wheels_joints[0].item(),2))
+    string += "Right Wheel: {} ".format(round(wheels_joints[1].item(),2))
+    string += "Joint 1: {} ".format(round(wheels_joints[2].item(),2))
+    if(len(wheels_joints) == 4):
+        string += "Joint 2: {} ".format(round(wheels_joints[3].item(),2))
     return(string)
+
+
+
+def plot_number_bars(numbers):
+    fontsize = 7
+    plt.figure(figsize=(1.5,1.5))
+    plt.bar(range(len(numbers)), numbers, color=['red' if x < 0 else 'blue' for x in numbers])
+    
+    plt.axhline(0, color='black', linewidth=1)
+    plt.xlabel("Index", fontsize = fontsize)
+    plt.ylabel("Value", fontsize = fontsize)
+    plt.title("Bar Plot of Actions", fontsize = fontsize)
+    plt.ylim(-1, 1) 
+    if(len(numbers) == 3):
+        plt.xticks(range(3), ["left wheel speed", "right wheel speed", "joint 1 speed"], rotation=45, ha='right', fontsize = fontsize)
+    if(len(numbers) == 4):
+        plt.xticks(range(4), ["left wheel speed", "right wheel speed", "joint 1 speed", "joint 2 speed"], rotation=45, ha='right', fontsize = fontsize)
+    plt.yticks(fontsize = fontsize)
+    plt.show()
 
 
 
@@ -820,19 +863,23 @@ def calculate_dkl(mu_1, std_1, mu_2, std_2):
 
 
 def rolling_average(lst, window_size=500):
-    new_list = [0 if lst[0] is None else float(lst[0])]
-    for i in range(1, len(lst)):
-        if lst[i] is None:
-            new_list.append(new_list[-1])
-        else:
-            start_index = max(0, i - window_size + 1)
-            window = [x for x in lst[start_index:i+1] if x is not None]
-            if window:
-                new_value = sum(window) / len(window)
+    print(f"\n\nSOMETHING MIGHT BE GOING WRONG HERE! IN ROLLING AVERAGE :{lst}\n\n")
+    try:
+        new_list = [0 if lst[0] is None else float(lst[0])]
+        for i in range(1, len(lst)):
+            if lst[i] is None:
+                new_list.append(new_list[-1])
             else:
-                new_value = 0 
-            new_list.append(new_value)
-    return new_list
+                start_index = max(0, i - window_size + 1)
+                window = [x for x in lst[start_index:i+1] if x is not None]
+                if window:
+                    new_value = sum(window) / len(window)
+                else:
+                    new_value = 0 
+                new_list.append(new_value)
+        return new_list
+    except:
+        print("\n\nYeah, it messed up.\n\n")
 
 
 

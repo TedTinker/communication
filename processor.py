@@ -80,20 +80,20 @@ class Processor:
     
     
             
-    def act(self, wheels_shoulders, agent_1 = True, verbose = False, sleep_time = None):
+    def act(self, wheels_joints, agent_1 = True, verbose = False, sleep_time = None):
         arena = self.get_arena(agent_1)
         if(arena == None):
             return(None, None)
         
-        left_wheel, right_wheel, left_shoulder, right_shoulder = \
-            wheels_shoulders[0].item(), wheels_shoulders[1].item(), wheels_shoulders[2].item(), wheels_shoulders[3].item()
+        left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed = \
+            wheels_joints[0].item(), wheels_joints[1].item(), wheels_joints[2].item(), wheels_joints[3].item() if self.args.robot_name.startswith("two") else 0
                   
         if(verbose): 
             print("\n\nStep {}:".format(self.steps))
-            print("Wheels: {}, {}. Shoulders: {}, {}.".format(
-            round(left_wheel, 2), round(right_wheel, 2), round(left_shoulder, 2), round(right_shoulder, 2)))
+            print("Wheels: {}, {}. Joints: {}, {}.".format(
+            round(left_wheel_speed, 2), round(right_wheel_speed, 2), round(joint_1_speed, 2), round(joint_2_speed, 2)))
             
-        arena.step(left_wheel, right_wheel, left_shoulder, right_shoulder, verbose = verbose, sleep_time = sleep_time)
+        arena.step(left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed, verbose = verbose, sleep_time = sleep_time)
         reward, win, mother_voice = arena.rewards()
         if(agent_1): 
             self.mother_voice_1 = mother_voice
@@ -103,13 +103,13 @@ class Processor:
     
     
         
-    def step(self, wheels_shoulders_1, wheels_shoulders_2 = None, verbose = False, sleep_time = None):
+    def step(self, wheels_joints_1, wheels_joints_2 = None, verbose = False, sleep_time = None):
         self.steps += 1
         done = False
         
-        reward, win = self.act(wheels_shoulders_1, verbose = verbose, sleep_time = sleep_time)
+        reward, win = self.act(wheels_joints_1, verbose = verbose, sleep_time = sleep_time)
         if(not self.parenting): 
-            reward_2, win_2 = self.act(wheels_shoulders_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
+            reward_2, win_2 = self.act(wheels_joints_2, agent_1 = False, verbose = verbose, sleep_time = sleep_time)
             reward = max([reward, reward_2])
             win = win or win_2
                     

@@ -307,9 +307,9 @@ def plots(plot_dicts, min_max_dict):
         sensors_dict = get_quantiles(plot_dict, "sensors_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         father_voice_dict = get_quantiles(plot_dict, "father_voice_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         mother_voice_dict = get_quantiles(plot_dict, "mother_voice_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        accuracy_dict = get_quantiles(plot_dict, "accuracy", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        comp_dict = get_quantiles(plot_dict, "complexity", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        forward_losses_min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["sensors_loss"], min_max_dict["father_voice_loss"], min_max_dict["accuracy"], min_max_dict["mother_voice_loss"]])
+        accuracy_dict = get_quantiles(plot_dict, "accuracy_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        comp_dict = get_quantiles(plot_dict, "complexity_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        forward_losses_min_max = many_min_max([min_max_dict["rgbd_loss"], min_max_dict["sensors_loss"], min_max_dict["father_voice_loss"], min_max_dict["accuracy_loss"], min_max_dict["mother_voice_loss"]])
         
         log_rgbd_dict = get_logs(rgbd_dict)
         log_sensors_dict = get_logs(sensors_dict)
@@ -367,21 +367,21 @@ def plots(plot_dicts, min_max_dict):
         # Other Losses
         try: os.mkdir("thesis_pics/other_losses")
         except: pass
-        alpha_dict = get_quantiles(plot_dict, "alpha", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        actor_dict = get_quantiles(plot_dict, "actor", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        crit_dicts = get_list_quantiles(plot_dict["critics"], plot_dict, levels = levels)
-        crit_min_max = many_min_max([crit_min_max for crit_min_max in min_max_dict["critics"]])
+        alpha_dict = get_quantiles(plot_dict, "alpha_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        actor_dict = get_quantiles(plot_dict, "actor_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        crit_dicts = get_list_quantiles(plot_dict["critics_loss"], plot_dict, levels = levels)
+        crit_min_max = many_min_max([crit_min_max for crit_min_max in min_max_dict["critics_loss"]])
         
         def plot_other_losses(here, min_max = False):
             handles = []
-            handles.append(awesome_plot(here, actor_dict, "red", "Actor", min_max_dict["actor"] if min_max else None))
+            handles.append(awesome_plot(here, actor_dict, "red", "Actor", min_max_dict["actor_loss"] if min_max else None))
             here.set_ylabel("Actor Loss")
             ax2 = here.twinx()
             handles.append(awesome_plot(ax2, crit_dicts[0], "blue", "log Critic 1", crit_min_max if min_max else None ))
             ax2.set_ylabel("log Critic Losses")
             ax3 = here.twinx()
             ax3.spines["right"].set_position(("axes", 1.08))
-            handles.append(awesome_plot(ax3, alpha_dict, "black", "Alpha", min_max_dict["alpha"] if min_max else None))
+            handles.append(awesome_plot(ax3, alpha_dict, "black", "Alpha", min_max_dict["alpha_loss"] if min_max else None))
             ax3.set_ylabel("Alpha Loss")
             here.set_xlabel("Epochs")
             here.legend(handles = handles)

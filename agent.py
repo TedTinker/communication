@@ -10,13 +10,14 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import pickle
 import zipfile
+import gzip
 
 import torch
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import default_args, folder, wheels_shoulders_to_string, cpu_memory_usage, duration, print_duration, \
+from utils import default_args, folder, wheels_joints_to_string, cpu_memory_usage, duration, print_duration, wait_for_button_press, \
     task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots, Goal
 from utils_submodule import model_start
 from arena import Arena, get_physics
@@ -144,22 +145,20 @@ class Agent:
             "division_epochs" : [],
             "steps" : [],
             
-            "agent_lists" : {} if (self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list) else {"forward" : PVRNN(self.args), "actor" : Actor(self.args), "critic" : Critic(self.args)},
-            "actor" : [], 
-            "critics" : [[] for _ in range(self.args.critics)], 
-            "episode_dicts" : {}, 
-            "component_data" : {},
             "behavior" : {},
             
-            "accuracy" : [], 
-            "complexity" : [],
+            "accuracy_loss" : [], 
+            "complexity_loss" : [],
             "rgbd_loss" : [], 
             "sensors_loss" : [], 
             "father_voice_loss" : [], 
             "mother_voice_loss" : [], 
             
-            "alpha" : [], 
-            "alpha_text" : [],
+            "actor_loss" : [], 
+            "critics_loss" : [[] for _ in range(self.args.critics)], 
+            
+            "alpha_loss" : [], 
+            "alpha_text_loss" : [],
         
             "reward" : [], 
             "gen_reward" : [], 
@@ -193,9 +192,9 @@ class Agent:
         self.steps = 0
         self.episodes = 0 
         self.epochs = 0 
-        physicsClient_1 = get_physics(GUI = GUI, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
+        physicsClient_1 = get_physics(GUI = GUI, args = self.args)
         self.arena_1 = Arena(physicsClient_1, args = self.args)
-        physicsClient_2 = get_physics(GUI = False, time_step = self.args.time_step, steps_per_step = self.args.steps_per_step)
+        physicsClient_2 = get_physics(GUI = False, args = self.args)
         self.arena_2 = Arena(physicsClient_2, args = self.args)
         self.processor_name = self.args.processor_list[0]
         
@@ -205,25 +204,10 @@ class Agent:
         
         
     def regular_checks(self, force = False, swapping = False, sleep_time = None):
-        if(force):
-            self.gen_test(sleep_time = sleep_time)
-            self.get_component_data(sleep_time = sleep_time)
-            self.save_episodes(swapping = swapping, sleep_time = sleep_time)
+        if(self.epochs % self.args.epochs_per_agent_save == 0 and self.agent_num <= self.args.agents_per_agent_save):
             self.save_agent()
-            return
         if(self.epochs % self.args.epochs_per_gen_test == 0):
             self.gen_test(sleep_time = sleep_time)  
-        else:
-            self.plot_dict["gen_wins_all"].append(None)
-            win_dict_list = [self.plot_dict["gen_wins_" + task.name] for task in task_map.values()]
-            for i, win_dict in enumerate(win_dict_list):
-                win_dict.append(None)
-        if(self.epochs % self.args.epochs_per_component_data == 0):
-            self.get_component_data(sleep_time = sleep_time)  
-        if(self.epochs % self.args.epochs_per_episode_dict == 0):
-            self.save_episodes(swapping = swapping, sleep_time = sleep_time)
-        if(self.epochs % self.args.epochs_per_agent_list == 0):
-            self.save_agent()
         
         
         
@@ -358,7 +342,7 @@ class Agent:
             obs_1, action_1, hp_1, hq_1, values_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1 = agent_step()
             obs_2, action_2, hp_2, hq_2, values_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2 = agent_step(agent_1 = False)
 
-            reward, done, win = self.processor.step(action_1.wheels_shoulders[0,0].clone(), None if action_2 == None else action_2.wheels_shoulders[0,0].clone(), sleep_time = sleep_time)
+            reward, done, win = self.processor.step(action_1.wheels_joints[0,0].clone(), None if action_2 == None else action_2.wheels_joints[0,0].clone(), sleep_time = sleep_time)
             
             reward *= self.reward_inflation
             
@@ -396,7 +380,7 @@ class Agent:
         
         def start_agent(agent_1 = True):
             to_push_list = []
-            prev_action = Action(torch.zeros((1, 1, self.args.wheels_shoulders_shape)), torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape)))
+            prev_action = Action(torch.zeros((1, 1, self.args.wheels_joints_shape)), torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape)))
             hq = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
             return(to_push_list, prev_action, hq)
                 
@@ -520,112 +504,106 @@ class Agent:
         
         
         
-    def save_episodes(self, swapping = False, test = False, sleep_time = None, for_display = False):        
+    def save_episodes(self, test = False, sleep_time = None, waiting = False):        
         with torch.no_grad():
             self.processor = self.processors[self.processor_name]
             self.processor.begin(test = test)       
             parenting = self.processor.parenting
-            if(self.args.agents_per_episode_dict != -1 and self.agent_num > self.args.agents_per_episode_dict): 
-                return
-            for episode_num in range(self.args.episodes_in_episode_dict):
-                common_keys = [
-                    "obs", "action", 
-                    "birds_eye", "reward", "critic_predictions", "prior_predictions", "posterior_predictions", 
-                    "rgbd_dkl", "sensors_dkl", "father_voice_dkl", "mother_voice_dkl"]
-                episode_dict = {}
-                for agent_id in [0, 1]:
-                    for key in common_keys:
-                        episode_dict[f"{key}_{agent_id}"] = []
-                episode_dict["reward"] = []
-                episode_dict["processor"] = self.processor
-                episode_dict["goal"] = self.processor.goal
-                
-                done = False
-                
-                done, complete_reward, steps, \
-                    (to_push_list_1, prev_action_1, hq_1), \
-                    (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
-                        
-                hp_1 = deepcopy(hq_1)
-                hp_2 = deepcopy(hp_1)
-                                
-                def save_step(step, hp, hq, wheels_shoulders, agent_1 = True):
-                    agent_num = 1 if agent_1 else 2
-                    birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
-                    obs = self.processor.obs(agent_1 = agent_1)
-                    
-                    obs.father_voice = obs.mother_voice if self.processor.goal.task.name == "SILENCE" else obs.father_voice if parenting else prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
-                    if(type(obs.father_voice) != Goal):
-                        obs.father_voice = get_goal_from_one_hots(obs.father_voice)
-                    if(type(obs.mother_voice) != Goal):
-                        obs.mother_voice = get_goal_from_one_hots(obs.mother_voice)
-                    
-                    episode_dict[f"obs_{agent_num}"].append(obs) 
-                    episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
-                    if(step != 0):
-                        pred_obs_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders)) 
-                        pred_obs_q = self.forward.predict(hq.unsqueeze(1), self.forward.wheels_shoulders_in(wheels_shoulders))
-                        
-                        pred_obs_p.father_voice = get_goal_from_one_hots(pred_obs_p.father_voice)
-                        pred_obs_q.father_voice = get_goal_from_one_hots(pred_obs_q.father_voice)
-                        
-                        pred_obs_p.mother_voice = get_goal_from_one_hots(pred_obs_p.mother_voice)
-                        pred_obs_q.mother_voice = get_goal_from_one_hots(pred_obs_q.mother_voice)
-                        
-                        episode_dict[f"prior_predictions_{agent_num}"].append(pred_obs_p)
-                        episode_dict[f"posterior_predictions_{agent_num}"].append(pred_obs_q)
-                    
-                def display(step, agent_1 = True, done = False, stopping = False, wait = True):
-                    if(for_display):
-                        print(f"\n{self.processor.goal.human_text}", end = " ")
-                        print("STEP:", step)
-                        plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False)
-                        if(not self.processor.parenting and not stopping):
-                            display(step, agent_1 = False, stopping = True)
-                        if(wait):
-                            WAITING = input("WAITING")
-                
-                for step in range(self.args.max_steps + 1):
-                    save_step(step, hp_1, hq_1, wheels_shoulders = prev_action_1.wheels_shoulders, agent_1 = True)    
-                    if(not self.processor.parenting):
-                        save_step(step, hp_2, hq_2, wheels_shoulders = prev_action_2.wheels_shoulders, agent_1 = False)  
-                        
-                    display(step)
-                    
-                    prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, \
-                        prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
-                            reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                prev_action_1, hq_1,
-                                prev_action_2, hq_2, sleep_time = sleep_time) 
-                            
-                    episode_dict["reward"].append(str(round(reward, 3)))
-                    
-                    def update_episode_dict(index, prev_action, rgbd_is, sensors_is, father_voice_is, mother_voice_is, values, reward):
-                        episode_dict[f"action_{index}"].append(prev_action)
-                        episode_dict[f"rgbd_dkl_{index}"].append(rgbd_is.dkl.sum().item())
-                        episode_dict[f"sensors_dkl_{index}"].append(sensors_is.dkl.sum().item())
-                        episode_dict[f"father_voice_dkl_{index}"].append(father_voice_is.dkl.sum().item())
-                        episode_dict[f"mother_voice_dkl_{index}"].append(mother_voice_is.dkl.sum().item())
-                        episode_dict[f"critic_predictions_{index}"].append(values)
-                        episode_dict[f"reward_{index}"].append(str(round(reward, 3)))
 
-                    update_episode_dict(1, prev_action_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, values_1, reward)
-                    if not self.processor.parenting:
-                        update_episode_dict(2, prev_action_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, values_2, reward_2)
+            common_keys = [
+                "obs", "action", 
+                "birds_eye", "reward", "critic_predictions", "prior_predictions", "posterior_predictions", 
+                "rgbd_dkl", "sensors_dkl", "father_voice_dkl", "mother_voice_dkl"]
+            episode_dict = {}
+            for agent_id in [0, 1]:
+                for key in common_keys:
+                    episode_dict[f"{key}_{agent_id}"] = []
+            episode_dict["reward"] = []
+            episode_dict["processor"] = self.processor
+            episode_dict["goal"] = self.processor.goal
+            
+            done = False
+            
+            done, complete_reward, steps, \
+                (to_push_list_1, prev_action_1, hq_1), \
+                (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
                     
-                    if(done):
-                        save_step(step, hp_1, hq_1, wheels_shoulders = prev_action_1.wheels_shoulders, agent_1 = True)    
-                        if(not self.processor.parenting):
-                            save_step(step, hp_2, hq_2, wheels_shoulders = prev_action_2.wheels_shoulders, agent_1 = False) 
-                        display(step + 1, done = True, wait = False)
-                        self.processor.done()
-                        break
+            hp_1 = deepcopy(hq_1)
+            hp_2 = deepcopy(hp_1)
+                            
+            def save_step(step, hp, hq, wheels_joints, agent_1 = True):
+                agent_num = 1 if agent_1 else 2
+                birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
+                obs = self.processor.obs(agent_1 = agent_1)
                 
-                if(for_display):
-                    return(win)
-                else:
-                    self.plot_dict["episode_dicts"]["{}_{}_{}_{}".format(self.agent_num, self.epochs, episode_num, 1 if swapping else 0)] = episode_dict
+                obs.father_voice = obs.mother_voice if self.processor.goal.task.name == "SILENCE" else obs.father_voice if parenting else prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
+                if(type(obs.father_voice) != Goal):
+                    obs.father_voice = get_goal_from_one_hots(obs.father_voice)
+                if(type(obs.mother_voice) != Goal):
+                    obs.mother_voice = get_goal_from_one_hots(obs.mother_voice)
+                
+                episode_dict[f"obs_{agent_num}"].append(obs) 
+                episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
+                if(step != 0):
+                    pred_obs_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_joints_in(wheels_joints)) 
+                    pred_obs_q = self.forward.predict(hq.unsqueeze(1), self.forward.wheels_joints_in(wheels_joints))
                     
+                    pred_obs_p.father_voice = get_goal_from_one_hots(pred_obs_p.father_voice)
+                    pred_obs_q.father_voice = get_goal_from_one_hots(pred_obs_q.father_voice)
+                    
+                    pred_obs_p.mother_voice = get_goal_from_one_hots(pred_obs_p.mother_voice)
+                    pred_obs_q.mother_voice = get_goal_from_one_hots(pred_obs_q.mother_voice)
+                    
+                    episode_dict[f"prior_predictions_{agent_num}"].append(pred_obs_p)
+                    episode_dict[f"posterior_predictions_{agent_num}"].append(pred_obs_q)
+                
+            def display(step, agent_1 = True, done = False, stopping = False):
+
+                print(f"\n{self.processor.goal.human_text}", end = " ")
+                print("STEP:", step)
+                plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False)
+                if(not self.processor.parenting and not stopping):
+                    display(step, agent_1 = False, stopping = True)
+                if(waiting):
+                    WAITING = wait_for_button_press()
+            
+            for step in range(self.args.max_steps + 1):
+                save_step(step, hp_1, hq_1, wheels_joints = prev_action_1.wheels_joints, agent_1 = True)    
+                if(not self.processor.parenting):
+                    save_step(step, hp_2, hq_2, wheels_joints = prev_action_2.wheels_joints, agent_1 = False)  
+                    
+                display(step)
+                
+                prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, \
+                    prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
+                        reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                            prev_action_1, hq_1,
+                            prev_action_2, hq_2, sleep_time = sleep_time) 
+                        
+                episode_dict["reward"].append(str(round(reward, 3)))
+                
+                def update_episode_dict(index, prev_action, rgbd_is, sensors_is, father_voice_is, mother_voice_is, values, reward):
+                    episode_dict[f"action_{index}"].append(prev_action)
+                    episode_dict[f"rgbd_dkl_{index}"].append(rgbd_is.dkl.sum().item())
+                    episode_dict[f"sensors_dkl_{index}"].append(sensors_is.dkl.sum().item())
+                    episode_dict[f"father_voice_dkl_{index}"].append(father_voice_is.dkl.sum().item())
+                    episode_dict[f"mother_voice_dkl_{index}"].append(mother_voice_is.dkl.sum().item())
+                    episode_dict[f"critic_predictions_{index}"].append(values)
+                    episode_dict[f"reward_{index}"].append(str(round(reward, 3)))
+
+                update_episode_dict(1, prev_action_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, values_1, reward)
+                if not self.processor.parenting:
+                    update_episode_dict(2, prev_action_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, values_2, reward_2)
+                
+                if(done):
+                    save_step(step, hp_1, hq_1, wheels_joints = prev_action_1.wheels_joints, agent_1 = True)    
+                    if(not self.processor.parenting):
+                        save_step(step, hp_2, hq_2, wheels_joints = prev_action_2.wheels_joints, agent_1 = False) 
+                    display(step + 1, done = True)
+                    self.processor.done()
+                    break
+            
+            return(win)
                     
                     
     def get_component_data(self, sleep_time = None):
@@ -660,11 +638,11 @@ class Agent:
                 to_push.push(temp_memory)
                 
         batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
-        rgbd, sensors, father_voice, mother_voice, wheels_shoulders, voice_out, reward, done, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, father_voice, mother_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
         
         hps, hqs, rgbd_is, sensors_is, father_voice_is, mother_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            Obs(rgbd, sensors, father_voice, mother_voice), Action(wheels_shoulders, voice_out))
+            Obs(rgbd, sensors, father_voice, mother_voice), Action(wheels_joints, voice_out))
         
         father_voice_zq = father_voice_is.zq.detach().cpu().numpy()
         labels = labels.detach().cpu().numpy()
@@ -676,12 +654,6 @@ class Agent:
         all_mask_filtered = all_mask[non_zero_mask]
                 
         self.plot_dict["component_data"][self.epochs] = (father_voice_zq, labels, all_mask, father_voice_zq_filtered, labels_filtered, all_mask_filtered)
-                        
-        
-        
-    def save_agent(self):
-        if(self.args.agents_per_agent_list != -1 and self.agent_num > self.args.agents_per_agent_list): return
-        self.plot_dict["agent_lists"]["{}_{}".format(self.agent_num, self.epochs)] = deepcopy(self.state_dict())
         
         
         
@@ -689,17 +661,17 @@ class Agent:
         batch = memory.sample(batch_size, random_sample = random_sample)
         if(batch == False): return(False)
         
-        rgbd, sensors, father_voice, mother_voice, wheels_shoulders, voice_out, reward, done, mask = batch
+        rgbd, sensors, father_voice, mother_voice, wheels_joints, voice_out, reward, done, mask = batch
         rgbd = torch.from_numpy(rgbd).to(self.args.device)
         sensors = torch.from_numpy(sensors).to(self.args.device)
         father_voice = torch.from_numpy(father_voice).to(self.args.device)
         mother_voice = torch.from_numpy(mother_voice).to(self.args.device)
-        wheels_shoulders = torch.from_numpy(wheels_shoulders)
+        wheels_joints = torch.from_numpy(wheels_joints)
         voice_out = torch.from_numpy(voice_out)
         reward = torch.from_numpy(reward).to(self.args.device)
         done = torch.from_numpy(done).to(self.args.device)
         mask = torch.from_numpy(mask)
-        wheels_shoulders = torch.cat([torch.zeros(wheels_shoulders[:,0].unsqueeze(1).shape), wheels_shoulders], dim = 1).to(self.args.device)
+        wheels_joints = torch.cat([torch.zeros(wheels_joints[:,0].unsqueeze(1).shape), wheels_joints], dim = 1).to(self.args.device)
         voice_out = torch.cat([torch.zeros(voice_out[:,0].unsqueeze(1).shape), voice_out], dim = 1).to(self.args.device)
         all_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1).to(self.args.device)
         mask = mask.to(self.args.device)
@@ -707,17 +679,17 @@ class Agent:
         steps = reward.shape[1]
         
         if(self.args.half):
-            rgbd, sensors, father_voice, wheels_shoulders, voice_out, reward, done, mask, all_mask, mask = \
-                rgbd.to(dtype=torch.float16), sensors.to(dtype=torch.float16), father_voice.to(dtype=torch.float16), wheels_shoulders.to(dtype=torch.float16), \
+            rgbd, sensors, father_voice, wheels_joints, voice_out, reward, done, mask, all_mask, mask = \
+                rgbd.to(dtype=torch.float16), sensors.to(dtype=torch.float16), father_voice.to(dtype=torch.float16), wheels_joints.to(dtype=torch.float16), \
                 voice_out.to(dtype=torch.float16), reward.to(dtype=torch.float16), done.to(dtype=torch.float16), \
-                mask.to(dtype=torch.float16), wheels_shoulders.to(dtype=torch.float16), voice_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
+                mask.to(dtype=torch.float16), wheels_joints.to(dtype=torch.float16), voice_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
         
         #print("\n\n")
-        #print("Agent {}, epoch {}. rgbd: {}. voice in: {}. wheels_shoulders: {}. voice out: {}. reward: {}.  done: {}. mask: {}.".format(
-        #    self.agent_num, self.epochs, rgbd.shape, voice_in.shape, wheels_shoulders.shape, voice_out.shape, reward.shape, done.shape, mask.shape))
+        #print("Agent {}, epoch {}. rgbd: {}. voice in: {}. wheels_joints: {}. voice out: {}. reward: {}.  done: {}. mask: {}.".format(
+        #    self.agent_num, self.epochs, rgbd.shape, voice_in.shape, wheels_joints.shape, voice_out.shape, reward.shape, done.shape, mask.shape))
         #print("\n\n")
         
-        return(rgbd, sensors, father_voice, mother_voice, wheels_shoulders, voice_out, reward, done, mask, all_mask, episodes, steps)
+        return(rgbd, sensors, father_voice, mother_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps)
         
     
     
@@ -732,9 +704,9 @@ class Agent:
         if(batch == False):
             return(False)
         
-        rgbd, sensors, father_voice, mother_voice, wheels_shoulders, voice_out, reward, done, mask, all_mask, episodes, steps = batch
+        rgbd, sensors, father_voice, mother_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
         obs = Obs(rgbd, sensors, father_voice, mother_voice)
-        actions = Action(wheels_shoulders, voice_out)
+        actions = Action(wheels_joints, voice_out)
         
         
                 
@@ -836,7 +808,7 @@ class Agent:
         critic_losses = []
         Qs = []
         for i in range(self.args.critics):
-            Q = self.critics[i](Action(wheels_shoulders[:,1:], voice_out[:,1:]), hqs[:,:-1].detach())
+            Q = self.critics[i](Action(wheels_joints[:,1:], voice_out[:,1:]), hqs[:,:-1].detach())
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
             critic_losses.append(critic_loss)
             Qs.append(Q[0,0].item())
@@ -858,11 +830,11 @@ class Agent:
             else:                            alpha_text = self.args.alpha_text
             new_action, log_pis, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
             
-            loc = torch.zeros(self.args.wheels_shoulders_shape, dtype=torch.float64).to(self.args.device).float()
-            n = self.args.wheels_shoulders_shape
+            loc = torch.zeros(self.args.wheels_joints_shape, dtype=torch.float64).to(self.args.device).float()
+            n = self.args.wheels_joints_shape
             scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device).float()
             policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
-            policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_action.wheels_shoulders).unsqueeze(-1)
+            policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_action.wheels_joints).unsqueeze(-1)
             intrinsic_entropy = torch.mean((alpha * log_pis - policy_prior_log_prrgbd)*mask).item()
                 
             Qs = []
@@ -945,18 +917,18 @@ class Agent:
 
 
         if(self.epochs == 1 or self.epochs >= sum(self.args.epochs) or self.epochs % self.args.keep_data == 0):
-            self.plot_dict["accuracy"].append(accuracy)
+            self.plot_dict["accuracy_loss"].append(accuracy)
             self.plot_dict["rgbd_loss"].append(rgbd_loss)
             self.plot_dict["sensors_loss"].append(sensors_loss)
             self.plot_dict["father_voice_loss"].append(father_voice_loss)
             self.plot_dict["mother_voice_loss"].append(mother_voice_loss)
-            self.plot_dict["complexity"].append(complexity)                                                                             
-            self.plot_dict["alpha"].append(alpha_loss)
-            self.plot_dict["alpha_text"].append(alpha_text_loss)
-            self.plot_dict["actor"].append(actor_loss)
+            self.plot_dict["complexity_loss"].append(complexity)                                                                             
+            self.plot_dict["alpha_loss"].append(alpha_loss)
+            self.plot_dict["alpha_text_loss"].append(alpha_text_loss)
+            self.plot_dict["actor_loss"].append(actor_loss)
             for layer, f in enumerate(critic_losses):
-                self.plot_dict["critics"][layer].append(f)    
-            self.plot_dict["critics"].append(critic_losses)
+                self.plot_dict["critics_loss"][layer].append(f)    
+            self.plot_dict["critics_loss"].append(critic_losses)
             self.plot_dict["extrinsic"].append(extrinsic)
             self.plot_dict["q"].append(Q)
             self.plot_dict["intrinsic_curiosity"].append(intrinsic_curiosity)
@@ -981,6 +953,17 @@ class Agent:
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
+    def save_agent(self):
+        if(not self.args.local):
+            save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pth.gz"
+            with gzip.open(save_path, "wb") as f:
+                torch.save(self.state_dict(), f)
+                
+    def load_agent(self, load_path):
+        with gzip.open(load_path, "rb") as f:
+            state_dict = torch.load(f)
+        self.load_state_dict(state_dict)
+                
     def state_dict(self):
         to_return = [self.forward.state_dict(), self.actor.state_dict()]
         for i in range(self.args.critics):

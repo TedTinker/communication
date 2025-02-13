@@ -48,8 +48,8 @@ class RecurrentReplayBuffer:
             shape = (self.args.max_voice_len, self.args.voice_shape,), 
             before_and_after = True, 
             args = self.args)
-        self.wheels_shoulders = VariableBuffer(
-            shape = (self.args.wheels_shoulders_shape,), 
+        self.wheels_joints = VariableBuffer(
+            shape = (self.args.wheels_joints_shape,), 
             args = self.args)
         self.voice_out = VariableBuffer(
             shape = (self.args.max_voice_len, self.args.voice_shape,), 
@@ -67,7 +67,7 @@ class RecurrentReplayBuffer:
             sensors,
             father_voice, 
             mother_voice,
-            wheels_shoulders, 
+            wheels_joints, 
             voice_out, 
             reward, 
             next_rgbd,
@@ -83,7 +83,7 @@ class RecurrentReplayBuffer:
                     self.sensors,
                     self.father_voice, 
                     self.mother_voice,
-                    self.wheels_shoulders, 
+                    self.wheels_joints, 
                     self.voice_out, 
                     self.reward, 
                     self.done, 
@@ -96,7 +96,7 @@ class RecurrentReplayBuffer:
         self.sensors.push(self.episode_ptr, self.time_ptr, sensors)
         self.father_voice.push(self.episode_ptr, self.time_ptr, father_voice)
         self.mother_voice.push(self.episode_ptr, self.time_ptr, mother_voice)
-        self.wheels_shoulders.push(self.episode_ptr, self.time_ptr, wheels_shoulders)
+        self.wheels_joints.push(self.episode_ptr, self.time_ptr, wheels_joints)
         self.voice_out.push(self.episode_ptr, self.time_ptr, voice_out)
         self.reward.push(self.episode_ptr, self.time_ptr, reward)
         self.done.push(self.episode_ptr, self.time_ptr, done)
@@ -126,7 +126,7 @@ class RecurrentReplayBuffer:
             self.sensors.sample(indices),
             self.father_voice.sample(indices),
             self.mother_voice.sample(indices),
-            self.wheels_shoulders.sample(indices),
+            self.wheels_joints.sample(indices),
             self.voice_out.sample(indices),
             self.reward.sample(indices),
             self.done.sample(indices),

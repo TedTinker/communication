@@ -5,6 +5,7 @@ from math import pi
 from utils import args
 from agent import Agent
 
+args.local = True
 args.alpha = None
 args.normal_alpha = .1
 args.curiosity = "hidden_state"
@@ -14,8 +15,9 @@ args.agents_per_component_data = 0
 args.eta_reduction = .99
 args.reward = 10
 args.steps_per_epoch = args.max_steps
+args.smooth_steps = True
 
-if(args.robot_name != "two_arm"):
+if(args.robot_name != "two_side_arm"):
     args.min_shoulder_angle = -pi/2
 
 """x = 4
@@ -33,7 +35,7 @@ def run():
         1, 
         GUI = True, 
         args = args)
-    agent.training(sleep_time = .5)
+    agent.training(sleep_time = 1)
     
 run()
 # %%

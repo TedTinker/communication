@@ -10,7 +10,7 @@ from torchinfo import summary as torch_summary
 from utils import default_args, print, duration, Action
 from utils_submodule import init_weights, episodes_steps, var, sample, model_start, model_end
 from mtrnn import MTRNN
-from submodules import Wheels_Shoulders_IN, Voice_IN, Voice_OUT
+from submodules import Wheels_Joints_IN, Voice_IN, Voice_OUT
 
 
 
@@ -28,7 +28,7 @@ class Actor(nn.Module):
         
         self.args = args
         
-        self.wheels_shoulders_in = Wheels_Shoulders_IN(self.args)
+        self.wheels_joints_in = Wheels_Joints_IN(self.args)
 
         self.lin = nn.Sequential(
             nn.Linear(
@@ -45,11 +45,11 @@ class Actor(nn.Module):
         self.mu = nn.Sequential(
             nn.Linear(
                 in_features = args.hidden_size, 
-                out_features = self.args.wheels_shoulders_shape))
+                out_features = self.args.wheels_joints_shape))
         self.std = nn.Sequential(
             nn.Linear(
                 in_features = args.hidden_size, 
-                out_features = self.args.wheels_shoulders_shape),
+                out_features = self.args.wheels_joints_shape),
             nn.Softplus())
 
         self.apply(init_weights)
@@ -70,14 +70,14 @@ class Actor(nn.Module):
         sampled = sample(mu, std, self.args.device)
         if(self.args.half):
             sampled = sampled.to(dtype=torch.float16)
-        wheels_shoulders = torch.tanh(sampled)
-        log_prob = Normal(mu, std).log_prob(sampled) - torch.log(1 - wheels_shoulders.pow(2) + 1e-6)
+        wheels_joints = torch.tanh(sampled)
+        log_prob = Normal(mu, std).log_prob(sampled) - torch.log(1 - wheels_joints.pow(2) + 1e-6)
         log_prob = torch.mean(log_prob, -1).unsqueeze(-1)
         
-        [forward_hidden, wheels_shoulders, log_prob] = model_end(start_time, episodes, steps, 
-            [(forward_hidden, "lin"), (wheels_shoulders, "lin"), (log_prob, "lin")], "\tACTOR" if self.args.show_duration else None)
-        encoded_wheels_shoulders = self.wheels_shoulders_in(wheels_shoulders)
-        concatenated = torch.cat([forward_hidden, encoded_wheels_shoulders], dim = -1)
+        [forward_hidden, wheels_joints, log_prob] = model_end(start_time, episodes, steps, 
+            [(forward_hidden, "lin"), (wheels_joints, "lin"), (log_prob, "lin")], "\tACTOR" if self.args.show_duration else None)
+        encoded_wheels_joints = self.wheels_joints_in(wheels_joints)
+        concatenated = torch.cat([forward_hidden, encoded_wheels_joints], dim = -1)
         voice_out, voice_log_prob = self.voice_out(concatenated)
 
         if(parenting):
@@ -87,7 +87,7 @@ class Actor(nn.Module):
                 voice_out = voice_out.to(dtype=torch.float16)
                 voice_log_prob = voice_log_prob.to(dtype=torch.float16)
         
-        return Action(wheels_shoulders, voice_out), log_prob, voice_log_prob
+        return Action(wheels_joints, voice_out), log_prob, voice_log_prob
     
     
     
@@ -118,12 +118,12 @@ class Critic(nn.Module):
         
         self.args = args
         
-        self.wheels_shoulders_in = Wheels_Shoulders_IN(self.args)
+        self.wheels_joints_in = Wheels_Joints_IN(self.args)
         self.voice_out_in = Voice_IN(self.args)
         
         self.lin = nn.Sequential(
             nn.Linear(
-                in_features = self.args.h_w_wheels_shoulders_size + self.args.voice_encode_size,
+                in_features = self.args.h_w_wheels_joints_size + self.args.voice_encode_size,
                 out_features = self.args.hidden_size),
             nn.PReLU())
         
@@ -144,12 +144,12 @@ class Critic(nn.Module):
         
     def forward(self, action, forward_hidden):        
         
-        start_time, episodes, steps, [wheels_shoulders, voice_out, forward_hidden] = model_start(
-            [(action.wheels_shoulders, "lin"), (action.voice_out, "voice"), (forward_hidden, "lin")], device = self.args.device, half = self.args.half)
+        start_time, episodes, steps, [wheels_joints, voice_out, forward_hidden] = model_start(
+            [(action.wheels_joints, "lin"), (action.voice_out, "voice"), (forward_hidden, "lin")], device = self.args.device, half = self.args.half)
                 
-        wheels_shoulders = self.wheels_shoulders_in(wheels_shoulders)
+        wheels_joints = self.wheels_joints_in(wheels_joints)
         voice_out = self.voice_out_in(voice_out)
-        x = torch.cat([forward_hidden, wheels_shoulders.squeeze(1), voice_out.squeeze(1)], dim=-1)
+        x = torch.cat([forward_hidden, wheels_joints.squeeze(1), voice_out.squeeze(1)], dim=-1)
         x = self.lin(x)
         value = self.value(x)
                 
@@ -171,7 +171,7 @@ if __name__ == "__main__":
         with record_function("model_inference"):
             print(torch_summary(critic, 
                                 (
-                                (episodes, steps, args.wheels_shoulders_shape),
+                                (episodes, steps, args.wheels_joints_shape),
                                 (episodes, steps, args.max_voice_len, args.voice_shape))))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 

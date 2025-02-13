@@ -8,11 +8,13 @@ import re
 import imageio
 import numpy as np
 
-from utils import print, args, duration, load_dicts, wheels_shoulders_to_string, get_goal_from_one_hots
-if(args.robot_name == "two_arm"):
-    from pybullet_data.robot_maker_two_arm import how_to_plot_sensors
-if(args.robot_name == "one_arm"):
-    from pybullet_data.robot_maker_one_arm import how_to_plot_sensors
+from utils import print, args, duration, load_dicts, wheels_joints_to_string, get_goal_from_one_hots, plot_number_bars
+if(args.robot_name == "two_side_arm"):
+    from pybullet_data.robot_maker_two_side_arm import how_to_plot_sensors
+if(args.robot_name == "one_head_arm"):
+    from pybullet_data.robot_maker_one_head_arm import how_to_plot_sensors
+if(args.robot_name == "two_head_arm"):
+    from pybullet_data.robot_maker_two_head_arm import how_to_plot_sensors
 
 
 
@@ -118,13 +120,13 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
             ["\n\n" + human_friendly_text(prior_mother_voice)],
             ["\n\n\n\n" + human_friendly_text(posterior_mother_voice)], .3])
         
-        data.append([f"Wheels, Shoulders ({agent_num})", [wheels_shoulders_to_string(action.wheels_shoulders)], .1])
-        data.append([f"voice Out ({agent_num})", [human_friendly_text(get_goal_from_one_hots(action.voice_out))], .1])
+        data.append([f"Wheels, Joints ({agent_num})", [action.wheels_joints, "bar_plot"], .5])
+        data.append([f"Voice Out ({agent_num})", [human_friendly_text(get_goal_from_one_hots(action.voice_out))], .1])
         
-        data.append([f"RGBD DKL ({agent_num})", [episode_dict[f"rgbd_dkl_{agent_num}"][:step], "plot"], .5])
-        data.append([f"Sensors DKL ({agent_num})", [episode_dict[f"sensors_dkl_{agent_num}"][:step], "plot"], .5])
-        data.append([f"Father voice DKL ({agent_num})", [episode_dict[f"father_voice_dkl_{agent_num}"][:step], "plot"], .5])
-        data.append([f"Mother voice DKL ({agent_num})", [episode_dict[f"mother_voice_dkl_{agent_num}"][:step], "plot"], .5])
+        data.append([f"RGBD DKL ({agent_num})", [episode_dict[f"rgbd_dkl_{agent_num}"][:step], "line_plot"], .5])
+        data.append([f"Sensors DKL ({agent_num})", [episode_dict[f"sensors_dkl_{agent_num}"][:step], "line_plot"], .5])
+        data.append([f"Father voice DKL ({agent_num})", [episode_dict[f"father_voice_dkl_{agent_num}"][:step], "line_plot"], .5])
+        data.append([f"Mother voice DKL ({agent_num})", [episode_dict[f"mother_voice_dkl_{agent_num}"][:step], "line_plot"], .5])
         
     max_sublist_len = 0
     for sublist in data:
@@ -150,6 +152,22 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         sensors_image = sensors_image[80:-70, 125:-100]
         ax.imshow(sensors_image)
         ax.axis('off')
+        
+    def plot_bar_plot(ax, plot_data):
+        numbers = plot_data.flatten().tolist()
+        fontsize = 7
+        ax.bar(range(len(numbers)), numbers, color=['red' if x < 0 else 'blue' for x in numbers])
+        ax.axhline(0, color='black', linewidth=1)
+        ax.set_xlabel("Index", fontsize = fontsize)
+        ax.set_ylabel("Value", fontsize = fontsize)
+        #ax.title("Bar Plot of Actions", fontsize = fontsize)
+        ax.set_ylim(-1, 1) 
+        if(len(numbers) == 3):
+            ax.set_xticks(range(3), ["left wheel speed", "right wheel speed", "joint 1 speed"], rotation=45, ha='right', fontsize = fontsize)
+        if(len(numbers) == 4):
+            ax.set_xticks(range(4), ["left wheel speed", "right wheel speed", "joint 1 speed", "joint 2 speed"], rotation=45, ha='right', fontsize = fontsize)
+        #ax.set_yticks(fontsize = fontsize)
+        ax.axis('on')
 
     def plot_line_plot(ax, plot_data):
         ax.text(0.1, 0.9, "", fontsize=12, verticalalignment='center', transform=ax.transAxes)
@@ -167,7 +185,10 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
                 plot_text(ax, subsublist[0])
             elif subsublist[-1] == "image":
                 plot_image(ax, subsublist[0])
-            elif subsublist[-1] == "plot":
+            elif subsublist[-1] == "bar_plot":
+                ax = fig.add_subplot(gs[row, 1:])
+                plot_bar_plot(ax, subsublist[0])  
+            elif subsublist[-1] == "line_plot":
                 ax = fig.add_subplot(gs[row, 1:])
                 plot_line_plot(ax, subsublist[0])          
             elif subsublist[-1] == "sensors":
@@ -176,21 +197,18 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         
         
 
-    def create_plot(data):
-        fig = plt.figure(figsize=(20, 25))
-        height_ratios = [sublist[-1] for sublist in data]
-        gs = gridspec.GridSpec(len(data), max_sublist_len, figure=fig, height_ratios=height_ratios)
-        for row, sublist in enumerate(data):
-            plot_sublist(fig, gs, sublist, row)
-        #plt.tight_layout()
-        if(saving):
-            plt.savefig(f"Step {step} Agent {agent_num}.png")
-        else:
-            plt.show()
-        plt.close()
-        
-    create_plot(data)
-    
+    fig = plt.figure(figsize=(20, 25))
+    height_ratios = [sublist[-1] for sublist in data]
+    gs = gridspec.GridSpec(len(data), max_sublist_len, figure=fig, height_ratios=height_ratios)
+    for row, sublist in enumerate(data):
+        plot_sublist(fig, gs, sublist, row)
+    #plt.tight_layout()
+    if(saving):
+        plt.savefig(f"Step {step} Agent {agent_num}.png")
+    else:
+        plt.show()
+    plt.close()
+            
     
 
 if __name__ == "__main__":

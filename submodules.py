@@ -92,9 +92,9 @@ class RGBD_OUT(nn.Module):
         self.out_features_channels = self.args.hidden_size
         
         self.a = nn.Sequential(
-            # nn.BatchNorm1d(self.args.h_w_wheels_shoulders_size), # Tested, don't use
+            # nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
             nn.Linear(
-                in_features = self.args.h_w_wheels_shoulders_size,
+                in_features = self.args.h_w_wheels_joints_size,
                 out_features = self.out_features_channels * (self.args.image_size//self.args.divisions) * (self.args.image_size//self.args.divisions)))
         
         self.b = nn.Sequential(
@@ -117,10 +117,10 @@ class RGBD_OUT(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, h_w_wheels_shoulders):
-        start_time, episodes, steps, [h_w_wheels_shoulders] = model_start([(h_w_wheels_shoulders, "lin")], self.args.device, self.args.half)
+    def forward(self, h_w_wheels_joints):
+        start_time, episodes, steps, [h_w_wheels_joints] = model_start([(h_w_wheels_joints, "lin")], self.args.device, self.args.half)
         
-        a = self.a(h_w_wheels_shoulders)
+        a = self.a(h_w_wheels_joints)
         a = a.reshape(episodes * steps, self.out_features_channels, self.args.image_size//self.args.divisions, self.args.image_size//self.args.divisions)
         
         rgbd = self.b(a)
@@ -141,7 +141,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(rgbd_out, 
-                                (episodes, steps, args.h_w_wheels_shoulders_size)))
+                                (episodes, steps, args.h_w_wheels_joints_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     
@@ -205,9 +205,9 @@ class Sensors_OUT(nn.Module):
         self.args = args 
 
         self.a = nn.Sequential(
-            #nn.BatchNorm1d(self.args.h_w_wheels_shoulders_size), # Tested, don't use
+            #nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
             nn.Linear(
-                in_features = self.args.h_w_wheels_shoulders_size,
+                in_features = self.args.h_w_wheels_joints_size,
                 out_features = self.args.sensors_shape),
             nn.Tanh())
         
@@ -217,9 +217,9 @@ class Sensors_OUT(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, h_w_wheels_shoulders):
-        start_time, episodes, steps, [h_w_wheels_shoulders] = model_start([(h_w_wheels_shoulders, "lin")], self.args.device, self.args.half)
-        sensors = self.a(h_w_wheels_shoulders)
+    def forward(self, h_w_wheels_joints):
+        start_time, episodes, steps, [h_w_wheels_joints] = model_start([(h_w_wheels_joints, "lin")], self.args.device, self.args.half)
+        sensors = self.a(h_w_wheels_joints)
         sensors = (sensors + 1) / 2
         [sensors] = model_end(start_time, episodes, steps, [(sensors, "lin")], "\tSENSORS_OUT")
         return(sensors)
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(sensors_out, 
-                                (episodes, steps, args.h_w_wheels_shoulders_size)))
+                                (episodes, steps, args.h_w_wheels_joints_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 
 
@@ -338,9 +338,9 @@ class Voice_OUT(nn.Module):
         self.actor = actor
         
         self.a = nn.Sequential(
-            #nn.BatchNorm1d(self.args.h_w_wheels_shoulders_size), # Tested, don't use this
+            #nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use this
             nn.Linear(
-                in_features = self.args.h_w_wheels_shoulders_size, 
+                in_features = self.args.h_w_wheels_joints_size, 
                 out_features = self.args.hidden_size * self.args.max_voice_len))
         
         self.ab = nn.Sequential(
@@ -372,12 +372,12 @@ class Voice_OUT(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
                 
-    def forward(self, h_w_wheels_shoulders):
+    def forward(self, h_w_wheels_joints):
 
-        start_time, episodes, steps, [h_w_wheels_shoulders] = model_start([(h_w_wheels_shoulders, "lin")], self.args.device, self.args.half)        
+        start_time, episodes, steps, [h_w_wheels_joints] = model_start([(h_w_wheels_joints, "lin")], self.args.device, self.args.half)        
                 
-        h_w_wheels_shoulders = h_w_wheels_shoulders.reshape(episodes * steps, self.args.h_w_wheels_shoulders_size)
-        a = self.a(h_w_wheels_shoulders)
+        h_w_wheels_joints = h_w_wheels_joints.reshape(episodes * steps, self.args.h_w_wheels_joints_size)
+        a = self.a(h_w_wheels_joints)
         a = self.ab(a)
         a = self.ac(a)
         a = a.reshape(episodes * steps, self.args.max_voice_len, self.args.hidden_size)
@@ -410,7 +410,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(voice_out, 
-                                (episodes, steps, args.h_w_wheels_shoulders_size)))
+                                (episodes, steps, args.h_w_wheels_joints_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     
@@ -436,11 +436,11 @@ class Obs_OUT(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, h_w_wheels_shoulders):
-        rgbd_pred = self.rgbd_out(h_w_wheels_shoulders)
-        sensors_pred = self.sensors_out(h_w_wheels_shoulders)
-        father_voice_pred = self.father_voice_out(h_w_wheels_shoulders)
-        mother_voice_pred = self.mother_voice_out(h_w_wheels_shoulders)
+    def forward(self, h_w_wheels_joints):
+        rgbd_pred = self.rgbd_out(h_w_wheels_joints)
+        sensors_pred = self.sensors_out(h_w_wheels_joints)
+        father_voice_pred = self.father_voice_out(h_w_wheels_joints)
+        mother_voice_pred = self.mother_voice_out(h_w_wheels_joints)
         return(rgbd_pred, sensors_pred, father_voice_pred, mother_voice_pred)
     
     
@@ -455,7 +455,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(obs_out, 
-                                (episodes, steps, args.h_w_wheels_shoulders_size)))
+                                (episodes, steps, args.h_w_wheels_joints_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     
@@ -464,17 +464,17 @@ if __name__ == "__main__":
     
     
     
-class Wheels_Shoulders_IN(nn.Module):
+class Wheels_Joints_IN(nn.Module):
     
     def __init__(self, args = default_args):
-        super(Wheels_Shoulders_IN, self).__init__()
+        super(Wheels_Joints_IN, self).__init__()
         
         self.args = args 
         
         self.a = nn.Sequential(
             nn.Linear(
-                in_features = self.args.wheels_shoulders_shape, 
-                out_features = self.args.wheels_shoulders_encode_size),
+                in_features = self.args.wheels_joints_shape, 
+                out_features = self.args.wheels_joints_encode_size),
             nn.PReLU())
         
         self.apply(init_weights)
@@ -483,10 +483,10 @@ class Wheels_Shoulders_IN(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, wheels_shoulders):
-        start_time, episodes, steps, [wheels_shoulders] = model_start([(wheels_shoulders, "lin")], self.args.device, self.args.half)
-        encoded = self.a(wheels_shoulders)
-        [encoded] = model_end(start_time, episodes, steps, [(encoded, "lin")], "\tWheels_Shoulders_IN")
+    def forward(self, wheels_joints):
+        start_time, episodes, steps, [wheels_joints] = model_start([(wheels_joints, "lin")], self.args.device, self.args.half)
+        encoded = self.a(wheels_joints)
+        [encoded] = model_end(start_time, episodes, steps, [(encoded, "lin")], "\tWheels_joints_IN")
 
         return(encoded)
     
@@ -494,15 +494,15 @@ class Wheels_Shoulders_IN(nn.Module):
     
 if __name__ == "__main__":
     
-    wheels_shoulders_in = Wheels_Shoulders_IN(args = args)
+    wheels_joints_in = Wheels_Joints_IN(args = args)
     
     print("\n\n")
-    print(wheels_shoulders_in)
+    print(wheels_joints_in)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(torch_summary(wheels_shoulders_in, 
-                                (episodes, steps, args.wheels_shoulders_shape)))
+            print(torch_summary(wheels_joints_in, 
+                                (episodes, steps, args.wheels_joints_shape)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 # %%
 

@@ -85,9 +85,15 @@ add_this("t",   {
     "consideration" : [False, True]
 })         
 
-add_this("one_arm",
-         {"robot_name" : "one_arm",
-          "min_shoulder_angle" : -pi/2})
+add_this("one_head_arm",
+         {"robot_name" : "one_head_arm",
+          "max_joint_1_angle" : pi/4})
+
+add_this("two_head_arm",
+         {"robot_name" : "two_head_arm",
+          "max_joint_1_angle" : pi/4,
+          "min_joint_2_angle" : -pi/2,
+          "max_joint_2_angle" : 0})
 
 
 
