@@ -1,59 +1,37 @@
 #%% 
 
-import os 
+import os
 import pickle
-import psutil
-from time import sleep
-import numpy as np
-from math import log
-from itertools import accumulate, product
-from copy import deepcopy
-import matplotlib.pyplot as plt
 
-import torch
-import torch.nn.functional as F
-from torch.distributions import MultivariateNormal
-import torch.optim as optim
-
-from utils import default_args, wheels_shoulders_to_string, cpu_memory_usage, \
-    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots, Goal
-from utils_submodule import model_start
-from arena import Arena, get_physics
 from processor import Processor
-from buffer import RecurrentReplayBuffer
-from pvrnn import PVRNN
-from models import Actor, Critic
-from plotting_episodes import plot_step
-from agent import Agent
+from agent import Agent 
 
-hyper_parameters = "ej_t1_3"
-dreaming_agent_num = 3
-epochs = 50000
+hyper_parameters = "eft_two_head_arm_4"
+agent_num = "0001"
+epochs = "001000"
 saved_file = "saved_deigo"
 
 
 
 print("\n\nLoading...", end = " ")
-with open(f'{saved_file}/{hyper_parameters}/plot_dict.pickle', 'rb') as file:
-    plot_dict = pickle.load(file)
-    agent_lists = plot_dict["agent_lists"]
-    args = plot_dict["args"]
-    args.left_duration = 1 
-    args.right_duration = 1
+    
+with open(f'{saved_file}/{hyper_parameters}/agents/args.pickle', 'rb') as file:
+    args = pickle.load(file)
 print("Loaded!\n\n")
 
 print("Making arena...", end = " ")
 agent = Agent(GUI = True, args = args)
 print("Made arena!")
 
-agent.forward = agent_lists["forward"]
-agent.actor = agent_lists["actor"]
-for i in range(agent.args.critics):
-    agent.critics[i] = agent_lists["critic"]
-    agent.critic_targets[i] = agent_lists["critic"]
-    
-these_parameters = agent_lists[f"{dreaming_agent_num}_{epochs}"]
-agent.load_state_dict(state_dict = these_parameters)
+agent.load_agent(load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pth.gz')
+
+episodes = 0
+wins = 0
+print("Ready to go!")
+
+
+
+#%%
 
 
 

@@ -204,9 +204,11 @@ class Agent:
         
         
     def regular_checks(self, force = False, swapping = False, sleep_time = None):
-        if(self.epochs % self.args.epochs_per_agent_save == 0 and self.agent_num <= self.args.agents_per_agent_save):
+        if(
+            (self.agent_num <= self.args.agents_per_agent_save and self.epochs % self.args.epochs_per_agent_save == 0) or 
+            (self.agent_num <= self.args.agents_per_agent_save and force)):
             self.save_agent()
-        if(self.epochs % self.args.epochs_per_gen_test == 0):
+        if(self.epochs % self.args.epochs_per_gen_test == 0 or force):
             self.gen_test(sleep_time = sleep_time)  
         
         
@@ -299,12 +301,10 @@ class Agent:
             pickle.dump(self.plot_dict, handle)
         with open(f"{folder}/min_max_dict_{file_end}.pickle", "wb") as handle:
             pickle.dump(self.min_max_dict, handle)
-        if(self.args.save_agents):
-            with open(f"{folder}/agents/agent_{file_end}.pickle""wb") as handle:
-                pickle.dump(self, handle)
                 
     
     
+    # Can we make this able to dream?
     def step_in_episode(self, 
                         prev_action_1, hq_1,
                         prev_action_2, hq_2, sleep_time = None):
@@ -606,6 +606,7 @@ class Agent:
             return(win)
                     
                     
+                    
     def get_component_data(self, sleep_time = None):
         if(self.args.agents_per_component_data != -1 and self.agent_num > self.args.agents_per_component_data): 
             return
@@ -653,7 +654,7 @@ class Agent:
         labels_filtered = labels[non_zero_mask]
         all_mask_filtered = all_mask[non_zero_mask]
                 
-        self.plot_dict["component_data"][self.epochs] = (father_voice_zq, labels, all_mask, father_voice_zq_filtered, labels_filtered, all_mask_filtered)
+        return father_voice_zq, labels, all_mask, father_voice_zq_filtered, labels_filtered, all_mask_filtered
         
         
         

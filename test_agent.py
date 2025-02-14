@@ -13,9 +13,9 @@ saved_file = "saved_deigo"
 
 
 print("\n\nLoading...", end = " ")
-with open(f'{saved_file}/{hyper_parameters}/plot_dict.pickle', 'rb') as file:
-    plot_dict = pickle.load(file)
-    args = plot_dict["args"]
+    
+with open(f'{saved_file}/{hyper_parameters}/agents/args.pickle', 'rb') as file:
+    args = pickle.load(file)
 print("Loaded!\n\n")
 
 print("Making arena...", end = " ")

@@ -378,7 +378,7 @@ def literal(arg_string): return(ast.literal_eval(arg_string))
 parser = argparse.ArgumentParser()
 
     # Stuff I'm testing right now   
-parser.add_argument('--robot_name',                    type=str,           default = "two_head_arm",
+parser.add_argument('--robot_name',                    type=str,           default = "two_side_arm",
                     help='Options: two_side_arm, one_head_arm.') 
 parser.add_argument('--smooth_steps',                    type=literal,           default = False,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
@@ -489,7 +489,7 @@ parser.add_argument('--pull_duration',                  type=int,           defa
 parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
 
-parser.add_argument('--push_amount',                    type=float,         default = .25,
+parser.add_argument('--push_amount',                    type=float,         default = .75,
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--pull_amount',                    type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
@@ -746,6 +746,8 @@ folder = f"{save_file}/{args.arg_name}"
 if(args.arg_title[:3] != "___" and not args.arg_name in ["default", "finishing_dictionaries", "plotting", "plotting_predictions", "plotting_positions"]):
     os.makedirs(f"{folder}", exist_ok=True)
     os.makedirs(f"{folder}/agents", exist_ok=True)
+    with open(f"{folder}/agents/args.pickle", "wb") as handle:
+        pickle.dump(args, handle)
 if(default_args.alpha == "None"): 
     default_args.alpha = None
 if(args.alpha == "None"):         
