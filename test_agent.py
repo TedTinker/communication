@@ -5,7 +5,7 @@ import pickle
 from processor import Processor
 from agent import Agent 
 
-hyper_parameters = "eft_two_head_arm_4"
+hyper_parameters = "ef_two_head_arm"
 agent_num = "0001"
 epochs = "070000"
 saved_file = "saved_deigo"
@@ -48,7 +48,7 @@ print("Ready to go!")
     
 agent.processors = {0 : Processor(
     agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(2, 1)], 
+    tasks_and_weights = [(1, 1)], 
     objects = 2, 
     colors = [1], 
     shapes = [0], 
