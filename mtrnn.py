@@ -4,15 +4,7 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args
 from utils_submodule import episodes_steps, init_weights
-
-
-
-if __name__ == "__main__":
-    
-    args = default_args
-    episodes = args.batch_size ; steps = args.max_steps
 
 
 
@@ -75,6 +67,9 @@ class MTRNNCell(nn.Module):
     
 if __name__ == "__main__":
     
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
+    
     cell = MTRNNCell(
         input_size = 16,
         hidden_size = 32,
@@ -125,6 +120,9 @@ class MTRNN(nn.Module):
 
 
 if __name__ == "__main__":
+    
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
     
     mtrnn = MTRNN(
         input_size = 16,

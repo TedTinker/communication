@@ -5,10 +5,8 @@ import pybullet as p
 from time import sleep
 from math import pi
 
-from utils import args, default_args, shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, make_objects_and_task, duration, wait_for_button_press, plot_number_bars #, print
+from utils import args, shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, make_objects_and_task, duration, wait_for_button_press, plot_number_bars #, print
 from arena import Arena, get_physics
-
-args = default_args
 
 sleep_time = .5
 verbose = True
@@ -53,11 +51,16 @@ task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
 do_these = [
     #"show_movements",
     #"watch",
-    #"push",
-    #"pull",
+    "push",
+    "pull",
     "right",
     "left",
     ]
+
+
+args.robot_name = "one_head_arm"
+args.min_joint_1_angle = -pi/4
+args.max_joint_1_angle = pi/4
 
 
 if(args.robot_name == "one_head_arm"):
@@ -127,7 +130,7 @@ if(args.robot_name == "one_head_arm"):
         arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(x,x)])
         show_them()
         arena.rewards(verbose = True)
-        moves = [[-.5, .5, -1]] * 1 + [[1, 1, -1]] * 1 + [[0, 0, 1]] + [[-1, -1, 0]] * 10
+        moves = [[-.5, .5, -1]] * 1 + [[1, 1, -1]] * 1 + [[0, 0, .5]] + [[-1, -1, 0]] * 10
         for lw, rw, j1 in moves:
             arena.step(lw, rw, j1, 0, verbose = verbose, sleep_time = sleep_time, waiting = waiting)
             plot_number_bars([lw, rw, j1])

@@ -2,13 +2,12 @@
 
 import numpy as np
 
-from utils import default_args
 from utils_submodule import pad_zeros
 
 
 
 class VariableBuffer:
-    def __init__(self, shape = (1,), before_and_after = False, args = default_args):
+    def __init__(self, args, shape = (1,), before_and_after = False):
         self.args = args
         self.shape = shape
         self.data = np.zeros((self.args.capacity, self.args.max_steps + (1 if before_and_after else 0)) + self.shape, dtype='float32')
@@ -26,7 +25,7 @@ class VariableBuffer:
 
 
 class RecurrentReplayBuffer:
-    def __init__(self, args = default_args):
+    def __init__(self, args):
         self.args = args
         self.capacity = self.args.capacity
         self.max_episode_len = self.args.max_steps

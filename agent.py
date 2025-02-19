@@ -17,8 +17,8 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import default_args, folder, wheels_joints_to_string, cpu_memory_usage, duration, print_duration, wait_for_button_press, \
-    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots, Goal
+from utils import folder, wheels_joints_to_string, cpu_memory_usage, duration, print_duration, wait_for_button_press, \
+    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots, Goal, adjust_action
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from processor import Processor
@@ -52,7 +52,7 @@ fwpulr_tasks_and_weights = make_tasks_and_weights(50)
 
 class Agent:
     
-    def __init__(self, i = -1, GUI = False, args = default_args):
+    def __init__(self, args, i = -1, GUI = False):
         
         self.agent_num = i
         self.args = args
@@ -77,22 +77,12 @@ class Agent:
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.processors = {
-            "f" :           Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
-                                      full_name = "Free Play"),
-            "w" :           Processor(self.arena_1, self.arena_2, tasks_and_weights = [(1, 1)],                                             objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
-                                      full_name = "Watch"),
-            "wpulr" :       Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
+            "wpulr" :       Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, 
                                       full_name = "All Tasks"),
-            
-            "fwpulr_u" :    Processor(self.arena_1, self.arena_2, tasks_and_weights = [(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
-                                      full_name = "Uniform free-play"),
-            
-            "fwpulr_50" :   Processor(self.arena_1, self.arena_2, tasks_and_weights = make_tasks_and_weights(50),                           objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, args = self.args,
-                                      full_name = "50% free-play"),
             }
         
         self.all_processors = {f"{task_map[task].name}_{color_map[color].name}_{shape_map[shape].name}" : 
-            Processor(self.arena_1, self.arena_2, tasks_and_weights = [(task, 1)], objects = 2, colors = [color], shapes = [shape], parenting = True, args = self.args) for task, color, shape in \
+            Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(task, 1)], objects = 2, colors = [color], shapes = [shape], parenting = True) for task, color, shape in \
                 product([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
                 #product([0, 1], [0, 1], [0, 1])}
         all_processor_names = list(self.all_processors.keys())
@@ -304,10 +294,20 @@ class Agent:
                 
     
     
-    # Can we make this able to dream?
+    def get_agent_obs(self, agent_1 = True):
+        parenting = self.processor.parenting
+        if(parenting and not agent_1):
+            return(None)
+        obs = self.processor.obs(agent_1)
+        obs.father_voice = obs.father_voice.one_hots.unsqueeze(0).unsqueeze(0) 
+        obs.mother_voice = obs.mother_voice.one_hots.unsqueeze(0).unsqueeze(0) 
+        return(obs)
+                
+                
+    
     def step_in_episode(self, 
-                        prev_action_1, hq_1,
-                        prev_action_2, hq_2, sleep_time = None):
+                        prev_action_1, hq_1, obs_1,
+                        prev_action_2, hq_2, obs_2, sleep_time = None, user_action = False):
 
         with torch.no_grad():
             self.eval()
@@ -323,21 +323,25 @@ class Agent:
                 prev_action = prev_action_1 if agent_1 else prev_action_2
                 partner_prev_voice_out = prev_action_2.voice_out if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape)) if agent_1 else prev_action_1.voice_out
                 hq = hq_1 if agent_1 else hq_2
-                obs = self.processor.obs(agent_1)
-                                
-                obs.father_voice = obs.father_voice.one_hots.unsqueeze(0).unsqueeze(0) 
-                obs.mother_voice = obs.mother_voice.one_hots.unsqueeze(0).unsqueeze(0) 
+                obs = obs_1 if agent_1 else obs_2
 
                 hp, hq, rgbd_is, sensors_is, father_voice_is, mother_voice_is = self.forward.bottom_to_top_step(
                     hq_1, self.forward.obs_in(obs), self.forward.action_in(prev_action))
 
                 action, _, _ = self.actor(hq.detach(), parenting) 
+                
+                if(user_action):
+                    user_wheels_joints = adjust_action(action.wheels_joints)
+                    action.wheels_joints = user_wheels_joints
+                
                 values = []
                 for i in range(self.args.critics):
                     value = self.critics[i](action, hq.detach()) 
                     values.append(round(value.item(), 3))
                 
                 return(obs, action, hp, hq, values, rgbd_is, sensors_is, father_voice_is, mother_voice_is)
+            
+            
             
             obs_1, action_1, hp_1, hq_1, values_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1 = agent_step()
             obs_2, action_2, hp_2, hq_2, values_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2 = agent_step(agent_1 = False)
@@ -406,11 +410,13 @@ class Agent:
             self.total_steps += 1                                                                  
             if(not done):
                 steps += 1
+                obs_1 = self.get_agent_obs()
+                obs_2 = self.get_agent_obs(agent_1 = False)
                 prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, \
                     prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                            prev_action_1, hq_1,
-                            prev_action_2, hq_2, sleep_time = sleep_time)
+                            prev_action_1, hq_1, obs_1,
+                            prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
                         
                 if(self.args.agents_per_behavior_analysis == -1 or self.agent_num <= self.args.agents_per_behavior_analysis):  
                     self.plot_dict["behavior"][self.episodes].append(get_goal_from_one_hots(to_push_1.next_obs.mother_voice)) 
@@ -478,11 +484,13 @@ class Agent:
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
+                    obs_1 = self.get_agent_obs()
+                    obs_2 = self.get_agent_obs(agent_1 = False)
                     prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, \
                         prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                prev_action_1, hq_1,
-                                prev_action_2, hq_2, sleep_time = sleep_time)
+                                prev_action_1, hq_1, obs_1,
+                                prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
                     complete_reward += reward
                 #print("DONE")
             self.processor.done()
@@ -504,7 +512,7 @@ class Agent:
         
         
         
-    def save_episodes(self, test = False, sleep_time = None, waiting = False):        
+    def save_episodes(self, test = False, sleep_time = None, waiting = False, user_action = False, dreaming = False):        
         with torch.no_grad():
             self.processor = self.processors[self.processor_name]
             self.processor.begin(test = test)       
@@ -530,13 +538,22 @@ class Agent:
                     
             hp_1 = deepcopy(hq_1)
             hp_2 = deepcopy(hp_1)
+            
+            
+            
+            # In dream-time, this should be the observation.
+            previous_dream_obs_q_1 = None
+            previous_dream_obs_q_2 = None
+            current_dream_obs_q_1 = None
+            current_dream_obs_q_2 = None
+            
+            
                             
-            def save_step(step, hp, hq, wheels_joints, agent_1 = True):
+            def save_step(obs, agent_1 = True):
                 agent_num = 1 if agent_1 else 2
                 birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
-                obs = self.processor.obs(agent_1 = agent_1)
-                
-                obs.father_voice = obs.mother_voice if self.processor.goal.task.name == "SILENCE" else obs.father_voice if parenting else prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
+                dream_obs_q = None
+                obs.father_voice = obs.father_voice if parenting else prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
                 if(type(obs.father_voice) != Goal):
                     obs.father_voice = get_goal_from_one_hots(obs.father_voice)
                 if(type(obs.mother_voice) != Goal):
@@ -544,19 +561,32 @@ class Agent:
                 
                 episode_dict[f"obs_{agent_num}"].append(obs) 
                 episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
-                if(step != 0):
-                    pred_obs_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_joints_in(wheels_joints)) 
-                    pred_obs_q = self.forward.predict(hq.unsqueeze(1), self.forward.wheels_joints_in(wheels_joints))
-                    
-                    pred_obs_p.father_voice = get_goal_from_one_hots(pred_obs_p.father_voice)
-                    pred_obs_q.father_voice = get_goal_from_one_hots(pred_obs_q.father_voice)
-                    
-                    pred_obs_p.mother_voice = get_goal_from_one_hots(pred_obs_p.mother_voice)
-                    pred_obs_q.mother_voice = get_goal_from_one_hots(pred_obs_q.mother_voice)
-                    
-                    episode_dict[f"prior_predictions_{agent_num}"].append(pred_obs_p)
-                    episode_dict[f"posterior_predictions_{agent_num}"].append(pred_obs_q)
                 
+                
+                
+            def next_prediction(hp, hq, obs, wheels_joints, agent_1 = True):
+                agent_num = 1 if agent_1 else 2
+                
+                pred_obs_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_joints_in(wheels_joints)) 
+                pred_obs_q = self.forward.predict(hq.unsqueeze(1), self.forward.wheels_joints_in(wheels_joints))
+                
+                dream_obs_q = deepcopy(pred_obs_q)
+                dream_obs_q.rgbd = dream_obs_q.rgbd.squeeze(0)
+                dream_obs_q.sensors = dream_obs_q.sensors.squeeze(0)
+                
+                pred_obs_p.father_voice = get_goal_from_one_hots(pred_obs_p.father_voice)
+                pred_obs_q.father_voice = get_goal_from_one_hots(pred_obs_q.father_voice)
+                
+                pred_obs_p.mother_voice = get_goal_from_one_hots(pred_obs_p.mother_voice)
+                pred_obs_q.mother_voice = get_goal_from_one_hots(pred_obs_q.mother_voice)
+                
+                episode_dict[f"prior_predictions_{agent_num}"].append(pred_obs_p)
+                episode_dict[f"posterior_predictions_{agent_num}"].append(pred_obs_q)
+            
+                return(dream_obs_q)
+                    
+                    
+                                    
             def display(step, agent_1 = True, done = False, stopping = False):
 
                 print(f"\n{self.processor.goal.human_text}", end = " ")
@@ -566,19 +596,38 @@ class Agent:
                     display(step, agent_1 = False, stopping = True)
                 if(waiting):
                     WAITING = wait_for_button_press()
+                    
+                    
             
             for step in range(self.args.max_steps + 1):
-                save_step(step, hp_1, hq_1, wheels_joints = prev_action_1.wheels_joints, agent_1 = True)    
-                if(not self.processor.parenting):
-                    save_step(step, hp_2, hq_2, wheels_joints = prev_action_2.wheels_joints, agent_1 = False)  
+                
+                # First, save step.
+                real_obs_1 = self.get_agent_obs()
+                real_obs_2 = self.get_agent_obs(agent_1 = False)
+                if(dreaming and step != 0):
+                    print(f"\n\nDreaming, step {step}\n\n")
+                    obs_1 = previous_dream_obs_q_1
+                    obs_2 = previous_dream_obs_q_2
+                else:
+                    obs_1 = deepcopy(real_obs_1)
+                    obs_2 = deepcopy(real_obs_2)
+                
+                save_step(real_obs_1)    
+                if(not parenting):
+                    save_step(real_obs_2, agent_1 = False)  
                     
                 display(step)
                 
+                # Then, perform action.
                 prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, \
                     prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                            prev_action_1, hq_1,
-                            prev_action_2, hq_2, sleep_time = sleep_time) 
+                            prev_action_1, hq_1, obs_1,
+                            prev_action_2, hq_2, obs_2, sleep_time = sleep_time, user_action = user_action) 
+                        
+                previous_dream_obs_q_1 = next_prediction(hp_1, hq_1, deepcopy(obs_1), wheels_joints = prev_action_1.wheels_joints, agent_1 = True)
+                if(not parenting):
+                    previous_dream_obs_q_2 = next_prediction(hp_2, hq_2, deepcopy(obs_2), wheels_joints = prev_action_2.wheels_joints, agent_1 = False)
                         
                 episode_dict["reward"].append(str(round(reward, 3)))
                 
@@ -596,9 +645,9 @@ class Agent:
                     update_episode_dict(2, prev_action_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, values_2, reward_2)
                 
                 if(done):
-                    save_step(step, hp_1, hq_1, wheels_joints = prev_action_1.wheels_joints, agent_1 = True)    
+                    save_step(real_obs_1, agent_1 = True)    
                     if(not self.processor.parenting):
-                        save_step(step, hp_2, hq_2, wheels_joints = prev_action_2.wheels_joints, agent_1 = False) 
+                        save_step(real_obs_2, agent_1 = False) 
                     display(step + 1, done = True)
                     self.processor.done()
                     break
@@ -625,11 +674,13 @@ class Agent:
             for step in range(self.args.max_steps):
                 #print("Step", step)
                 if(not done):
+                    obs_1 = self.get_agent_obs()
+                    obs_2 = self.get_agent_obs(agent_1 = False)
                     prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, \
                         prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                prev_action_1, hq_1,
-                                prev_action_2, hq_2, sleep_time = sleep_time)
+                                prev_action_1, hq_1, obs_1,
+                                prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
                 to_push_list_1.append(to_push_1)
                 if(done): break
             #print("DONE")
@@ -954,6 +1005,16 @@ class Agent:
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
+
+
+    #def save_agent(self):
+    #    if not self.args.local:
+    #        save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz"
+    #        with gzip.open(save_path, "wb") as f:
+    #            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)  # Use max compression
+
+
+
     def save_agent(self):
         if(not self.args.local):
             save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pth.gz"
@@ -997,6 +1058,6 @@ class Agent:
         
         
 if __name__ == "__main__":
-    agent = Agent(args = default_args)
+    agent = Agent(args = args)
     agent.save_episodes()
 # %%

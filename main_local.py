@@ -5,17 +5,21 @@ from math import pi
 from utils import args
 from agent import Agent
 
+args.show_duration = True
+
 args.local = True
 args.alpha = None
 args.normal_alpha = .1
 args.curiosity = "hidden_state"
-args.processor_list = ["f", "w"]
-args.epochs = [10, 10]
+args.processor_list = ["wpulr"]
+args.epochs = [10]
 args.agents_per_component_data = 0
 args.eta_reduction = .99
 args.reward = 10
 args.steps_per_epoch = args.max_steps
 args.smooth_steps = True
+
+args.robot_name = "one_head_arm"
 
 if(args.robot_name != "two_side_arm"):
     args.min_shoulder_angle = -pi/2
@@ -28,13 +32,12 @@ args.push_amount = .75 / x
 args.pull_amount = .25 / x
 args.left_right_amount = .25 / x"""
 
-args.show_duration = True
 
 def run():
     agent = Agent(
-        1, 
-        GUI = True, 
-        args = args)
+        args = args,
+        i = 1, 
+        GUI = True)
     agent.training(sleep_time = 1)
     
 run()

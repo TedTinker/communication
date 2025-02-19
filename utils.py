@@ -1,9 +1,10 @@
 #%% 
 
 # To do:
-#   Problems: 
-#       One-arm robot oddly powerful. Try different masses for arm.
-#       There are some pauses in movement (rough or smooth). 
+#   Use better, more convenient robot-maker.
+#   It seems head-arm robots have trouble with goal-detection.
+#   head-arm robots have their arm phase through shapes. Probably because the arm as "fixing" its maxed-out angle.
+#   Something weird is happening with test_agent. Maybe wrong arguments?
 
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
@@ -26,6 +27,7 @@ import psutil
 from itertools import product
 import tkinter as tk
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
@@ -802,6 +804,47 @@ def wait_for_button_press(button_label="Continue"):
 
     # Run the tkinter main loop
     root.mainloop()
+    
+    
+    
+def adjust_action(action_tensor):
+    root = tk.Tk()
+    root.title("Adjust Actions")
+    
+    shape = action_tensor.shape
+    num_elements = np.prod(shape)
+    flat_action = action_tensor.view(-1).detach().numpy()
+    
+    sliders = []
+    
+    def update_tensor():
+        updated_values = [slider.get() for slider in sliders]
+        updated_tensor = torch.tensor(updated_values).view(shape)
+        root.quit()
+        return updated_tensor
+    
+    for i in range(num_elements):
+        frame = tk.Frame(root)
+        frame.pack()
+        
+        label = tk.Label(frame, text=f"Action[{i}]")
+        label.pack(side=tk.LEFT)
+        
+        slider = tk.Scale(frame, from_=-1, to=1, resolution=0.01, orient=tk.HORIZONTAL)
+        slider.set(flat_action[i])
+        slider.pack(side=tk.RIGHT)
+        sliders.append(slider)
+    
+    btn = tk.Button(root, text="Confirm", command=update_tensor)
+    btn.pack()
+    
+    root.mainloop()
+    
+    get = [slider.get() for slider in sliders]
+    
+    root.destroy()
+    
+    return torch.tensor(get).view(shape)
 
 
 

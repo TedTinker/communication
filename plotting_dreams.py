@@ -2,13 +2,17 @@
 
 import os
 import pickle
+import torch
+from copy import deepcopy
 
+from utils import wait_for_button_press
 from processor import Processor
 from agent import Agent 
+from plotting_episodes import plot_step
 
-hyper_parameters = "eft_two_head_arm_4"
+hyper_parameters = "ef"
 agent_num = "0001"
-epochs = "001000"
+epochs = "070000"
 saved_file = "saved_deigo"
 
 
@@ -27,11 +31,6 @@ agent.load_agent(load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{age
 
 episodes = 0
 wins = 0
-print("Ready to go!")
-
-
-
-#%%
 
 
 
@@ -56,8 +55,6 @@ def dream_step(self,
                             
             obs.father_voice = obs.father_voice.one_hots.unsqueeze(0).unsqueeze(0) 
             obs.mother_voice = obs.mother_voice.one_hots.unsqueeze(0).unsqueeze(0) 
-            if(not self.args.joint_dialogue):
-                obs.father_voice = obs.mother_voice if self.processor.goal.task.name == "SILENCE" else obs.father_voice if parenting else partner_prev_voice_out
 
             hp, hq, rgbd_is, sensors_is, father_voice_is, mother_voice_is = self.forward.bottom_to_top_step(
                 hq, self.forward.obs_in(obs), self.forward.action_in(prev_action))
@@ -68,8 +65,8 @@ def dream_step(self,
                 value = self.critics[i](action, hq.detach()) 
                 values.append(round(value.item(), 3))
                 
-            pred_obs_p = self.forward.predict(hp, self.forward.wheels_shoulders_in(action.wheels_shoulders)) 
-            pred_obs_q = self.forward.predict(hq, self.forward.wheels_shoulders_in(action.wheels_shoulders)) 
+            pred_obs_p = self.forward.predict(hp, self.forward.wheels_joints_in(action.wheels_joints)) 
+            pred_obs_q = self.forward.predict(hq, self.forward.wheels_joints_in(action.wheels_joints)) 
             
             return(real_obs, pred_obs_p, pred_obs_q, action, hp, hq, values, rgbd_is, sensors_is, father_voice_is, mother_voice_is)
         
@@ -78,7 +75,7 @@ def dream_step(self,
         real_obs_1, pred_obs_p_1, pred_obs_q_1, action_1, hp_1, hq_1, values_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1 = agent_step()
 
         # This action is happening, but agent is hallucinating.
-        reward, done, win = self.processor.step(action_1.wheels_shoulders[0,0].clone(), None, sleep_time = sleep_time)
+        reward, done, win = self.processor.step(action_1.wheels_joints[0,0].clone(), None, sleep_time = sleep_time)
         
         def next_agent_step():
             
@@ -89,8 +86,6 @@ def dream_step(self,
             
             next_obs.father_voice = next_obs.father_voice.one_hots.unsqueeze(0).unsqueeze(0)
             next_obs.mother_voice = next_obs.mother_voice.one_hots.unsqueeze(0).unsqueeze(0)
-            if(not self.args.joint_dialogue):
-                next_obs.father_voice = next_obs.mother_voice if self.processor.goal.task.name == "SILENCE" else next_obs.father_voice if parenting else partner_voice_out
 
             to_push = To_Push(obs, action, reward, next_obs, done)     
             return(next_obs, to_push)
@@ -134,16 +129,9 @@ def save_dreams(self, swapping = False, test = False, sleep_time = None, for_dis
         
         
                         
-        def save_step(step, hp, hq, wheels_shoulders):
+        def save_step(step, hp, hq, wheels_joints):
             birds_eye = self.processor.arena_1.photo_from_above()
             obs = self.processor.obs()
-            
-            if(self.args.joint_dialogue):
-                obs.father_voice = obs.mother_voice if self.processor.goal.task.name == "SILENCE" else obs.father_voice
-            if(type(obs.father_voice) != Goal):
-                obs.father_voice = get_goal_from_one_hots(obs.father_voice)
-            if(type(obs.mother_voice) != Goal):
-                obs.mother_voice = get_goal_from_one_hots(obs.mother_voice)
             
             episode_dict[f"obs_1"].append(obs) 
             episode_dict[f"birds_eye_1"].append(birds_eye[:,:,0:3])
@@ -157,17 +145,17 @@ def save_dreams(self, swapping = False, test = False, sleep_time = None, for_dis
                 plot_step(step, episode_dict, last_step = done, saving = False)
                 if(not self.processor.parenting and not stopping):
                     display(step, stopping = True)
-                if(wait):
-                    WAITING = input("WAITING")
+                if(wait): 
+                    WAITING = wait_for_button_press()
                     
                     
         
         pred_obs_q_1 = None 
         pred_obs_q_2 = None
         for step in range(self.args.max_steps + 1):
-            save_step(step, hp_1, hq_1, wheels_shoulders = prev_action_1.wheels_shoulders)    
+            save_step(step, hp_1, hq_1, wheels_joints = prev_action_1.wheels_joints)    
             if(not self.processor.parenting):
-                save_step(step, hp_2, hq_2, wheels_shoulders = prev_action_2.wheels_shoulders)  
+                save_step(step, hp_2, hq_2, wheels_joints = prev_action_2.wheels_joints)  
                 
             display(step)
             
@@ -203,9 +191,9 @@ def save_dreams(self, swapping = False, test = False, sleep_time = None, for_dis
                 update_episode_dict(2, pred_obs_p_2, pred_obs_q_2, prev_action_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, values_2, reward_2)
             
             if(done):
-                save_step(step, hp_1, hq_1, wheels_shoulders = prev_action_1.wheels_shoulders)    
+                save_step(step, hp_1, hq_1, wheels_joints = prev_action_1.wheels_joints)    
                 if(not self.processor.parenting):
-                    save_step(step, hp_2, hq_2, wheels_shoulders = prev_action_2.wheels_shoulders) 
+                    save_step(step, hp_2, hq_2, wheels_joints = prev_action_2.wheels_joints) 
                 display(step + 1, done = True, wait = False)
                 self.processor.done()
                 break
@@ -242,13 +230,12 @@ print("Ready to go!")
     args = agent.args)}"""
     
 agent.processors = {0 : Processor(
-    agent.arena_1, agent.arena_2,
+    agent.args, agent.arena_1, agent.arena_2,
     tasks_and_weights = [(2, 1)], 
     objects = 2, 
     colors = [2], 
     shapes = [0], 
-    parenting = True, 
-    args = agent.args)}
+    parenting = True)}
 
 agent.processor_name = 0
 

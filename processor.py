@@ -5,7 +5,7 @@ import numpy as np
 from time import sleep
 from random import uniform, choice
 
-from utils import default_args, task_map, shape_map, color_map, make_objects_and_task, print, Goal, Obs, empty_goal
+from utils import task_map, shape_map, color_map, make_objects_and_task, print, Goal, Obs, empty_goal
 from utils_submodule import pad_zeros
 from arena import Arena, get_physics
 
@@ -13,7 +13,7 @@ from arena import Arena, get_physics
 
 class Processor:
     
-    def __init__(self, arena_1, arena_2, tasks_and_weights = [(0, 1)], objects = 1, colors = [0], shapes = [0], parenting = True, linestyle = '-', full_name = "", args = default_args):
+    def __init__(self, args, arena_1, arena_2, tasks_and_weights = [(0, 1)], objects = 1, colors = [0], shapes = [0], parenting = True, linestyle = '-', full_name = ""):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
         
@@ -150,13 +150,13 @@ class Processor:
 if __name__ == "__main__":        
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
-
-    args = default_args
     
-    physicsClient = get_physics(GUI = True, time_step = args.time_step, steps_per_step = args.steps_per_step)
-    arena_1 = Arena(physicsClient)
+    from utils import args
+    
+    physicsClient = get_physics(GUI = True, args = args)
+    arena_1 = Arena(args, physicsClient)
     arena_2 = None
-    processor = Processor(arena_1, arena_2, tasks_and_weights = [(0, 1)], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0], parenting = True, args = args)
+    processor = Processor(args, arena_1, arena_2, tasks_and_weights = [(0, 1)], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0], parenting = True)
     
     def get_images():
         rgba = processor.arena_1.photo_from_above()

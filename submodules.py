@@ -10,20 +10,15 @@ from torch.profiler import profile, record_function, ProfilerActivity
 import torchgan.layers as gg
 from torchinfo import summary as torch_summary
 
-from utils import print, default_args
+from utils import print
 from utils_submodule import model_start, model_end, init_weights, pad_zeros, var, sample
 from mtrnn import MTRNN
 
-if __name__ == "__main__":
-    
-    args = default_args
-    episodes = args.batch_size ; steps = args.max_steps
-    
     
 
 class RGBD_IN(nn.Module):
 
-    def __init__(self, args = default_args):
+    def __init__(self, args):
         super(RGBD_IN, self).__init__()  
         
         self.args = args 
@@ -65,6 +60,9 @@ class RGBD_IN(nn.Module):
     
 if __name__ == "__main__":
     
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
+    
     rgbd_in = RGBD_IN(args = args) #.half()
     
     print("\n\n")
@@ -85,7 +83,7 @@ if __name__ == "__main__":
 
 class RGBD_OUT(nn.Module):
 
-    def __init__(self, args = default_args):
+    def __init__(self, args):
         super(RGBD_OUT, self).__init__()  
         
         self.args = args 
@@ -133,6 +131,9 @@ class RGBD_OUT(nn.Module):
     
 if __name__ == "__main__":
     
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
+    
     rgbd_out = RGBD_OUT(args = args)
     
     print("\n\n")
@@ -152,7 +153,7 @@ if __name__ == "__main__":
     
 class Sensors_IN(nn.Module):
     
-    def __init__(self, args = default_args):
+    def __init__(self, args):
         super(Sensors_IN, self).__init__()
         
         self.args = args 
@@ -180,6 +181,9 @@ class Sensors_IN(nn.Module):
     
 if __name__ == "__main__":
     
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
+    
     sensors_in = Sensors_IN(args = args)
     
     print("\n\n")
@@ -199,7 +203,7 @@ if __name__ == "__main__":
 
 class Sensors_OUT(nn.Module):
 
-    def __init__(self, args = default_args):
+    def __init__(self, args):
         super(Sensors_OUT, self).__init__()  
         
         self.args = args 
@@ -228,6 +232,9 @@ class Sensors_OUT(nn.Module):
     
 if __name__ == "__main__":
     
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
+    
     sensors_out = Sensors_OUT(args = args)
     
     print("\n\n")
@@ -247,7 +254,7 @@ if __name__ == "__main__":
 
 class Voice_IN(nn.Module):
 
-    def __init__(self, args = default_args):
+    def __init__(self, args):
         super(Voice_IN, self).__init__()  
         
         self.args = args
@@ -312,6 +319,9 @@ class Voice_IN(nn.Module):
     
 if __name__ == "__main__":
     
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
+    
     voice_in = Voice_IN(args = args)
     
     print("\n\n")
@@ -331,7 +341,7 @@ if __name__ == "__main__":
 
 class Voice_OUT(nn.Module):
 
-    def __init__(self, actor = False, args = default_args):
+    def __init__(self, args, actor = False):
         super(Voice_OUT, self).__init__()  
                 
         self.args = args
@@ -402,6 +412,9 @@ class Voice_OUT(nn.Module):
     
 if __name__ == "__main__":
     
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
+    
     voice_out = Voice_OUT(actor = False, args = args)
         
     print("\n\n")
@@ -421,7 +434,7 @@ if __name__ == "__main__":
     
 class Obs_OUT(nn.Module):
     
-    def __init__(self, args = default_args):
+    def __init__(self, args):
         super(Obs_OUT, self).__init__()  
         
         self.args = args 
@@ -447,6 +460,9 @@ class Obs_OUT(nn.Module):
     
 if __name__ == "__main__":
     
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
+    
     obs_out = Obs_OUT(args = args)
     
     print("\n\n")
@@ -466,7 +482,7 @@ if __name__ == "__main__":
     
 class Wheels_Joints_IN(nn.Module):
     
-    def __init__(self, args = default_args):
+    def __init__(self, args):
         super(Wheels_Joints_IN, self).__init__()
         
         self.args = args 
@@ -493,6 +509,9 @@ class Wheels_Joints_IN(nn.Module):
     
     
 if __name__ == "__main__":
+    
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
     
     wheels_joints_in = Wheels_Joints_IN(args = args)
     

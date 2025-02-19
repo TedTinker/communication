@@ -4,17 +4,10 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils import default_args, calculate_dkl, duration, Obs, Inner_States, Action
+from utils import calculate_dkl, duration, Obs, Inner_States, Action
 from utils_submodule import init_weights, episodes_steps, var, sample, model_start
 from mtrnn import MTRNN
 from submodules import RGBD_IN, Sensors_IN, Voice_IN, Obs_OUT, Wheels_Joints_IN
-
-
-
-if __name__ == "__main__":
-    
-    args = default_args
-    episodes = args.batch_size ; steps = args.max_steps
     
     
 
@@ -71,7 +64,7 @@ class ZP_ZQ(nn.Module):
 
 class PVRNN_LAYER(nn.Module):
     
-    def __init__(self, time_scale = 1, args = default_args):
+    def __init__(self, args, time_scale = 1):
         super(PVRNN_LAYER, self).__init__()
         
         self.args = args 
@@ -153,6 +146,9 @@ class PVRNN_LAYER(nn.Module):
     
 if __name__ == "__main__":
     
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
+    
     pvrnn_layer = PVRNN_LAYER(time_scale = 1, args = args)
     
     print("\n\nPVRNN LAYER")
@@ -177,7 +173,7 @@ if __name__ == "__main__":
     
 class PVRNN(nn.Module):
     
-    def __init__(self, args = default_args):
+    def __init__(self, args):
         super(PVRNN, self).__init__()
         
         self.args = args 
@@ -189,7 +185,7 @@ class PVRNN(nn.Module):
         self.self_voice_in = Voice_IN(self.args) 
         self.wheels_joints_in = Wheels_Joints_IN(self.args)
 
-        self.pvrnn_layer = PVRNN_LAYER(1, args = self.args)
+        self.pvrnn_layer = PVRNN_LAYER(args = self.args, time_scale = 1)
             
         self.predict_obs = Obs_OUT(args)
         
@@ -310,6 +306,9 @@ class PVRNN(nn.Module):
         
         
 if __name__ == "__main__":
+    
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
         
     pvrnn = PVRNN(args = args)
     

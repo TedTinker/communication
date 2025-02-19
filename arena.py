@@ -9,7 +9,7 @@ from math import pi, sin, cos, tan, radians, degrees, sqrt, isnan
 from time import sleep
 from skimage.transform import resize
 
-from utils import args, default_args, shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, make_objects_and_task, duration, wait_for_button_press#, print
+from utils import shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, make_objects_and_task, duration, wait_for_button_press#, print
 
 
 
@@ -64,7 +64,7 @@ else:
 
 
 class Arena():
-    def __init__(self, physicsClient, args = default_args):
+    def __init__(self, physicsClient, args):
         self.args = args
         self.physicsClient = physicsClient
         self.objects_in_play = {}
@@ -187,7 +187,111 @@ class Arena():
                
                
         
-    def step(self, left_wheel, right_wheel, joint_1, joint_2, verbose = False, sleep_time = None):
+    def step(self, left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed, verbose = False, sleep_time = None, waiting = False):
+        if(self.args.smooth_steps):
+            self.smooth_step(left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed, verbose, sleep_time, waiting)
+        else:
+            self.rough_step(left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed, verbose, sleep_time, waiting)
+        
+        
+   
+    def smooth_step(self, left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed, verbose = False, sleep_time = None, waiting = False):
+                                
+        self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
+        self.objects_start = self.object_positions()
+        touching = self.touching_any_object()
+        for object_index, touch_dict in touching.items():
+           for body_part in touch_dict.keys():
+               touch_dict[body_part] = 0 
+               
+        if(waiting): 
+            WAITING = wait_for_button_press()
+            
+        left_wheel_speed_end = relative_to(left_wheel_speed, -self.args.max_wheel_speed, self.args.max_wheel_speed)
+        right_wheel_speed_end = relative_to(right_wheel_speed, -self.args.max_wheel_speed, self.args.max_wheel_speed)
+        joint_1_speed_end = relative_to(joint_1_speed , -self.args.max_joint_1_speed, self.args.max_joint_1_speed)
+        if(self.joint_2_index != None):
+            joint_2_speed_end = relative_to(joint_2_speed , -self.args.max_joint_2_speed, self.args.max_joint_2_speed)
+            
+        left_wheel_speed_start, right_wheel_speed_start = self.get_wheel_speeds()
+        change_in_left_wheel = left_wheel_speed_end - left_wheel_speed_start
+        change_in_left_wheel_per_step = change_in_left_wheel / self.args.steps_per_step
+        
+        change_in_right_wheel = right_wheel_speed_end - right_wheel_speed_start
+        change_in_right_wheel_per_step = change_in_right_wheel / self.args.steps_per_step
+        
+        joint_1_speed_start, joint_2_speed_start = self.get_joint_speeds()
+        change_in_joint_1 = joint_1_speed_end - joint_1_speed_start
+        change_in_joint_1_per_step = change_in_joint_1 / self.args.steps_per_step
+        
+        if(self.joint_2_index != None):
+            change_in_joint_2 = joint_2_speed_end - joint_2_speed_start
+            change_in_joint_2_per_step = change_in_joint_2 / self.args.steps_per_step
+        
+        #print(f"\n\nleft_wheel_speed_start: {left_wheel_speed_start} \tleft_wheel_speed_end: {left_wheel_speed_end} \tchange_in_left_wheel: {change_in_left_wheel} \tchange_in_left_wheel_per_step: {change_in_left_wheel_per_step}")
+        #print(f"right_wheel_speed_start: {right_wheel_speed_start} \tright_wheel_speed_end: {right_wheel_speed_end} \tchange_in_right_wheel: {change_in_right_wheel} \tchange_in_right_wheel_per_step: {change_in_right_wheel_per_step}")
+        #print(f"\n\njoint_1_speed_start: {joint_1_speed_start} \tjoint_1_speed_end: {joint_1_speed_end} \tchange_in_joint_1: {change_in_joint_1} \tchange_in_joint_1_per_step: {change_in_joint_1_per_step}")
+        #print(f"joint_2_speed_start: {joint_2_speed_start} \tjoint_2_speed_end: {joint_2_speed_end} \tchange_in_joint_2: {change_in_joint_2} \tchange_in_joint_2_per_step: {change_in_joint_2_per_step}")
+            
+        for step in range(self.args.steps_per_step):
+            joint_1_step = joint_1_speed_start + change_in_joint_1_per_step * (step + 1)
+            if(self.joint_2_index != None):
+                joint_2_step = joint_2_speed_start + change_in_joint_2_per_step * (step + 1)
+            else:
+                joint_2_step = 0
+            self.set_joint_speeds(joint_1_step, joint_2_step)          
+              
+            left_wheel_step = left_wheel_speed_start + change_in_left_wheel_per_step * (step + 1)
+            right_wheel_step = right_wheel_speed_start + change_in_right_wheel_per_step * (step + 1)
+            #print(f"\nleft_wheel_steed_step {step}: {left_wheel_step}")
+            #print(f"right_wheel_steed_step {step}: {right_wheel_step}")
+            self.set_wheel_speeds(left_wheel_step, right_wheel_step)     
+            
+            if(sleep_time != None):
+                sleep(sleep_time / self.args.steps_per_step)
+            #print(f"Get Wheel Speeds (before step): {self.get_wheel_speeds()}")
+            p.stepSimulation(physicsClientId = self.physicsClient)
+            #print(f"Get Wheel Speeds (after step): {self.get_wheel_speeds()}")
+                        
+            # THIS SHOULD NOT BE DONE WITH THE YAW-ARM
+            joint_1_angle, joint_2_angle = self.get_joint_angles()
+            if(joint_1_angle > self.args.max_joint_1_angle):
+                self.set_joint_angles(joint_1_angle = self.args.max_joint_1_angle)
+                joint_1_speed = 0
+                joint_1_speed_start = change_in_joint_1_per_step = 0
+            if(joint_1_angle < self.args.min_joint_1_angle):
+                self.set_joint_angles(joint_1_angle = self.args.min_joint_1_angle)
+                joint_1_speed = 0
+                joint_1_speed_start = change_in_joint_1_per_step = 0
+                
+            if(self.joint_2_index != None):
+                if(joint_2_angle > self.args.max_joint_2_angle):
+                    self.set_joint_angles(joint_2_angle = self.args.max_joint_2_angle)
+                    joint_2_speed = 0
+                    joint_2_speed_start = 0 
+                    change_in_joint_2_per_step = 0
+                if(joint_2_angle < self.args.min_joint_2_angle):
+                    self.set_joint_angles(joint_2_angle = self.args.min_joint_2_angle)
+                    joint_2_speed = 0
+                    joint_2_start = 0 
+                    change_in_joint_2_per_step = 0
+                                                
+            self.face_upward()
+                                                    
+            touching_now = self.touching_any_object()
+            for object_index, touch_dict in touching_now.items():
+                for body_part, value in touch_dict.items():
+                    if(value):
+                        touching[object_index][body_part] += 1/self.args.steps_per_step
+                        if(touching[object_index][body_part]) > 1:
+                            touching[object_index][body_part] = 1
+                                                                    
+        self.objects_end = self.object_positions()
+        self.objects_touch = touching
+            
+            
+        
+    def rough_step(self, left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed, verbose = False, sleep_time = None, waiting = False):
         
         if(sleep_time != None):
             p.setTimeStep(self.args.time_step / self.args.steps_per_step, physicsClientId=self.physicsClient)  # More accurate time step
@@ -201,38 +305,47 @@ class Arena():
  
         # We'll need to ditch this if using 50 steps.
         if(self.args.robot_name == "two_side_arm"):
-            if(joint_1 < 0): 
-                joint_1 = -1
+            if(joint_1_speed < 0): 
+                joint_1_speed = -1
             else:
-                joint_1 = 1
-            if(joint_2 < 0):
-                joint_2 = -1
+                joint_1_speed = 1
+            if(joint_2_speed < 0):
+                joint_2_speed = -1
             else:
-                joint_2 = 1
+                joint_2_speed = 1
+                
+        left_wheel_speed = relative_to(left_wheel_speed, -self.args.max_wheel_speed, self.args.max_wheel_speed)
+        right_wheel_speed = relative_to(right_wheel_speed, -self.args.max_wheel_speed, self.args.max_wheel_speed)
+        joint_1_speed = relative_to(joint_1_speed , -self.args.max_joint_1_speed, self.args.max_joint_1_speed)
+        if(self.joint_2_index != None):
+            joint_2_speed = relative_to(joint_2_speed , -self.args.max_joint_2_speed, self.args.max_joint_2_speed)
 
         if(verbose): 
-            WAITING = input("WAITING")
+            WAITING = wait_for_button_press()
+            
         for step in range(self.args.steps_per_step):
-            self.set_joint_speeds(joint_1, joint_2) 
-            self.set_wheel_speeds(left_wheel, right_wheel)
+            self.set_wheel_speeds(left_wheel_speed, right_wheel_speed)
+            self.set_joint_speeds(joint_1_speed, joint_2_speed) 
             if(sleep_time != None):
                 sleep(sleep_time / self.args.steps_per_step)
             p.stepSimulation(physicsClientId = self.physicsClient)
             
+            # THIS SHOULD NOT BE DONE WITH THE YAW-ARM
             joint_1_angle, joint_2_angle = self.get_joint_angles()
             if(joint_1_angle > self.args.max_joint_1_angle):
-                self.set_joint_angles(joint_1 = self.args.max_joint_1_angle)
-                joint_1 = 0
+                self.set_joint_angles(joint_1_angle = self.args.max_joint_1_angle)
+                joint_1_speed = 0
             if(joint_1_angle < self.args.min_joint_1_angle):
-                self.set_joint_angles(joint_1 = self.args.min_joint_1_angle)
-                joint_1 = 0
+                self.set_joint_angles(joint_1_angle = self.args.min_joint_1_angle)
+                joint_1_speed = 0
                 
-            if(joint_2_angle > self.args.max_joint_2_angle):
-                self.set_joint_angles(joint_2 = self.args.max_joint_2_angle)
-                joint_2 = 0
-            if(joint_2_angle < self.args.min_joint_2_angle):
-                self.set_joint_angles(joint_2 = self.args.min_joint_2_angle)
-                joint_2 = 0
+            if(self.joint_2_index != None):
+                if(joint_2_angle > self.args.max_joint_2_angle):
+                    self.set_joint_angles(joint_2_angle = self.args.max_joint_2_angle)
+                    joint_2_speed = 0
+                if(joint_2_angle < self.args.min_joint_2_angle):
+                    self.set_joint_angles(joint_2_angle = self.args.min_joint_2_angle)
+                    joint_2_speed = 0
                 
             touching_now = self.touching_any_object()
             for object_index, touch_dict in touching_now.items():
@@ -251,6 +364,22 @@ class Arena():
             
             
             
+    def get_pos_yaw_spe(self, index):
+        pos, ors = p.getBasePositionAndOrientation(index, physicsClientId = self.physicsClient)
+        yaw = p.getEulerFromQuaternion(ors, physicsClientId = self.physicsClient)[-1]
+        forward_dir = np.array([np.cos(yaw), np.sin(yaw)])
+        (vx, vy, _), _ = p.getBaseVelocity(index, physicsClientId=self.physicsClient)
+        velocity_vec = np.array([vx, vy])
+        spe = float(np.dot(velocity_vec, forward_dir))
+        return(pos, yaw, spe)
+    
+    def face_upward(self):
+        pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_index, physicsClientId=self.physicsClient)
+        orientation = p.getQuaternionFromEuler([0, 0, yaw])
+        p.resetBasePositionAndOrientation(self.robot_index, pos, orientation, physicsClientId=self.physicsClient)
+        p.resetBaseVelocity(self.robot_index, linearVelocity=linear_velocity, angularVelocity=angular_velocity, physicsClientId = self.physicsClient)
+        
     def set_pos(self, pos = (0, 0)):
         pos = (pos[0], pos[1], agent_upper_starting_pos)
         _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
@@ -261,45 +390,39 @@ class Arena():
         orn = p.getQuaternionFromEuler([0, 0, yaw], physicsClientId = self.physicsClient)
         pos, _, _ = self.get_pos_yaw_spe(self.robot_index)
         p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
+        
+    def get_robot_velocities(self):
+        linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_index, physicsClientId=self.physicsClient)
+        vx, vy, _ = linear_velocity  # Get only x, y velocities
+        _, _, wz = angular_velocity  # Get yaw rotation
+        _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        local_vx = cos(yaw) * vx + sin(yaw) * vy  # Forward speed in local frame
+        return local_vx, wz  
+        
+    def get_wheel_speeds(self):
+        linear_velocity, angular_velocity = self.get_robot_velocities()
+        left_wheel = linear_velocity - (angular_velocity / self.args.angular_scaler)/2
+        right_wheel = linear_velocity + (angular_velocity / self.args.angular_scaler)/2
+        return left_wheel, right_wheel
             
-    def set_wheel_speeds(self, left_wheel = 0, right_wheel = 0):
-        left_wheel = relative_to(left_wheel, -self.args.max_wheel_speed, self.args.max_wheel_speed)
-        right_wheel = relative_to(right_wheel, -self.args.max_wheel_speed, self.args.max_wheel_speed)
-        linear_velocity = (left_wheel + right_wheel) / 2
+    def set_wheel_speeds(self, left_wheel_speed = 0, right_wheel_speed = 0):
+        linear_velocity = (left_wheel_speed + right_wheel_speed) / 2
         _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
         x = linear_velocity * cos(yaw)
         y = linear_velocity * sin(yaw)
-        angular_velocity = (right_wheel - left_wheel) * self.args.angular_scaler
+        angular_velocity = (right_wheel_speed - left_wheel_speed) * self.args.angular_scaler
         p.resetBaseVelocity(self.robot_index, linearVelocity=[x, y, 0], angularVelocity=[0, 0, angular_velocity], physicsClientId = self.physicsClient)
         
-    def get_pos_yaw_spe(self, index):
-        pos, ors = p.getBasePositionAndOrientation(index, physicsClientId = self.physicsClient)
-        yaw = p.getEulerFromQuaternion(ors, physicsClientId = self.physicsClient)[-1]
-        forward_dir = np.array([np.cos(yaw), np.sin(yaw)])
-        (vx, vy, _), _ = p.getBaseVelocity(index, physicsClientId=self.physicsClient)
-        velocity_vec = np.array([vx, vy])
-        spe = float(np.dot(velocity_vec, forward_dir))
-        return(pos, yaw, spe)
+        
     
-    def set_joint_speeds(self, joint_1 = 0, joint_2 = 0):
-        joint_1 = relative_to(joint_1, -self.args.max_joint_1_speed, self.args.max_joint_1_speed)
-        p.setJointMotorControl2(self.robot_index, self.joint_1_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = joint_1, physicsClientId=self.physicsClient)
-
-        if(self.joint_2_index != None):
-            joint_2 = relative_to(joint_2, -self.args.max_joint_2_speed, self.args.max_joint_2_speed)
-            p.setJointMotorControl2(self.robot_index, self.joint_2_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = joint_2, physicsClientId=self.physicsClient)
-        
-    def set_joint_angles(self, joint_1 = None, joint_2 = None):
-        if(joint_1 == None):
-            pass 
+    def get_joint_speeds(self):
+        joint_1_state = p.getJointState(self.robot_index, self.joint_1_index, physicsClientId=self.physicsClient)[1]  # Get velocity
+        if(self.args.robot_name.startswith("two")):
+            joint_2_state = p.getJointState(self.robot_index, self.joint_2_index, physicsClientId=self.physicsClient)[1]  # Get velocity
         else:
-            p.resetJointState(self.robot_index, self.joint_1_index, joint_1, physicsClientId=self.physicsClient)
-        if(self.joint_2_index != None):
-            if(joint_2 == None):
-                pass 
-            else:
-                p.resetJointState(self.robot_index, self.joint_2_index, joint_2, physicsClientId=self.physicsClient)
-        
+            joint_2_state = 0  # No joint_2 in this case
+        return joint_1_state, joint_2_state
+    
     def get_joint_angles(self):
         joint_1_state = p.getJointState(self.robot_index, self.joint_1_index, physicsClientId=self.physicsClient)
         if(self.joint_2_index != None):
@@ -307,6 +430,24 @@ class Arena():
         else:
             joint_2_state = [0]
         return joint_1_state[0], joint_2_state[0]
+    
+    def set_joint_speeds(self, joint_1_speed = 0, joint_2_speed = 0):
+        p.setJointMotorControl2(self.robot_index, self.joint_1_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = joint_1_speed , physicsClientId=self.physicsClient)
+        if(self.joint_2_index != None):
+            p.setJointMotorControl2(self.robot_index, self.joint_2_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = joint_2_speed , physicsClientId=self.physicsClient)
+        
+    def set_joint_angles(self, joint_1_angle = None, joint_2_angle = None):
+        if(joint_1_angle == None):
+            pass 
+        else:
+            p.resetJointState(self.robot_index, self.joint_1_index, joint_1_angle, physicsClientId=self.physicsClient)
+        if(self.joint_2_index != None):
+            if(joint_2_angle == None):
+                pass 
+            else:
+                p.resetJointState(self.robot_index, self.joint_2_index, joint_2_angle, physicsClientId=self.physicsClient)
+        
+
         
     def generate_positions(self, n, distence = 4):
         base_angle = uniform(0, 2 * pi)
@@ -331,6 +472,13 @@ class Arena():
         (roll, pitch, _) = p.getEulerFromQuaternion(obj_orn, physicsClientId=self.physicsClient)
         new_orn = p.getQuaternionFromEuler([0, 0, angle_to_agent if not isnan(angle_to_agent) else 0])
         p.resetBasePositionAndOrientation(object_index, (obj_pos[0], obj_pos[1], self.upper_starting_pos), new_orn, physicsClientId=self.physicsClient)
+        
+    def object_positions(self):
+        object_positions = []
+        for object_index in self.objects_in_play.values():
+            pos, _, _ = self.get_pos_yaw_spe(object_index)
+            object_positions.append(pos)
+        return(object_positions)
             
     def touching_object(self, object_index):
         touching = {}
@@ -346,13 +494,6 @@ class Arena():
             touching_this_object = self.touching_object(object_index)
             touching[object_index] = touching_this_object
         return(touching)
-    
-    def object_positions(self):
-        object_positions = []
-        for object_index in self.objects_in_play.values():
-            pos, _, _ = self.get_pos_yaw_spe(object_index)
-            object_positions.append(pos)
-        return(object_positions)
         
         
         
@@ -520,6 +661,6 @@ class Arena():
     
     
 if __name__ == "__main__":
-    args = default_args
+    from utils import args
     physicsClient = get_physics(GUI = True, args = args)
     arena = Arena(physicsClient, args = args)

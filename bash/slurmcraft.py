@@ -81,8 +81,7 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_sensors" : 0})
 
 add_this("t",   {
-    "smooth_steps" : [False, True],
-    "consideration" : [False, True]
+    "smooth_steps" : [False, True]
 })         
 
 add_this("one_head_arm",

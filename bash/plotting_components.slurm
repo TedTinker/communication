@@ -5,4 +5,4 @@
 #SBATCH --time 72:00:00
 #SBATCH --mem=50G
 module load singularity
-singularity exec maze.sif python communication/plotting_components.py --comp deigo --arg_title ___e+ec+ef+e_one_head_arm+ec_one_head_arm+ef_one_head_arm+e_two_head_arm+ec_two_head_arm+ef_two_head_arm___ --arg_name plotting_components
+singularity exec maze.sif python communication/plotting_components.py --comp deigo --arg_title ___et_1+et_2+ect_1+ect_2+eft_1+eft_2+et_one_head_arm_1+et_one_head_arm_2+ect_one_head_arm_1+ect_one_head_arm_2+eft_one_head_arm_1+eft_one_head_arm_2+et_two_head_arm_1+et_two_head_arm_2+ect_two_head_arm_1+ect_two_head_arm_2+eft_two_head_arm_1+eft_two_head_arm_2___ --arg_name plotting_components

@@ -39,7 +39,7 @@ def train(q, i):
         agent.start_physics()
         agent.args = args
     else:
-        agent = Agent(i, args = args)
+        agent = Agent(args = args, i = i)
     agent.training(q)
 
 if __name__ == '__main__':

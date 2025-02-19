@@ -5,10 +5,14 @@ import pickle
 from processor import Processor
 from agent import Agent 
 
-hyper_parameters = "ef_two_head_arm"
+hyper_parameters = "eft_one_head_arm_2"
 agent_num = "0001"
 epochs = "070000"
 saved_file = "saved_deigo"
+
+
+
+
 
 
 
@@ -24,9 +28,16 @@ print("Made arena!")
 
 agent.load_agent(load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pth.gz')
 
+
+#with gzip.open(load_path, "rb") as f:
+#    agent = pickle.load(f)  # Load the compressed agent file
+
+
+
 episodes = 0
 wins = 0
 print("Ready to go!")
+
 
 
 #%%
@@ -47,19 +58,24 @@ print("Ready to go!")
     args = agent.args)}"""
     
 agent.processors = {0 : Processor(
-    agent.arena_1, agent.arena_2,
+    agent.args, agent.arena_1, agent.arena_2,
     tasks_and_weights = [(1, 1)], 
     objects = 2, 
     colors = [1], 
     shapes = [0], 
-    parenting = True, 
-    args = agent.args)}
+    parenting = True)}
 
 agent.processor_name = 0
 
 
+
 episodes += 1
-win = agent.save_episodes(test = None, sleep_time = 1, waiting = True)
+win = agent.save_episodes(
+    test = None, 
+    sleep_time = 1, 
+    waiting = True, 
+    user_action = True, 
+    dreaming = False)
 if(win): 
     wins += 1
 print(f"\tWIN RATE: {round(100 * (wins / episodes), 2)}% \t ({wins} wins out of {episodes} episodes)")
