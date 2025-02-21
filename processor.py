@@ -89,12 +89,12 @@ class Processor:
             wheels_joints[0].item(), wheels_joints[1].item(), wheels_joints[2].item(), wheels_joints[3].item() if self.args.robot_name.startswith("two") else 0
                   
         if(verbose): 
-            print("\n\nStep {}:".format(self.steps))
-            print("Wheels: {}, {}. Joints: {}, {}.".format(
+            print(f"\n\nStep {self.steps}:")
+            print("Wheels: {}, {}. Joints: {}, {}.\n".format(
             round(left_wheel_speed, 2), round(right_wheel_speed, 2), round(joint_1_speed, 2), round(joint_2_speed, 2)))
             
         arena.step(left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed, verbose = verbose, sleep_time = sleep_time)
-        reward, win, mother_voice = arena.rewards()
+        reward, win, mother_voice = arena.rewards(verbose = verbose)
         if(agent_1): 
             self.mother_voice_1 = mother_voice
         else:
@@ -129,7 +129,6 @@ class Processor:
             if(verbose):
                 print("Correct!", end = " ")
         if(verbose):
-            print("Raw reward:", reward)
             if(done): 
                 print("Done.")
                                 

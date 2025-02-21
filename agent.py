@@ -307,7 +307,7 @@ class Agent:
     
     def step_in_episode(self, 
                         prev_action_1, hq_1, obs_1,
-                        prev_action_2, hq_2, obs_2, sleep_time = None, user_action = False):
+                        prev_action_2, hq_2, obs_2, verbose = False, sleep_time = None, user_action = False):
 
         with torch.no_grad():
             self.eval()
@@ -346,7 +346,7 @@ class Agent:
             obs_1, action_1, hp_1, hq_1, values_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1 = agent_step()
             obs_2, action_2, hp_2, hq_2, values_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2 = agent_step(agent_1 = False)
 
-            reward, done, win = self.processor.step(action_1.wheels_joints[0,0].clone(), None if action_2 == None else action_2.wheels_joints[0,0].clone(), sleep_time = sleep_time)
+            reward, done, win = self.processor.step(action_1.wheels_joints[0,0].clone(), None if action_2 == None else action_2.wheels_joints[0,0].clone(), sleep_time = sleep_time, verbose = verbose)
             
             reward *= self.reward_inflation
             
@@ -512,7 +512,7 @@ class Agent:
         
         
         
-    def save_episodes(self, test = False, sleep_time = None, waiting = False, user_action = False, dreaming = False):        
+    def save_episodes(self, test = False, verbose = False, sleep_time = None, waiting = False, user_action = False, dreaming = False):        
         with torch.no_grad():
             self.processor = self.processors[self.processor_name]
             self.processor.begin(test = test)       
@@ -623,7 +623,7 @@ class Agent:
                     prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_action_1, hq_1, obs_1,
-                            prev_action_2, hq_2, obs_2, sleep_time = sleep_time, user_action = user_action) 
+                            prev_action_2, hq_2, obs_2, verbose = verbose, sleep_time = sleep_time, user_action = user_action) 
                         
                 previous_dream_obs_q_1 = next_prediction(hp_1, hq_1, deepcopy(obs_1), wheels_joints = prev_action_1.wheels_joints, agent_1 = True)
                 if(not parenting):
@@ -1007,19 +1007,19 @@ class Agent:
 
 
 
-    #def save_agent(self):
-    #    if not self.args.local:
-    #        save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz"
-    #        with gzip.open(save_path, "wb") as f:
-    #            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)  # Use max compression
-
-
-
     def save_agent(self):
-        if(not self.args.local):
-            save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pth.gz"
+        if not self.args.local:
+            save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz"
             with gzip.open(save_path, "wb") as f:
-                torch.save(self.state_dict(), f)
+                pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)  # Use max compression
+
+
+
+    #def save_agent(self):
+    #    if(not self.args.local):
+    #        save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pth.gz"
+    #        with gzip.open(save_path, "wb") as f:
+    #            torch.save(self.state_dict(), f)
                 
     def load_agent(self, load_path):
         with gzip.open(load_path, "rb") as f:

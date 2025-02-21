@@ -1,38 +1,24 @@
 #%%
 import os
 import pickle
+import gzip
 
 from processor import Processor
 from agent import Agent 
 
-hyper_parameters = "eft_one_head_arm_2"
+
+
+hyper_parameters = "eft_two_head_arm_2"
 agent_num = "0001"
 epochs = "070000"
 saved_file = "saved_deigo"
 
-
-
-
-
-
-
 print("\n\nLoading...", end = " ")
-    
-with open(f'{saved_file}/{hyper_parameters}/agents/args.pickle', 'rb') as file:
-    args = pickle.load(file)
-print("Loaded!\n\n")
 
-print("Making arena...", end = " ")
-agent = Agent(GUI = True, args = args)
-print("Made arena!")
-
-agent.load_agent(load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pth.gz')
-
-
-#with gzip.open(load_path, "rb") as f:
-#    agent = pickle.load(f)  # Load the compressed agent file
-
-
+load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pkl.gz'
+with gzip.open(load_path, "rb") as f:
+    agent = pickle.load(f)  # Load the compressed agent file
+agent.start_physics(GUI = True)
 
 episodes = 0
 wins = 0
@@ -59,9 +45,9 @@ print("Ready to go!")
     
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(1, 1)], 
+    tasks_and_weights = [(3, 1)], 
     objects = 2, 
-    colors = [1], 
+    colors = [2], 
     shapes = [0], 
     parenting = True)}
 
@@ -72,8 +58,9 @@ agent.processor_name = 0
 episodes += 1
 win = agent.save_episodes(
     test = None, 
+    verbose = True,
     sleep_time = 1, 
-    waiting = True, 
+    waiting = False, 
     user_action = True, 
     dreaming = False)
 if(win): 

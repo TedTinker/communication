@@ -9,13 +9,9 @@ import imageio
 import numpy as np
 
 from utils import print, args, duration, load_dicts, wheels_joints_to_string, get_goal_from_one_hots, plot_number_bars
-if(args.robot_name == "two_side_arm"):
-    from pybullet_data.robot_maker_two_side_arm import how_to_plot_sensors
-if(args.robot_name == "one_head_arm"):
-    from pybullet_data.robot_maker_one_head_arm import how_to_plot_sensors
-if(args.robot_name == "two_head_arm"):
-    from pybullet_data.robot_maker_two_head_arm import how_to_plot_sensors
+from pybullet_data.robots.robot_maker import robot_dict
 
+sensor_plotter, sensor_values = robot_dict[args.robot_name]
 
 
 def human_friendly_text(goal):
@@ -148,7 +144,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
 
     def plot_sensors(ax, sensors_data):
         ax.text(0.1, 0.9, "", fontsize=12, verticalalignment='center', transform=ax.transAxes)
-        sensors_image = how_to_plot_sensors(sensors_data)
+        sensors_image = sensor_plotter(sensors_data)
         sensors_image = sensors_image[80:-70, 125:-100]
         ax.imshow(sensors_image)
         ax.axis('off')

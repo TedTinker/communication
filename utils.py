@@ -130,8 +130,8 @@ class Shape:
     def __str__(self):
         return(f"{self.char}, {self.name}")
     
-data_path = "pybullet_data"
-shape_files = [f.name for f in os.scandir(data_path + "/shapes") if f.name.endswith("urdf")] ; shape_files.sort()
+shape_files = [f.name for f in os.scandir("pybullet_data/shapes") if f.name.endswith("urdf")] 
+shape_files.sort()
 shape_letter_file = [[f.split("_")[0], f] for f in shape_files]
 shape_map = {i : Shape(l, f) for i, (l, f) in enumerate(shape_letter_file)} 
 max_len_shape_name = max([len(s.name) for s in shape_map.values()])
@@ -385,6 +385,8 @@ parser.add_argument('--robot_name',                    type=str,           defau
 parser.add_argument('--smooth_steps',                    type=literal,           default = False,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--consideration',                    type=literal,           default = False,
+                    help='Extrinsic reward for choosing correct task, shape, and color.') 
+parser.add_argument('--hard_mode',                    type=literal,           default = False,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 
 parser.add_argument('--steps_ahead',                    type=int,           default = 1,
@@ -657,7 +659,7 @@ except:
 # Checking robot parts.
 physicsClient = p.connect(p.DIRECT)
 default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
-robot_index = p.loadURDF(f"pybullet_data/robot_{args.robot_name}.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
+robot_index = p.loadURDF(f"pybullet_data/robots/robot_{args.robot_name}.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
 sensors = []
 for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
     joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
@@ -866,6 +868,7 @@ def wheels_joints_to_string(wheels_joints):
 
 
 def plot_number_bars(numbers):
+    numbers = [n for n in numbers if n != None]
     fontsize = 7
     plt.figure(figsize=(1.5,1.5))
     plt.bar(range(len(numbers)), numbers, color=['red' if x < 0 else 'blue' for x in numbers])
