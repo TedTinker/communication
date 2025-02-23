@@ -1,4 +1,7 @@
-from part import Part
+try:
+    from .part import Part  
+except ImportError:
+    from part import Part  
 
 arm_thickness = .5
 

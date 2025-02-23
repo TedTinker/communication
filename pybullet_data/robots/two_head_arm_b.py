@@ -1,8 +1,12 @@
-from part import Part
-
+try:
+    from .part import Part  
+except ImportError:
+    from part import Part  
+    
 arm_thickness = .4
 arm_length = 2.75
-hand_length = 1
+hand_length_1 = 1.3
+hand_length_2 = 1
 arm_mass = 2
 
 parts = [
@@ -52,7 +56,7 @@ parts = [
     Part(
         name = "hand_1",
         mass = arm_mass,
-        size = (arm_thickness, hand_length, 1),
+        size = (arm_thickness, hand_length_1, 1),
         joint_parent = "arm", 
         joint_origin = (arm_length / 2 - arm_thickness / 2, 0, -1/2 - arm_thickness / 2), 
         joint_axis = (0, 1, 0),
@@ -63,9 +67,9 @@ parts = [
     Part(
         name = "hand_2",
         mass = arm_mass,
-        size = (hand_length, arm_thickness, 1),
+        size = (hand_length_2, arm_thickness, 1),
         joint_parent = "hand_1", 
-        joint_origin = (arm_thickness / 2 - hand_length / 2, arm_thickness / 2 + hand_length / 2, 0), 
+        joint_origin = (arm_thickness / 2 - hand_length_2 / 2, arm_thickness / 2 + hand_length_1 / 2, 0), 
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
         sensors = 1,
@@ -74,9 +78,9 @@ parts = [
     Part(
         name = "hand_3",
         mass = arm_mass,
-        size = (hand_length, arm_thickness, 1),
+        size = (hand_length_2, arm_thickness, 1),
         joint_parent = "hand_1", 
-        joint_origin = (arm_thickness / 2 - hand_length / 2, -arm_thickness / 2 - hand_length / 2, 0), 
+        joint_origin = (arm_thickness / 2 - hand_length_2 / 2, -arm_thickness / 2 - hand_length_1 / 2, 0), 
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
         sensors = 1,

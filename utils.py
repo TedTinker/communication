@@ -1,10 +1,7 @@
 #%% 
 
 # To do:
-#   Use better, more convenient robot-maker.
 #   It seems head-arm robots have trouble with goal-detection.
-#   head-arm robots have their arm phase through shapes. Probably because the arm as "fixing" its maxed-out angle.
-#   Something weird is happening with test_agent. Maybe wrong arguments?
 
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
@@ -29,9 +26,7 @@ import tkinter as tk
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
-print(os.getcwd())
 
 torch.set_printoptions(precision=3, sci_mode=False)
 
@@ -493,7 +488,7 @@ parser.add_argument('--pull_duration',                  type=int,           defa
 parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
 
-parser.add_argument('--push_amount',                    type=float,         default = .75,
+parser.add_argument('--push_amount',                    type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--pull_amount',                    type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
@@ -657,9 +652,10 @@ except:
     
     
 # Checking robot parts.
+urdf_path = "pybullet_data/robots/robot_{}.urdf".format(args.robot_name)
 physicsClient = p.connect(p.DIRECT)
 default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
-robot_index = p.loadURDF(f"pybullet_data/robots/robot_{args.robot_name}.urdf", (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
+robot_index = p.loadURDF(urdf_path, (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
 sensors = []
 for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
     joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)

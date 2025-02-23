@@ -12,16 +12,17 @@ from time import sleep
 from scipy.spatial.transform import Rotation as R
 
 
-
-if os.path.basename(os.getcwd()) == 'robots':
-    pass
-else:
-    try:
-        os.chdir('robots')
-    except FileNotFoundError:
-        os.chdir('pybullet_data/robots')
-        
-from part import Part
+                
+try:
+    from .part import Part  
+    cluster = True
+except ImportError:
+    from part import Part  
+    cluster = False
+    
+    
+    
+add_this = "pybullet_data/robots/" if cluster else ""
 
 
 
@@ -37,19 +38,19 @@ def make_robot(robot_name, parts):
 
     squares_per_side = 9
 
-    image = Image.open(f"robot_front.png")
+    image = Image.open(f"{add_this}robot_front.png")
     image = image.convert("L")
     pixels = image.load()
     width, height = image.size
     front_squares = [(x, -y + squares_per_side - 1) for x in range(width) for y in range(height) if pixels[x, y] == 0]
 
-    image = Image.open(f"robot_top.png")
+    image = Image.open(f"{add_this}robot_top.png")
     image = image.convert("L")
     pixels = image.load()
     width, height = image.size
     top_squares = [(y, x) for x in range(width) for y in range(height) if pixels[x, y] == 0]
 
-    image = Image.open(f"robot_back.png")
+    image = Image.open(f"{add_this}robot_back.png")
     image = image.convert("L")
     pixels = image.load()
     width, height = image.size
@@ -198,17 +199,28 @@ def make_robot(robot_name, parts):
     robot_dict[robot_name] = (sensor_plotter, sensor_values)
     
     
-    
-from two_side_arm import parts
+if(cluster):
+    from .two_side_arm import parts
+else:
+    from two_side_arm import parts
 make_robot("two_side_arm", parts)
 
-from one_head_arm import parts
+if(cluster):
+    from .one_head_arm import parts
+else:
+    from one_head_arm import parts
 make_robot("one_head_arm", parts)
 
-from two_head_arm import parts
+if(cluster):
+    from .two_head_arm import parts
+else:
+    from two_head_arm import parts
 make_robot("two_head_arm", parts)
 
-from two_head_arm_b import parts
+if(cluster):
+    from .two_head_arm_b import parts
+else:
+    from two_head_arm_b import parts
 make_robot("two_head_arm_b", parts)
 
 
@@ -245,7 +257,3 @@ if(__name__ == "__main__"):
     while True:
         sleep(0.05)
         p.stepSimulation(physicsClientId=physicsClient)
-    
-    
-os.chdir("..")
-os.chdir("..")

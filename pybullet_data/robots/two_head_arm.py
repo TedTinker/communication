@@ -1,5 +1,8 @@
-from part import Part
-
+try:
+    from .part import Part  
+except ImportError:
+    from part import Part  
+    
 arm_thickness = .4
 arm_length = 2.75
 hand_length = 1

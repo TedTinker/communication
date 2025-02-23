@@ -96,6 +96,12 @@ add_this("two_head_arm",
           "min_joint_2_angle" : -pi/2,
           "max_joint_2_angle" : 0})
 
+add_this("two_head_arm_b",
+         {"robot_name" : "two_head_arm_b",
+          "max_joint_1_angle" : pi/4,
+          "min_joint_2_angle" : -pi/2,
+          "max_joint_2_angle" : 0})
+
 
 
 add_this("m",   {

@@ -77,19 +77,21 @@ class Arena():
         plane_positions = [[0, 0]]
         plane_ids = []
         for position in plane_positions:
-            plane_id = p.loadURDF("plane.urdf", position + [0], globalScaling=2, useFixedBase=True, physicsClientId=self.physicsClient)
+            plane_id = p.loadURDF(f"pybullet_data/plane.urdf", position + [0], globalScaling=2, useFixedBase=True, physicsClientId=self.physicsClient)
             plane_ids.append(plane_id)
-            plane_id = p.loadURDF("plane.urdf", position + [-10], globalScaling=2, useFixedBase=True, physicsClientId=self.physicsClient)
+            plane_id = p.loadURDF(f"pybullet_data/plane.urdf", position + [-10], globalScaling=2, useFixedBase=True, physicsClientId=self.physicsClient)
             plane_ids.append(plane_id)
             
         # Place robot. 
         self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = self.physicsClient)
-        self.robot_index = p.loadURDF(f"pybullet_data/robots/robot_{self.args.robot_name}.urdf", (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
+                
+        robot_urdf_path = f"pybullet_data/robots/robot_{self.args.robot_name}.urdf"
+        self.robot_index = p.loadURDF(robot_urdf_path, (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
         
         self.joint_1_index = get_joint_index(self.robot_index, 'body_joint_1_joint', physicsClient = self.physicsClient)
         if(self.args.robot_name == "two_side_arm"):
             self.joint_2_index = get_joint_index(self.robot_index, 'body_joint_2_joint', physicsClient = self.physicsClient)
-        elif(self.args.robot_name == "two_head_arm"):
+        elif(self.args.robot_name in ["two_head_arm", "two_head_arm_b"]):
             self.joint_2_index = get_joint_index(self.robot_index, 'joint_1_joint_2_joint', physicsClient = self.physicsClient)
         else:
             self.joint_2_index = None
@@ -113,7 +115,8 @@ class Arena():
         for i, shape in shape_map.items():
             for j in range(2):
                 pos = (5*i, 5*j, self.lower_starting_pos)
-                object_index = p.loadURDF("pybullet_data/shapes/{}".format(shape.file_name), pos, p.getQuaternionFromEuler([0, 0, pi/2]), 
+                shape_urdf_file = f"pybullet_data/shapes/{shape.file_name}"
+                object_index = p.loadURDF(shape_urdf_file, pos, p.getQuaternionFromEuler([0, 0, pi/2]), 
                                           useFixedBase=False, globalScaling = self.args.object_size, physicsClientId=self.physicsClient)
                 p.changeDynamics(object_index, -1, maxJointVelocity = 10000)
                 for link_index in range(p.getNumJoints(object_index, physicsClientId = self.physicsClient)):
@@ -152,7 +155,7 @@ class Arena():
         self.durations = {"watch" : {}, "push" : {}, "pull" : {}, "left" : {}, "right" : {}}
         already_in_play = {key : 0 for key in shape_map.keys()}
         if(set_positions == None):
-            set_positions = self.generate_positions(len(objects))
+            set_positions = self.generate_positions(len(objects), self.args.max_object_distance)
         for i, (color, shape) in enumerate(objects):
             color_index = find_key_by_value(color_map, color)
             shape_index = find_key_by_value(shape_map, shape)
@@ -350,6 +353,8 @@ class Arena():
                 if(joint_2_angle < self.args.min_joint_2_angle):
                     self.set_joint_angles(joint_2_angle = self.args.min_joint_2_angle)
                     joint_2_speed = 0
+                    
+            self.face_upward()
                 
             touching_now = self.touching_any_object()
             for object_index, touch_dict in touching_now.items():
@@ -421,7 +426,7 @@ class Arena():
     
     def get_joint_speeds(self):
         joint_1_state = p.getJointState(self.robot_index, self.joint_1_index, physicsClientId=self.physicsClient)[1]  # Get velocity
-        if(self.args.robot_name.startswith("two")):
+        if(self.joint_2_index != None):
             joint_2_state = p.getJointState(self.robot_index, self.joint_2_index, physicsClientId=self.physicsClient)[1]  # Get velocity
         else:
             joint_2_state = 0  # No joint_2 in this case
@@ -609,7 +614,7 @@ class Arena():
                     
                     
                     
-            """if(self.args.hard_mode):
+            if(self.args.hard_mode):
                 if(sum([watching, pushing, pulling, lefting, righting]) >= 2):
                     watching = False 
                     pushing = False 
@@ -622,7 +627,7 @@ class Arena():
                     print(f"Pushing: ({pushing})")
                     print(f"Pulling: ({pulling})")
                     print(f"Lefting: ({lefting})")
-                    print(f"Righting: ({righting})\n")"""
+                    print(f"Righting: ({righting})\n")
                     
             
             
@@ -639,7 +644,13 @@ class Arena():
             lefted  = update_duration("left",  lefting,  object_index, self.args.left_duration)
             righted = update_duration("right", righting, object_index, self.args.right_duration)
             
-            
+            if(verbose):
+                print(f"Finally:")
+                print(f"Watched: ({watched})")
+                print(f"Pushed: ({pushed})")
+                print(f"Pulled: ({pulled})")
+                print(f"Lefted: ({lefted})")
+                print(f"Righted: ({righted})\n")
                 
             key = (color_map[color_index], shape_map[shape_index])
             new_value = [watched, pushed, pulled, lefted, righted, watching, pushing, pulling, lefting, righting]

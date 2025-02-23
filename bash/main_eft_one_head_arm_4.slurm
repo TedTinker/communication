@@ -6,4 +6,4 @@
 #SBATCH --mem=50G
 #SBATCH --ntasks=30
 module load singularity
-singularity exec maze.sif python communication/main.py --comp deigo --arg_name eft_one_head_arm_4 --alpha None --normal_alpha 0.1 --curiosity hidden_state --smooth_steps True --consideration True --robot_name one_head_arm --max_joint_1_angle 0.7853981633974483  --agents $agents_per_job --previous_agents $previous_agents
+singularity exec maze.sif python communication/main.py --comp deigo --arg_name eft_one_head_arm_4 --alpha None --normal_alpha 0.1 --curiosity hidden_state --smooth_steps True --consideration True --hard_mode False --robot_name one_head_arm --max_joint_1_angle 0.7853981633974483  --agents $agents_per_job --previous_agents $previous_agents

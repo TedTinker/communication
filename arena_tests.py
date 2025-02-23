@@ -28,7 +28,7 @@ do_these = [
     #"show_movements",
     #"watch",
     #"push",
-    #"pull",
+    "pull",
     "right",
     "left",
     ]
@@ -36,7 +36,7 @@ do_these = [
 
     
 def execute_task(task_name, task_id, moves, set_positions):
-    print(f"\n{task_name.upper()}")
+    print(f"\n\n###\n### {task_name.upper()}!\n###\n\n")
     goal = Goal(task_map[task_id], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting=True)
     arena.begin(objects=colors_shapes_1, goal=goal, parenting=False, set_positions=[set_positions])
     show_them()
@@ -69,9 +69,12 @@ def show_them():
 
 
 
-args.robot_name = "one_head_arm"
+args.robot_name = "two_head_arm_b"
 args.min_joint_1_angle = -pi/4
 args.max_joint_1_angle = pi/4
+args.min_joint_2_angle = -pi/2
+args.max_joint_2_angle = 0
+args.consideration = True
 
 
 
@@ -83,7 +86,7 @@ arena = Arena(physicsClient, args = args)
 if(args.robot_name == "one_head_arm"):
     
     if("show_movements" in do_these):
-        moves = [[1, -1, -1, None], [-1, 1, 1, None]] # [[1, -1, 1]] * 4 + [[-1, 1, -1]] * 4
+        moves = [[1, -1, -1, None], [-1, 1, 1, None]] 
         execute_task(
             task_name = "show_movements", 
             task_id = 0, 
@@ -113,133 +116,128 @@ if(args.robot_name == "one_head_arm"):
             task_id = 3, 
             moves = moves, 
             set_positions = (x, x))
-  
-    if("right" in do_these):
-        moves = [[.4, -.4, 0, None]] * 1 + [[0, 0, -.3, None]] * 5
-        execute_task(
-            task_name = "right", 
-            task_id = 4, 
-            moves = moves, 
-            set_positions = (x, -x))
     
     if("left" in do_these):
-        moves = [[-.4, .4, 0, None]] * 1 + [[0, 0, .3, None]] * 5
+        moves = [[-.5, .5, -.3, None]] * 1 + [[0, 0, .3, None]] * 5
         execute_task(
             task_name = "left", 
             task_id = 4, 
             moves = moves, 
             set_positions = (x, x))
         
+  
+    if("right" in do_these):
+        moves = [[.5, -.5, .3, None]] * 1 + [[0, 0, -.3, None]] * 5
+        execute_task(
+            task_name = "right", 
+            task_id = 5, 
+            moves = moves, 
+            set_positions = (x, -x))
+        
 
 
 if(args.robot_name == "two_head_arm"):
-
     if("show_movements" in do_these):
-        print("\nSHOW MOVEMENT")
-        goal = Goal(task_map[2], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(9,0)])
-        show_them()
-        arena.rewards(verbose = True)
         moves = [[1, -1, 1, 1], [-1, 1, -1, -1]] # [[1, -1, 1]] * 4 + [[-1, 1, -1]] * 4
-        for lw, rw, j1, j2 in moves:
-            arena.step(lw, rw, j1, j2, verbose = verbose, sleep_time = sleep_time, waiting = waiting)
-            plot_number_bars([lw, rw, j1, j2])
-            show_them()
-            reward, win, mother_voice = arena.rewards(verbose = True)
-            if(win):
-                break
-        wait_for_button_press()
-        arena.end()
+        execute_task(
+            task_name = "show_movements", 
+            task_id = 0, 
+            moves = moves, 
+            set_positions = (9, 0))
         
     if("watch" in do_these):
-        print("\nWATCH")
-        x = (args.max_object_distance**2 / 2) ** .5
-        goal = Goal(task_map[1], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(x, x)])
-        show_them()
-        reward, win, mother_voice = arena.rewards(verbose = True)
         moves = [[-.5, .5, 0, 0]] * 1 + [[0, 0, 0, 0]] * 10
-        for lw, rw, j1, j2 in moves:
-            arena.step(lw, rw, j1, j2, verbose = verbose, sleep_time = sleep_time, waiting = waiting)
-            plot_number_bars([lw, rw, j1, j2])
-            show_them()
-            reward, win, mother_voice = arena.rewards(verbose = True)
-            if(win):
-                break
-        wait_for_button_press()
-        arena.end()
-            
+        execute_task(
+            task_name = "watch", 
+            task_id = 1, 
+            moves = moves, 
+            set_positions = (x, x))
+
     if("push" in do_these):
-        print("\nPUSH")
-        x = (args.max_object_distance**2 / 2) ** .5
-        goal = Goal(task_map[2], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(x,x)])
-        show_them()
-        arena.rewards(verbose = True)
         moves =  [[-.5, .5, 0, 0]] * 1 + [[1, 1, 0, 0]] * 10
-        for lw, rw, j1, j2 in moves:
-            arena.step(lw, rw, j1, j2, verbose = verbose, sleep_time = sleep_time, waiting = waiting)
-            plot_number_bars([lw, rw, j1, j2])
-            show_them()
-            reward, win, mother_voice = arena.rewards(verbose = True)
-            if(win):
-                break
-        wait_for_button_press()
-        arena.end()
+        execute_task(
+            task_name = "push", 
+            task_id = 2, 
+            moves = moves, 
+            set_positions = (x, x))
 
     if("pull" in do_these):
-        print("\nPULL") 
-        x = (args.max_object_distance**2 / 2) ** .5
-        goal = Goal(task_map[3], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(x,x)])
-        show_them()
-        arena.rewards(verbose = True)
         moves = [[-.5, .5, 0, 0]] * 1 + [[1, 1, 0, 0]] * 1 + [[0, 0, 0, 1]] + [[-1, -1, 0, 0]] * 10
-        for lw, rw, j1, j2 in moves:
-            arena.step(lw, rw, j1, j2, verbose = verbose, sleep_time = sleep_time, waiting = waiting)
-            plot_number_bars([lw, rw, j1, j2])
-            show_them()
-            reward, win, mother_voice = arena.rewards(verbose = True)
-            if(win):
-                break
-        wait_for_button_press()
-        arena.end()
-
-    if("right" in do_these):
-        print("\nRIGHT")
-        x = (args.max_object_distance**2 / 2) ** .5
-        goal = Goal(task_map[5], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(x, -x)])
-        show_them()
-        arena.rewards(verbose = True)
-        moves = [[.4, -.4, 0, 1]] * 1 + [[0, 0, -.3, 0]] * 5
-        for lw, rw, j1, j2 in moves:
-            arena.step(lw, rw, j1, j2, verbose = verbose, sleep_time = sleep_time, waiting = waiting)
-            plot_number_bars([lw, rw, j1, j2])
-            show_them()
-            reward, win, mother_voice = arena.rewards(verbose = True)
-            if(win):
-                break
-        wait_for_button_press()
-        arena.end()
+        execute_task(
+            task_name = "pull", 
+            task_id = 3, 
+            moves = moves, 
+            set_positions = (x, x))
         
     if("left" in do_these):
-        print("\nLEFT")
-        x = (args.max_object_distance**2 / 2) ** .5
-        goal = Goal(task_map[4], colors_shapes_1[0][0], colors_shapes_1[0][1], parenting = True)
-        arena.begin(objects = colors_shapes_1, goal = goal, parenting = False, set_positions = [(x, x)])
-        show_them()
-        arena.rewards(verbose = True)
-        moves = [[-.4, .4, 0, 1]] * 1 + [[0, 0, .3, 0]] * 5
-        for lw, rw, j1, j2 in moves:
-            arena.step(lw, rw, j1, j2, verbose = verbose, sleep_time = sleep_time, waiting = waiting)
-            plot_number_bars([lw, rw, j1, j2])
-            show_them()
-            reward, win, mother_voice = arena.rewards(verbose = True)
-            if(win):
-                break
-        wait_for_button_press()
-        arena.end()
+        moves = [[-.5, .5, -.3, 1]] * 1 + [[0, 0, .3, 1]] * 5
+        execute_task(
+            task_name = "left", 
+            task_id = 4, 
+            moves = moves, 
+            set_positions = (x, x))
+        
+    if("right" in do_these):
+        moves = [[.5, -.5, .3, 1]] * 1 + [[0, 0, -.3, 1]] * 5
+        execute_task(
+            task_name = "right", 
+            task_id = 5, 
+            moves = moves, 
+            set_positions = (x, -x))
+        
+        
+        
+if(args.robot_name == "two_head_arm_b"):
+    
+    if("show_movements" in do_these):
+        moves = [[1, -1, 1, 1], [-1, 1, -1, -1]] # [[1, -1, 1]] * 4 + [[-1, 1, -1]] * 4
+        execute_task(
+            task_name = "show_movements", 
+            task_id = 0, 
+            moves = moves, 
+            set_positions = (9, 0))
+        
+    if("watch" in do_these):
+        moves = [[-.5, .5, 0, 0]] * 1 + [[0, 0, 0, 0]] * 10
+        execute_task(
+            task_name = "watch", 
+            task_id = 1, 
+            moves = moves, 
+            set_positions = (x, x))
+
+    if("push" in do_these):
+        moves =  [[-.5, .5, 0, 0]] * 1 + [[1, 1, 0, 0]] * 10
+        execute_task(
+            task_name = "push", 
+            task_id = 2, 
+            moves = moves, 
+            set_positions = (x, x))
+
+    if("pull" in do_these):
+        moves = [[-.5, .5, 0, 0]] * 1 + [[0, 0, 0, 1]] * 1 + [[-1, -1, 0, 1]] * 10
+        execute_task(
+            task_name = "pull", 
+            task_id = 3, 
+            moves = moves, 
+            set_positions = (x, x))
+        
+    if("left" in do_these):
+        moves = [[-.5, .5, -.3, 1]] * 1 + [[0, 0, .3, 1]] * 5
+        execute_task(
+            task_name = "left", 
+            task_id = 4, 
+            moves = moves, 
+            set_positions = (x, x))
+        
+    if("right" in do_these):
+        moves = [[.5, -.5, .3, 1]] * 1 + [[0, 0, -.3, 1]] * 5
+        execute_task(
+            task_name = "right", 
+            task_id = 5, 
+            moves = moves, 
+            set_positions = (x, -x))
+            
+
 
 
         
