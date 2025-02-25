@@ -377,11 +377,11 @@ parser = argparse.ArgumentParser()
     # Stuff I'm testing right now   
 parser.add_argument('--robot_name',                    type=str,           default = "two_side_arm",
                     help='Options: two_side_arm, one_head_arm.') 
-parser.add_argument('--smooth_steps',                    type=literal,           default = False,
+parser.add_argument('--smooth_steps',                    type=literal,           default = True,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
-parser.add_argument('--consideration',                    type=literal,           default = False,
+parser.add_argument('--consideration',                    type=literal,           default = True,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
-parser.add_argument('--hard_mode',                    type=literal,           default = False,
+parser.add_argument('--hard_mode',                    type=literal,           default = True,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 
 parser.add_argument('--steps_ahead',                    type=int,           default = 1,
