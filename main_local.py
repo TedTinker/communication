@@ -2,7 +2,7 @@
 from memory_profiler import profile
 from math import pi
 
-from utils import args
+from utils import args, get_num_sensors
 from agent import Agent
 
 args.show_duration = True
@@ -19,10 +19,17 @@ args.reward = 10
 args.steps_per_epoch = args.max_steps
 args.smooth_steps = True
 
-args.robot_name = "one_head_arm"
+args.robot_name = "two_head_arm_c"
+args.min_joint_1_angle = -pi/4
+args.max_joint_1_angle = pi/4
+args.min_joint_2_angle = -pi/2
+args.max_joint_2_angle = 0
 
-if(args.robot_name != "two_side_arm"):
-    args.min_shoulder_angle = -pi/2
+num_sensors, sensors = get_num_sensors(args.robot_name)
+args.sensors_state_size = num_sensors
+args.sensors_encode_size = num_sensors 
+args.sensors_shape = num_sensors
+args.sensor_names = sensors
 
 """x = 4
 args.max_steps = 10 * x

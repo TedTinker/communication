@@ -1,0 +1,111 @@
+import math
+
+try:
+    from .part import Part  
+except ImportError:
+    from part import Part  
+    
+arm_mass = 2
+arm_thickness = .2
+arm_length = 2.75
+
+joint_1_height = .2
+
+wrist_length = .8
+
+number_of_hand_parts = 10
+hand_radius = .8
+hand_part_height = .25
+hand_part_length = 2 * hand_radius * math.sin(math.pi / number_of_hand_parts)
+
+parts = [
+    
+    Part(
+        name = "body",
+        mass = 100,
+        size = (1, 1, 1),
+        joint_origin = (0, 0, 1.05), 
+        joint_axis = (0, 0, 1),
+        joint_type = "fixed",
+        sensors = 1),
+        
+    Part(
+        name = "joint_1",
+        mass = arm_mass,
+        size = (arm_thickness, arm_thickness, joint_1_height),
+        joint_parent = "body", 
+        joint_origin = (0, 0, .5 + joint_1_height / 2), 
+        joint_axis = (0, 0, 1),
+        joint_type = "continuous",
+        sensors = 1,
+        sensor_sides = ["start", "stop", "top", "left", "right"]),
+    
+    Part(
+        name = "joint_2",
+        mass = arm_mass,
+        size = (arm_thickness, arm_thickness, arm_thickness),
+        joint_parent = "joint_1", 
+        joint_origin = (0, 0, joint_1_height / 2 + arm_thickness / 2), 
+        joint_axis = (0, 1, 0),
+        joint_type = "continuous",
+        sensors = 1,
+        sensor_sides = ["start", "stop", "top", "left", "right"]),
+    
+    Part(
+        name = "arm",
+        mass = arm_mass,
+        size = (arm_length, arm_thickness, arm_thickness),
+        joint_parent = "joint_2", 
+        joint_origin = (arm_thickness / 2 + arm_length / 2, 0, 0), 
+        joint_axis = (0, 1, 0),
+        joint_type = "fixed",
+        sensors = 1,
+        sensor_sides = ["start", "bottom", "top", "left", "right"]),
+    
+    Part(
+        name = "wrist",
+        mass = arm_mass,
+        size = (arm_thickness, arm_thickness, wrist_length),
+        joint_parent = "arm", 
+        joint_origin = (arm_length / 2 - arm_thickness / 2, 0, - wrist_length / 2 - arm_thickness / 2),
+        joint_axis = (0, 1, 0),
+        joint_type = "fixed",
+        sensors = 1),
+    
+    Part(
+        name = "hand_part_0",
+        mass = arm_mass,
+        size = (arm_thickness, hand_part_length, hand_part_height),
+        joint_parent = "wrist", 
+        joint_origin = (0, 0, - wrist_length / 2 - hand_part_height / 2),
+        joint_axis = (0, 1, 0),
+        joint_type = "fixed",
+        sensors = 1),
+    
+
+    
+    ]
+
+# Apothem (distance from circle center to chord midpoint)
+a = hand_part_length / (2 * math.tan(math.pi / number_of_hand_parts))
+
+for hand_part_number in range(1, number_of_hand_parts):
+
+    theta = -math.pi/2 + (2 * math.pi * hand_part_number / number_of_hand_parts)
+    center_x = a * (1 - math.cos(2 * math.pi * hand_part_number / number_of_hand_parts))
+    center_y = a * math.sin(2 * math.pi * hand_part_number / number_of_hand_parts)
+
+    parts.append(
+            Part(
+                name = f"hand_part_{hand_part_number}",
+                mass = arm_mass,
+                size = (hand_part_length, arm_thickness, hand_part_height),
+                joint_parent = f"hand_part_0", 
+                joint_origin = (-center_x, center_y, 0),   
+                joint_axis = (0, 1, 0),
+                joint_type = "fixed",
+                sensors = 1,
+                joint_rpy=(0, 0, theta)),   
+    )
+    
+# This works are it's awesome, except it doesn't work in python?

@@ -3,11 +3,14 @@ try:
 except ImportError:
     from part import Part  
     
+arm_mass = 2
 arm_thickness = .4
 arm_length = 2.75
+
+joint_1_height = .2
+
 hand_length_1 = 1.3
 hand_length_2 = 1
-arm_mass = 2
 
 parts = [
     
@@ -23,9 +26,9 @@ parts = [
     Part(
         name = "joint_1",
         mass = arm_mass,
-        size = (arm_thickness, arm_thickness, .2),
+        size = (arm_thickness, arm_thickness, joint_1_height),
         joint_parent = "body", 
-        joint_origin = (0, 0, .5 + .1), 
+        joint_origin = (0, 0, .5 + joint_1_height / 2), 
         joint_axis = (0, 0, 1),
         joint_type = "continuous",
         sensors = 1,
@@ -34,9 +37,9 @@ parts = [
     Part(
         name = "joint_2",
         mass = arm_mass,
-        size = (arm_thickness, arm_thickness, .4),
+        size = (arm_thickness, arm_thickness, arm_thickness),
         joint_parent = "joint_1", 
-        joint_origin = (0, 0, .3), 
+        joint_origin = (0, 0, joint_1_height / 2 + arm_thickness / 2), 
         joint_axis = (0, 1, 0),
         joint_type = "continuous",
         sensors = 1,

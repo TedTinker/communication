@@ -1,7 +1,13 @@
 #%% 
 
 # To do:
-#   It seems head-arm robots have trouble with goal-detection.
+#   I notice, when the arm is beyond min/max, it gets frozen!
+# ---> 73                 touched[i] += value
+    #74 
+    #75         sensors = torch.tensor([touched]).float()
+
+    #IndexError: list index out of range
+#   Try different considerations.
 
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
@@ -375,16 +381,11 @@ def literal(arg_string): return(ast.literal_eval(arg_string))
 parser = argparse.ArgumentParser()
 
     # Stuff I'm testing right now   
-parser.add_argument('--robot_name',                    type=str,           default = "two_side_arm",
+parser.add_argument('--robot_name',                     type=str,           default = "two_side_arm",
                     help='Options: two_side_arm, one_head_arm.') 
-parser.add_argument('--smooth_steps',                    type=literal,           default = True,
+parser.add_argument('--consideration',                  type=int,           default = 1,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
-parser.add_argument('--consideration',                    type=literal,           default = True,
-                    help='Extrinsic reward for choosing correct task, shape, and color.') 
-parser.add_argument('--hard_mode',                    type=literal,           default = True,
-                    help='Extrinsic reward for choosing correct task, shape, and color.') 
-
-parser.add_argument('--steps_ahead',                    type=int,           default = 1,
+parser.add_argument('--cnn_upscale',                    type=literal,       default = False,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 
     
@@ -652,18 +653,22 @@ except:
     
     
 # Checking robot parts.
-urdf_path = "pybullet_data/robots/robot_{}.urdf".format(args.robot_name)
-physicsClient = p.connect(p.DIRECT)
-default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
-robot_index = p.loadURDF(urdf_path, (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
-sensors = []
-for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
-    joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
-    link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
-    if("sensor" in link_name):
-        sensors.append(link_name)
-p.disconnect(physicsClientId = physicsClient)
-num_sensors = len(sensors)
+def get_num_sensors(robot_name):
+    urdf_path = "pybullet_data/robots/robot_{}.urdf".format(args.robot_name)
+    physicsClient = p.connect(p.DIRECT)
+    default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
+    robot_index = p.loadURDF(urdf_path, (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
+    sensors = []
+    for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
+        joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
+        link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
+        if("sensor" in link_name):
+            sensors.append(link_name)
+    p.disconnect(physicsClientId = physicsClient)
+    num_sensors = len(sensors)
+    return(num_sensors, sensors)
+
+num_sensors, sensors = get_num_sensors(args.robot_name)
 
 if(__name__ == "__main__"):
     print("Sensors:", num_sensors)

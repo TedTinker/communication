@@ -224,6 +224,19 @@ else:
 make_robot("two_head_arm_b", parts)
 
 
+if(cluster):
+    from .two_head_arm_c import parts
+else:
+    from two_head_arm_c import parts
+make_robot("two_head_arm_c", parts)
+
+if(cluster):
+    from .two_head_arm_d import parts
+else:
+    from two_head_arm_d import parts
+make_robot("two_head_arm_d", parts)
+
+
 
     
 
@@ -234,10 +247,11 @@ if(__name__ == "__main__"):
     p.resetDebugVisualizerCamera(1,90,-89, 3, physicsClientId = physicsClient)
     p.setAdditionalSearchPath("pybullet_data")
     
+    num_bots = len(robot_dict)
     for i, robot_name in enumerate(robot_dict.keys()):
         sensor_plotter, sensor_values = robot_dict[robot_name]
         sensor_plotter(sensor_values, show = True)
-        robot_index = p.loadURDF("robot_{}.urdf".format(robot_name), (-1 - i * 10, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+        robot_index = p.loadURDF("robot_{}.urdf".format(robot_name), (-1 + num_bots * 10 / 2 - i * 10, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                                     useFixedBase=True, globalScaling = 2, physicsClientId=physicsClient)
         p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
         for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):

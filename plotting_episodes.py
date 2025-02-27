@@ -11,51 +11,16 @@ import numpy as np
 from utils import print, args, duration, load_dicts, wheels_joints_to_string, get_goal_from_one_hots, plot_number_bars
 from pybullet_data.robots.robot_maker import robot_dict
 
-sensor_plotter, sensor_values = robot_dict[args.robot_name]
 
 
 def human_friendly_text(goal):
     return(f"{goal.human_text} ({goal.char_text})")
 
 
+    
+def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = True, args = args):
+    sensor_plotter, sensor_values = robot_dict[args.robot_name]
 
-def plot_episodes(complete_order, plot_dicts):
-    global args
-    for arg_name in complete_order:
-        if(arg_name in ["break", "empty_space"]): 
-            pass 
-        else:
-            for plot_dict in plot_dicts:
-                if(plot_dict["arg_name"] == arg_name):
-                    episode_dicts = plot_dict["episode_dicts"]
-                    args = plot_dict["args"]
-                    for key, episode_dict in episode_dicts.items():
-                        plot_episode(key, episode_dict, arg_name)
-                        
-                        
-                        
-def plot_episode(key, episode_dict, arg_name, saving = True):
-    if(saving):
-        agent_num, epoch, episode_num, swapping = key.split("_")
-        try:
-            os.mkdir(f"{arg_name}/epoch_{epoch}_episode_{episode_num}_agent_{agent_num}_swapping_{swapping}")
-        except: 
-            pass
-        os.chdir(f"{arg_name}/epoch_{epoch}_episode_{episode_num}_agent_{agent_num}_swapping_{swapping}")
-        print("Saving {}: agent {}, epoch {}, episode {}.{}".format(arg_name, agent_num, epoch, episode_num, " Swapping!" if swapping == 1 else ""), end = "... ")
-    steps = len(episode_dict["obs_1"])
-    for step in range(steps):
-        plot_step(step, episode_dict, last_step = step + 1 == steps, saving = saving)
-        if(episode_dict["processor"]).parenting: pass 
-        else: plot_step(step, episode_dict, agent_1 = False, last_step = step + 1 == steps, saving = saving)
-    if(saving):
-        print("SAVED PLOTS")
-        os.chdir('..')
-        os.chdir('..')
-    
-    
-    
-def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = True):
     agent_num = 1 if agent_1 else 2
     
     obs = episode_dict[f"obs_{agent_num}"][step]

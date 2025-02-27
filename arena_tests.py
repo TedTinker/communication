@@ -25,10 +25,10 @@ task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
     test = None)
 
 do_these = [
-    #"show_movements",
+    "show_movements",
     #"watch",
     #"push",
-    "pull",
+    #"pull",
     "right",
     "left",
     ]
@@ -69,12 +69,12 @@ def show_them():
 
 
 
-args.robot_name = "two_head_arm_b"
+args.robot_name = "two_head_arm_d"
 args.min_joint_1_angle = -pi/4
 args.max_joint_1_angle = pi/4
 args.min_joint_2_angle = -pi/2
 args.max_joint_2_angle = 0
-args.consideration = True
+args.consideration = 1
 
 
 
@@ -236,6 +236,29 @@ if(args.robot_name == "two_head_arm_b"):
             task_id = 5, 
             moves = moves, 
             set_positions = (x, -x))
+        
+        
+        
+        
+if(args.robot_name == "two_head_arm_c"):
+    if("show_movements" in do_these):
+        moves = [[1, -1, 1, 1], [-1, 1, -1, -1]] # [[1, -1, 1]] * 4 + [[-1, 1, -1]] * 4
+        execute_task(
+            task_name = "show_movements", 
+            task_id = 0, 
+            moves = moves, 
+            set_positions = (9, 0))
+        
+        
+        
+if(args.robot_name == "two_head_arm_d"):
+    if("show_movements" in do_these):
+        moves = [[1, -1, 1, 1], [-1, 1, -1, -1]] # [[1, -1, 1]] * 4 + [[-1, 1, -1]] * 4
+        execute_task(
+            task_name = "show_movements", 
+            task_id = 0, 
+            moves = moves, 
+            set_positions = (9, 0))
             
 
 

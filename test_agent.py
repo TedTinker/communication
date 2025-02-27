@@ -8,7 +8,7 @@ from agent import Agent
 
 
 
-hyper_parameters = "eft_two_head_arm_2"
+hyper_parameters = "eft_two_head_arm_4"
 agent_num = "0001"
 epochs = "070000"
 saved_file = "saved_deigo"
@@ -45,9 +45,9 @@ print("Ready to go!")
     
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(3, 1)], 
+    tasks_and_weights = [(1, 1)], 
     objects = 2, 
-    colors = [2], 
+    colors = [1], 
     shapes = [0], 
     parenting = True)}
 
@@ -60,8 +60,8 @@ win = agent.save_episodes(
     test = None, 
     verbose = True,
     sleep_time = 1, 
-    waiting = False, 
-    user_action = True, 
+    waiting = True, 
+    user_action = False, 
     dreaming = False)
 if(win): 
     wins += 1

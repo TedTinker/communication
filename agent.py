@@ -591,7 +591,7 @@ class Agent:
 
                 print(f"\n{self.processor.goal.human_text}", end = " ")
                 print("STEP:", step)
-                plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False)
+                plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False, args = self.args)
                 if(not self.processor.parenting and not stopping):
                     display(step, agent_1 = False, stopping = True)
                 if(waiting):

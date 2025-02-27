@@ -9,7 +9,8 @@ from collections import defaultdict
 from natsort import natsorted
 import shutil  # Added import
 
-num_files_to_create = 10
+files_to_create = [i for i in range(1, 10)]
+#files_to_create = [31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
 
 def parse_slurm_files():
     arg_name_to_slurm_files = defaultdict(list)
@@ -38,21 +39,21 @@ class ArgNameData:
     def __init__(self, arg_name):
         self.arg_name = arg_name
         self.slurm_files = []
-        self.num_files_to_create = 0
+        self.files_to_create = files_to_create
         self.files_created = False
         self.singularity_run = False
         self.files_listbox = None
 
     def update_slurm_files(self, slurm_files):
         self.slurm_files = slurm_files
-        self.num_files_to_create = num_files_to_create
+        self.files_to_create = files_to_create
         # Do not reset files_created and singularity_run here
 
 def create_files_for_arg_name(arg_name_data):
     arg_name = arg_name_data.arg_name
     dir_path = os.path.join('communication', 'saved_deigo', arg_name)
     os.makedirs(dir_path, exist_ok=True)
-    for i in range(1, arg_name_data.num_files_to_create + 1):
+    for i in files_to_create:
         file_path = os.path.join(dir_path, f'{arg_name}_{i}')
         open(file_path, 'w').close()
     arg_name_data.files_created = True

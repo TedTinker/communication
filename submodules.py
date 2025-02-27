@@ -80,7 +80,6 @@ if __name__ == "__main__":
     
     
 
-
 class RGBD_OUT(nn.Module):
 
     def __init__(self, args):
@@ -89,25 +88,65 @@ class RGBD_OUT(nn.Module):
         self.args = args 
         self.out_features_channels = self.args.hidden_size
         
-        self.a = nn.Sequential(
-            # nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
-            nn.Linear(
-                in_features = self.args.h_w_wheels_joints_size,
-                out_features = self.out_features_channels * (self.args.image_size//self.args.divisions) * (self.args.image_size//self.args.divisions)))
-        
-        self.b = nn.Sequential(
-            nn.BatchNorm2d(self.out_features_channels), # Tested, use this
-            nn.PReLU(),
-            nn.Dropout(self.args.dropout),
-        
-            nn.Conv2d(
-                in_channels = self.out_features_channels, 
-                out_channels = 4 * (1 if self.args.divisions == 1 else 2 ** self.args.divisions),
-                kernel_size = 3,
-                padding = 1,
-                padding_mode = "reflect"),
-            nn.PixelShuffle(self.args.divisions),
-            nn.Tanh())
+        if(self.args.cnn_upscale):
+            self.a = nn.Sequential(
+                # nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
+                nn.Linear(
+                    in_features = self.args.h_w_wheels_joints_size,
+                    out_features = self.out_features_channels * (self.args.image_size//2) * (self.args.image_size//2)))
+            
+            self.b = nn.Sequential(
+                nn.BatchNorm2d(self.out_features_channels), # Tested, use this
+                nn.PReLU(),
+                nn.Dropout(self.args.dropout),
+            
+                nn.Conv2d(
+                    in_channels = self.out_features_channels, 
+                    out_channels = self.out_features_channels,
+                    kernel_size = 3,
+                    padding = 1,
+                    padding_mode = "reflect"),
+                nn.Upsample(
+                    scale_factor = 2,
+                    mode = "bilinear",
+                    align_corners = True),
+                nn.BatchNorm2d(self.out_features_channels),
+                nn.LeakyReLU(),
+                
+                nn.Conv2d(
+                    in_channels = self.out_features_channels, 
+                    out_channels = self.out_features_channels,
+                    kernel_size = 3,
+                    padding = 1,
+                    padding_mode = "reflect"),
+                nn.BatchNorm2d(self.out_features_channels),
+                nn.LeakyReLU(),
+                
+                nn.Conv2d(
+                    in_channels = self.out_features_channels, 
+                    out_channels = 4,
+                    kernel_size = 1),
+                nn.Tanh())
+        else:
+            self.a = nn.Sequential(
+                # nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
+                nn.Linear(
+                    in_features = self.args.h_w_wheels_joints_size,
+                    out_features = self.out_features_channels * (self.args.image_size//self.args.divisions) * (self.args.image_size//self.args.divisions)))
+            
+            self.b = nn.Sequential(
+                nn.BatchNorm2d(self.out_features_channels), # Tested, use this
+                nn.PReLU(),
+                nn.Dropout(self.args.dropout),
+            
+                nn.Conv2d(
+                    in_channels = self.out_features_channels, 
+                    out_channels = 4 * (1 if self.args.divisions == 1 else 2 ** self.args.divisions),
+                    kernel_size = 3,
+                    padding = 1,
+                    padding_mode = "reflect"),
+                nn.PixelShuffle(self.args.divisions),
+                nn.Tanh())
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -117,13 +156,12 @@ class RGBD_OUT(nn.Module):
         
     def forward(self, h_w_wheels_joints):
         start_time, episodes, steps, [h_w_wheels_joints] = model_start([(h_w_wheels_joints, "lin")], self.args.device, self.args.half)
-        
+
         a = self.a(h_w_wheels_joints)
         a = a.reshape(episodes * steps, self.out_features_channels, self.args.image_size//self.args.divisions, self.args.image_size//self.args.divisions)
-        
         rgbd = self.b(a)
+            
         rgbd = (rgbd + 1) / 2
-                
         [rgbd] = model_end(start_time, episodes, steps, [(rgbd, "cnn")], "\tRGBD_OUT")        
         return(rgbd)
     
