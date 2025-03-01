@@ -1,13 +1,10 @@
 #%% 
 
 # To do:
-#   I notice, when the arm is beyond min/max, it gets frozen!
-# ---> 73                 touched[i] += value
-    #74 
-    #75         sensors = torch.tensor([touched]).float()
-
-    #IndexError: list index out of range
-#   Try different considerations.
+#   One-arm robots find BIZARRE ways to accomplish goals. It gets credit for "pull" when it pushes them away!
+#   Try using both local and global measurements comparing robot and object. 
+#   IE, if the object is moving back globally, but forward locally, it's not actually being pulled.
+#   Then maybe global - local for left/right? Or both?
 
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
@@ -383,7 +380,7 @@ parser = argparse.ArgumentParser()
     # Stuff I'm testing right now   
 parser.add_argument('--robot_name',                     type=str,           default = "two_side_arm",
                     help='Options: two_side_arm, one_head_arm.') 
-parser.add_argument('--consideration',                  type=int,           default = 1,
+parser.add_argument('--consideration',                  type=int,           default = 0,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--cnn_upscale',                    type=literal,       default = False,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
@@ -469,11 +466,11 @@ parser.add_argument('--reward',                         type=float,         defa
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
                     help='How should reward increase?')   
-parser.add_argument('--max_steps',                      type=int,           default = 10,
+parser.add_argument('--max_steps',                      type=int,           default = 10,       # CHANGE
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
                     help='Extrinsic punishment for taking max_steps steps.')
-parser.add_argument('--step_cost',                      type=float,         default = .975,
+parser.add_argument('--step_cost',                      type=float,         default = .975,     # CHANGE
                     help='How much extrinsic rewards are reduced per step.')
 parser.add_argument('--max_voice_len',                  type=int,           default = 3,
                     help='Maximum length of voice.')
@@ -489,13 +486,17 @@ parser.add_argument('--pull_duration',                  type=int,           defa
 parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
 
-parser.add_argument('--push_amount',                    type=float,         default = .25,
+parser.add_argument('--global_push_amount',             type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--pull_amount',                    type=float,         default = .25,
+parser.add_argument('--global_pull_amount',             type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--left_right_amount',              type=float,         default = .25,
-                    help='Needed distance of an object for push/pull/left/right.')
+parser.add_argument('--local_push_pull_limit',          type=float,         default = .3,
+                    help='Prevent bogus pushing/pulling by requiring local stillness.')
 
+parser.add_argument('--global_left_right_amount',       type=float,         default = .25,
+                    help='Needed distance of an object for push/pull/left/right.')
+parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
+                    help='Needed distance of an object for push/pull/left/right.')
 
 
     # Module  

@@ -31,7 +31,7 @@ parts = [
         joint_axis = (0, 0, 1),
         joint_type = "continuous",
         sensors = 1,
-        sensor_sides = ["start", "stop", "top", "left", "right"]),
+        sensor_sides = ["left", "right", "start", "stop"]),
     
     Part(
         name = "joint_2",
@@ -42,7 +42,7 @@ parts = [
         joint_axis = (0, 1, 0),
         joint_type = "continuous",
         sensors = 1,
-        sensor_sides = ["start", "stop", "top", "left", "right"]),
+        sensor_sides = ["left", "right", "top", "stop"]),
     
     Part(
         name = "arm",
@@ -53,7 +53,7 @@ parts = [
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
         sensors = 1,
-        sensor_sides = ["start", "bottom", "top", "left", "right"]),
+        sensor_sides = ["left", "right", "top", "bottom", "start"]), 
     
     Part(
         name = "hand_1",
@@ -64,6 +64,6 @@ parts = [
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
         sensors = 1,
-        sensor_sides = ["start", "stop", "bottom", "left", "right"]),
+        sensor_sides = ["left", "right", "start", "stop", "bottom"]),
     
     ]

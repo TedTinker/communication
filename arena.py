@@ -140,12 +140,8 @@ class Arena():
         self.set_pos()
         self.set_yaw()
         self.set_wheel_speeds()
-        if("side" in self.args.robot_name):
-            joint_1_angle = self.args.max_joint_1_angle 
-            joint_2_angle = self.args.max_joint_2_angle
-        else:
-            joint_1_angle = (self.args.max_joint_1_angle + self.args.min_joint_1_angle) / 2
-            joint_2_angle = (self.args.max_joint_2_angle + self.args.min_joint_2_angle) / 2
+        joint_1_angle = (self.args.max_joint_1_angle + self.args.min_joint_1_angle) / 2
+        joint_2_angle = (self.args.max_joint_2_angle + self.args.min_joint_2_angle) / 2
         self.set_joint_angles(joint_1_angle, joint_2_angle)
         self.set_joint_speeds()
         self.goal = goal
@@ -188,11 +184,26 @@ class Arena():
            for body_part in touch_dict.keys():
                touch_dict[body_part] = 0 
                
+        # Not used yet: local positions, not global positions.
+        self.objects_local_pos_start = {}
+        self.objects_local_pos_end = {}
+        start_agent_pos, start_agent_orn = p.getBasePositionAndOrientation(self.robot_index)
+        for object_index in self.objects_in_play.values():
+            self.objects_local_pos_start[object_index] = self.get_local_position_of_object(object_index, start_agent_pos, start_agent_orn)
+            self.objects_local_pos_end[object_index] = self.get_local_position_of_object(object_index, start_agent_pos, start_agent_orn)
+            
                
         
     def step(self, left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed, verbose = False, sleep_time = None, waiting = False):
         self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
         self.objects_start = self.object_positions()
+        
+        # Not used yet: local positions, not global positions.
+        self.objects_local_pos_start = {}
+        start_agent_pos, start_agent_orn = p.getBasePositionAndOrientation(self.robot_index)
+        for object_index in self.objects_in_play.values():
+            self.objects_local_pos_start[object_index] = self.get_local_position_of_object(object_index, start_agent_pos, start_agent_orn)
+        
         touching = self.touching_any_object()
         for object_index, touch_dict in touching.items():
            for body_part in touch_dict.keys():
@@ -249,27 +260,27 @@ class Arena():
             
             joint_1_angle, joint_2_angle = self.get_joint_angles()
             if(joint_1_angle > self.args.max_joint_1_angle):
-                if("side" in self.args.robot_name):
-                    self.set_joint_angles(joint_1_angle = self.args.max_joint_1_angle)
-                joint_1_speed = 0
-                joint_1_speed_start = change_in_joint_1_per_step = 0
+                self.set_joint_angles(joint_1_angle = self.args.max_joint_1_angle - .01)
+                joint_1_speed = 0                   # I think we should ditch these! Let the joint keep moving.
+                joint_1_speed_start = 0             # I think we should ditch these! Let the joint keep moving.
+                change_in_joint_1_per_step = 0      # I think we should ditch these! Let the joint keep moving.
             if(joint_1_angle < self.args.min_joint_1_angle):
-                if("side" in self.args.robot_name):
-                    self.set_joint_angles(joint_1_angle = self.args.min_joint_1_angle)
-                joint_1_speed = 0
-                joint_1_speed_start = change_in_joint_1_per_step = 0
+                self.set_joint_angles(joint_1_angle = self.args.min_joint_1_angle + .01)
+                joint_1_speed = 0                   # I think we should ditch these! Let the joint keep moving.
+                joint_1_speed_start = 0             # I think we should ditch these! Let the joint keep moving.
+                change_in_joint_1_per_step = 0      # I think we should ditch these! Let the joint keep moving.
                 
             if(self.joint_2_index != None):
                 if(joint_2_angle > self.args.max_joint_2_angle):
-                    self.set_joint_angles(joint_2_angle = self.args.max_joint_2_angle)
-                    joint_2_speed = 0
-                    joint_2_speed_start = 0 
-                    change_in_joint_2_per_step = 0
+                    self.set_joint_angles(joint_2_angle = self.args.max_joint_2_angle - .01)
+                    joint_2_speed = 0               # I think we should ditch these! Let the joint keep moving.
+                    joint_2_speed_start = 0         # I think we should ditch these! Let the joint keep moving.
+                    change_in_joint_2_per_step = 0  # I think we should ditch these! Let the joint keep moving.
                 if(joint_2_angle < self.args.min_joint_2_angle):
-                    self.set_joint_angles(joint_2_angle = self.args.min_joint_2_angle)
-                    joint_2_speed = 0
-                    joint_2_start = 0 
-                    change_in_joint_2_per_step = 0
+                    self.set_joint_angles(joint_2_angle = self.args.min_joint_2_angle + .01)
+                    joint_2_speed = 0               # I think we should ditch these! Let the joint keep moving.
+                    joint_2_start = 0               # I think we should ditch these! Let the joint keep moving.
+                    change_in_joint_2_per_step = 0  # I think we should ditch these! Let the joint keep moving.
                                                 
             self.face_upward()
                                                     
@@ -283,6 +294,74 @@ class Arena():
                                                                     
         self.objects_end = self.object_positions()
         self.objects_touch = touching
+        
+        # Not used yet: local positions, not global positions.
+        self.objects_local_pos_end = {}
+        stop_agent_pos, stop_agent_orn = p.getBasePositionAndOrientation(self.robot_index)
+        for object_index in self.objects_in_play.values():
+            self.objects_local_pos_end[object_index] = self.get_local_position_of_object(object_index, stop_agent_pos, stop_agent_orn)
+        
+        
+        
+    def generate_positions(self, n, distance = 4):
+        base_angle = uniform(0, 2 * pi)
+        closest_angle = 30
+        while( 
+                (base_angle < radians(closest_angle)) or 
+                (base_angle > radians(360 - closest_angle)) or 
+                (base_angle > radians(180 - closest_angle) and base_angle < radians(180 + closest_angle))):
+            base_angle = uniform(0, 2 * pi)
+        x1 = distance * cos(base_angle)
+        y1 = distance * sin(base_angle)
+        r = distance 
+        angle_step = (2 * pi) / n
+        positions = [(x1, y1)]
+        for i in range(1, n):
+            current_angle = base_angle + (i * angle_step)
+            x = r * cos(current_angle)
+            y = r * sin(current_angle)
+            positions.append((x, y))
+        return positions
+            
+    def object_faces_up(self, object_index):
+        obj_pos, obj_orn = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
+        agent_pos, _ = p.getBasePositionAndOrientation(self.robot_index, physicsClientId=self.physicsClient)
+        delta_x = agent_pos[0] - obj_pos[0]
+        delta_y = agent_pos[1] - obj_pos[1]
+        angle_to_agent = math.atan2(delta_y, delta_x)
+        (roll, pitch, _) = p.getEulerFromQuaternion(obj_orn, physicsClientId=self.physicsClient)
+        new_orn = p.getQuaternionFromEuler([0, 0, angle_to_agent if not isnan(angle_to_agent) else 0])
+        p.resetBasePositionAndOrientation(object_index, (obj_pos[0], obj_pos[1], self.upper_starting_pos), new_orn, physicsClientId=self.physicsClient)
+        
+    def object_positions(self):
+        object_positions = {}
+        for object_index in self.objects_in_play.values():
+            pos, _, _ = self.get_pos_yaw_spe(object_index)
+            object_positions[object_index] = pos
+        return(object_positions)
+            
+    def touching_object(self, object_index):
+        touching = {}
+        for sensor_index, link_name in self.sensors:
+            touching_this = bool(p.getContactPoints(
+                bodyA=self.robot_index, bodyB=object_index, linkIndexA=sensor_index, physicsClientId = self.physicsClient))
+            touching[link_name] = 1 if touching_this else 0
+        return(touching)
+    
+    def touching_any_object(self):
+        touching = {}
+        for object_index in self.objects_in_play.values():
+            touching_this_object = self.touching_object(object_index)
+            touching[object_index] = touching_this_object
+        return(touching)
+    
+    def get_local_position_of_object(self, object_id, agent_pos, agent_orn):
+        inv_agent_pos, inv_agent_orn = p.invertTransform(agent_pos, agent_orn)
+        obj_pos, obj_orn = p.getBasePositionAndOrientation(object_id)
+        local_obj_pos, _ = p.multiplyTransforms(
+            inv_agent_pos, inv_agent_orn,  
+            obj_pos, obj_orn)
+        return local_obj_pos # (x_local, y_local, z_local)
             
             
             
@@ -369,54 +448,6 @@ class Arena():
             else:
                 p.resetJointState(self.robot_index, self.joint_2_index, joint_2_angle, physicsClientId=self.physicsClient)
         
-
-        
-    def generate_positions(self, n, distence = 4):
-        base_angle = uniform(0, 2 * pi)
-        x1 = distence * cos(base_angle)
-        y1 = distence * sin(base_angle)
-        r = distence 
-        angle_step = (2 * pi) / n
-        positions = [(x1, y1)]
-        for i in range(1, n):
-            current_angle = base_angle + (i * angle_step)
-            x = r * cos(current_angle)
-            y = r * sin(current_angle)
-            positions.append((x, y))
-        return positions
-            
-    def object_faces_up(self, object_index):
-        obj_pos, obj_orn = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
-        agent_pos, _ = p.getBasePositionAndOrientation(self.robot_index, physicsClientId=self.physicsClient)
-        delta_x = agent_pos[0] - obj_pos[0]
-        delta_y = agent_pos[1] - obj_pos[1]
-        angle_to_agent = math.atan2(delta_y, delta_x)
-        (roll, pitch, _) = p.getEulerFromQuaternion(obj_orn, physicsClientId=self.physicsClient)
-        new_orn = p.getQuaternionFromEuler([0, 0, angle_to_agent if not isnan(angle_to_agent) else 0])
-        p.resetBasePositionAndOrientation(object_index, (obj_pos[0], obj_pos[1], self.upper_starting_pos), new_orn, physicsClientId=self.physicsClient)
-        
-    def object_positions(self):
-        object_positions = []
-        for object_index in self.objects_in_play.values():
-            pos, _, _ = self.get_pos_yaw_spe(object_index)
-            object_positions.append(pos)
-        return(object_positions)
-            
-    def touching_object(self, object_index):
-        touching = {}
-        for sensor_index, link_name in self.sensors:
-            touching_this = bool(p.getContactPoints(
-                bodyA=self.robot_index, bodyB=object_index, linkIndexA=sensor_index, physicsClientId = self.physicsClient))
-            touching[link_name] = 1 if touching_this else 0
-        return(touching)
-    
-    def touching_any_object(self):
-        touching = {}
-        for object_index in self.objects_in_play.values():
-            touching_this_object = self.touching_object(object_index)
-            touching[object_index] = touching_this_object
-        return(touching)
-        
         
         
     def rewards(self, verbose = False):
@@ -460,52 +491,57 @@ class Arena():
                 angle_radians = -angle_radians
                 
             # How is the object moving in relation to the agent?
-            (x_before, y_before, z_before) = self.objects_start[i]
-            (x_after, y_after, z_after) = self.objects_end[i]
+            (x_before, y_before, z_before) = self.objects_start[object_index]
+            (x_after, y_after, z_after) = self.objects_end[object_index]
             delta_x = x_after - x_before
             delta_y = y_after - y_before
-            movement_forward = delta_x * v_rx + delta_y * v_ry
-            movement_left = delta_x * (-v_ry) + delta_y * v_rx
+            global_movement_forward = delta_x * v_rx + delta_y * v_ry
+            global_movement_left = delta_x * (-v_ry) + delta_y * v_rx
+            
+            # Not used yet: local positions, not global positions.
+            object_local_pos_start = self.objects_local_pos_start[object_index]
+            object_local_pos_end = self.objects_local_pos_end[object_index]
+            local_movement_forward = object_local_pos_end[0] - object_local_pos_start[0]
+            local_movement_left = object_local_pos_end[1] - object_local_pos_start[1]
             
             if(verbose):
                 print(f"Object: {color_map[color_index].name} {shape_map[shape_index].name}")
-                print("Movement forward:", round(movement_forward, 2))
-                print("Movement left:", round(movement_left, 2))
-                print("Angle of movement:", round(v_rx, 2), round(v_ry, 2))
+                print(f"Angle from agent to object: {round(angle_degrees, 2)}")
+                print(f"Movement forward: \t{round(global_movement_forward, 2)} global, \t{round(local_movement_forward, 2)} local")
+                print(f"Movement left: \t\t{round(global_movement_left, 2)} global, \t{round(local_movement_left, 2)} local")
+                print(f"Angle of movement: {round(v_rx, 2), round(v_ry, 2)}")
             
             # Is the agent watching an object?
             watching = abs(angle_radians) < pi/6 and not touching and distance <= self.args.watch_distance
                         
             # Is the object pushed/pulled away from its starting position, relative to the agent's starting position and angle?
-            pushing = movement_forward >= self.args.push_amount and touching
-            pulling = movement_forward <= -self.args.pull_amount and touching and abs(angle_radians) < pi/2
+            pushing = global_movement_forward >= self.args.global_push_amount and touching
+            pulling = global_movement_forward <= -self.args.global_pull_amount and touching and abs(angle_radians) < pi/2
                         
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
-            lefting = movement_left >= self.args.left_right_amount and touching
-            righting = movement_left <= -self.args.left_right_amount and touching
-            
-            
+            lefting = global_movement_left >= self.args.global_left_right_amount and touching
+            righting = global_movement_left <= -self.args.global_left_right_amount and touching
             
             if(verbose):
                 print(f"\n\nTouching: {touching}")
                 print(f"Watching ({watching}): \t\t{self.durations['watch'][object_index]} steps")
-                print(f"Pushing ({pushing}): \n\t{round(movement_forward, 2)} out of {self.args.push_amount}, \t{self.durations['push'][object_index]} steps")
-                print(f"Pulling ({pulling}): \n\t{round(movement_forward, 2)} out of {-self.args.pull_amount}, \t{self.durations['pull'][object_index]} steps")
-                print(f"Lefting ({lefting}): \n\t{round(movement_left, 2)} out of {self.args.left_right_amount}, \t{self.durations['left'][object_index]} steps")
-                print(f"Righting ({righting}): \n\t{round(movement_left, 2)} out of {-self.args.left_right_amount}, \t{self.durations['right'][object_index]} steps\n\n")
+                print(f"Pushing ({pushing}): \n\t{round(global_movement_forward, 2)} out of {self.args.global_push_amount} global, \t {round(local_movement_forward, 2)} out of {self.args.local_push_pull_limit} local limit \t{self.durations['push'][object_index]} steps")
+                print(f"Pulling ({pulling}): \n\t{round(global_movement_forward, 2)} out of {-self.args.global_pull_amount} global, \t {round(local_movement_forward, 2)} out of {self.args.local_push_pull_limit} local limit \t{self.durations['pull'][object_index]} steps")
+                print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{self.durations['left'][object_index]} steps")
+                print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{-self.durations['right'][object_index]} steps\n\n")
                 
                 
                 
             if(self.args.consideration == 1):
                 active_changes = []
                 if pushing:
-                    active_changes.append(("pushing", movement_forward))
+                    active_changes.append(("pushing", global_movement_forward))
                 if pulling:
-                    active_changes.append(("pulling", abs(movement_forward)))  
+                    active_changes.append(("pulling", abs(global_movement_forward)))  
                 if lefting:
-                    active_changes.append(("lefting", movement_left))
+                    active_changes.append(("lefting", global_movement_left))
                 if righting:
-                    active_changes.append(("righting", abs(movement_left))) 
+                    active_changes.append(("righting", abs(global_movement_left))) 
                 if len(active_changes) > 1:
                     active_changes.sort(key=lambda x: x[1], reverse=True)
                     highest_change = active_changes[0][0]
@@ -524,10 +560,10 @@ class Arena():
             if(self.args.consideration == 2):
                 active_changes = {}
                 
-                active_changes["pushing"] = movement_forward
-                active_changes["pulling"] = abs(movement_forward)
-                active_changes["lefting"] = movement_left
-                active_changes["righting"] = abs(movement_left)
+                active_changes["pushing"] = global_movement_forward
+                active_changes["pulling"] = abs(mglobal_ovement_forward)
+                active_changes["lefting"] = global_movement_left
+                active_changes["righting"] = abs(global_movement_left)
                 
                 if((pushing or pulling) and (lefting or righting)):
                     lefting = False 
@@ -543,8 +579,8 @@ class Arena():
                 if(pp and lr):
                     pushing, pulling, lefting, righting = False, False, False, False
 
-                    pp_amount = abs(movement_forward) 
-                    lr_amount = abs(movement_left)
+                    pp_amount = abs(global_movement_forward) 
+                    lr_amount = abs(global_movement_left)
                 
                     if(lr_amount > 2 * pp_amount):
                         if(lr == "lefting"):
@@ -556,8 +592,49 @@ class Arena():
                             pushing = True 
                         else:
                             pulling = True
+                            
+                            
+                            
+            if(self.args.consideration == 4):
+                angle_threshold = pi / 6
+                if abs(angle_radians) < angle_threshold:
+                    # The agent is facing the object, prefer push/pull, discard left/right if they conflict.
+                    if (pushing or pulling):
+                        lefting = False
+                        righting = False
+                else:
+                    # The agent is NOT facing the object, prefer left/right, discard push/pull if they conflict.
+                    if (lefting or righting):
+                        pushing = False
+                        pulling = False
                         
-                    
+            if(self.args.consideration == 5):
+                angle_threshold = pi / 4
+                if abs(angle_radians) < angle_threshold:
+                    # The agent is facing the object, prefer push/pull, discard left/right if they conflict.
+                    if (pushing or pulling):
+                        lefting = False
+                        righting = False
+                else:
+                    # The agent is NOT facing the object, prefer left/right, discard push/pull if they conflict.
+                    if (lefting or righting):
+                        pushing = False
+                        pulling = False
+                        
+            if(self.args.consideration == 6):
+                angle_threshold = pi / 3
+                if abs(angle_radians) < angle_threshold:
+                    # The agent is facing the object, prefer push/pull, discard left/right if they conflict.
+                    if (pushing or pulling):
+                        lefting = False
+                        righting = False
+                else:
+                    # The agent is NOT facing the object, prefer left/right, discard push/pull if they conflict.
+                    if (lefting or righting):
+                        pushing = False
+                        pulling = False
+                        
+                        
                         
             if(verbose):
                 print(f"After consideration:")
@@ -565,9 +642,9 @@ class Arena():
                 print(f"Pushing: ({pushing})")
                 print(f"Pulling: ({pulling})")
                 print(f"Lefting: ({lefting})")
-                print(f"Righting: ({righting})\n")
-                    
-                    
+                print(f"Righting: ({righting})\n") 
+                
+                
                     
             if(sum([watching, pushing, pulling, lefting, righting]) >= 2):
                 watching = False 

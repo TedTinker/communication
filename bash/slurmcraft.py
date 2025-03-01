@@ -81,7 +81,7 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_sensors" : 0})
 
 add_this("t",   {
-    "consideration" : [1, 2, 3],
+    "consideration" : [1, 2, 3, 4, 5, 6],
     "cnn_upscale" : ["False", "True"]
 })         
 

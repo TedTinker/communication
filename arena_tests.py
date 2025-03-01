@@ -27,8 +27,8 @@ task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
 do_these = [
     "show_movements",
     #"watch",
-    #"push",
-    #"pull",
+    "push",
+    "pull",
     "right",
     "left",
     ]
@@ -69,7 +69,7 @@ def show_them():
 
 
 
-args.robot_name = "two_head_arm_d"
+args.robot_name = "two_head_arm"
 args.min_joint_1_angle = -pi/4
 args.max_joint_1_angle = pi/4
 args.min_joint_2_angle = -pi/2

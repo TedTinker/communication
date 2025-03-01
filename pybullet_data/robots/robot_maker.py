@@ -199,6 +199,7 @@ def make_robot(robot_name, parts):
     robot_dict[robot_name] = (sensor_plotter, sensor_values)
     
     
+
 if(cluster):
     from .two_side_arm import parts
 else:
@@ -236,6 +237,32 @@ else:
     from two_head_arm_d import parts
 make_robot("two_head_arm_d", parts)
 
+if(cluster):
+    from .two_head_arm_e import parts
+else:
+    from two_head_arm_e import parts
+make_robot("two_head_arm_e", parts)
+
+
+
+"""to_do = [
+    "two_side_arm",
+    "one_head_arm",
+    "two_head_arm",
+    "two_head_arm_b",
+    "two_head_arm_c",
+    "two_head_arm_d"
+]
+
+def import_and_make_robot(module_name, cluster):
+    if cluster:
+        module = __import__(f".{module_name}", globals(), locals(), ["parts"], 0)
+    else:
+        module = __import__(module_name, globals(), locals(), ["parts"], 0)
+    make_robot(module_name, module.parts)
+
+for name in to_do:
+    import_and_make_robot(name, cluster)"""
 
 
     

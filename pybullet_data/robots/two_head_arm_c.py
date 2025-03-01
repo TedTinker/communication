@@ -14,7 +14,7 @@ joint_1_height = .2
 wrist_length = .8
 
 number_of_hand_parts = 10
-hand_radius = .8
+hand_radius = 1
 hand_part_height = .25
 hand_part_length = 2 * hand_radius * math.sin(math.pi / number_of_hand_parts)
 
@@ -38,7 +38,7 @@ parts = [
         joint_axis = (0, 0, 1),
         joint_type = "continuous",
         sensors = 1,
-        sensor_sides = ["start", "stop", "top", "left", "right"]),
+        sensor_sides = ["left", "right", "start", "stop"]),
     
     Part(
         name = "joint_2",
@@ -49,7 +49,7 @@ parts = [
         joint_axis = (0, 1, 0),
         joint_type = "continuous",
         sensors = 1,
-        sensor_sides = ["start", "stop", "top", "left", "right"]),
+        sensor_sides = ["left", "right", "top", "stop"]),
     
     Part(
         name = "arm",
@@ -60,7 +60,7 @@ parts = [
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
         sensors = 1,
-        sensor_sides = ["start", "bottom", "top", "left", "right"]),
+        sensor_sides = ["left", "right", "top", "bottom", "start"]),
     
     Part(
         name = "wrist",
@@ -70,7 +70,8 @@ parts = [
         joint_origin = (arm_length / 2 - arm_thickness / 2, 0, - wrist_length / 2 - arm_thickness / 2),
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
-        sensors = 1),
+        sensors = 1,
+        sensor_sides = ["start", "stop", "left", "right"]),
     
     Part(
         name = "hand_part_0",
@@ -80,7 +81,8 @@ parts = [
         joint_origin = (0, 0, - wrist_length / 2 - hand_part_height / 2),
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
-        sensors = 1),
+        sensors = 1,
+        sensor_sides = ["bottom", "top", "start", "stop"]),
     
 
     
@@ -105,6 +107,7 @@ for hand_part_number in range(1, number_of_hand_parts):
                 joint_axis = (0, 1, 0),
                 joint_type = "fixed",
                 sensors = 1,
+                sensor_sides = ["bottom", "top", "left", "right"],
                 joint_rpy=(0, 0, theta)),   
     )
     
