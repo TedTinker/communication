@@ -2,8 +2,6 @@
 
 # To do:
 #   Add joint-positions to tactile sensation.
-#   Adjust left/right pointing angle
-#   Change "step" and joint-limits to make sense for any number of joints. (Tried this, but it's tough!)
 #   Could the agent choose acceleration, instead of speed?
 
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
@@ -194,7 +192,7 @@ def get_goal_from_one_hots(one_hots):
 
         
 class Obs:
-    def __init__(self, rgbd, sensors, father_voice, mother_voice):
+    def __init__(self, vision, touch, command_voice, report_voice):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
 class Action:
@@ -207,17 +205,17 @@ class To_Push:
         
     def push(self, memory):
         memory.push(
-            self.obs.rgbd.to("cpu"),
-            self.obs.sensors.to("cpu"),
-            self.obs.father_voice.to("cpu"),
-            self.obs.mother_voice.to("cpu"),
+            self.obs.vision.to("cpu"),
+            self.obs.touch.to("cpu"),
+            self.obs.command_voice.to("cpu"),
+            self.obs.report_voice.to("cpu"),
             self.action.wheels_joints.to("cpu"), 
             self.action.voice_out.to("cpu"),
             self.reward, 
-            self.next_obs.rgbd.to("cpu"),
-            self.next_obs.sensors.to("cpu"),
-            self.next_obs.father_voice.to("cpu"), 
-            self.next_obs.mother_voice.to("cpu"), 
+            self.next_obs.vision.to("cpu"),
+            self.next_obs.touch.to("cpu"),
+            self.next_obs.command_voice.to("cpu"), 
+            self.next_obs.report_voice.to("cpu"), 
             self.done)
 
 class Inner_States:
@@ -441,23 +439,16 @@ parser.add_argument('--body_size',                      type=float,         defa
     # Agent details
 parser.add_argument('--image_size',                     type=int,           default = 16, #20,
                     help='Dimensions of the images observed.')
-parser.add_argument('--max_wheel_speed',                      type=float,         default = 10,
+parser.add_argument('--max_wheel_acceleration',         type=float,         default = 10,
+                    help='Max wheel speed.')
+parser.add_argument('--max_wheel_speed',                type=float,         default = 10,
                     help='Max wheel speed.')
 parser.add_argument('--angular_scaler',                 type=float,         default = .4,
                     help='How to scale angular velocity vs linear velocity.')
 
-parser.add_argument('--min_joint_1_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum joint velocity.')
-parser.add_argument('--max_joint_1_angle',             type=float,         default = pi/2,
-                    help='Agent\'s maximum joint velocity.')
-parser.add_argument('--max_joint_1_speed',             type=float,         default = 8,
-                    help='Max joint speed.')
-
-parser.add_argument('--min_joint_2_angle',             type=float,         default = 0,
-                    help='Agent\'s maximum joint velocity.')
-parser.add_argument('--max_joint_2_angle',             type=float,         default = pi/2,
-                    help='Agent\'s maximum joint velocity.')
-parser.add_argument('--max_joint_2_speed',             type=float,         default = 8,
+parser.add_argument('--max_joint_acceleration',         type=float,         default = 8,
+                    help='Max joint acceleration.')
+parser.add_argument('--max_joint_speed',                type=float,         default = 8,
                     help='Max joint speed.')
 
 
@@ -489,7 +480,7 @@ parser.add_argument('--left_duration',                  type=int,           defa
 
 parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/6,
                     help='How close must the agent watch the object to achieve watching, pushing, or pulling.')
-parser.add_argument('--pointing_at_object_for_left',    type=float,         default = pi/2, # Should pi/3
+parser.add_argument('--pointing_at_object_for_left',    type=float,         default = pi/3,
                     help='How close must the agent watch the object to achieve pushing left or right.')
 parser.add_argument('--watch_distance',                 type=float,         default = 8,
                     help='How close must the agent watch the object to achieve watching.')
@@ -511,14 +502,14 @@ parser.add_argument('--hidden_size',                    type=int,           defa
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,
                     help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
-parser.add_argument('--rgbd_state_size',                type=int,           default = 128,
+parser.add_argument('--vision_state_size',                type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
 parser.add_argument('--voice_state_size',               type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
 
 parser.add_argument('--char_encode_size',               type=int,           default = 8,
                     help='Parameters in encoding.')   
-parser.add_argument('--rgbd_encode_size',               type=int,           default = 128,
+parser.add_argument('--vision_encode_size',               type=int,           default = 128,
                     help='Parameters in encoding image.')   
 parser.add_argument('--voice_encode_size',              type=int,           default = 128,
                     help='Parameters in encoding voice.')   
@@ -580,52 +571,52 @@ parser.add_argument("--dkl_max",                        type=float,         defa
 
 
 
-    # RGBD
-parser.add_argument('--rgbd_scaler',                    type=float,         default = 5, 
-                    help='How much to consider rgbd prediction in accuracy compared to voice and sensors.')   
-parser.add_argument("--beta_rgbd",                      type=float,         default = .03,
-                    help='Relative importance of complexity for rgbd.')
-parser.add_argument("--prediction_error_eta_rgbd",      type=float,         default = .3,
-                    help='Nonnegative value, how much to consider prediction_error curiosity for rgbd.')    
-parser.add_argument("--hidden_state_eta_rgbd",          type=float,         default = .3,
-                    help='Nonnegative values, how much to consider hidden_state curiosity for rgbd.') 
+    # Vision
+parser.add_argument('--vision_scaler',                    type=float,         default = 5, 
+                    help='How much to consider vision prediction in accuracy compared to voice and touch.')   
+parser.add_argument("--beta_vision",                      type=float,         default = .03,
+                    help='Relative importance of complexity for vision.')
+parser.add_argument("--prediction_error_eta_vision",      type=float,         default = .3,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for vision.')    
+parser.add_argument("--hidden_state_eta_vision",          type=float,         default = .3,
+                    help='Nonnegative values, how much to consider hidden_state curiosity for vision.') 
 
 
-    # Sensors
-parser.add_argument('--sensors_scaler',                 type=float,         default = .3, 
-                    help='How much to consider sensors prediction in accuracy compared to rgbd and voice.')   
-parser.add_argument("--beta_sensors",                   type=float,         default = .3,
-                    help='Relative importance of complexity for sensors.')     
-parser.add_argument("--prediction_error_eta_sensors",   type=float,         default = .03,
-                    help='Nonnegative value, how much to consider prediction_error curiosity for sensors.')   
-parser.add_argument("--hidden_state_eta_sensors",       type=float,         default = .03,
-                    help='Nonnegative values, how much to consider hidden_state curiosity for sensors.') 
+    # Touch
+parser.add_argument('--touch_scaler',                 type=float,         default = .3, 
+                    help='How much to consider touch prediction in accuracy compared to vision and voice.')   
+parser.add_argument("--beta_touch",                   type=float,         default = .3,
+                    help='Relative importance of complexity for touch.')     
+parser.add_argument("--prediction_error_eta_touch",   type=float,         default = .03,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for touch.')   
+parser.add_argument("--hidden_state_eta_touch",       type=float,         default = .03,
+                    help='Nonnegative values, how much to consider hidden_state curiosity for touch.') 
 
 
 
-    # Father Voice
-parser.add_argument('--father_voice_scaler',            type=float,         default = 3,
-                    help='How much to consider father voice prediction in accuracy compared to rgbd and sensors.') 
-parser.add_argument("--beta_father_voice",              type=float,         default = .1,
+    # Command Voice
+parser.add_argument('--command_voice_scaler',            type=float,         default = 3,
+                    help='How much to consider command voice prediction in accuracy compared to vision and touch.') 
+parser.add_argument("--beta_command_voice",              type=float,         default = .1,
                     help='Relative importance of complexity for voice.')
-parser.add_argument("--prediction_error_eta_father_voice", type=float,      default = 0,
+parser.add_argument("--prediction_error_eta_command_voice", type=float,      default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')    
-parser.add_argument("--hidden_state_eta_father_voice",  type=float,         default = 0,
+parser.add_argument("--hidden_state_eta_command_voice",  type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
 
 
 
-    # Mother Voice
-parser.add_argument('--mother_voice_scaler',            type=float,         default = 3, 
-                    help='How much to consider mother voice prediction in accuracy compared to rgbd and sensors.')     
-parser.add_argument("--beta_mother_voice",              type=float,         default = .1,
+    # Report Voice
+parser.add_argument('--report_voice_scaler',            type=float,         default = 3, 
+                    help='How much to consider report voice prediction in accuracy compared to vision and touch.')     
+parser.add_argument("--beta_report_voice",              type=float,         default = .1,
                     help='Relative importance of complexity for voice.')
-parser.add_argument("--prediction_error_eta_mother_voice", type=float,      default = 1,
+parser.add_argument("--prediction_error_eta_report_voice", type=float,      default = 1,
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
-parser.add_argument("--hidden_state_eta_mother_voice",  type=float,         default = 1.5,
+parser.add_argument("--hidden_state_eta_report_voice",  type=float,         default = 1.5,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
-parser.add_argument("--hidden_state_eta_mother_voice_reduction_type",  type=str,         default = "None",
-                    help='How should interest in mother_voice chance?') 
+parser.add_argument("--hidden_state_eta_report_voice_reduction_type",  type=str,         default = "None",
+                    help='How should interest in report_voice chance?') 
 
 
 
@@ -676,7 +667,7 @@ def get_num_sensors(robot_name):
     num_sensors = len(sensors)
     return(num_sensors, sensors)
 
-num_sensors, sensors = get_num_sensors(args.robot_name)
+
 
 if(__name__ == "__main__"):
     print("Sensors:", num_sensors)
@@ -687,24 +678,42 @@ def extend_list_to_match_length(target_list, length, value):
         target_list.append(value)
     return target_list
 
-for arg_set in [default_args, args]:
+def update_args(arg_set):
     if(arg_set.comp == "deigo"):
         arg_set.half = False
-    if("head" in arg_set.robot_name):
-        arg_set.min_joint_1_angle = -arg_set.max_joint_1_angle
-    arg_set.steps_per_epoch = arg_set.max_steps
-    arg_set.sensors_state_size = num_sensors
-    arg_set.sensors_encode_size = num_sensors 
-    arg_set.sensors_shape = num_sensors
+        
+    if(arg_set.robot_name == "two_side_arm"):
+        arg_set.min_joint_1_angle = 0
+        arg_set.max_joint_1_angle = pi/2
+        arg_set.min_joint_2_angle = 0
+        arg_set.max_joint_2_angle = pi/2
+        
+    if("two_head_arm" in arg_set.robot_name):
+        arg_set.min_joint_1_angle = -pi/4
+        arg_set.max_joint_1_angle = pi/4
+        arg_set.min_joint_2_angle = -pi/2
+        arg_set.max_joint_2_angle = 0
+       
+    num_sensors, sensors = get_num_sensors(args.robot_name)
+    arg_set.touch_state_size = num_sensors
+    arg_set.touch_encode_size = num_sensors 
+    arg_set.touch_shape = num_sensors
     arg_set.sensor_names = sensors
+    
+    arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.voice_shape = len(voice_map)
     arg_set.wheels_joints_shape = 4 if arg_set.robot_name.startswith("two") else 3
-    arg_set.obs_encode_size = arg_set.rgbd_encode_size + arg_set.sensors_encode_size + arg_set.voice_encode_size
+    arg_set.obs_encode_size = arg_set.vision_encode_size + arg_set.touch_encode_size + arg_set.voice_encode_size
     arg_set.h_w_wheels_joints_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size + arg_set.voice_encode_size
     arg_set.epochs = [epochs_for_processor[0] for epochs_for_processor in arg_set.epochs_per_processor]
     arg_set.processor_list = [epochs_for_processor[1] for epochs_for_processor in arg_set.epochs_per_processor]
     arg_set.right_duration = arg_set.left_duration
+    return(arg_set)
+
+for arg_set in [default_args, args]:
+    default_args = update_args(default_args) 
+    args = update_args(args)
         
 args_not_in_title = ["arg_title", "id", "agents", "previous_agents", "init_seed", "keep_data", "epochs_per_pred_list", "episodes_in_pred_list", "agents_per_pred_list", "epochs_per_pos_list", "episodes_in_pos_list", "agents_per_pos_list"]
 def get_args_title(default_args, args):

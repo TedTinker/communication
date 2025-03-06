@@ -11,22 +11,20 @@ from agent import Agent
 
 hyper_parameters = "ef"
 agent_num = "0001"
-epochs = "070000"
+epochs = "000000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading...", end = " ")
 
 load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pkl.gz'
 with gzip.open(load_path, "rb") as f:
-    agent = pickle.load(f)  # Load the compressed agent file
+    agent = pickle.load(f) 
 agent.start_physics(GUI = True)
 
 episodes = 0
 wins = 0
 print("Ready to go!")
 
-agent.args.pointing_at_object_for_watch = pi/6
-agent.args.pointing_at_object_for_left = pi/2
 
 
 
@@ -40,7 +38,7 @@ agent.args.pointing_at_object_for_left = pi/2
     
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(2, 1)], 
+    tasks_and_weights = [(3, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 

@@ -109,19 +109,8 @@ class Arena():
                 
         robot_urdf_path = f"pybullet_data/robots/robot_{self.args.robot_name}.urdf"
         self.robot_index = p.loadURDF(robot_urdf_path, (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
-        
-        self.joint_1_index = get_joint_index(self.robot_index, 'body_joint_1_joint', physicsClient = self.physicsClient)
-        if("side" in self.args.robot_name):
-            self.joint_2_index = get_joint_index(self.robot_index, 'body_joint_2_joint', physicsClient = self.physicsClient)
-        elif("two" in self.args.robot_name and "head" in self.args.robot_name):
-            self.joint_2_index = get_joint_index(self.robot_index, 'joint_1_joint_2_joint', physicsClient = self.physicsClient)
-        else:
-            self.joint_2_index = None
-            
         self.joint_indices = get_joint_indices(self.robot_index, physicsClient=self.physicsClient) # TRY USING THIS SO WE CAN HAVE ANY NUMBER OF JOINTS!
-        
-        print(f"\n\nJoint 1: {self.joint_1_index}. Joint 2: {self.joint_2_index}. \nDictionary: {self.joint_indices}\n\n")
-        
+                
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
         p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
         self.sensors = []
@@ -166,9 +155,8 @@ class Arena():
         self.set_pos()
         self.set_yaw()
         self.set_wheel_speeds()
-        joint_1_angle = (self.args.max_joint_1_angle + self.args.min_joint_1_angle) / 2
-        joint_2_angle = (self.args.max_joint_2_angle + self.args.min_joint_2_angle) / 2
-        self.set_joint_angles(joint_1_angle, joint_2_angle)
+        joint_angles = {joint_num: (getattr(self.args, f'max_joint_{joint_num}_angle') + getattr(self.args, f'min_joint_{joint_num}_angle')) / 2 for joint_num in self.joint_indices.keys()}
+        self.set_joint_angles(joint_angles)
         self.set_joint_speeds()
         self.goal = goal
         self.parenting = parenting
@@ -220,10 +208,10 @@ class Arena():
             
                
         
-    def step(self, left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed, verbose = False, sleep_time = None, waiting = False):
+    def step(self, left_wheel_speed, right_wheel_speed, joint_speeds, verbose = False, sleep_time = None, waiting = False):
         self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
         self.objects_start = self.get_object_positions()
-        
+
         # Not used yet: local positions, not global positions.
         self.objects_local_pos_start = {}
         start_agent_pos, start_agent_orn = p.getBasePositionAndOrientation(self.robot_index)
@@ -240,10 +228,7 @@ class Arena():
             
         left_wheel_speed_end = relative_to(left_wheel_speed, -self.args.max_wheel_speed, self.args.max_wheel_speed)
         right_wheel_speed_end = relative_to(right_wheel_speed, -self.args.max_wheel_speed, self.args.max_wheel_speed)
-        joint_1_speed_end = relative_to(joint_1_speed , -self.args.max_joint_1_speed, self.args.max_joint_1_speed)
-        if(self.joint_2_index != None):
-            joint_2_speed_end = relative_to(joint_2_speed , -self.args.max_joint_2_speed, self.args.max_joint_2_speed)
-            
+        
         left_wheel_speed_start, right_wheel_speed_start = self.get_wheel_speeds()
         change_in_left_wheel = left_wheel_speed_end - left_wheel_speed_start
         change_in_left_wheel_per_step = change_in_left_wheel / self.args.steps_per_step
@@ -251,26 +236,25 @@ class Arena():
         change_in_right_wheel = right_wheel_speed_end - right_wheel_speed_start
         change_in_right_wheel_per_step = change_in_right_wheel / self.args.steps_per_step
         
-        joint_1_speed_start, joint_2_speed_start = self.get_joint_speeds()
-        change_in_joint_1 = joint_1_speed_end - joint_1_speed_start
-        change_in_joint_1_per_step = change_in_joint_1 / self.args.steps_per_step
-        
-        if(self.joint_2_index != None):
-            change_in_joint_2 = joint_2_speed_end - joint_2_speed_start
-            change_in_joint_2_per_step = change_in_joint_2 / self.args.steps_per_step
+        joint_speeds_end = {}
+        max_speed = getattr(self.args, f'max_joint_speed')
+        for key, speed in joint_speeds.items():
+            joint_speeds_end[key] = relative_to(joint_speeds[key], -max_speed, max_speed)
+
+        joint_speeds_start = self.get_joint_speeds()
+        joint_changes = {}
+        joint_changes_per_step = {}
+        for key in self.joint_indices.keys():
+            joint_changes[key] = joint_speeds_end[key] - joint_speeds_start[key]
+            joint_changes_per_step[key] = joint_changes[key] / self.args.steps_per_step
         
         #print(f"\n\nleft_wheel_speed_start: {left_wheel_speed_start} \tleft_wheel_speed_end: {left_wheel_speed_end} \tchange_in_left_wheel: {change_in_left_wheel} \tchange_in_left_wheel_per_step: {change_in_left_wheel_per_step}")
-        #print(f"right_wheel_speed_start: {right_wheel_speed_start} \tright_wheel_speed_end: {right_wheel_speed_end} \tchange_in_right_wheel: {change_in_right_wheel} \tchange_in_right_wheel_per_step: {change_in_right_wheel_per_step}")
-        #print(f"\n\njoint_1_speed_start: {joint_1_speed_start} \tjoint_1_speed_end: {joint_1_speed_end} \tchange_in_joint_1: {change_in_joint_1} \tchange_in_joint_1_per_step: {change_in_joint_1_per_step}")
-        #print(f"joint_2_speed_start: {joint_2_speed_start} \tjoint_2_speed_end: {joint_2_speed_end} \tchange_in_joint_2: {change_in_joint_2} \tchange_in_joint_2_per_step: {change_in_joint_2_per_step}")
+        #print(f"right_wheel_speed_start: {right_wheel_speed_start} \tright_wheel_speed_end: {right_wheel_speed_end} \tchange_in_right_wheel: {change_in_right_wheel} \tchange_in_right_wheel_per_step: {change_in_right_wheel_per_step}\n\n")
+        #for key in self.joint_indices.keys():
+            #print(f"joint_{key}: speed_start: {joint_speeds_start[key]} \tspeed_end: {joint_speeds_end[key]} \tchange: {joint_changes[key]} \tchange_per_step: {joint_changes_per_step[key]}")
+        #print("\n\n")
             
-        for step in range(self.args.steps_per_step):
-            joint_1_step = joint_1_speed_start + change_in_joint_1_per_step * (step + 1)
-            if(self.joint_2_index != None):
-                joint_2_step = joint_2_speed_start + change_in_joint_2_per_step * (step + 1)
-            else:
-                joint_2_step = 0
-            self.set_joint_speeds(joint_1_step, joint_2_step)          
+        for step in range(self.args.steps_per_step):   
               
             left_wheel_step = left_wheel_speed_start + change_in_left_wheel_per_step * (step + 1)
             right_wheel_step = right_wheel_speed_start + change_in_right_wheel_per_step * (step + 1)
@@ -278,36 +262,24 @@ class Arena():
             #print(f"right_wheel_steed_step {step}: {right_wheel_step}")
             self.set_wheel_speeds(left_wheel_step, right_wheel_step)     
             
-            if(sleep_time != None):
-                sleep(sleep_time / self.args.steps_per_step)
-            #print(f"Get Wheel Speeds (before step): {self.get_wheel_speeds()}")
-            p.stepSimulation(physicsClientId = self.physicsClient)
-            #print(f"Get Wheel Speeds (after step): {self.get_wheel_speeds()}")
+            new_joint_steps = {}
+            for key in self.joint_indices.keys():
+                new_joint_steps[key] = joint_speeds_start[key] + joint_changes_per_step[key] * (step + 1)
+            self.set_joint_speeds(new_joint_steps)       
             
-            joint_1_angle, joint_2_angle = self.get_joint_angles()
-            if(joint_1_angle > self.args.max_joint_1_angle):
-                self.set_joint_angles(joint_1_angle = self.args.max_joint_1_angle - .01)
-                joint_1_speed = 0                 
-                joint_1_speed_start = 0             
-                change_in_joint_1_per_step = 0     
-            if(joint_1_angle < self.args.min_joint_1_angle):
-                self.set_joint_angles(joint_1_angle = self.args.min_joint_1_angle + .01)
-                joint_1_speed = 0                   
-                joint_1_speed_start = 0             
-                change_in_joint_1_per_step = 0      
-                
-            if(self.joint_2_index != None):
-                if(joint_2_angle > self.args.max_joint_2_angle):
-                    self.set_joint_angles(joint_2_angle = self.args.max_joint_2_angle - .01)
-                    joint_2_speed = 0               
-                    joint_2_speed_start = 0         
-                    change_in_joint_2_per_step = 0  
-                if(joint_2_angle < self.args.min_joint_2_angle):
-                    self.set_joint_angles(joint_2_angle = self.args.min_joint_2_angle + .01)
-                    joint_2_speed = 0               
-                    joint_2_start = 0               
-                    change_in_joint_2_per_step = 0  
-                                                
+
+            
+            joint_angles = self.get_joint_angles()
+            new_joint_angles = {key: None for key in self.joint_indices.keys()}
+            for key in self.joint_indices.keys():
+                if(joint_angles[key] > getattr(self.args, f'max_joint_{key}_angle')):     
+                    new_joint_angles[key] = getattr(self.args, f'max_joint_{key}_angle') - .01
+                    joint_changes_per_step[key] = 0     
+                if(joint_angles[key] < getattr(self.args, f'min_joint_{key}_angle')):
+                    new_joint_angles[key] = getattr(self.args, f'min_joint_{key}_angle') + .01
+                    joint_changes_per_step[key] = 0   
+            self.set_joint_angles(new_joint_angles) 
+                         
             self.face_upward()
                                                     
             touching_now = self.touching_any_object()
@@ -317,6 +289,12 @@ class Arena():
                         touching[object_index][body_part] += 1/self.args.steps_per_step
                         if(touching[object_index][body_part]) > 1:
                             touching[object_index][body_part] = 1
+                            
+            if(sleep_time != None):
+                sleep(sleep_time / self.args.steps_per_step)
+            #print(f"Get Wheel Speeds (before step): {self.get_wheel_speeds()}")
+            p.stepSimulation(physicsClientId = self.physicsClient)
+            #print(f"Get Wheel Speeds (after step): {self.get_wheel_speeds()}")
                                                                     
         self.objects_end = self.get_object_positions()
         self.objects_touch = touching
@@ -448,37 +426,43 @@ class Arena():
         
 
     # Functions for agent joints
-    def set_joint_speeds(self, joint_1_speed = 0, joint_2_speed = 0):
-        p.setJointMotorControl2(self.robot_index, self.joint_1_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = joint_1_speed , physicsClientId=self.physicsClient)
-        if(self.joint_2_index != None):
-            p.setJointMotorControl2(self.robot_index, self.joint_2_index, controlMode = p.VELOCITY_CONTROL, targetVelocity = joint_2_speed , physicsClientId=self.physicsClient)
+    def set_joint_accelerations(self, joint_accelerations=None):
+        if joint_accelerations is None:
+            joint_accelerations = {key: 0 for key in self.joint_indices}
+        for key, index in self.joint_indices.items():
+            p.setJointMotorControl2(self.robot_index,
+                                    index,
+                                    controlMode=p.TORQUE_CONTROL,
+                                    force=joint_accelerations[key],
+                                    physicsClientId=self.physicsClient)
         
-    def set_joint_angles(self, joint_1_angle = None, joint_2_angle = None):
-        if(joint_1_angle == None):
-            pass 
-        else:
-            p.resetJointState(self.robot_index, self.joint_1_index, joint_1_angle, physicsClientId=self.physicsClient)
-        if(self.joint_2_index != None):
-            if(joint_2_angle == None):
+    def set_joint_speeds(self, joint_speeds = None):
+        if(joint_speeds == None):
+            joint_speeds = {key : 0 for key in self.joint_indices}
+        for key, index in self.joint_indices.items():
+            p.setJointMotorControl2(self.robot_index, index, controlMode = p.VELOCITY_CONTROL, targetVelocity = joint_speeds[key] , physicsClientId=self.physicsClient)
+        
+    def set_joint_angles(self, joint_angles = None):
+        if(joint_angles == None):
+            joing_angles = {key: None for key in self.joint_indices}
+        for key, index in self.joint_indices.items():
+            if(joint_angles[key] == None):
                 pass 
             else:
-                p.resetJointState(self.robot_index, self.joint_2_index, joint_2_angle, physicsClientId=self.physicsClient)
+                p.resetJointState(self.robot_index, index, joint_angles[key], physicsClientId=self.physicsClient)
                 
     def get_joint_speeds(self):
-        joint_1_state = p.getJointState(self.robot_index, self.joint_1_index, physicsClientId=self.physicsClient)[1]  # Get velocity
-        if(self.joint_2_index != None):
-            joint_2_state = p.getJointState(self.robot_index, self.joint_2_index, physicsClientId=self.physicsClient)[1]  # Get velocity
-        else:
-            joint_2_state = 0  # No joint_2 in this case
-        return joint_1_state, joint_2_state
+        joint_speeds = {}
+        for key, index in self.joint_indices.items(): 
+            joint_speeds[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[1]  # Get velocity
+        return joint_speeds
+
     
     def get_joint_angles(self):
-        joint_1_state = p.getJointState(self.robot_index, self.joint_1_index, physicsClientId=self.physicsClient)
-        if(self.joint_2_index != None):
-            joint_2_state = p.getJointState(self.robot_index, self.joint_2_index, physicsClientId=self.physicsClient)
-        else:
-            joint_2_state = [0]
-        return joint_1_state[0], joint_2_state[0]
+        joint_angles = {}
+        for key, index in self.joint_indices.items():
+            joint_angles[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[0]
+        return joint_angles
         
         
         
@@ -669,7 +653,7 @@ class Arena():
             else:
                 objects_goals[key] = new_value
                                     
-        mother_voice = empty_goal
+        report_voice = empty_goal
         wrong_object = False
         for (color, shape), (watched, pushed, pulled, lefted, righted, watching, pushing, pulling, lefting, righting) in objects_goals.items():
             # If any one task is accomplished, find the task/color/shape.
@@ -688,7 +672,7 @@ class Arena():
                 else:
                     wrong_object = True
                     
-            # Mother's voice reflects ongoing processes
+            # Report's voice reflects ongoing processes
             task_in_progress = None
             if(sum([watching, pushing, pulling, lefting, righting]) >= 1):
                 if(watching): task_in_progress = task_map[1]
@@ -696,7 +680,7 @@ class Arena():
                 if(pulling):  task_in_progress = task_map[3]
                 if(lefting):  task_in_progress = task_map[4] # If pushing/pulling but also lefting/righting,
                 if(righting): task_in_progress = task_map[5] # use lefting/righting
-                mother_voice = Goal(task_in_progress, color, shape, parenting = False)
+                report_voice = Goal(task_in_progress, color, shape, parenting = False)
                 
         if(wrong_object):
             win = False 
@@ -706,11 +690,11 @@ class Arena():
             reward = 0
             
         if(verbose):
-            print(f"\nMother voice: \'{mother_voice.human_text}\'")
+            print(f"\nReport voice: \'{report_voice.human_text}\'")
             print("Total reward:", reward)
             print("Win:", win)
                         
-        return(reward, win, mother_voice)
+        return(reward, win, report_voice)
     
     
     
@@ -747,9 +731,9 @@ class Arena():
         d = np.nan_to_num(np.expand_dims(depth, axis=-1), nan=1)
         if(d.max() == d.min()): pass
         else: d = (d - d.min())/(d.max()-d.min())
-        rgbd = np.concatenate([rgb, d], axis = -1)
-        rgbd = resize(rgbd, (self.args.image_size, self.args.image_size, 4))
-        return(rgbd)
+        vision = np.concatenate([rgb, d], axis = -1)
+        vision = resize(vision, (self.args.image_size, self.args.image_size, 4))
+        return(vision)
         
     
     

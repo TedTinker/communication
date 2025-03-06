@@ -30,8 +30,8 @@ class Processor:
         self.arena_1.begin(self.current_objects_1, self.goal, self.parenting)
         if(not self.parenting):
             self.arena_2.begin(self.current_objects_2, self.goal, self.parenting)
-        self.mother_voice_1 = empty_goal
-        self.mother_voice_2 = empty_goal
+        self.report_voice_1 = empty_goal
+        self.report_voice_2 = empty_goal
                                 
         if(verbose):
             print(self)
@@ -64,19 +64,19 @@ class Processor:
         if(arena == None):
             return(Obs(torch.zeros((1, self.args.image_size, self.args.image_size, 4)), None, None, None))
                 
-        rgbd = arena.photo_for_agent()
-        rgbd = torch.from_numpy(rgbd).float().unsqueeze(0)
+        vision = arena.photo_for_agent()
+        vision = torch.from_numpy(vision).float().unsqueeze(0)
         
-        touched = [0] * self.args.sensors_shape
+        touched = [0] * self.args.touch_shape
         for object_key, object_dict in arena.objects_touch.items(): 
             for i, (link_name, value) in enumerate(object_dict.items()):
                 touched[i] += value
                 
-        sensors = torch.tensor([touched]).float()
+        touch = torch.tensor([touched]).float()
         
-        mother_voice = self.mother_voice_1 if agent_1 else self.mother_voice_2
+        report_voice = self.report_voice_1 if agent_1 else self.report_voice_2
                         
-        return(Obs(rgbd, sensors, self.goal, mother_voice))
+        return(Obs(vision, touch, self.goal, report_voice))
     
     
             
@@ -85,20 +85,23 @@ class Processor:
         if(arena == None):
             return(None, None)
         
-        left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed = \
-            wheels_joints[0].item(), wheels_joints[1].item(), wheels_joints[2].item(), wheels_joints[3].item() if self.args.robot_name.startswith("two") else 0
+        
+        
+        left_wheel_speed, right_wheel_speed = \
+            wheels_joints[0].item(), wheels_joints[1].item()
+        joint_speeds = {i-1: wheels_joints[i] for i in range(2, len(wheels_joints))}
                   
         if(verbose): 
             print(f"\n\nStep {self.steps}:")
-            print("Wheels: {}, {}. Joints: {}, {}.\n".format(
-            round(left_wheel_speed, 2), round(right_wheel_speed, 2), round(joint_1_speed, 2), round(joint_2_speed, 2)))
+            print("Wheels: {}, {}.".format(round(left_wheel_speed, 2), round(right_wheel_speed, 2)))
+            print("Joints:", [f"{key}: {round(value.item(), 2)}" for key, value in joint_speeds.items()])
             
-        arena.step(left_wheel_speed, right_wheel_speed, joint_1_speed, joint_2_speed, verbose = verbose, sleep_time = sleep_time)
-        reward, win, mother_voice = arena.rewards(verbose = verbose)
+        arena.step(left_wheel_speed, right_wheel_speed, joint_speeds, verbose = verbose, sleep_time = sleep_time)
+        reward, win, report_voice = arena.rewards(verbose = verbose)
         if(agent_1): 
-            self.mother_voice_1 = mother_voice
+            self.report_voice_1 = report_voice
         else:
-            self.mother_voice_2 = mother_voice
+            self.report_voice_2 = report_voice
         return(reward, win)
     
     
@@ -141,8 +144,8 @@ class Processor:
         if(not self.parenting):
             self.arena_2.end()
             
-        self.mother_voice_1 = empty_goal
-        self.mother_voice_2 = empty_goal
+        self.report_voice_1 = empty_goal
+        self.report_voice_2 = empty_goal
     
     
     
@@ -160,8 +163,8 @@ if __name__ == "__main__":
     def get_images():
         rgba = processor.arena_1.photo_from_above()
         obs = processor.obs()
-        rgb = obs.rgbd[0,:,:,0:3]
-        d = obs.rgbd[0,:,:,-1]
+        rgb = obs.vision[0,:,:,0:3]
+        d = obs.vision[0,:,:,-1]
         return(rgba, rgb, d)
         
     def example_images(images):
@@ -199,7 +202,7 @@ if __name__ == "__main__":
             reward, done, win = processor.step(recommendation, verbose = True)
             print("Done:", done)
             obs = processor.obs()
-            rgb = obs.rgbd[0,:,:,0:3]
+            rgb = obs.vision[0,:,:,0:3]
             plt.imshow(rgb)
             plt.axis('off') 
             plt.show()

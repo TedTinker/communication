@@ -30,6 +30,50 @@ parts = [
         joint_axis = (0, 0, 1),
         joint_type = "fixed",
         sensors = 1),
+    
+    Part(
+        name = "back_left_wheel", 
+        mass = .1, 
+        shape = "cylinder",
+        size = (.1, .1, .1), 
+        joint_parent = "body", 
+        joint_origin = (-.35, .5, -.4), 
+        joint_axis = (1, 0, 0),
+        joint_rpy=(1.5708, 0, 0),
+        joint_type = "fixed"),
+    
+    Part(
+        name = "from_left_wheel", 
+        mass = .1, 
+        shape = "cylinder",
+        size = (.1, .1, .1), 
+        joint_parent = "body", 
+        joint_origin = (.35, .5, -.4), 
+        joint_axis = (1, 0, 0),
+        joint_rpy=(1.5708, 0, 0),
+        joint_type = "fixed"),
+    
+    Part(
+        name = "back_right_wheel", 
+        mass = .1, 
+        shape = "cylinder",
+        size = (.1, .1, .1), 
+        joint_parent = "body", 
+        joint_origin = (-.35, -.5, -.4), 
+        joint_axis = (1, 0, 0),
+        joint_rpy=(1.5708, 0, 0),
+        joint_type = "fixed"),
+    
+    Part(
+        name = "from_right_wheel", 
+        mass = .1, 
+        shape = "cylinder",
+        size = (.1, .1, .1), 
+        joint_parent = "body", 
+        joint_origin = (.35, -.5, -.4), 
+        joint_axis = (1, 0, 0),
+        joint_rpy=(1.5708, 0, 0),
+        joint_type = "fixed"),
         
     Part(
         name = "joint_1",

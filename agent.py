@@ -65,7 +65,7 @@ class Agent:
         self.reward_inflation = 0
         if(self.args.reward_inflation_type == "None"):
             self.reward_inflation = 1
-        self.hidden_state_eta_mother_voice_reduction = 1
+        self.hidden_state_eta_report_voice_reduction = 1
         
         if self.args.device.type == "cuda":
             print(f"\nIN AGENT: {i} DEVICE: {self.args.device} ({torch.cuda.current_device()} out of {[j for j in range(torch.cuda.device_count())]}, {torch.cuda.get_device_name(torch.cuda.current_device())})\n")
@@ -139,10 +139,10 @@ class Agent:
             
             "accuracy_loss" : [], 
             "complexity_loss" : [],
-            "rgbd_loss" : [], 
-            "sensors_loss" : [], 
-            "father_voice_loss" : [], 
-            "mother_voice_loss" : [], 
+            "vision_loss" : [], 
+            "touch_loss" : [], 
+            "command_voice_loss" : [], 
+            "report_voice_loss" : [], 
             
             "actor_loss" : [], 
             "critics_loss" : [[] for _ in range(self.args.critics)], 
@@ -158,16 +158,16 @@ class Agent:
             "intrinsic_curiosity" : [], 
             "intrinsic_entropy" : [], 
             
-            "rgbd_prediction_error_curiosity" : [], 
-            "sensors_prediction_error_curiosity" : [], 
-            "father_voice_prediction_error_curiosity" : [], 
-            "mother_voice_prediction_error_curiosity" : [], 
+            "vision_prediction_error_curiosity" : [], 
+            "touch_prediction_error_curiosity" : [], 
+            "command_voice_prediction_error_curiosity" : [], 
+            "report_voice_prediction_error_curiosity" : [], 
             "prediction_error_curiosity" : [], 
             
-            "rgbd_hidden_state_curiosity" : [],
-            "sensors_hidden_state_curiosity" : [],
-            "father_voice_hidden_state_curiosity" : [],
-            "mother_voice_hidden_state_curiosity" : [],
+            "vision_hidden_state_curiosity" : [],
+            "touch_hidden_state_curiosity" : [],
+            "command_voice_hidden_state_curiosity" : [],
+            "report_voice_hidden_state_curiosity" : [],
             "hidden_state_curiosity" : [],
 
             "wins_all" : [],
@@ -189,7 +189,7 @@ class Agent:
         self.processor_name = self.args.processor_list[0]
         
     def give_actor_voice(self):
-        self.actor.voice_out.load_state_dict(self.forward.predict_obs.father_voice_out.state_dict())
+        self.actor.voice_out.load_state_dict(self.forward.predict_obs.command_voice_out.state_dict())
         
         
         
@@ -299,8 +299,8 @@ class Agent:
         if(parenting and not agent_1):
             return(None)
         obs = self.processor.obs(agent_1)
-        obs.father_voice = obs.father_voice.one_hots.unsqueeze(0).unsqueeze(0) 
-        obs.mother_voice = obs.mother_voice.one_hots.unsqueeze(0).unsqueeze(0) 
+        obs.command_voice = obs.command_voice.one_hots.unsqueeze(0).unsqueeze(0) 
+        obs.report_voice = obs.report_voice.one_hots.unsqueeze(0).unsqueeze(0) 
         return(obs)
                 
                 
@@ -325,12 +325,12 @@ class Agent:
                 hq = hq_1 if agent_1 else hq_2
                 obs = obs_1 if agent_1 else obs_2
                 
-                if(type(obs.father_voice) == Goal):
-                    obs.father_voice = obs.father_voice.one_hots
-                if(type(obs.mother_voice) == Goal):
-                    obs.mother_voice = obs.mother_voice.one_hots
+                if(type(obs.command_voice) == Goal):
+                    obs.command_voice = obs.command_voice.one_hots
+                if(type(obs.report_voice) == Goal):
+                    obs.report_voice = obs.report_voice.one_hots
                 
-                hp, hq, rgbd_is, sensors_is, father_voice_is, mother_voice_is = self.forward.bottom_to_top_step(
+                hp, hq, vision_is, touch_is, command_voice_is, report_voice_is = self.forward.bottom_to_top_step(
                     hq_1, self.forward.obs_in(obs), self.forward.action_in(prev_action))
 
                 action, _, _ = self.actor(hq.detach(), parenting) 
@@ -344,12 +344,12 @@ class Agent:
                     value = self.critics[i](action, hq.detach()) 
                     values.append(round(value.item(), 3))
                 
-                return(obs, action, hp, hq, values, rgbd_is, sensors_is, father_voice_is, mother_voice_is)
+                return(obs, action, hp, hq, values, vision_is, touch_is, command_voice_is, report_voice_is)
             
             
             
-            obs_1, action_1, hp_1, hq_1, values_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1 = agent_step()
-            obs_2, action_2, hp_2, hq_2, values_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2 = agent_step(agent_1 = False)
+            obs_1, action_1, hp_1, hq_1, values_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1 = agent_step()
+            obs_2, action_2, hp_2, hq_2, values_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2 = agent_step(agent_1 = False)
 
             reward, done, win = self.processor.step(action_1.wheels_joints[0,0].clone(), None if action_2 == None else action_2.wheels_joints[0,0].clone(), sleep_time = sleep_time, verbose = verbose)
             
@@ -365,8 +365,8 @@ class Agent:
                 action = action_1 if agent_1 else action_2
                 partner_voice_out = None if parenting else action_2.voice_out if agent_1 else action_1.voice_out
                 
-                next_obs.father_voice = next_obs.father_voice.one_hots.unsqueeze(0).unsqueeze(0)
-                next_obs.mother_voice = next_obs.mother_voice.one_hots.unsqueeze(0).unsqueeze(0)
+                next_obs.command_voice = next_obs.command_voice.one_hots.unsqueeze(0).unsqueeze(0)
+                next_obs.report_voice = next_obs.report_voice.one_hots.unsqueeze(0).unsqueeze(0)
 
                 to_push = To_Push(obs, action, reward, next_obs, done)     
                 return(next_obs, to_push)
@@ -376,8 +376,8 @@ class Agent:
             
         torch.cuda.empty_cache()
         
-        return(action_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1,
-               action_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1), rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2,
+        return(action_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1,
+               action_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1), vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2,
                reward, done, win, to_push_1, to_push_2)
             
            
@@ -417,14 +417,14 @@ class Agent:
                 steps += 1
                 obs_1 = self.get_agent_obs()
                 obs_2 = self.get_agent_obs(agent_1 = False)
-                prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, \
-                    prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
+                prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, \
+                    prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_action_1, hq_1, obs_1,
                             prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
                         
                 if(self.args.agents_per_behavior_analysis == -1 or self.agent_num <= self.args.agents_per_behavior_analysis):  
-                    self.plot_dict["behavior"][self.episodes].append(get_goal_from_one_hots(to_push_1.next_obs.mother_voice)) 
+                    self.plot_dict["behavior"][self.episodes].append(get_goal_from_one_hots(to_push_1.next_obs.report_voice)) 
                     
                 to_push_list_1.append(to_push_1)
                 to_push_list_2.append(to_push_2)
@@ -452,14 +452,14 @@ class Agent:
         
         percent_done = self.epochs / sum(self.args.epochs)
         
-        if(self.args.hidden_state_eta_mother_voice_reduction_type == "linear"):
-            self.hidden_state_eta_mother_voice_reduction = 1 - percent_done
-        if(self.args.hidden_state_eta_mother_voice_reduction_type.startswith("exp")):
-            exp = float(self.args.hidden_state_eta_mother_voice_reduction_type.split("_")[-1])
-            self.hidden_state_eta_mother_voice_reduction = 1 - (percent_done ** exp)
-        if(self.args.hidden_state_eta_mother_voice_reduction_type.startswith("sigmoid")):
-            k = float(self.args.hidden_state_eta_mother_voice_reduction_type.split("_")[-1])
-            self.hidden_state_eta_mother_voice_reduction = 1 - (1 / (1 + np.exp(-k * (self.epochs - sum(self.args.epochs)/2))))
+        if(self.args.hidden_state_eta_report_voice_reduction_type == "linear"):
+            self.hidden_state_eta_report_voice_reduction = 1 - percent_done
+        if(self.args.hidden_state_eta_report_voice_reduction_type.startswith("exp")):
+            exp = float(self.args.hidden_state_eta_report_voice_reduction_type.split("_")[-1])
+            self.hidden_state_eta_report_voice_reduction = 1 - (percent_done ** exp)
+        if(self.args.hidden_state_eta_report_voice_reduction_type.startswith("sigmoid")):
+            k = float(self.args.hidden_state_eta_report_voice_reduction_type.split("_")[-1])
+            self.hidden_state_eta_report_voice_reduction = 1 - (1 / (1 + np.exp(-k * (self.epochs - sum(self.args.epochs)/2))))
             
         if(self.args.reward_inflation_type == "linear"):
             self.reward_inflation = percent_done
@@ -490,8 +490,8 @@ class Agent:
                 if(not done):
                     obs_1 = self.get_agent_obs()
                     obs_2 = self.get_agent_obs(agent_1 = False)
-                    prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, \
-                        prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
+                    prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, \
+                        prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, hq_1, obs_1,
                                 prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
@@ -525,7 +525,7 @@ class Agent:
             common_keys = [
                 "obs", "action", 
                 "birds_eye", "reward", "critic_predictions", "prior_predictions", "posterior_predictions", 
-                "rgbd_dkl", "sensors_dkl", "father_voice_dkl", "mother_voice_dkl"]
+                "vision_dkl", "touch_dkl", "command_voice_dkl", "report_voice_dkl"]
             episode_dict = {}
             for agent_id in [0, 1]:
                 for key in common_keys:
@@ -557,11 +557,11 @@ class Agent:
                 agent_num = 1 if agent_1 else 2
                 birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
                 dream_obs_q = None
-                obs.father_voice = obs.father_voice if parenting else prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
-                if(type(obs.father_voice) != Goal):
-                    obs.father_voice = get_goal_from_one_hots(obs.father_voice)
-                if(type(obs.mother_voice) != Goal):
-                    obs.mother_voice = get_goal_from_one_hots(obs.mother_voice)
+                obs.command_voice = obs.command_voice if parenting else prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
+                if(type(obs.command_voice) != Goal):
+                    obs.command_voice = get_goal_from_one_hots(obs.command_voice)
+                if(type(obs.report_voice) != Goal):
+                    obs.report_voice = get_goal_from_one_hots(obs.report_voice)
                 
                 episode_dict[f"obs_{agent_num}"].append(obs) 
                 episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
@@ -575,14 +575,14 @@ class Agent:
                 pred_obs_q = self.forward.predict(hq.unsqueeze(1), self.forward.wheels_joints_in(wheels_joints))
                 
                 dream_obs_q = deepcopy(pred_obs_q)
-                dream_obs_q.rgbd = dream_obs_q.rgbd.squeeze(0)
-                dream_obs_q.sensors = dream_obs_q.sensors.squeeze(0)
+                dream_obs_q.vision = dream_obs_q.vision.squeeze(0)
+                dream_obs_q.touch = dream_obs_q.touch.squeeze(0)
                 
-                pred_obs_p.father_voice = get_goal_from_one_hots(pred_obs_p.father_voice)
-                pred_obs_q.father_voice = get_goal_from_one_hots(pred_obs_q.father_voice)
+                pred_obs_p.command_voice = get_goal_from_one_hots(pred_obs_p.command_voice)
+                pred_obs_q.command_voice = get_goal_from_one_hots(pred_obs_q.command_voice)
                 
-                pred_obs_p.mother_voice = get_goal_from_one_hots(pred_obs_p.mother_voice)
-                pred_obs_q.mother_voice = get_goal_from_one_hots(pred_obs_q.mother_voice)
+                pred_obs_p.report_voice = get_goal_from_one_hots(pred_obs_p.report_voice)
+                pred_obs_q.report_voice = get_goal_from_one_hots(pred_obs_q.report_voice)
                 
                 episode_dict[f"prior_predictions_{agent_num}"].append(pred_obs_p)
                 episode_dict[f"posterior_predictions_{agent_num}"].append(pred_obs_q)
@@ -624,8 +624,8 @@ class Agent:
                 display_step(step, dreaming = dreaming)
                 
                 # Then, perform action.
-                prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, \
-                    prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
+                prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, \
+                    prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_action_1, hq_1, obs_1,
                             prev_action_2, hq_2, obs_2, verbose = verbose, sleep_time = sleep_time, user_action = user_action) 
@@ -636,18 +636,18 @@ class Agent:
                         
                 episode_dict["reward"].append(str(round(reward, 3)))
                 
-                def update_episode_dict(index, prev_action, rgbd_is, sensors_is, father_voice_is, mother_voice_is, values, reward):
+                def update_episode_dict(index, prev_action, vision_is, touch_is, command_voice_is, report_voice_is, values, reward):
                     episode_dict[f"action_{index}"].append(prev_action)
-                    episode_dict[f"rgbd_dkl_{index}"].append(rgbd_is.dkl.sum().item())
-                    episode_dict[f"sensors_dkl_{index}"].append(sensors_is.dkl.sum().item())
-                    episode_dict[f"father_voice_dkl_{index}"].append(father_voice_is.dkl.sum().item())
-                    episode_dict[f"mother_voice_dkl_{index}"].append(mother_voice_is.dkl.sum().item())
+                    episode_dict[f"vision_dkl_{index}"].append(vision_is.dkl.sum().item())
+                    episode_dict[f"touch_dkl_{index}"].append(touch_is.dkl.sum().item())
+                    episode_dict[f"command_voice_dkl_{index}"].append(command_voice_is.dkl.sum().item())
+                    episode_dict[f"report_voice_dkl_{index}"].append(report_voice_is.dkl.sum().item())
                     episode_dict[f"critic_predictions_{index}"].append(values)
                     episode_dict[f"reward_{index}"].append(str(round(reward, 3)))
 
-                update_episode_dict(1, prev_action_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, values_1, reward)
+                update_episode_dict(1, prev_action_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, values_1, reward)
                 if not self.processor.parenting:
-                    update_episode_dict(2, prev_action_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, values_2, reward_2)
+                    update_episode_dict(2, prev_action_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2, values_2, reward_2)
                 
                 if(done):
                     real_obs_1 = self.get_agent_obs()
@@ -683,8 +683,8 @@ class Agent:
                 if(not done):
                     obs_1 = self.get_agent_obs()
                     obs_2 = self.get_agent_obs(agent_1 = False)
-                    prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, \
-                        prev_action_2, values_2, hp_2, hq_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, \
+                    prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, \
+                        prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, hq_1, obs_1,
                                 prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
@@ -697,22 +697,22 @@ class Agent:
                 to_push.push(temp_memory)
                 
         batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
-        rgbd, sensors, father_voice, mother_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
+        vision, touch, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
         
-        hps, hqs, rgbd_is, sensors_is, father_voice_is, mother_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
+        hps, hqs, vision_is, touch_is, command_voice_is, report_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            Obs(rgbd, sensors, father_voice, mother_voice), Action(wheels_joints, voice_out))
+            Obs(vision, touch, command_voice, report_voice), Action(wheels_joints, voice_out))
         
-        father_voice_zq = father_voice_is.zq.detach().cpu().numpy()
+        command_voice_zq = command_voice_is.zq.detach().cpu().numpy()
         labels = labels.detach().cpu().numpy()
         all_mask = all_mask.detach().cpu().numpy()   
         
         non_zero_mask = labels[:, 0, 0] != 0  # This checks if the first element of each sequence is not 0
-        father_voice_zq_filtered = father_voice_zq[non_zero_mask]
+        command_voice_zq_filtered = command_voice_zq[non_zero_mask]
         labels_filtered = labels[non_zero_mask]
         all_mask_filtered = all_mask[non_zero_mask]
                 
-        return father_voice_zq, labels, all_mask, father_voice_zq_filtered, labels_filtered, all_mask_filtered
+        return command_voice_zq, labels, all_mask, command_voice_zq_filtered, labels_filtered, all_mask_filtered
         
         
         
@@ -720,11 +720,11 @@ class Agent:
         batch = memory.sample(batch_size, random_sample = random_sample)
         if(batch == False): return(False)
         
-        rgbd, sensors, father_voice, mother_voice, wheels_joints, voice_out, reward, done, mask = batch
-        rgbd = torch.from_numpy(rgbd).to(self.args.device)
-        sensors = torch.from_numpy(sensors).to(self.args.device)
-        father_voice = torch.from_numpy(father_voice).to(self.args.device)
-        mother_voice = torch.from_numpy(mother_voice).to(self.args.device)
+        vision, touch, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask = batch
+        vision = torch.from_numpy(vision).to(self.args.device)
+        touch = torch.from_numpy(touch).to(self.args.device)
+        command_voice = torch.from_numpy(command_voice).to(self.args.device)
+        report_voice = torch.from_numpy(report_voice).to(self.args.device)
         wheels_joints = torch.from_numpy(wheels_joints)
         voice_out = torch.from_numpy(voice_out)
         reward = torch.from_numpy(reward).to(self.args.device)
@@ -738,17 +738,17 @@ class Agent:
         steps = reward.shape[1]
         
         if(self.args.half):
-            rgbd, sensors, father_voice, wheels_joints, voice_out, reward, done, mask, all_mask, mask = \
-                rgbd.to(dtype=torch.float16), sensors.to(dtype=torch.float16), father_voice.to(dtype=torch.float16), wheels_joints.to(dtype=torch.float16), \
+            vision, touch, command_voice, wheels_joints, voice_out, reward, done, mask, all_mask, mask = \
+                vision.to(dtype=torch.float16), touch.to(dtype=torch.float16), command_voice.to(dtype=torch.float16), wheels_joints.to(dtype=torch.float16), \
                 voice_out.to(dtype=torch.float16), reward.to(dtype=torch.float16), done.to(dtype=torch.float16), \
                 mask.to(dtype=torch.float16), wheels_joints.to(dtype=torch.float16), voice_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
         
         #print("\n\n")
-        #print("Agent {}, epoch {}. rgbd: {}. voice in: {}. wheels_joints: {}. voice out: {}. reward: {}.  done: {}. mask: {}.".format(
-        #    self.agent_num, self.epochs, rgbd.shape, voice_in.shape, wheels_joints.shape, voice_out.shape, reward.shape, done.shape, mask.shape))
+        #print("Agent {}, epoch {}. vision: {}. voice in: {}. wheels_joints: {}. voice out: {}. reward: {}.  done: {}. mask: {}.".format(
+        #    self.agent_num, self.epochs, vision.shape, voice_in.shape, wheels_joints.shape, voice_out.shape, reward.shape, done.shape, mask.shape))
         #print("\n\n")
         
-        return(rgbd, sensors, father_voice, mother_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps)
+        return(vision, touch, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps)
         
     
     
@@ -763,21 +763,21 @@ class Agent:
         if(batch == False):
             return(False)
         
-        rgbd, sensors, father_voice, mother_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
-        obs = Obs(rgbd, sensors, father_voice, mother_voice)
+        vision, touch, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
+        obs = Obs(vision, touch, command_voice, report_voice)
         actions = Action(wheels_joints, voice_out)
         
         
                 
         # Train forward
-        hps, hqs, rgbd_is, sensors_is, father_voice_is, mother_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
+        hps, hqs, vision_is, touch_is, command_voice_is, report_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
             obs, actions)
                                 
-        rgbd_loss = F.binary_cross_entropy(pred_obs_q.rgbd, rgbd[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.rgbd_scaler
+        vision_loss = F.binary_cross_entropy(pred_obs_q.vision, vision[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.vision_scaler
                         
-        sensors_loss = F.mse_loss(pred_obs_q.sensors, sensors[:,1:], reduction = "none")
-        sensors_loss = sensors_loss.mean(-1).unsqueeze(-1) * mask * self.args.sensors_scaler
+        touch_loss = F.mse_loss(pred_obs_q.touch, touch[:,1:], reduction = "none")
+        touch_loss = touch_loss.mean(-1).unsqueeze(-1) * mask * self.args.touch_scaler
         
         def compute_individual_voice_loss(real_voice, pred_voice, voice_scaler):
             real_voice = real_voice[:, 1:].reshape((episodes * steps, self.args.max_voice_len, self.args.voice_shape))
@@ -789,24 +789,24 @@ class Agent:
             voice_loss = voice_loss.mean(dim=2).unsqueeze(-1) * mask * voice_scaler
             return voice_loss, pred_voice
         
-        father_voice_loss, pred_father_voice = compute_individual_voice_loss(
-            father_voice, pred_obs_q.father_voice, self.args.father_voice_scaler)
+        command_voice_loss, pred_command_voice = compute_individual_voice_loss(
+            command_voice, pred_obs_q.command_voice, self.args.command_voice_scaler)
 
-        mother_voice_loss, pred_mother_voice = compute_individual_voice_loss(
-            mother_voice, pred_obs_q.mother_voice, self.args.mother_voice_scaler)
+        report_voice_loss, pred_report_voice = compute_individual_voice_loss(
+            report_voice, pred_obs_q.report_voice, self.args.report_voice_scaler)
         
-        accuracy = (rgbd_loss + sensors_loss + father_voice_loss + mother_voice_loss).mean()
+        accuracy = (vision_loss + touch_loss + command_voice_loss + report_voice_loss).mean()
         
-        rgbd_complexity = rgbd_is.dkl.mean(-1).unsqueeze(-1) * all_mask
-        sensors_complexity = sensors_is.dkl.mean(-1).unsqueeze(-1) * all_mask
-        father_voice_complexity = father_voice_is.dkl.mean(-1).unsqueeze(-1) * all_mask
-        mother_voice_complexity = mother_voice_is.dkl.mean(-1).unsqueeze(-1) * all_mask
+        vision_complexity = vision_is.dkl.mean(-1).unsqueeze(-1) * all_mask
+        touch_complexity = touch_is.dkl.mean(-1).unsqueeze(-1) * all_mask
+        command_voice_complexity = command_voice_is.dkl.mean(-1).unsqueeze(-1) * all_mask
+        report_voice_complexity = report_voice_is.dkl.mean(-1).unsqueeze(-1) * all_mask
                 
         complexity = sum([
-            self.args.beta_rgbd * rgbd_complexity.mean(),
-            self.args.beta_sensors * sensors_complexity.mean(),
-            self.args.beta_father_voice * father_voice_complexity.mean(),
-            self.args.beta_mother_voice * mother_voice_complexity.mean()])       
+            self.args.beta_vision * vision_complexity.mean(),
+            self.args.beta_touch * touch_complexity.mean(),
+            self.args.beta_command_voice * command_voice_complexity.mean(),
+            self.args.beta_report_voice * report_voice_complexity.mean()])       
                                 
         self.forward_opt.zero_grad()
         (accuracy + complexity).backward()
@@ -814,25 +814,25 @@ class Agent:
         
         torch.cuda.empty_cache()
         
-        rgbd_complexity = rgbd_complexity[:,1:]
-        sensors_complexity = sensors_complexity[:,1:]
-        father_voice_complexity = father_voice_complexity[:,1:]
-        mother_voice_complexity = mother_voice_complexity[:,1:]
+        vision_complexity = vision_complexity[:,1:]
+        touch_complexity = touch_complexity[:,1:]
+        command_voice_complexity = command_voice_complexity[:,1:]
+        report_voice_complexity = report_voice_complexity[:,1:]
                                     
                         
         
         # Get curiosity                 
-        rgbd_prediction_error_curiosity             = self.args.prediction_error_eta_rgbd           * rgbd_loss
-        sensors_prediction_error_curiosity          = self.args.prediction_error_eta_sensors        * sensors_loss
-        father_voice_prediction_error_curiosity     = self.args.prediction_error_eta_father_voice   * father_voice_loss
-        mother_voice_prediction_error_curiosity = self.args.prediction_error_eta_mother_voice   * mother_voice_loss
-        prediction_error_curiosity                  = rgbd_prediction_error_curiosity + sensors_prediction_error_curiosity + father_voice_prediction_error_curiosity + mother_voice_prediction_error_curiosity
+        vision_prediction_error_curiosity             = self.args.prediction_error_eta_vision           * vision_loss
+        touch_prediction_error_curiosity          = self.args.prediction_error_eta_touch        * touch_loss
+        command_voice_prediction_error_curiosity     = self.args.prediction_error_eta_command_voice   * command_voice_loss
+        report_voice_prediction_error_curiosity = self.args.prediction_error_eta_report_voice   * report_voice_loss
+        prediction_error_curiosity                  = vision_prediction_error_curiosity + touch_prediction_error_curiosity + command_voice_prediction_error_curiosity + report_voice_prediction_error_curiosity
         
-        rgbd_hidden_state_curiosity                 = self.args.hidden_state_eta_rgbd               * torch.clamp(rgbd_complexity, min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
-        sensors_hidden_state_curiosity              = self.args.hidden_state_eta_sensors            * torch.clamp(sensors_complexity, min = 0, max = self.args.dkl_max)
-        father_voice_hidden_state_curiosity         = self.args.hidden_state_eta_father_voice       * torch.clamp(father_voice_complexity, min = 0, max = self.args.dkl_max)
-        mother_voice_hidden_state_curiosity     = self.args.hidden_state_eta_mother_voice       * torch.clamp(mother_voice_complexity, min = 0, max = self.args.dkl_max) * self.hidden_state_eta_mother_voice_reduction
-        hidden_state_curiosity                      = rgbd_hidden_state_curiosity + sensors_hidden_state_curiosity + father_voice_hidden_state_curiosity + mother_voice_hidden_state_curiosity
+        vision_hidden_state_curiosity                 = self.args.hidden_state_eta_vision               * torch.clamp(vision_complexity, min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
+        touch_hidden_state_curiosity              = self.args.hidden_state_eta_touch            * torch.clamp(touch_complexity, min = 0, max = self.args.dkl_max)
+        command_voice_hidden_state_curiosity         = self.args.hidden_state_eta_command_voice       * torch.clamp(command_voice_complexity, min = 0, max = self.args.dkl_max)
+        report_voice_hidden_state_curiosity     = self.args.hidden_state_eta_report_voice       * torch.clamp(report_voice_complexity, min = 0, max = self.args.dkl_max) * self.hidden_state_eta_report_voice_reduction
+        hidden_state_curiosity                      = vision_hidden_state_curiosity + touch_hidden_state_curiosity + command_voice_hidden_state_curiosity + report_voice_hidden_state_curiosity
         
         if(self.args.curiosity == "prediction_error"):  curiosity = prediction_error_curiosity
         elif(self.args.curiosity == "hidden_state"):    curiosity = hidden_state_curiosity
@@ -946,10 +946,10 @@ class Agent:
                                 
                                 
         if(accuracy != None):               accuracy = accuracy.item()
-        if(rgbd_loss != None):              rgbd_loss = rgbd_loss.mean().item()
-        if(sensors_loss != None):           sensors_loss = sensors_loss.mean().item()
-        if(father_voice_loss != None):      father_voice_loss = father_voice_loss.mean().item()
-        if(mother_voice_loss != None):      mother_voice_loss = mother_voice_loss.mean().item()
+        if(vision_loss != None):              vision_loss = vision_loss.mean().item()
+        if(touch_loss != None):           touch_loss = touch_loss.mean().item()
+        if(command_voice_loss != None):      command_voice_loss = command_voice_loss.mean().item()
+        if(report_voice_loss != None):      report_voice_loss = report_voice_loss.mean().item()
         if(complexity != None):             complexity = complexity.item()
         if(alpha_loss != None):             alpha_loss = alpha_loss.item()
         if(alpha_text_loss != None):        alpha_text_loss = alpha_text_loss.item()
@@ -960,15 +960,15 @@ class Agent:
                 critic_losses[i] = critic_losses[i].item()
                 critic_losses[i] = log(critic_losses[i]) if critic_losses[i] > 0 else critic_losses[i]
                 
-        rgbd_prediction_error_curiosity = rgbd_prediction_error_curiosity.mean().item()
-        sensors_prediction_error_curiosity = sensors_prediction_error_curiosity.mean().item()
-        father_voice_prediction_error_curiosity = father_voice_prediction_error_curiosity.mean().item()
-        mother_voice_prediction_error_curiosity = mother_voice_prediction_error_curiosity.mean().item()
+        vision_prediction_error_curiosity = vision_prediction_error_curiosity.mean().item()
+        touch_prediction_error_curiosity = touch_prediction_error_curiosity.mean().item()
+        command_voice_prediction_error_curiosity = command_voice_prediction_error_curiosity.mean().item()
+        report_voice_prediction_error_curiosity = report_voice_prediction_error_curiosity.mean().item()
         
-        rgbd_hidden_state_curiosity = rgbd_hidden_state_curiosity.mean().item()
-        sensors_hidden_state_curiosity = sensors_hidden_state_curiosity.mean().item()
-        father_voice_hidden_state_curiosity = father_voice_hidden_state_curiosity.mean().item()
-        mother_voice_hidden_state_curiosity = mother_voice_hidden_state_curiosity.mean().item()
+        vision_hidden_state_curiosity = vision_hidden_state_curiosity.mean().item()
+        touch_hidden_state_curiosity = touch_hidden_state_curiosity.mean().item()
+        command_voice_hidden_state_curiosity = command_voice_hidden_state_curiosity.mean().item()
+        report_voice_hidden_state_curiosity = report_voice_hidden_state_curiosity.mean().item()
         
         prediction_error_curiosity = prediction_error_curiosity.mean().item()
         hidden_state_curiosity = hidden_state_curiosity.mean().item()
@@ -977,10 +977,10 @@ class Agent:
 
         if(self.epochs == 1 or self.epochs >= sum(self.args.epochs) or self.epochs % self.args.keep_data == 0):
             self.plot_dict["accuracy_loss"].append(accuracy)
-            self.plot_dict["rgbd_loss"].append(rgbd_loss)
-            self.plot_dict["sensors_loss"].append(sensors_loss)
-            self.plot_dict["father_voice_loss"].append(father_voice_loss)
-            self.plot_dict["mother_voice_loss"].append(mother_voice_loss)
+            self.plot_dict["vision_loss"].append(vision_loss)
+            self.plot_dict["touch_loss"].append(touch_loss)
+            self.plot_dict["command_voice_loss"].append(command_voice_loss)
+            self.plot_dict["report_voice_loss"].append(report_voice_loss)
             self.plot_dict["complexity_loss"].append(complexity)                                                                             
             self.plot_dict["alpha_loss"].append(alpha_loss)
             self.plot_dict["alpha_text_loss"].append(alpha_text_loss)
@@ -992,15 +992,15 @@ class Agent:
             self.plot_dict["q"].append(Q)
             self.plot_dict["intrinsic_curiosity"].append(intrinsic_curiosity)
             self.plot_dict["intrinsic_entropy"].append(intrinsic_entropy)
-            self.plot_dict["rgbd_prediction_error_curiosity"].append(rgbd_prediction_error_curiosity)
-            self.plot_dict["sensors_prediction_error_curiosity"].append(sensors_prediction_error_curiosity)
-            self.plot_dict["father_voice_prediction_error_curiosity"].append(father_voice_prediction_error_curiosity)
-            self.plot_dict["mother_voice_prediction_error_curiosity"].append(mother_voice_prediction_error_curiosity)
+            self.plot_dict["vision_prediction_error_curiosity"].append(vision_prediction_error_curiosity)
+            self.plot_dict["touch_prediction_error_curiosity"].append(touch_prediction_error_curiosity)
+            self.plot_dict["command_voice_prediction_error_curiosity"].append(command_voice_prediction_error_curiosity)
+            self.plot_dict["report_voice_prediction_error_curiosity"].append(report_voice_prediction_error_curiosity)
             self.plot_dict["prediction_error_curiosity"].append(prediction_error_curiosity)
-            self.plot_dict["rgbd_hidden_state_curiosity"].append(rgbd_hidden_state_curiosity)    
-            self.plot_dict["sensors_hidden_state_curiosity"].append(sensors_hidden_state_curiosity)  
-            self.plot_dict["father_voice_hidden_state_curiosity"].append(father_voice_hidden_state_curiosity)  
-            self.plot_dict["mother_voice_hidden_state_curiosity"].append(mother_voice_hidden_state_curiosity)    
+            self.plot_dict["vision_hidden_state_curiosity"].append(vision_hidden_state_curiosity)    
+            self.plot_dict["touch_hidden_state_curiosity"].append(touch_hidden_state_curiosity)  
+            self.plot_dict["command_voice_hidden_state_curiosity"].append(command_voice_hidden_state_curiosity)  
+            self.plot_dict["report_voice_hidden_state_curiosity"].append(report_voice_hidden_state_curiosity)    
             self.plot_dict["hidden_state_curiosity"].append(hidden_state_curiosity)    
             
         end_time = duration()

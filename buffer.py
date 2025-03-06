@@ -31,19 +31,19 @@ class RecurrentReplayBuffer:
         self.max_episode_len = self.args.max_steps
         self.num_episodes = 0
 
-        self.rgbd = VariableBuffer(
+        self.vision = VariableBuffer(
             shape = (self.args.image_size, self.args.image_size, 4), 
             before_and_after = True, 
             args = self.args)
-        self.sensors = VariableBuffer(
-            shape = (self.args.sensors_shape,), 
+        self.touch = VariableBuffer(
+            shape = (self.args.touch_shape,), 
             before_and_after = True, 
             args = self.args)
-        self.father_voice = VariableBuffer(
+        self.command_voice = VariableBuffer(
             shape = (self.args.max_voice_len, self.args.voice_shape,), 
             before_and_after = True, 
             args = self.args)
-        self.mother_voice = VariableBuffer(
+        self.report_voice = VariableBuffer(
             shape = (self.args.max_voice_len, self.args.voice_shape,), 
             before_and_after = True, 
             args = self.args)
@@ -62,26 +62,26 @@ class RecurrentReplayBuffer:
 
     def push(
             self, 
-            rgbd,
-            sensors,
-            father_voice, 
-            mother_voice,
+            vision,
+            touch,
+            command_voice, 
+            report_voice,
             wheels_joints, 
             voice_out, 
             reward, 
-            next_rgbd,
-            next_sensors,
-            next_father_voice, 
-            next_mother_voice,
+            next_vision,
+            next_touch,
+            next_command_voice, 
+            next_report_voice,
             done):
         
                 
         if self.time_ptr == 0:
             for buffer in [
-                    self.rgbd,
-                    self.sensors,
-                    self.father_voice, 
-                    self.mother_voice,
+                    self.vision,
+                    self.touch,
+                    self.command_voice, 
+                    self.report_voice,
                     self.wheels_joints, 
                     self.voice_out, 
                     self.reward, 
@@ -89,12 +89,12 @@ class RecurrentReplayBuffer:
                     self.mask]:
                 buffer.reset_episode(self.episode_ptr)
 
-        father_voice = pad_zeros(father_voice, self.args.max_voice_len)
-        next_father_voice = pad_zeros(next_father_voice, self.args.max_voice_len)
-        self.rgbd.push(self.episode_ptr, self.time_ptr, rgbd)
-        self.sensors.push(self.episode_ptr, self.time_ptr, sensors)
-        self.father_voice.push(self.episode_ptr, self.time_ptr, father_voice)
-        self.mother_voice.push(self.episode_ptr, self.time_ptr, mother_voice)
+        command_voice = pad_zeros(command_voice, self.args.max_voice_len)
+        next_command_voice = pad_zeros(next_command_voice, self.args.max_voice_len)
+        self.vision.push(self.episode_ptr, self.time_ptr, vision)
+        self.touch.push(self.episode_ptr, self.time_ptr, touch)
+        self.command_voice.push(self.episode_ptr, self.time_ptr, command_voice)
+        self.report_voice.push(self.episode_ptr, self.time_ptr, report_voice)
         self.wheels_joints.push(self.episode_ptr, self.time_ptr, wheels_joints)
         self.voice_out.push(self.episode_ptr, self.time_ptr, voice_out)
         self.reward.push(self.episode_ptr, self.time_ptr, reward)
@@ -103,10 +103,10 @@ class RecurrentReplayBuffer:
 
         self.time_ptr += 1
         if done or self.time_ptr >= self.max_episode_len:
-            self.rgbd.push(self.episode_ptr, self.time_ptr, next_rgbd)
-            self.sensors.push(self.episode_ptr, self.time_ptr, next_sensors)
-            self.father_voice.push(self.episode_ptr, self.time_ptr, next_father_voice)
-            self.mother_voice.push(self.episode_ptr, self.time_ptr, next_mother_voice)
+            self.vision.push(self.episode_ptr, self.time_ptr, next_vision)
+            self.touch.push(self.episode_ptr, self.time_ptr, next_touch)
+            self.command_voice.push(self.episode_ptr, self.time_ptr, next_command_voice)
+            self.report_voice.push(self.episode_ptr, self.time_ptr, next_report_voice)
             self.episode_ptr = (self.episode_ptr + 1) % self.capacity
             self.time_ptr = 0
             self.num_episodes = min(self.num_episodes + 1, self.capacity)
@@ -121,10 +121,10 @@ class RecurrentReplayBuffer:
         else:
             indices = [i for i in range(batch_size)]
         batch = (
-            self.rgbd.sample(indices),
-            self.sensors.sample(indices),
-            self.father_voice.sample(indices),
-            self.mother_voice.sample(indices),
+            self.vision.sample(indices),
+            self.touch.sample(indices),
+            self.command_voice.sample(indices),
+            self.report_voice.sample(indices),
             self.wheels_joints.sample(indices),
             self.voice_out.sample(indices),
             self.reward.sample(indices),

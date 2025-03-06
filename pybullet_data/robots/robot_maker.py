@@ -276,7 +276,7 @@ if(__name__ == "__main__"):
             p.changeDynamics(robot_index, link_index, maxJointVelocity = 10000)
             if("sensor" in link_name):
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, .15), physicsClientId = physicsClient)
-            elif("face" in link_name):
+            elif("face" in link_name or "wheel" in link_name):
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = physicsClient)
             else:
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)

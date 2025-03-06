@@ -16,29 +16,29 @@ from mtrnn import MTRNN
 
     
 
-class RGBD_IN(nn.Module):
+class Vision_IN(nn.Module):
 
     def __init__(self, args):
-        super(RGBD_IN, self).__init__()  
+        super(Vision_IN, self).__init__()  
         
         self.args = args 
         
         image_dims = 4
         
-        rgbd_size = (1, image_dims, self.args.image_size, self.args.image_size)
-        example = torch.zeros(rgbd_size)
+        vision_size = (1, image_dims, self.args.image_size, self.args.image_size)
+        example = torch.zeros(vision_size)
         
         self.a = nn.Sequential()
             #nn.BatchNorm2d(image_dims)) # Tested, don't use
         
         example = self.a(example)
-        rgbd_latent_size = example.flatten(1).shape[1]
+        vision_latent_size = example.flatten(1).shape[1]
                 
         self.b = nn.Sequential(
             nn.Linear(
-                in_features = rgbd_latent_size, 
-                out_features = self.args.rgbd_encode_size),
-            # nn.BatchNorm1d(self.args.rgbd_encode_size), # Tested, don't use
+                in_features = vision_latent_size, 
+                out_features = self.args.vision_encode_size),
+            # nn.BatchNorm1d(self.args.vision_encode_size), # Tested, don't use
             nn.PReLU(),
             nn.Dropout(self.args.dropout))
         
@@ -48,12 +48,12 @@ class RGBD_IN(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, rgbd):
-        start_time, episodes, steps, [rgbd] = model_start([(rgbd, "cnn")], self.args.device, self.args.half)
-        rgbd = (rgbd * 2) - 1
-        a = self.a(rgbd).flatten(1)
+    def forward(self, vision):
+        start_time, episodes, steps, [vision] = model_start([(vision, "cnn")], self.args.device, self.args.half)
+        vision = (vision * 2) - 1
+        a = self.a(vision).flatten(1)
         encoding = self.b(a)
-        [encoding] = model_end(start_time, episodes, steps, [(encoding, "lin")], "\tRGBD_IN")
+        [encoding] = model_end(start_time, episodes, steps, [(encoding, "lin")], "\tVision_IN")
         return(encoding)
     
     
@@ -63,14 +63,14 @@ if __name__ == "__main__":
     from utils import args
     episodes = args.batch_size ; steps = args.max_steps
     
-    rgbd_in = RGBD_IN(args = args) #.half()
+    vision_in = Vision_IN(args = args) #.half()
     
     print("\n\n")
-    print(rgbd_in)
+    print(vision_in)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(torch_summary(rgbd_in, 
+            print(torch_summary(vision_in, 
                                 (episodes, steps, args.image_size, args.image_size, 4)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
@@ -80,66 +80,33 @@ if __name__ == "__main__":
     
     
 
-class RGBD_OUT(nn.Module):
+class Vision_OUT(nn.Module):
 
     def __init__(self, args):
-        super(RGBD_OUT, self).__init__()  
+        super(Vision_OUT, self).__init__()  
         
         self.args = args 
         self.out_features_channels = self.args.hidden_size
+    
+        self.a = nn.Sequential(
+            # nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
+            nn.Linear(
+                in_features = self.args.h_w_wheels_joints_size,
+                out_features = self.out_features_channels * (self.args.image_size//self.args.divisions) * (self.args.image_size//self.args.divisions)))
         
-        #self.args.cnn_upscale = True 
+        self.b = nn.Sequential(
+            nn.BatchNorm2d(self.out_features_channels), # Tested, use this
+            nn.PReLU(),
+            nn.Dropout(self.args.dropout),
         
-        if(self.args.cnn_upscale):
-            self.a = nn.Sequential(
-                # nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
-                nn.Linear(
-                    in_features = self.args.h_w_wheels_joints_size,
-                    out_features = self.out_features_channels * (self.args.image_size//2) * (self.args.image_size//2)))
-            
-            self.b = nn.Sequential(
-                nn.BatchNorm2d(self.out_features_channels), # Tested, use this
-                nn.PReLU(),
-                nn.Dropout(self.args.dropout),
-                
-                nn.Conv2d(
-                    in_channels = self.out_features_channels, 
-                    out_channels = self.out_features_channels,
-                    kernel_size = 3,
-                    padding = 1,
-                    padding_mode = "reflect"),
-                nn.Upsample(
-                    scale_factor = 2,
-                    mode = "bilinear",
-                    align_corners = True),
-                nn.BatchNorm2d(self.out_features_channels),
-                nn.LeakyReLU(),
-                
-                nn.Conv2d(
-                    in_channels = self.out_features_channels, 
-                    out_channels = 4,
-                    kernel_size = 1),
-                nn.Tanh())
-        else:
-            self.a = nn.Sequential(
-                # nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
-                nn.Linear(
-                    in_features = self.args.h_w_wheels_joints_size,
-                    out_features = self.out_features_channels * (self.args.image_size//self.args.divisions) * (self.args.image_size//self.args.divisions)))
-            
-            self.b = nn.Sequential(
-                nn.BatchNorm2d(self.out_features_channels), # Tested, use this
-                nn.PReLU(),
-                nn.Dropout(self.args.dropout),
-            
-                nn.Conv2d(
-                    in_channels = self.out_features_channels, 
-                    out_channels = 4 * (1 if self.args.divisions == 1 else 2 ** self.args.divisions),
-                    kernel_size = 3,
-                    padding = 1,
-                    padding_mode = "reflect"),
-                nn.PixelShuffle(self.args.divisions),
-                nn.Tanh())
+            nn.Conv2d(
+                in_channels = self.out_features_channels, 
+                out_channels = 4 * (1 if self.args.divisions == 1 else 2 ** self.args.divisions),
+                kernel_size = 3,
+                padding = 1,
+                padding_mode = "reflect"),
+            nn.PixelShuffle(self.args.divisions),
+            nn.Tanh())
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -152,11 +119,11 @@ class RGBD_OUT(nn.Module):
 
         a = self.a(h_w_wheels_joints)
         a = a.reshape(episodes * steps, self.out_features_channels, self.args.image_size//self.args.divisions, self.args.image_size//self.args.divisions)
-        rgbd = self.b(a)
+        vision = self.b(a)
             
-        rgbd = (rgbd + 1) / 2
-        [rgbd] = model_end(start_time, episodes, steps, [(rgbd, "cnn")], "\tRGBD_OUT")        
-        return(rgbd)
+        vision = (vision + 1) / 2
+        [vision] = model_end(start_time, episodes, steps, [(vision, "cnn")], "\tVision_OUT")        
+        return(vision)
     
     
     
@@ -165,14 +132,14 @@ if __name__ == "__main__":
     from utils import args
     episodes = args.batch_size ; steps = args.max_steps
     
-    rgbd_out = RGBD_OUT(args = args)
+    vision_out = Vision_OUT(args = args)
     
     print("\n\n")
-    print(rgbd_out)
+    print(vision_out)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(torch_summary(rgbd_out, 
+            print(torch_summary(vision_out, 
                                 (episodes, steps, args.h_w_wheels_joints_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
@@ -182,18 +149,18 @@ if __name__ == "__main__":
 
 
     
-class Sensors_IN(nn.Module):
+class Touch_IN(nn.Module):
     
     def __init__(self, args):
-        super(Sensors_IN, self).__init__()
+        super(Touch_IN, self).__init__()
         
         self.args = args 
         
         self.a = nn.Sequential(
             nn.Linear(
-                in_features = self.args.sensors_shape,
-                out_features = self.args.sensors_encode_size),
-            nn.BatchNorm1d(self.args.sensors_encode_size),  # Tested, use this
+                in_features = self.args.touch_shape,
+                out_features = self.args.touch_encode_size),
+            nn.BatchNorm1d(self.args.touch_encode_size),  # Tested, use this
             nn.PReLU())
         
         self.apply(init_weights)
@@ -202,10 +169,10 @@ class Sensors_IN(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
-    def forward(self, sensors):
-        start_time, episodes, steps, [sensors] = model_start([(sensors, "lin")], self.args.device, self.args.half)
-        encoding = self.a(sensors)
-        [encoding] = model_end(start_time, episodes, steps, [(encoding, "lin")], "\tSENSORS_IN")
+    def forward(self, touch):
+        start_time, episodes, steps, [touch] = model_start([(touch, "lin")], self.args.device, self.args.half)
+        encoding = self.a(touch)
+        [encoding] = model_end(start_time, episodes, steps, [(encoding, "lin")], "\tTouch_IN")
         return(encoding)
 
     
@@ -215,15 +182,15 @@ if __name__ == "__main__":
     from utils import args
     episodes = args.batch_size ; steps = args.max_steps
     
-    sensors_in = Sensors_IN(args = args)
+    touch_in = Touch_IN(args = args)
     
     print("\n\n")
-    print(sensors_in)
+    print(touch_in)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(torch_summary(sensors_in, 
-                                (episodes, steps, args.sensors_shape)))
+            print(torch_summary(touch_in, 
+                                (episodes, steps, args.touch_shape)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     
@@ -232,10 +199,10 @@ if __name__ == "__main__":
 
 
 
-class Sensors_OUT(nn.Module):
+class Touch_OUT(nn.Module):
 
     def __init__(self, args):
-        super(Sensors_OUT, self).__init__()  
+        super(Touch_OUT, self).__init__()  
         
         self.args = args 
 
@@ -243,7 +210,7 @@ class Sensors_OUT(nn.Module):
             #nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
             nn.Linear(
                 in_features = self.args.h_w_wheels_joints_size,
-                out_features = self.args.sensors_shape),
+                out_features = self.args.touch_shape),
             nn.Tanh())
         
         self.apply(init_weights)
@@ -254,10 +221,10 @@ class Sensors_OUT(nn.Module):
         
     def forward(self, h_w_wheels_joints):
         start_time, episodes, steps, [h_w_wheels_joints] = model_start([(h_w_wheels_joints, "lin")], self.args.device, self.args.half)
-        sensors = self.a(h_w_wheels_joints)
-        sensors = (sensors + 1) / 2
-        [sensors] = model_end(start_time, episodes, steps, [(sensors, "lin")], "\tSENSORS_OUT")
-        return(sensors)
+        touch = self.a(h_w_wheels_joints)
+        touch = (touch + 1) / 2
+        [touch] = model_end(start_time, episodes, steps, [(touch, "lin")], "\tTouch_OUT")
+        return(touch)
     
     
     
@@ -266,14 +233,14 @@ if __name__ == "__main__":
     from utils import args
     episodes = args.batch_size ; steps = args.max_steps
     
-    sensors_out = Sensors_OUT(args = args)
+    touch_out = Touch_OUT(args = args)
     
     print("\n\n")
-    print(sensors_out)
+    print(touch_out)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(torch_summary(sensors_out, 
+            print(torch_summary(touch_out, 
                                 (episodes, steps, args.h_w_wheels_joints_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 
@@ -469,10 +436,10 @@ class Obs_OUT(nn.Module):
         super(Obs_OUT, self).__init__()  
         
         self.args = args 
-        self.rgbd_out = RGBD_OUT(self.args)
-        self.sensors_out = Sensors_OUT(self.args)
-        self.father_voice_out = Voice_OUT(actor = False, args = self.args)
-        self.mother_voice_out = Voice_OUT(actor = False, args = self.args)
+        self.vision_out = Vision_OUT(self.args)
+        self.touch_out = Touch_OUT(self.args)
+        self.command_voice_out = Voice_OUT(actor = False, args = self.args)
+        self.report_voice_out = Voice_OUT(actor = False, args = self.args)
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -481,11 +448,11 @@ class Obs_OUT(nn.Module):
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
         
     def forward(self, h_w_wheels_joints):
-        rgbd_pred = self.rgbd_out(h_w_wheels_joints)
-        sensors_pred = self.sensors_out(h_w_wheels_joints)
-        father_voice_pred = self.father_voice_out(h_w_wheels_joints)
-        mother_voice_pred = self.mother_voice_out(h_w_wheels_joints)
-        return(rgbd_pred, sensors_pred, father_voice_pred, mother_voice_pred)
+        vision_pred = self.vision_out(h_w_wheels_joints)
+        touch_pred = self.touch_out(h_w_wheels_joints)
+        command_voice_pred = self.command_voice_out(h_w_wheels_joints)
+        report_voice_pred = self.report_voice_out(h_w_wheels_joints)
+        return(vision_pred, touch_pred, command_voice_pred, report_voice_pred)
     
     
     
