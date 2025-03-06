@@ -18,7 +18,7 @@ def human_friendly_text(goal):
 
 
     
-def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = True, args = args):
+def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = True, dreaming = False, args = args):
     sensor_plotter, sensor_values = robot_dict[args.robot_name]
 
     agent_num = 1 if agent_1 else 2
@@ -50,7 +50,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
     data.append(["Bird's Eye View", [episode_dict[f"birds_eye_{agent_num}"][step], "image"], 1])
     
     if(not step == 0):
-        data.append(["", ["Real"], ["Prior"], ["Posterior"], .1])
+        data.append(["", ["Real (not seen in dream; \nagent sees posterior)" + "" if dreaming and step != 0 else ""], ["Prior"], ["Posterior"], .1])
     
 
     

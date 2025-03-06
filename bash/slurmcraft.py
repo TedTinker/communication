@@ -81,7 +81,7 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_sensors" : 0})
 
 add_this("t",   {
-    "consideration" : [1, 2, 3, 4, 5, 6],
+    "consideration" : [0, 1, 2, 3, 4],
     "cnn_upscale" : ["False", "True"]
 })         
 
@@ -112,6 +112,20 @@ add_this("two_head_arm_c",
 
 add_this("two_head_arm_d",
          {"robot_name" : "two_head_arm_d",
+          "max_joint_1_angle" : -pi/4,
+          "max_joint_1_angle" : pi/4,
+          "min_joint_2_angle" : -pi/2,
+          "max_joint_2_angle" : 0})
+
+add_this("two_head_arm_f",
+         {"robot_name" : "two_head_arm_f",
+          "max_joint_1_angle" : -pi/4,
+          "max_joint_1_angle" : pi/4,
+          "min_joint_2_angle" : -pi/2,
+          "max_joint_2_angle" : 0})
+
+add_this("two_head_arm_g",
+         {"robot_name" : "two_head_arm_g",
           "max_joint_1_angle" : -pi/4,
           "max_joint_1_angle" : pi/4,
           "min_joint_2_angle" : -pi/2,

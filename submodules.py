@@ -88,6 +88,8 @@ class RGBD_OUT(nn.Module):
         self.args = args 
         self.out_features_channels = self.args.hidden_size
         
+        #self.args.cnn_upscale = True 
+        
         if(self.args.cnn_upscale):
             self.a = nn.Sequential(
                 # nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
@@ -99,7 +101,7 @@ class RGBD_OUT(nn.Module):
                 nn.BatchNorm2d(self.out_features_channels), # Tested, use this
                 nn.PReLU(),
                 nn.Dropout(self.args.dropout),
-            
+                
                 nn.Conv2d(
                     in_channels = self.out_features_channels, 
                     out_channels = self.out_features_channels,
@@ -110,15 +112,6 @@ class RGBD_OUT(nn.Module):
                     scale_factor = 2,
                     mode = "bilinear",
                     align_corners = True),
-                nn.BatchNorm2d(self.out_features_channels),
-                nn.LeakyReLU(),
-                
-                nn.Conv2d(
-                    in_channels = self.out_features_channels, 
-                    out_channels = self.out_features_channels,
-                    kernel_size = 3,
-                    padding = 1,
-                    padding_mode = "reflect"),
                 nn.BatchNorm2d(self.out_features_channels),
                 nn.LeakyReLU(),
                 

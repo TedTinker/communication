@@ -1,5 +1,31 @@
 #%%
 
+import numpy as np 
+from scipy.spatial.transform import Rotation as R
+
+
+
+def compute_transformation(joint_origin, joint_rpy):
+    """
+    Compute a 4x4 homogeneous transformation matrix.
+    
+    Parameters:
+      joint_origin: tuple or list of (x, y, z) translation.
+      joint_rpy: tuple or list of (roll, pitch, yaw) in radians.
+      
+    Returns:
+      A 4x4 numpy array representing the transformation matrix.
+    """
+    T = np.eye(4)
+    # Compute the rotation matrix from the Euler angles.
+    rotation = R.from_euler('xyz', joint_rpy, degrees=False)
+    T[:3, :3] = rotation.as_matrix()
+    # Set the translation part.
+    T[:3, 3] = np.array(joint_origin)
+    return T
+
+
+
 class Part:
     def __init__(
         self, 
@@ -70,14 +96,18 @@ f"""\n\n
             else o
             for i, o in enumerate(origin)]
         
-        # Apply cumulative transformations
+        cumulative_transform = np.eye(4)
         parent_part = self
-        cumulative_origin = [0, 0, 0]
         while parent_part:
-            cumulative_origin = [cumulative_origin[j] + parent_part.joint_origin[j] for j in range(3)]
+            # Create a 4x4 transformation matrix for the parent's rotation and translation
+            T = compute_transformation(parent_part.joint_origin, parent_part.joint_rpy)
+            cumulative_transform = T @ cumulative_transform
             parent_part = next((part for part in parts if part.name == parent_part.joint_parent), None)
-        
-        transformed_position = [cumulative_origin[j] + sensor_origin[j] for j in range(3)]
+
+        # Apply the cumulative transformation to the sensor's local position
+        sensor_position_homogeneous = np.array(list(sensor_origin) + [1])
+        transformed_position = cumulative_transform @ sensor_position_homogeneous
+        transformed_position = transformed_position[:3]  # Use only x, y, z
         
         self.sensor_positions.append(transformed_position)
         self.sensor_dimensions.append(size)

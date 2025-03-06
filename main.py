@@ -42,6 +42,8 @@ def train(q, i):
         agent = Agent(args = args, i = i)
     agent.training(q)
 
+
+
 if __name__ == '__main__':
     set_start_method('spawn')
     queue = Queue()
@@ -78,7 +80,7 @@ if __name__ == '__main__':
             if(hundreds == 0): string += " ##"
             string = string.rstrip() + "."
             print(string)
-        sleep(1)
+        sleep(15)
     
     for process in processes:
         process.join()

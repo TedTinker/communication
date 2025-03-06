@@ -324,7 +324,12 @@ class Agent:
                 partner_prev_voice_out = prev_action_2.voice_out if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape)) if agent_1 else prev_action_1.voice_out
                 hq = hq_1 if agent_1 else hq_2
                 obs = obs_1 if agent_1 else obs_2
-
+                
+                if(type(obs.father_voice) == Goal):
+                    obs.father_voice = obs.father_voice.one_hots
+                if(type(obs.mother_voice) == Goal):
+                    obs.mother_voice = obs.mother_voice.one_hots
+                
                 hp, hq, rgbd_is, sensors_is, father_voice_is, mother_voice_is = self.forward.bottom_to_top_step(
                     hq_1, self.forward.obs_in(obs), self.forward.action_in(prev_action))
 
@@ -444,7 +449,6 @@ class Agent:
         for to_push in to_push_list_2:
             if(to_push != None):
                 to_push.push(self.memory)
-                
         
         percent_done = self.epochs / sum(self.args.epochs)
         
@@ -512,7 +516,7 @@ class Agent:
         
         
         
-    def save_episodes(self, test = False, verbose = False, sleep_time = None, waiting = False, user_action = False, dreaming = False):        
+    def save_episodes(self, test = False, verbose = False, display = True, sleep_time = None, waiting = False, user_action = False, dreaming = False):        
         with torch.no_grad():
             self.processor = self.processors[self.processor_name]
             self.processor.begin(test = test)       
@@ -587,13 +591,14 @@ class Agent:
                     
                     
                                     
-            def display(step, agent_1 = True, done = False, stopping = False):
-
+            def display_step(step, agent_1 = True, done = False, stopping = False, dreaming = False):
+                if(not display):
+                    return
                 print(f"\n{self.processor.goal.human_text}", end = " ")
                 print("STEP:", step)
-                plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False, args = self.args)
+                plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False, dreaming = dreaming, args = self.args)
                 if(not self.processor.parenting and not stopping):
-                    display(step, agent_1 = False, stopping = True)
+                    display_step(step, agent_1 = False, stopping = True)
                 if(waiting):
                     WAITING = wait_for_button_press()
                     
@@ -604,19 +609,19 @@ class Agent:
                 # First, save step.
                 real_obs_1 = self.get_agent_obs()
                 real_obs_2 = self.get_agent_obs(agent_1 = False)
-                if(dreaming and step != 0):
+                if(dreaming and step != 0):                     
                     print(f"\n\nDreaming, step {step}\n\n")
-                    obs_1 = previous_dream_obs_q_1
-                    obs_2 = previous_dream_obs_q_2
+                    obs_1 = deepcopy(previous_dream_obs_q_1)
+                    obs_2 = deepcopy(previous_dream_obs_q_2)
                 else:
                     obs_1 = deepcopy(real_obs_1)
                     obs_2 = deepcopy(real_obs_2)
                 
                 save_step(real_obs_1)    
                 if(not parenting):
-                    save_step(real_obs_2, agent_1 = False)  
+                    save_step(real_obs_1, agent_1 = False)  
                     
-                display(step)
+                display_step(step, dreaming = dreaming)
                 
                 # Then, perform action.
                 prev_action_1, values_1, hp_1, hq_1, rgbd_is_1, sensors_is_1, father_voice_is_1, mother_voice_is_1, \
@@ -645,10 +650,12 @@ class Agent:
                     update_episode_dict(2, prev_action_2, rgbd_is_2, sensors_is_2, father_voice_is_2, mother_voice_is_2, values_2, reward_2)
                 
                 if(done):
+                    real_obs_1 = self.get_agent_obs()
+                    real_obs_2 = self.get_agent_obs(agent_1 = False)
                     save_step(real_obs_1, agent_1 = True)    
                     if(not self.processor.parenting):
                         save_step(real_obs_2, agent_1 = False) 
-                    display(step + 1, done = True)
+                    display_step(step + 1, done = True, dreaming = dreaming)
                     self.processor.done()
                     break
             

@@ -111,4 +111,3 @@ for hand_part_number in range(1, number_of_hand_parts):
                 joint_rpy=(0, 0, theta)),   
     )
     
-# This works are it's awesome, except it doesn't work in python?

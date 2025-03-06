@@ -2,6 +2,7 @@
 import os
 import pickle
 import gzip
+from math import pi
 
 from processor import Processor
 from agent import Agent 
@@ -24,12 +25,8 @@ episodes = 0
 wins = 0
 print("Ready to go!")
 
-agent.args.global_push_amount = agent.args.push_amount
-agent.args.global_pull_amount = agent.args.pull_amount
-agent.args.global_left_right_amount = agent.args.left_right_amount
-
-agent.args.local_push_pull_limit = agent.args.push_amount
-agent.args.local_left_right_amount = agent.args.left_right_amount
+agent.args.pointing_at_object_for_watch = pi/6
+agent.args.pointing_at_object_for_left = pi/2
 
 
 
@@ -44,9 +41,9 @@ agent.args.local_left_right_amount = agent.args.left_right_amount
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
     tasks_and_weights = [(2, 1)], 
-    objects = 1, 
-    colors = [0], 
-    shapes = [0], 
+    objects = 2, 
+    colors = [0, 1, 2, 3, 4, 5], 
+    shapes = [0, 1, 2, 3, 4], 
     parenting = True)}
 
 agent.processor_name = 0
@@ -57,6 +54,7 @@ episodes += 1
 win = agent.save_episodes(
     test = None, 
     verbose = True,
+    display = True, 
     sleep_time = 1, 
     waiting = False, 
     user_action = True, 

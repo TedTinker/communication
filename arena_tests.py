@@ -25,12 +25,12 @@ task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
     test = None)
 
 do_these = [
-    "show_movements",
+    #"show_movements",
     #"watch",
-    "push",
-    "pull",
-    "right",
+    #"push",
+    #"pull",
     "left",
+    "right"
     ]
 
 
@@ -69,7 +69,7 @@ def show_them():
 
 
 
-args.robot_name = "two_head_arm"
+args.robot_name = "two_head_arm_f"
 args.min_joint_1_angle = -pi/4
 args.max_joint_1_angle = pi/4
 args.min_joint_2_angle = -pi/2
@@ -83,62 +83,12 @@ arena = Arena(physicsClient, args = args)
 
 
 
-if(args.robot_name == "one_head_arm"):
-    
-    if("show_movements" in do_these):
-        moves = [[1, -1, -1, None], [-1, 1, 1, None]] 
-        execute_task(
-            task_name = "show_movements", 
-            task_id = 0, 
-            moves = moves, 
-            set_positions = (9, 0))
-
-    if("watch" in do_these):
-        moves = [[-.5, .5, -1, None]] * 1 + [[0, 0, -1, None]] * 10
-        execute_task(
-            task_name = "watch", 
-            task_id = 1, 
-            moves = moves, 
-            set_positions = (x, x))
-            
-    if("push" in do_these):
-        moves =  [[-.5, .5, -1, None]] * 1 + [[1, 1, -1, None]] * 10
-        execute_task(
-            task_name = "push", 
-            task_id = 2, 
-            moves = moves, 
-            set_positions = (x, x))
-
-    if("pull" in do_these):
-        moves = [[-.5, .5, -1, None]] * 1 + [[1, 1, -.25, None]] * 1 + [[0, 0, .7, None]] + [[-1, -1, 0, None]] * 10
-        execute_task(
-            task_name = "pull", 
-            task_id = 3, 
-            moves = moves, 
-            set_positions = (x, x))
-    
-    if("left" in do_these):
-        moves = [[-.5, .5, -.3, None]] * 1 + [[0, 0, .3, None]] * 5
-        execute_task(
-            task_name = "left", 
-            task_id = 4, 
-            moves = moves, 
-            set_positions = (x, x))
         
-  
-    if("right" in do_these):
-        moves = [[.5, -.5, .3, None]] * 1 + [[0, 0, -.3, None]] * 5
-        execute_task(
-            task_name = "right", 
-            task_id = 5, 
-            moves = moves, 
-            set_positions = (x, -x))
-        
-
-
-if(args.robot_name == "two_head_arm"):
+if(args.robot_name == "two_head_arm_f"):
     if("show_movements" in do_these):
-        moves = [[1, -1, 1, 1], [-1, 1, -1, -1]] # [[1, -1, 1]] * 4 + [[-1, 1, -1]] * 4
+        moves = [[1, -1, 1, 1]] * 3 + [[-1, 1, -1, -1]] * 3 # [[1, -1, 1]] * 4 + [[-1, 1, -1]] * 4
+        moves *= 3
+        print(moves)
         execute_task(
             task_name = "show_movements", 
             task_id = 0, 
@@ -162,7 +112,7 @@ if(args.robot_name == "two_head_arm"):
             set_positions = (x, x))
 
     if("pull" in do_these):
-        moves = [[-.5, .5, 0, 0]] * 1 + [[1, 1, 0, 0]] * 1 + [[0, 0, 0, 1]] + [[-1, -1, 0, 0]] * 10
+        moves = [[-.5, .5, 0, 0]] * 1 + [[0, 0, 0, 1]] * 1 + [[-.5, -.5, 0, 1]] * 10
         execute_task(
             task_name = "pull", 
             task_id = 3, 
@@ -170,7 +120,7 @@ if(args.robot_name == "two_head_arm"):
             set_positions = (x, x))
         
     if("left" in do_these):
-        moves = [[-.5, .5, -.3, 1]] * 1 + [[0, 0, .3, 1]] * 5
+        moves = [[-.5, .5, 0, 0]] * 1 + [[0, 0, 0, 1]] * 1 + [[0, 0, .2, 1]] * 5
         execute_task(
             task_name = "left", 
             task_id = 4, 
@@ -178,87 +128,12 @@ if(args.robot_name == "two_head_arm"):
             set_positions = (x, x))
         
     if("right" in do_these):
-        moves = [[.5, -.5, .3, 1]] * 1 + [[0, 0, -.3, 1]] * 5
+        moves = [[.5, -.5, 0, 0]] * 1 + [[0, 0, 0, 1]] * 1 + [[0, 0, -.2, 1]] * 5
         execute_task(
             task_name = "right", 
             task_id = 5, 
             moves = moves, 
             set_positions = (x, -x))
-        
-        
-        
-if(args.robot_name == "two_head_arm_b"):
-    
-    if("show_movements" in do_these):
-        moves = [[1, -1, 1, 1], [-1, 1, -1, -1]] # [[1, -1, 1]] * 4 + [[-1, 1, -1]] * 4
-        execute_task(
-            task_name = "show_movements", 
-            task_id = 0, 
-            moves = moves, 
-            set_positions = (9, 0))
-        
-    if("watch" in do_these):
-        moves = [[-.5, .5, 0, 0]] * 1 + [[0, 0, 0, 0]] * 10
-        execute_task(
-            task_name = "watch", 
-            task_id = 1, 
-            moves = moves, 
-            set_positions = (x, x))
-
-    if("push" in do_these):
-        moves =  [[-.5, .5, 0, 0]] * 1 + [[1, 1, 0, 0]] * 10
-        execute_task(
-            task_name = "push", 
-            task_id = 2, 
-            moves = moves, 
-            set_positions = (x, x))
-
-    if("pull" in do_these):
-        moves = [[-.5, .5, 0, 0]] * 1 + [[0, 0, 0, 1]] * 1 + [[-1, -1, 0, 1]] * 10
-        execute_task(
-            task_name = "pull", 
-            task_id = 3, 
-            moves = moves, 
-            set_positions = (x, x))
-        
-    if("left" in do_these):
-        moves = [[-.5, .5, -.3, 1]] * 1 + [[0, 0, .3, 1]] * 5
-        execute_task(
-            task_name = "left", 
-            task_id = 4, 
-            moves = moves, 
-            set_positions = (x, x))
-        
-    if("right" in do_these):
-        moves = [[.5, -.5, .3, 1]] * 1 + [[0, 0, -.3, 1]] * 5
-        execute_task(
-            task_name = "right", 
-            task_id = 5, 
-            moves = moves, 
-            set_positions = (x, -x))
-        
-        
-        
-        
-if(args.robot_name == "two_head_arm_c"):
-    if("show_movements" in do_these):
-        moves = [[1, -1, 1, 1], [-1, 1, -1, -1]] # [[1, -1, 1]] * 4 + [[-1, 1, -1]] * 4
-        execute_task(
-            task_name = "show_movements", 
-            task_id = 0, 
-            moves = moves, 
-            set_positions = (9, 0))
-        
-        
-        
-if(args.robot_name == "two_head_arm_d"):
-    if("show_movements" in do_these):
-        moves = [[1, -1, 1, 1], [-1, 1, -1, -1]] # [[1, -1, 1]] * 4 + [[-1, 1, -1]] * 4
-        execute_task(
-            task_name = "show_movements", 
-            task_id = 0, 
-            moves = moves, 
-            set_positions = (9, 0))
             
 
 

@@ -1,9 +1,20 @@
+#%%
+
 import math
 
 try:
     from .part import Part  
 except ImportError:
     from part import Part  
+    
+
+
+def compute_offsets(L1, L2, theta1, theta2):
+    offset_x = (L1 / 2.0) * math.cos(theta1) + (L2 / 2.0) * math.cos(theta2)
+    offset_z = (L1 / 2.0) * math.sin(theta1) + (L2 / 2.0) * math.sin(theta2)
+    return offset_x, offset_z
+
+
     
 arm_mass = 2
 arm_thickness = .2
@@ -16,12 +27,7 @@ triangle_center = arm_length / 2 - triangle_radius
 palm_center_offset_x = triangle_radius / 4
 palm_center_offset_y = palm_center_offset_x * (3**.5)
 
-hand_length_1 = 1.2
-hand_length_2 = 1.2
-hand_length_3 = 1.2
-finger_angle = 30
-finger_offset_x = math.sin(math.radians(finger_angle)) / 2
-finger_offset_y = math.cos(math.radians(finger_angle)) / 2
+
 
 parts = [
     
@@ -92,9 +98,92 @@ parts = [
     ),
     
 
+]
+
+
+
+finger_3 = [] 
+
+
+
+current_angle = 90
+
+finger_angle_1 = 70
+finger_length_1 = 1.5
+
+finger_offset_1_x, finger_offset_1_y = compute_offsets(
+    arm_length, 
+    finger_length_1,
+    math.radians(current_angle),
+    math.radians(finger_angle_1)
+)
+
+
+
+finger_3.append(
+    Part(
+        name="finger_1_3",
+        mass=arm_mass,
+        size=(arm_thickness, arm_thickness, finger_length_1),
+        joint_parent="arm",
+        joint_origin=(finger_offset_1_y, 0, -finger_offset_1_x),  
+        joint_rpy=(0, -math.radians(finger_angle_1), 0),
+        joint_axis=(0, 1, 0),
+        joint_type="fixed",
+        sensors=1
+    )
+)
+
+
+
+# Not working after first finger.
+
+finger_angle_2 = 25
+finger_length_2 = .5
+
+finger_offset_2_x, finger_offset_2_y = compute_offsets(
+    finger_length_1, 
+    finger_length_2,
+    math.radians(finger_angle_1),
+    math.radians(finger_angle_2)
+)
+
+
+
+finger_3.append(
+    Part(
+        name="finger_2_3",
+        mass=arm_mass,
+        size=(arm_thickness, arm_thickness, finger_length_2),
+        joint_parent="finger_1_3",
+        joint_origin=(finger_offset_2_y, 0, -finger_offset_2_x),  
+        joint_rpy=(0, -math.radians(finger_angle_2), 0),
+        joint_axis=(0, 1, 0),
+        joint_type="fixed",
+        sensors=1
+    )
+)
+
+
+ 
+parts += finger_3
+
+
+
+
+
+
+
+
+
+
+
+
+
     
     
-    
+'''    
+[
     
     Part(
         name="hand_1_a",
@@ -172,4 +261,4 @@ parts = [
     
 
 
-]
+]'''

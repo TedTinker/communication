@@ -117,8 +117,18 @@ def make_robot(robot_name, parts):
         return rotated_vertices
 
     # Plotting function
-    def sensor_plotter(sensor_values, sensor_positions = sensor_positions, sensor_dimensions = sensor_dimensions, sensor_angles = sensor_angles, show = False):
-        fig = plt.figure()
+    def sensor_plotter(
+        sensor_values, 
+        sensor_positions = sensor_positions, 
+        sensor_dimensions = sensor_dimensions, 
+        sensor_angles = sensor_angles, 
+        show = False,
+        figsize = None):
+        
+        if(figsize == None):
+            fig = plt.figure()
+        else:
+            fig = plt.figure(figsize = figsize)
         ax = fig.add_subplot(111, projection='3d')
 
         def draw_sensor(ax, position, dimension, angle, value):
@@ -137,7 +147,6 @@ def make_robot(robot_name, parts):
                 [x - dx / 2, y + dy / 2, z + dz / 2],
             ])
             
-            angle = (angle[0], 0, 0)
             vertices = apply_rotation(vertices, np.array(position), np.array(angle))
 
             faces = [
@@ -207,41 +216,22 @@ else:
 make_robot("two_side_arm", parts)
 
 if(cluster):
-    from .one_head_arm import parts
+    from .four_side_arm import parts
 else:
-    from one_head_arm import parts
-make_robot("one_head_arm", parts)
+    from four_side_arm import parts
+make_robot("four_side_arm", parts)
 
 if(cluster):
-    from .two_head_arm import parts
+    from .two_head_arm_f import parts
 else:
-    from two_head_arm import parts
-make_robot("two_head_arm", parts)
+    from two_head_arm_f import parts
+make_robot("two_head_arm_f", parts)
 
 if(cluster):
-    from .two_head_arm_b import parts
+    from .two_head_arm_g import parts
 else:
-    from two_head_arm_b import parts
-make_robot("two_head_arm_b", parts)
-
-
-if(cluster):
-    from .two_head_arm_c import parts
-else:
-    from two_head_arm_c import parts
-make_robot("two_head_arm_c", parts)
-
-if(cluster):
-    from .two_head_arm_d import parts
-else:
-    from two_head_arm_d import parts
-make_robot("two_head_arm_d", parts)
-
-if(cluster):
-    from .two_head_arm_e import parts
-else:
-    from two_head_arm_e import parts
-make_robot("two_head_arm_e", parts)
+    from two_head_arm_g import parts
+make_robot("two_head_arm_g", parts)
 
 
 
@@ -265,7 +255,6 @@ for name in to_do:
     import_and_make_robot(name, cluster)"""
 
 
-    
 
 if(__name__ == "__main__"):
     
@@ -277,7 +266,7 @@ if(__name__ == "__main__"):
     num_bots = len(robot_dict)
     for i, robot_name in enumerate(robot_dict.keys()):
         sensor_plotter, sensor_values = robot_dict[robot_name]
-        sensor_plotter(sensor_values, show = True)
+        sensor_plotter(sensor_values, show = True, figsize = (10, 10))
         robot_index = p.loadURDF("robot_{}.urdf".format(robot_name), (-1 + num_bots * 10 / 2 - i * 10, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                                     useFixedBase=True, globalScaling = 2, physicsClientId=physicsClient)
         p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)

@@ -1,10 +1,10 @@
 #%% 
 
 # To do:
-#   One-arm robots find BIZARRE ways to accomplish goals. It gets credit for "pull" when it pushes them away!
-#   Try using both local and global measurements comparing robot and object. 
-#   IE, if the object is moving back globally, but forward locally, it's not actually being pulled.
-#   Then maybe global - local for left/right? Or both?
+#   Add joint-positions to tactile sensation.
+#   Adjust left/right pointing angle
+#   Change "step" and joint-limits to make sense for any number of joints. (Tried this, but it's tough!)
+#   Could the agent choose acceleration, instead of speed?
 
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
+print(f"\n\nWorking in: {os.getcwd()}\n\n")
 
 torch.set_printoptions(precision=3, sci_mode=False)
 
@@ -474,8 +475,8 @@ parser.add_argument('--step_cost',                      type=float,         defa
                     help='How much extrinsic rewards are reduced per step.')
 parser.add_argument('--max_voice_len',                  type=int,           default = 3,
                     help='Maximum length of voice.')
-parser.add_argument('--watch_distance',                 type=float,         default = 8,
-                    help='How close must the agent watch the object to achieve watching.')
+
+
 
 parser.add_argument('--watch_duration',                 type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
@@ -486,6 +487,12 @@ parser.add_argument('--pull_duration',                  type=int,           defa
 parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
 
+parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/6,
+                    help='How close must the agent watch the object to achieve watching, pushing, or pulling.')
+parser.add_argument('--pointing_at_object_for_left',    type=float,         default = pi/2, # Should pi/3
+                    help='How close must the agent watch the object to achieve pushing left or right.')
+parser.add_argument('--watch_distance',                 type=float,         default = 8,
+                    help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--global_push_amount',             type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--global_pull_amount',             type=float,         default = .25,
@@ -811,44 +818,100 @@ def wait_for_button_press(button_label="Continue"):
     
     
     
+import tkinter as tk
+import torch
+import numpy as np
+
 def adjust_action(action_tensor):
+    """
+    Creates a user interface for adjusting values in 'action_tensor' within [-1, 1].
+    Users can see real-time slider values, reset to original values, reset to zero,
+    and confirm their final selection.
+    """
     root = tk.Tk()
     root.title("Adjust Actions")
     
+    # Flatten the tensor and convert to a NumPy array
     shape = action_tensor.shape
-    num_elements = np.prod(shape)
     flat_action = action_tensor.view(-1).detach().numpy()
+    num_elements = flat_action.size
     
-    sliders = []
-    
-    def update_tensor():
-        updated_values = [slider.get() for slider in sliders]
-        updated_tensor = torch.tensor(updated_values).view(shape)
+    # Keep track of scales and labels so we can reset/update them
+    scales = []
+    value_labels = []
+
+    # Store original values so we can reset if needed
+    original_values = flat_action.copy()
+
+    def update_value_label(val, label):
+        """Update the text of the label to display current slider value."""
+        label.config(text=f"{float(val):.2f}")
+
+    def confirm():
+        """Close the GUI and allow the function to return the new tensor."""
         root.quit()
-        return updated_tensor
-    
+
+    def reset_to_original():
+        """Reset all sliders to their original values."""
+        for i, scale in enumerate(scales):
+            scale.set(original_values[i])
+            
+    def reset_to_zero():
+        """Reset all sliders to zero."""
+        for scale in scales:
+            scale.set(0.0)
+
+    # Create rows of slider + current value label
     for i in range(num_elements):
-        frame = tk.Frame(root)
-        frame.pack()
+        frame = tk.Frame(root, padx=5, pady=5)
+        frame.pack(fill=tk.X)
         
+        # Label for the slider name
         label = tk.Label(frame, text=f"Action[{i}]")
         label.pack(side=tk.LEFT)
         
-        slider = tk.Scale(frame, from_=-1, to=1, resolution=0.01, orient=tk.HORIZONTAL)
-        slider.set(flat_action[i])
-        slider.pack(side=tk.RIGHT)
-        sliders.append(slider)
-    
-    btn = tk.Button(root, text="Confirm", command=update_tensor)
-    btn.pack()
-    
+        # Current value label on the right
+        current_val_label = tk.Label(frame, width=5, anchor='e')
+        current_val_label.pack(side=tk.RIGHT)
+        
+        # Create the scale itself (longer length for easier fine-tuning)
+        scale = tk.Scale(
+            frame, from_=-1.0, to=1.0, resolution=0.01, orient=tk.HORIZONTAL, length=300,
+            command=lambda val, lbl=current_val_label: update_value_label(val, lbl)
+        )
+        scale.set(flat_action[i])
+        scale.pack(side=tk.RIGHT, padx=10)
+        
+        # Initialize the label to the current slider value
+        current_val_label.config(text=f"{scale.get():.2f}")
+        
+        scales.append(scale)
+        value_labels.append(current_val_label)
+
+    # Button frame
+    btn_frame = tk.Frame(root, pady=10)
+    btn_frame.pack()
+
+    # Reset buttons
+    reset_orig_btn = tk.Button(btn_frame, text="Reset to Original", command=reset_to_original)
+    reset_orig_btn.pack(side=tk.LEFT, padx=5)
+
+    reset_zero_btn = tk.Button(btn_frame, text="Reset to Zero", command=reset_to_zero)
+    reset_zero_btn.pack(side=tk.LEFT, padx=5)
+
+    # Confirm button
+    confirm_btn = tk.Button(btn_frame, text="Confirm", command=confirm)
+    confirm_btn.pack(side=tk.LEFT, padx=5)
+
+    # Start the Tkinter main loop
     root.mainloop()
-    
-    get = [slider.get() for slider in sliders]
-    
+
+    # Once the user clicks "Confirm," gather updated values
+    updated_values = [scale.get() for scale in scales]
     root.destroy()
-    
-    return torch.tensor(get).view(shape)
+
+    # Convert updated values back to a PyTorch tensor
+    return torch.tensor(updated_values).view(shape)
 
 
 
