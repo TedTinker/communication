@@ -217,7 +217,7 @@ make_robot("two_side_arm", parts)
 
 if(cluster):
     from .four_side_arm import parts
-else:
+else: 
     from four_side_arm import parts
 make_robot("four_side_arm", parts)
 

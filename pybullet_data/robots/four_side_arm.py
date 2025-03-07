@@ -1,3 +1,5 @@
+import math
+
 try:
     from .part import Part  
 except ImportError:
@@ -15,7 +17,8 @@ parts = [
         mass = 100, 
         size = (1, 1, 1),
         sensors = 1,
-        sensor_sides = ["start", "stop", "top", "left", "right"]),
+        sensor_sides = ["start", "stop", "top", "left", "right"],
+        inertia = 15),
     
     Part(
         name = "back_left_wheel", 
@@ -70,7 +73,8 @@ parts = [
         joint_parent = "body", 
         joint_origin = (.5 - arm_thickness/2, .5 + pitch_joint_len/2, 0), 
         joint_axis = (0, -1, 0),
-        joint_type = "continuous"),
+        joint_type = "continuous",
+        joint_limits = [0, math.pi/2, 999, 999]),
     
     Part(
         name = "joint_2", 
@@ -79,7 +83,8 @@ parts = [
         joint_parent = "joint_1", 
         joint_origin = (0, (pitch_joint_len + arm_thickness) / 2, 0), 
         joint_axis = (0, 0, 1),
-        joint_type = "continuous"),
+        joint_type = "continuous",
+        joint_limits = [-math.pi/4, math.pi/4, 999, 999]),
     
     Part(
         name = "left_arm", 
@@ -115,7 +120,8 @@ parts = [
         joint_parent = "body", 
         joint_origin = (.5 - arm_thickness/2, -(.5 + pitch_joint_len/2), 0), 
         joint_axis = (0, -1, 0),
-        joint_type = "continuous"),
+        joint_type = "continuous",
+        joint_limits = [0, math.pi/2, 999, 999]),
     
     Part(
         name = "joint_4", 
@@ -124,7 +130,8 @@ parts = [
         joint_parent = "joint_3", 
         joint_origin = (0, -(pitch_joint_len + arm_thickness) / 2, 0), 
         joint_axis = (0, 0, 1),
-        joint_type = "continuous"),
+        joint_type = "continuous",
+        joint_limits = [-math.pi/4, math.pi/4, 999, 999]),
     
     Part(
         name = "right_arm", 

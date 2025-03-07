@@ -423,7 +423,7 @@ parser.add_argument('--epochs_per_processor',           type=literal,       defa
     # Simulation details
 parser.add_argument('--time_step',                      type=float,         default = .2,
                     help='numSubSteps in pybullet environment.')
-parser.add_argument('--steps_per_step',                 type=int,           default = 50,
+parser.add_argument('--steps_per_step',                 type=int,           default = 20,
                     help='numSubSteps in pybullet environment.')
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
                     help='How far objects must start from each other.')
@@ -439,14 +439,14 @@ parser.add_argument('--body_size',                      type=float,         defa
     # Agent details
 parser.add_argument('--image_size',                     type=int,           default = 16, #20,
                     help='Dimensions of the images observed.')
-parser.add_argument('--max_wheel_acceleration',         type=float,         default = 10,
+parser.add_argument('--max_wheel_acceleration',         type=float,         default = 100000,
                     help='Max wheel speed.')
 parser.add_argument('--max_wheel_speed',                type=float,         default = 10,
                     help='Max wheel speed.')
 parser.add_argument('--angular_scaler',                 type=float,         default = .4,
                     help='How to scale angular velocity vs linear velocity.')
 
-parser.add_argument('--max_joint_acceleration',         type=float,         default = 8,
+parser.add_argument('--max_joint_acceleration',         type=float,         default = 100000,
                     help='Max joint acceleration.')
 parser.add_argument('--max_joint_speed',                type=float,         default = 8,
                     help='Max joint speed.')
@@ -687,6 +687,16 @@ def update_args(arg_set):
         arg_set.max_joint_1_angle = pi/2
         arg_set.min_joint_2_angle = 0
         arg_set.max_joint_2_angle = pi/2
+        
+    if(arg_set.robot_name == "four_side_arm"):
+        arg_set.min_joint_1_angle = 0
+        arg_set.max_joint_1_angle = pi/2
+        arg_set.min_joint_2_angle = -pi/4
+        arg_set.max_joint_2_angle = pi/4
+        arg_set.min_joint_3_angle = 0
+        arg_set.max_joint_3_angle = pi/2
+        arg_set.min_joint_4_angle = -pi/4
+        arg_set.max_joint_4_angle = pi/4
         
     if("two_head_arm" in arg_set.robot_name):
         arg_set.min_joint_1_angle = -pi/4

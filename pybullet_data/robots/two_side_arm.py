@@ -1,3 +1,5 @@
+import math
+
 try:
     from .part import Part  
 except ImportError:
@@ -11,7 +13,8 @@ parts = [
         mass = 100, 
         size = (1, 1, 1),
         sensors = 1,
-        sensor_sides = ["start", "stop", "top", "left", "right"]),
+        sensor_sides = ["start", "stop", "top", "left", "right"],
+        inertia = 15),
     
     Part(
         name = "back_left_wheel", 
@@ -64,7 +67,8 @@ parts = [
         joint_parent = "body", 
         joint_origin = (0, .65, 0), 
         joint_axis = (0, -1, 0),
-        joint_type = "continuous"),
+        joint_type = "continuous",
+        joint_limits = [0, math.pi/2, 999, 999]),
     
     Part(
         name = "left_arm", 
@@ -96,7 +100,8 @@ parts = [
         joint_parent = "body", 
         joint_origin = (0, -.65, 0), 
         joint_axis = (0, -1, 0),
-        joint_type = "continuous"),
+        joint_type = "continuous",
+        joint_limits = [0, math.pi/2, 999, 999]),
     
     Part(
         name = "right_arm", 

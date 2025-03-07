@@ -81,55 +81,26 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_sensors" : 0})
 
 add_this("t",   {
-    "consideration" : [0, 1, 2, 3, 4],
-    "cnn_upscale" : ["False", "True"]
+    "consideration" : [0, 1, 2, 3, 4]
 })         
 
 add_this("one_head_arm",
          {"robot_name" : "one_head_arm",
           "max_joint_1_angle" : pi/4})
 
-add_this("two_head_arm",
-         {"robot_name" : "two_head_arm",
-          "max_joint_1_angle" : -pi/4,
-          "max_joint_1_angle" : pi/4,
-          "min_joint_2_angle" : -pi/2,
-          "max_joint_2_angle" : 0})
+add_this("two_head_arm", {"robot_name" : "two_head_arm"})
 
-add_this("two_head_arm_b",
-         {"robot_name" : "two_head_arm_b",
-          "max_joint_1_angle" : -pi/4,
-          "max_joint_1_angle" : pi/4,
-          "min_joint_2_angle" : -pi/2,
-          "max_joint_2_angle" : 0})
+add_this("two_head_arm_b", {"robot_name" : "two_head_arm_b"})
 
-add_this("two_head_arm_c",
-         {"robot_name" : "two_head_arm_c",
-          "max_joint_1_angle" : -pi/4,
-          "max_joint_1_angle" : pi/4,
-          "min_joint_2_angle" : -pi/2,
-          "max_joint_2_angle" : 0})
+add_this("two_head_arm_c", {"robot_name" : "two_head_arm_c"})
 
-add_this("two_head_arm_d",
-         {"robot_name" : "two_head_arm_d",
-          "max_joint_1_angle" : -pi/4,
-          "max_joint_1_angle" : pi/4,
-          "min_joint_2_angle" : -pi/2,
-          "max_joint_2_angle" : 0})
+add_this("two_head_arm_d", {"robot_name" : "two_head_arm_d"})
 
-add_this("two_head_arm_f",
-         {"robot_name" : "two_head_arm_f",
-          "max_joint_1_angle" : -pi/4,
-          "max_joint_1_angle" : pi/4,
-          "min_joint_2_angle" : -pi/2,
-          "max_joint_2_angle" : 0})
+add_this("two_head_arm_f", {"robot_name" : "two_head_arm_f"})
 
-add_this("two_head_arm_g",
-         {"robot_name" : "two_head_arm_g",
-          "max_joint_1_angle" : -pi/4,
-          "max_joint_1_angle" : pi/4,
-          "min_joint_2_angle" : -pi/2,
-          "max_joint_2_angle" : 0})
+add_this("two_head_arm_g", {"robot_name" : "two_head_arm_g"})
+
+add_this("four_side_arm", {"robot_name" : "four_side_arm"})
 
 
 
