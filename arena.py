@@ -109,7 +109,9 @@ class Arena():
                 
         robot_urdf_path = f"pybullet_data/robots/robot_{self.args.robot_name}.urdf"
         self.robot_index = p.loadURDF(robot_urdf_path, (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
-        self.joint_indices = get_joint_indices(self.robot_index, physicsClient=self.physicsClient) # TRY USING THIS SO WE CAN HAVE ANY NUMBER OF JOINTS!
+        self.joint_indices = get_joint_indices(self.robot_index, physicsClient=self.physicsClient) 
+        self.wheel_accelerations = [0, 0]
+        self.joint_accelerations = {key: 0 for key in self.joint_indices.keys()}
                 
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
         p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
@@ -160,6 +162,8 @@ class Arena():
         self.set_joint_speeds()
         self.goal = goal
         self.parenting = parenting
+        self.wheel_accelerations = [0, 0]
+        self.joint_accelerations = {key: 0 for key in self.joint_indices.keys()}
         
         self.objects_in_play = {}
         self.durations = {"watch" : {}, "push" : {}, "pull" : {}, "left" : {}, "right" : {}}
@@ -212,7 +216,6 @@ class Arena():
         self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
         self.objects_start = self.get_object_positions()
 
-        # Not used yet: local positions, not global positions.
         self.objects_local_pos_start = {}
         start_agent_pos, start_agent_orn = p.getBasePositionAndOrientation(self.robot_index)
         for object_index in self.objects_in_play.values():
@@ -226,9 +229,6 @@ class Arena():
         if(waiting): 
             WAITING = wait_for_button_press()
             
-        #left_wheel_acceleration = relative_to(left_wheel_speed, -self.args.max_wheel_acceleration, self.args.max_wheel_acceleration)
-        #right_wheel_acceleration = relative_to(right_wheel_speed, -self.args.max_wheel_acceleration, self.args.max_wheel_acceleration)
-            
         left_wheel_speed_end = relative_to(left_wheel_speed, -self.args.max_wheel_speed, self.args.max_wheel_speed)
         right_wheel_speed_end = relative_to(right_wheel_speed, -self.args.max_wheel_speed, self.args.max_wheel_speed)
         
@@ -241,54 +241,40 @@ class Arena():
         
         
         
-        real_joint_accelerations = {}
         max_acceleration = getattr(self.args, f'max_joint_acceleration')
         for key, value in joint_accelerations.items():
-            real_joint_accelerations[key] = relative_to(joint_accelerations[key], -max_acceleration, max_acceleration)
-        self.set_joint_accelerations(real_joint_accelerations)       
-
-
-        #print(f"\n\nleft_wheel_speed_start: {left_wheel_speed_start} \tleft_wheel_speed_end: {left_wheel_speed_end} \tchange_in_left_wheel: {change_in_left_wheel} \tchange_in_left_wheel_per_step: {change_in_left_wheel_per_step}")
-        #print(f"right_wheel_speed_start: {right_wheel_speed_start} \tright_wheel_speed_end: {right_wheel_speed_end} \tchange_in_right_wheel: {change_in_right_wheel} \tchange_in_right_wheel_per_step: {change_in_right_wheel_per_step}\n\n")
-        #for key in self.joint_indices.keys():
-            #print(f"joint_{key}: speed_start: {joint_speeds_start[key]} \tspeed_end: {joint_speeds_end[key]} \tchange: {joint_changes[key]} \tchange_per_step: {joint_changes_per_step[key]}")
-        #print("\n\n")
+            joint_accelerations[key] = relative_to(joint_accelerations[key], -max_acceleration, max_acceleration)
             
         for step in range(self.args.steps_per_step):   
-              
             left_wheel_step = left_wheel_speed_start + change_in_left_wheel_per_step * (step + 1)
             right_wheel_step = right_wheel_speed_start + change_in_right_wheel_per_step * (step + 1)
             #print(f"\nleft_wheel_steed_step {step}: {left_wheel_step}")
             #print(f"right_wheel_steed_step {step}: {right_wheel_step}")
             self.set_wheel_speeds(left_wheel_step, right_wheel_step)     
-            self.set_joint_accelerations(real_joint_accelerations)       
-
+               
             joint_angles = self.get_joint_angles()
             new_joint_angles = {key: None for key in self.joint_indices.keys()}
-            
             joint_speeds = self.get_joint_speeds()
             new_joint_speeds = {key: None for key in self.joint_indices.keys()}
-            
             for key in self.joint_indices.keys():
                 if(joint_angles[key] > getattr(self.args, f'max_joint_{key}_angle')):     
                     new_joint_angles[key] = getattr(self.args, f'max_joint_{key}_angle') - .01
                     new_joint_speeds[key] = 0
-                    real_joint_accelerations[key] = 0
+                    joint_accelerations[key] = 0
                 if(joint_angles[key] < getattr(self.args, f'min_joint_{key}_angle')):
                     new_joint_angles[key] = getattr(self.args, f'min_joint_{key}_angle') + .01
                     new_joint_speeds[key] = 0
-                    real_joint_accelerations[key] = 0
+                    joint_accelerations[key] = 0
                 if(joint_speeds[key] > self.args.max_joint_speed):
                     joint_speeds[key] = self.args.max_joint_speed
-                    #real_joint_accelerations[key] = 0
+                    joint_accelerations[key] = 0
                 if(joint_speeds[key] < -self.args.max_joint_speed):
                     joint_speeds[key] = -self.args.max_joint_speed
-                    #real_joint_accelerations[key] = 0
+                    joint_accelerations[key] = 0
             self.set_joint_angles(new_joint_angles)
             self.set_joint_speeds(new_joint_speeds)
-                         
-
-                                                    
+            self.set_joint_accelerations(joint_accelerations)       
+                                                                                                    
             touching_now = self.touching_any_object()
             for object_index, touch_dict in touching_now.items():
                 for body_part, value in touch_dict.items():
@@ -300,7 +286,7 @@ class Arena():
             if(sleep_time != None):
                 sleep(sleep_time / self.args.steps_per_step)
             p.stepSimulation(physicsClientId = self.physicsClient)
-            #self.face_upward()
+            self.face_upward()
                                                                     
         self.objects_end = self.get_object_positions()
         self.objects_touch = touching
@@ -388,6 +374,7 @@ class Arena():
     def face_upward(self):
         pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
         linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_index, physicsClientId=self.physicsClient)
+        linear_velocity = [linear_velocity[0], linear_velocity[1], 0]
         orientation = p.getQuaternionFromEuler([0, 0, yaw])
         p.resetBasePositionAndOrientation(self.robot_index, pos, orientation, physicsClientId=self.physicsClient)
         p.resetBaseVelocity(self.robot_index, linearVelocity=linear_velocity, angularVelocity=angular_velocity, physicsClientId = self.physicsClient)
@@ -427,6 +414,7 @@ class Arena():
             torqueObj=torque_local,
             flags=p.LINK_FRAME,
             physicsClientId=self.physicsClient)
+        self.wheel_accelerations = [left_wheel_acceleration, right_wheel_acceleration]
 
     def set_wheel_speeds(self, left_wheel_speed = 0, right_wheel_speed = 0):
         linear_velocity = (left_wheel_speed + right_wheel_speed) / 2
@@ -468,6 +456,8 @@ class Arena():
                 controlMode=p.TORQUE_CONTROL,
                 force=required_torque,
                 physicsClientId=self.physicsClient)
+        self.joint_accelerations = joint_accelerations
+        
         
     def set_joint_speeds(self, joint_speeds = None):
         if(joint_speeds == None):
@@ -489,7 +479,6 @@ class Arena():
             joint_speeds[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[1]  # Get velocity
         return joint_speeds
 
-    
     def get_joint_angles(self):
         joint_angles = {}
         for key, index in self.joint_indices.items():

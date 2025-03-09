@@ -9,7 +9,8 @@ from agent import Agent
 
 
 
-hyper_parameters = "eft_two_head_arm_g_4"
+hyper_parameters = "eft_two_head_arm_g_2"
+#hyper_parameters = "ef_four_side_arm"
 agent_num = "0001"
 epochs = "070000"
 saved_file = "saved_deigo"
@@ -25,7 +26,7 @@ episodes = 0
 wins = 0
 print("Ready to go!")
 
-
+agent.args.max_wheel_acceleration = 50
 
 #%%
 
@@ -37,8 +38,8 @@ print("Ready to go!")
     
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(2, 1)], 
-    objects = 1, 
+    tasks_and_weights = [(5, 1)], 
+    objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
     parenting = True)}
@@ -49,7 +50,7 @@ agent.processor_name = 0
 
 episodes += 1
 win = agent.save_episodes(
-    test = None, 
+    test = False, 
     verbose = True,
     display = True, 
     sleep_time = 1, 

@@ -222,16 +222,16 @@ else:
 make_robot("four_side_arm", parts)
 
 if(cluster):
-    from .two_head_arm_f import parts
-else:
-    from two_head_arm_f import parts
-make_robot("two_head_arm_f", parts)
-
-if(cluster):
     from .two_head_arm_g import parts
 else:
     from two_head_arm_g import parts
 make_robot("two_head_arm_g", parts)
+
+if(cluster):
+    from .two_head_arm_h import parts
+else:
+    from two_head_arm_h import parts
+make_robot("two_head_arm_h", parts)
 
 
 

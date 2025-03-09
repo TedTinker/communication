@@ -2,7 +2,7 @@
 
 # To do:
 #   Add joint-positions to tactile sensation.
-#   Could the agent choose acceleration, instead of speed?
+#   WHY ARE EC AND EF THE SAME NOW?
 
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
@@ -687,6 +687,7 @@ def update_args(arg_set):
         arg_set.max_joint_1_angle = pi/2
         arg_set.min_joint_2_angle = 0
         arg_set.max_joint_2_angle = pi/2
+        arg_set.wheels_joints_shape = 4
         
     if(arg_set.robot_name == "four_side_arm"):
         arg_set.min_joint_1_angle = 0
@@ -697,12 +698,14 @@ def update_args(arg_set):
         arg_set.max_joint_3_angle = pi/2
         arg_set.min_joint_4_angle = -pi/4
         arg_set.max_joint_4_angle = pi/4
+        arg_set.wheels_joints_shape = 6
         
     if("two_head_arm" in arg_set.robot_name):
         arg_set.min_joint_1_angle = -pi/4
         arg_set.max_joint_1_angle = pi/4
         arg_set.min_joint_2_angle = -pi/2
         arg_set.max_joint_2_angle = 0
+        arg_set.wheels_joints_shape = 4
        
     num_sensors, sensors = get_num_sensors(args.robot_name)
     arg_set.touch_state_size = num_sensors
@@ -712,7 +715,6 @@ def update_args(arg_set):
     
     arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.voice_shape = len(voice_map)
-    arg_set.wheels_joints_shape = 4 if arg_set.robot_name.startswith("two") else 3
     arg_set.obs_encode_size = arg_set.vision_encode_size + arg_set.touch_encode_size + arg_set.voice_encode_size
     arg_set.h_w_wheels_joints_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size + arg_set.voice_encode_size
@@ -847,6 +849,7 @@ def adjust_action(action_tensor):
     Users can see real-time slider values, reset to original values, reset to zero,
     and confirm their final selection.
     """
+    print("\n\n", action_tensor.shape, "\n\n")
     root = tk.Tk()
     root.title("Adjust Actions")
     

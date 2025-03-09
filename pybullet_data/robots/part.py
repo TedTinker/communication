@@ -43,8 +43,8 @@ class Part:
         sensor_sides = ["start", "stop", "top", "bottom", "left", "right"],
         joint_rpy=(0, 0, 0),
         joint_limits = [0, 0, 0, 0],
-        inertia = .05):
-        
+        inertia = [.05, .05, .05, .05, .05, .05]):
+                
         params = locals()
         for param in params:
             if param != "self":
@@ -73,7 +73,7 @@ f"""\n\n
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <mass value="{self.mass}"/>
-            <inertia ixx="{self.inertia}" ixy="{self.inertia}" ixz="{self.inertia}" iyy="{self.inertia}" iyz="{self.inertia}" izz="{self.inertia}"/>
+            <inertia ixx="{self.inertia[0]}" ixy="{self.inertia[1]}" ixz="{self.inertia[2]}" iyy="{self.inertia[3]}" iyz="{self.inertia[4]}" izz="{self.inertia[5]}"/>
         </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -122,7 +122,7 @@ f"""\n\n
             joint_origin = sensor_origin,
             joint_axis = self.joint_axis,
             joint_type = "fixed",
-            inertia = 0)
+            inertia = [0, 0, 0, 0, 0, 0])
         
         return(sensor.get_text())
     

@@ -30,7 +30,7 @@ parts = [
         joint_axis = (0, 0, 1),
         joint_type = "fixed",
         sensors = 1,
-        inertia = 15),
+        inertia = [15, 0, 0, 15, 0, 15]),
     
     Part(
         name = "back_left_wheel", 
@@ -41,7 +41,8 @@ parts = [
         joint_origin = (-.35, .5, -.4), 
         joint_axis = (1, 0, 0),
         joint_rpy=(1.5708, 0, 0),
-        joint_type = "fixed"),
+        joint_type = "fixed",
+        inertia = [.0005, 0, 0, .0005, 0, .0005]),
     
     Part(
         name = "from_left_wheel", 
@@ -52,7 +53,8 @@ parts = [
         joint_origin = (.35, .5, -.4), 
         joint_axis = (1, 0, 0),
         joint_rpy=(1.5708, 0, 0),
-        joint_type = "fixed"),
+        joint_type = "fixed",
+        inertia = [.0005, 0, 0, .0005, 0, .0005]),
     
     Part(
         name = "back_right_wheel", 
@@ -63,7 +65,8 @@ parts = [
         joint_origin = (-.35, -.5, -.4), 
         joint_axis = (1, 0, 0),
         joint_rpy=(1.5708, 0, 0),
-        joint_type = "fixed"),
+        joint_type = "fixed",
+        inertia = [.0005, 0, 0, .0005, 0, .0005]),
     
     Part(
         name = "from_right_wheel", 
@@ -74,7 +77,8 @@ parts = [
         joint_origin = (.35, -.5, -.4), 
         joint_axis = (1, 0, 0),
         joint_rpy=(1.5708, 0, 0),
-        joint_type = "fixed"),
+        joint_type = "fixed",
+        inertia = [.0005, 0, 0, .0005, 0, .0005]),
         
     Part(
         name = "joint_1",
@@ -86,7 +90,8 @@ parts = [
         joint_type = "continuous",
         sensors = 1,
         sensor_sides = ["left", "right", "start", "stop"],
-        joint_limits = [-math.pi/4, math.pi/4, 999, 999]),
+        joint_limits = [-math.pi/4, math.pi/4, 999, 999],
+        inertia = [.01, 0, 0, .01, 0, .01]),
     
     Part(
         name = "joint_2",
@@ -98,7 +103,8 @@ parts = [
         joint_type = "continuous",
         sensors = 1,
         sensor_sides = ["left", "right", "top", "stop"],
-        joint_limits = [-math.pi/2, 0, 999, 999]),
+        joint_limits = [-math.pi/2, 0, 999, 999],
+        inertia = [.01, 0, 0, .01, 0, .01]),
     
     Part(
         name = "arm",
@@ -109,7 +115,8 @@ parts = [
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
         sensors = 1,
-        sensor_sides = ["left", "right", "top", "bottom", "start"]),
+        sensor_sides = ["left", "right", "top", "bottom", "start"],
+        inertia = [0.01, 0, 0, 1.25, 0, 1.25]),
     
     Part(
         name = "wrist",
@@ -120,7 +127,8 @@ parts = [
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
         sensors = 1,
-        sensor_sides = ["start", "stop", "left", "right"]),
+        sensor_sides = ["start", "stop", "left", "right"],
+        inertia = [0.01, 0, 0, 0.01, 0, 0.01]),
     
     ]
 
@@ -146,6 +154,7 @@ for hand_part_number in range(0, number_of_hand_parts):
                     joint_type = "fixed",
                     sensors = 1,
                     sensor_sides = ["bottom", "top", "left", "right"],
-                    joint_rpy=(hand_angle, 0, theta)),   
+                    joint_rpy=(hand_angle, 0, theta),
+                    inertia = [0.2, 0, 0, 0.2, 0, 0.03]),   
         )
         

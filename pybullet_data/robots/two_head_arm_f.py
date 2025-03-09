@@ -29,7 +29,7 @@ parts = [
         joint_axis = (0, 0, 1),
         joint_type = "fixed",
         sensors = 1,
-        inertia = 15),
+        inertia = [15, 0, 0, 15, 0, 15]),
     
     Part(
         name = "back_left_wheel", 
@@ -40,7 +40,8 @@ parts = [
         joint_origin = (-.35, .5, -.4), 
         joint_axis = (1, 0, 0),
         joint_rpy=(1.5708, 0, 0),
-        joint_type = "fixed"),
+        joint_type = "fixed",
+        inertia = [.0005, 0, 0, .0005, 0, .0005]),
     
     Part(
         name = "from_left_wheel", 
@@ -51,7 +52,8 @@ parts = [
         joint_origin = (.35, .5, -.4), 
         joint_axis = (1, 0, 0),
         joint_rpy=(1.5708, 0, 0),
-        joint_type = "fixed"),
+        joint_type = "fixed",
+        inertia = [.0005, 0, 0, .0005, 0, .0005]),
     
     Part(
         name = "back_right_wheel", 
@@ -62,7 +64,8 @@ parts = [
         joint_origin = (-.35, -.5, -.4), 
         joint_axis = (1, 0, 0),
         joint_rpy=(1.5708, 0, 0),
-        joint_type = "fixed"),
+        joint_type = "fixed",
+        inertia = [.0005, 0, 0, .0005, 0, .0005]),
     
     Part(
         name = "from_right_wheel", 
@@ -73,7 +76,8 @@ parts = [
         joint_origin = (.35, -.5, -.4), 
         joint_axis = (1, 0, 0),
         joint_rpy=(1.5708, 0, 0),
-        joint_type = "fixed"),
+        joint_type = "fixed",
+        inertia = [.0005, 0, 0, .0005, 0, .0005]),
         
     Part(
         name = "joint_1",

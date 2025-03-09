@@ -41,7 +41,7 @@ class Actor(nn.Module):
             nn.PReLU())
         
         self.voice_out = Voice_OUT(actor = True, args = self.args)
-        
+                
         self.mu = nn.Sequential(
             nn.Linear(
                 in_features = args.hidden_size, 
@@ -86,7 +86,7 @@ class Actor(nn.Module):
             if(self.args.half):
                 voice_out = voice_out.to(dtype=torch.float16)
                 voice_log_prob = voice_log_prob.to(dtype=torch.float16)
-        
+                        
         return Action(wheels_joints, voice_out), log_prob, voice_log_prob
     
     

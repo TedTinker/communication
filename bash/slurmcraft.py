@@ -77,16 +77,14 @@ add_this("n",   {"curiosity" : "prediction_error"})         # Agents with curios
 add_this("f",   {"curiosity" : "hidden_state"})             # Agents with curiosity (hidden state)
 add_this("c",   {                                           # Curiosity of language only
     "curiosity" : "hidden_state",
-    "hidden_state_eta_rgbd" : 0,
-    "hidden_state_eta_sensors" : 0})
+    "hidden_state_eta_vision" : 0,
+    "hidden_state_eta_touch" : 0})
 
 add_this("t",   {
-    "consideration" : [0, 1, 2, 3, 4]
+    "consideration" : [0, 1]
 })         
 
-add_this("one_head_arm",
-         {"robot_name" : "one_head_arm",
-          "max_joint_1_angle" : pi/4})
+add_this("one_head_arm", {"robot_name" : "one_head_arm"})
 
 add_this("two_head_arm", {"robot_name" : "two_head_arm"})
 
@@ -99,6 +97,8 @@ add_this("two_head_arm_d", {"robot_name" : "two_head_arm_d"})
 add_this("two_head_arm_f", {"robot_name" : "two_head_arm_f"})
 
 add_this("two_head_arm_g", {"robot_name" : "two_head_arm_g"})
+
+add_this("two_head_arm_h", {"robot_name" : "two_head_arm_h"})
 
 add_this("four_side_arm", {"robot_name" : "four_side_arm"})
 
