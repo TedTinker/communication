@@ -210,6 +210,12 @@ def make_robot(robot_name, parts):
     
 
 if(cluster):
+    from .one_head_arm_b import parts
+else:
+    from one_head_arm_b import parts
+make_robot("one_head_arm_b", parts)
+
+if(cluster):
     from .two_side_arm import parts
 else:
     from two_side_arm import parts
@@ -226,12 +232,6 @@ if(cluster):
 else:
     from two_head_arm_g import parts
 make_robot("two_head_arm_g", parts)
-
-if(cluster):
-    from .two_head_arm_h import parts
-else:
-    from two_head_arm_h import parts
-make_robot("two_head_arm_h", parts)
 
 
 

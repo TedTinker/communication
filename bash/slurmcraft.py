@@ -81,24 +81,16 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_touch" : 0})
 
 add_this("t",   {
-    "consideration" : [0, 1]
-})         
+    "max_steps" : [10, 30],
+    "steps_per_epoch" : [10, 30]})         
 
 add_this("one_head_arm", {"robot_name" : "one_head_arm"})
 
-add_this("two_head_arm", {"robot_name" : "two_head_arm"})
-
-add_this("two_head_arm_b", {"robot_name" : "two_head_arm_b"})
+add_this("one_head_arm_b", {"robot_name" : "one_head_arm_b"})
 
 add_this("two_head_arm_c", {"robot_name" : "two_head_arm_c"})
 
-add_this("two_head_arm_d", {"robot_name" : "two_head_arm_d"})
-
-add_this("two_head_arm_f", {"robot_name" : "two_head_arm_f"})
-
 add_this("two_head_arm_g", {"robot_name" : "two_head_arm_g"})
-
-add_this("two_head_arm_h", {"robot_name" : "two_head_arm_h"})
 
 add_this("four_side_arm", {"robot_name" : "four_side_arm"})
 

@@ -26,6 +26,7 @@ from buffer import RecurrentReplayBuffer
 from pvrnn import PVRNN
 from models import Actor, Critic
 from plotting_episodes import plot_step
+from plotting_for_video import plot_video_step
 
 
 
@@ -516,7 +517,7 @@ class Agent:
         
         
         
-    def save_episodes(self, test = False, verbose = False, display = True, sleep_time = None, waiting = False, user_action = False, dreaming = False):        
+    def save_episodes(self, test = False, verbose = False, display = True, video_display = True, sleep_time = None, waiting = False, user_action = False, dreaming = False):        
         with torch.no_grad():
             self.processor = self.processors[self.processor_name]
             self.processor.begin(test = test)       
@@ -602,6 +603,17 @@ class Agent:
                 if(waiting):
                     WAITING = wait_for_button_press()
                     
+            def video_display_step(step, agent_1 = True, done = False, stopping = False, dreaming = False):
+                if(not video_display):
+                    return
+                print(f"\n{self.processor.goal.human_text}", end = " ")
+                print("STEP:", step)
+                plot_video_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = True, dreaming = dreaming, args = self.args)
+                if(not self.processor.parenting and not stopping):
+                    video_display_step(step, agent_1 = False, stopping = True)
+                if(waiting):
+                    WAITING = wait_for_button_press()
+                    
                     
             
             for step in range(self.args.max_steps + 1):
@@ -622,6 +634,7 @@ class Agent:
                     save_step(real_obs_1, agent_1 = False)  
                     
                 display_step(step, dreaming = dreaming)
+                video_display_step(step, dreaming = dreaming)
                 
                 # Then, perform action.
                 prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, \
@@ -656,6 +669,7 @@ class Agent:
                     if(not self.processor.parenting):
                         save_step(real_obs_2, agent_1 = False) 
                     display_step(step + 1, done = True, dreaming = dreaming)
+                    video_display_step(step + 1, done = True, dreaming = dreaming)
                     self.processor.done()
                     break
             

@@ -52,6 +52,7 @@ for folder in folders:
 
     # Process each file and populate the dictionaries
     for file in filtered_files:
+        print(file)
         if file.startswith("plot"):
             d = plot_dict
         elif file.startswith("min"):

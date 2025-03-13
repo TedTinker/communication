@@ -1,8 +1,9 @@
 #%% 
 
 # To do:
+#   Consider adding "touch" goal.
 #   Add joint-positions to tactile sensation.
-#   WHY ARE EC AND EF THE SAME NOW?
+#   Am I running epochs at the rate I expect?
 
 #   Make it work FASTER. Trying float16 on cuda, getting NaN.
 #   Jun wants it 5x continuous. 
@@ -165,7 +166,14 @@ class Goal:
         self.char_text = f"{self.task.char}{self.color.char}{self.shape.char}"
         self.human_text = f"{self.task.name} {self.color.name} {self.shape.name}"
         
+    def human_friendly_text(self, command = True):
+        return(f"{'Command' if command else 'Report'}: {self.human_text}")
+        
 empty_goal = Goal(task_map[0], task_map[0], task_map[0], parenting = False)
+
+
+
+
 
 
 
@@ -379,9 +387,7 @@ parser = argparse.ArgumentParser()
     # Stuff I'm testing right now   
 parser.add_argument('--robot_name',                     type=str,           default = "two_side_arm",
                     help='Options: two_side_arm, one_head_arm.') 
-parser.add_argument('--consideration',                  type=int,           default = 0,
-                    help='Extrinsic reward for choosing correct task, shape, and color.') 
-parser.add_argument('--cnn_upscale',                    type=literal,       default = False,
+parser.add_argument('--consideration',                  type=int,           default = 1,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 
     
@@ -460,6 +466,8 @@ parser.add_argument('--reward_inflation_type',          type=str,           defa
                     help='How should reward increase?')   
 parser.add_argument('--max_steps',                      type=int,           default = 10,       # CHANGE
                     help='How many steps the agent can make in one episode.')
+parser.add_argument('--steps_per_epoch',                type=int,           default = 10,       # CHANGE
+                    help='How many steps the agent takes between epochs.')
 parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
                     help='Extrinsic punishment for taking max_steps steps.')
 parser.add_argument('--step_cost',                      type=float,         default = .975,     # CHANGE
@@ -706,6 +714,11 @@ def update_args(arg_set):
         arg_set.min_joint_2_angle = -pi/2
         arg_set.max_joint_2_angle = 0
         arg_set.wheels_joints_shape = 4
+        
+    if("one_head_arm_b" in arg_set.robot_name):
+        arg_set.min_joint_1_angle = -pi/2
+        arg_set.max_joint_1_angle = 0
+        arg_set.wheels_joints_shape = 3
        
     num_sensors, sensors = get_num_sensors(args.robot_name)
     arg_set.touch_state_size = num_sensors
@@ -713,7 +726,7 @@ def update_args(arg_set):
     arg_set.touch_shape = num_sensors
     arg_set.sensor_names = sensors
     
-    arg_set.steps_per_epoch = arg_set.max_steps
+    #arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.voice_shape = len(voice_map)
     arg_set.obs_encode_size = arg_set.vision_encode_size + arg_set.touch_encode_size + arg_set.voice_encode_size
     arg_set.h_w_wheels_joints_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size
@@ -736,7 +749,11 @@ def get_args_title(default_args, args):
     for arg in arg_list:
         if(arg in args_not_in_title): pass 
         else: 
-            default, this_time = getattr(default_args, arg), getattr(args, arg)
+            default = getattr(default_args, arg)
+            try:
+                this_time = getattr(args, arg)
+            except:
+                this_time = "NONE"
             if(this_time == default): pass
             elif(arg == "arg_name"):
                 name += "{} (".format(this_time)
@@ -790,7 +807,11 @@ if(args.alpha == "None"):
 if(args == default_args): print("Using default arguments.")
 else:
     for arg in vars(default_args):
-        default, this_time = getattr(default_args, arg), getattr(args, arg)
+        default = getattr(default_args, arg)
+        try:
+            this_time = getattr(args, arg)
+        except:
+            this_time = "NONE"
         if(this_time != default):
             print("{}:\n\tDefault:\t{}\n\tThis time:\t{}".format(arg, default, this_time))
         elif(arg == "device"):
@@ -849,7 +870,6 @@ def adjust_action(action_tensor):
     Users can see real-time slider values, reset to original values, reset to zero,
     and confirm their final selection.
     """
-    print("\n\n", action_tensor.shape, "\n\n")
     root = tk.Tk()
     root.title("Adjust Actions")
     
@@ -965,10 +985,12 @@ def plot_number_bars(numbers):
     plt.ylabel("Value", fontsize = fontsize)
     plt.title("Bar Plot of Actions", fontsize = fontsize)
     plt.ylim(-1, 1) 
-    if(len(numbers) == 3):
-        plt.xticks(range(3), ["left wheel speed", "right wheel speed", "joint 1 speed"], rotation=45, ha='right', fontsize = fontsize)
-    if(len(numbers) == 4):
-        plt.xticks(range(4), ["left wheel speed", "right wheel speed", "joint 1 speed", "joint 2 speed"], rotation=45, ha='right', fontsize = fontsize)
+    xticks = ["left wheel", "right wheel"]
+    i = 1
+    while(len(xticks) < len(numbers)):
+        xticks.append(f"joint {i}")
+        i += 1
+    plt.xticks(range(len(xticks)), xticks, rotation=45, ha='right', fontsize = fontsize)
     plt.yticks(fontsize = fontsize)
     plt.show()
 

@@ -6,4 +6,4 @@
 #SBATCH --mem=50G
 #SBATCH --ntasks=30
 module load singularity
-singularity exec maze.sif python communication/main.py --comp deigo --arg_name eft_3 --alpha None --normal_alpha 0.1 --curiosity hidden_state --consideration 2  --agents $agents_per_job --previous_agents $previous_agents
+singularity exec maze.sif python communication/main.py --comp deigo --arg_name eft_3 --alpha None --normal_alpha 0.1 --curiosity hidden_state --max_steps 10 --steps_per_epoch 30  --agents $agents_per_job --previous_agents $previous_agents

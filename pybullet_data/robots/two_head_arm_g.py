@@ -135,13 +135,22 @@ parts = [
 # Apothem (distance from circle center to chord midpoint)
 a = hand_part_length / (2 * math.tan(math.pi / number_of_hand_parts))
 
+first_hand_part = False 
+last_hand_part = False
+
 for hand_part_number in range(0, number_of_hand_parts):
     
-    if(hand_part_number <= ignore_these_hand_parts or hand_part_number >= number_of_hand_parts - ignore_these_hand_parts):
+    making_hand_part = hand_part_number <= ignore_these_hand_parts or hand_part_number >= number_of_hand_parts - ignore_these_hand_parts
+    first_hand_part = hand_part_number == ignore_these_hand_parts
+    last_hand_part = hand_part_number == number_of_hand_parts - ignore_these_hand_parts
+        
+    if(making_hand_part):
 
         theta = -math.pi/2 + (2 * math.pi * hand_part_number / number_of_hand_parts)
         center_x = a * (1 - math.cos(2 * math.pi * hand_part_number / number_of_hand_parts))
         center_y = a * math.sin(2 * math.pi * hand_part_number / number_of_hand_parts)
+        
+        sensor_sides = ["bottom", "top", "left", "right"] + (["stop"] if first_hand_part else ["start"] if last_hand_part else [])
 
         parts.append(
                 Part(
@@ -153,7 +162,7 @@ for hand_part_number in range(0, number_of_hand_parts):
                     joint_axis = (0, 1, 0),
                     joint_type = "fixed",
                     sensors = 1,
-                    sensor_sides = ["bottom", "top", "left", "right"],
+                    sensor_sides = sensor_sides,
                     joint_rpy=(hand_angle, 0, theta),
                     inertia = [0.2, 0, 0, 0.2, 0, 0.03]),   
         )

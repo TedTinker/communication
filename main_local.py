@@ -20,7 +20,7 @@ args.steps_per_epoch = args.max_steps
 args.steps_per_step = 200
 args.smooth_steps = True
 
-args.robot_name = "two_head_arm_c"
+args.robot_name = "one_head_arm_b"
 update_args(args)
 
 

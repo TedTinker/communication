@@ -73,16 +73,16 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         data.append(
             [f"Command voice ({agent_num})",
             [human_friendly_text(command_voice)],
-            ["\n\n" + human_friendly_text(prior_command_voice)],
-            ["\n\n\n\n" + human_friendly_text(posterior_command_voice)], .3])
+            [human_friendly_text(prior_command_voice)],
+            [human_friendly_text(posterior_command_voice)], .3])
         data.append(
             [f"Report voice ({agent_num})",
             [human_friendly_text(report_voice)],
-            ["\n\n" + human_friendly_text(prior_report_voice)],
-            ["\n\n\n\n" + human_friendly_text(posterior_report_voice)], .3])
+            [human_friendly_text(prior_report_voice)],
+            [human_friendly_text(posterior_report_voice)], .3])
         
         data.append([f"Wheels, Joints ({agent_num})", [action.wheels_joints, "bar_plot"], .5])
-        data.append([f"Voice Out ({agent_num})", [human_friendly_text(get_goal_from_one_hots(action.voice_out))], .1])
+        data.append([f"Voice Out ({agent_num})", [human_friendly_text(get_goal_from_one_hots(action.voice_out))], .3])
         
         data.append([f"Vision DKL ({agent_num})", [episode_dict[f"vision_dkl_{agent_num}"][:step], "line_plot"], .5])
         data.append([f"Touch DKL ({agent_num})", [episode_dict[f"touch_dkl_{agent_num}"][:step], "line_plot"], .5])
@@ -116,19 +116,24 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         
     def plot_bar_plot(ax, plot_data):
         numbers = plot_data.flatten().tolist()
-        fontsize = 7
+        fontsize = 12
         ax.bar(range(len(numbers)), numbers, color=['red' if x < 0 else 'blue' for x in numbers])
+        
         ax.axhline(0, color='black', linewidth=1)
-        ax.set_xlabel("Index", fontsize = fontsize)
+        #ax.set_xlabel("Index", fontsize = fontsize)
         ax.set_ylabel("Value", fontsize = fontsize)
         #ax.title("Bar Plot of Actions", fontsize = fontsize)
         ax.set_ylim(-1, 1) 
-        if(len(numbers) == 3):
-            ax.set_xticks(range(3), ["left wheel speed", "right wheel speed", "joint 1 speed"], rotation=45, ha='right', fontsize = fontsize)
-        if(len(numbers) == 4):
-            ax.set_xticks(range(4), ["left wheel speed", "right wheel speed", "joint 1 speed", "joint 2 speed"], rotation=45, ha='right', fontsize = fontsize)
+        xticks = ["left wheel", "right wheel"]
+        i = 1
+        while(len(xticks) < len(numbers)):
+            xticks.append(f"joint {i}")
+            i += 1
+        ax.set_xticks(range(len(xticks)))
+        ax.set_xticklabels(xticks, rotation=0, ha='right', fontsize=fontsize)
+        ax.tick_params(axis='x', which='both', bottom=True, top=False)
         #ax.set_yticks(fontsize = fontsize)
-        ax.axis('on')
+        #ax.axis('on')
 
     def plot_line_plot(ax, plot_data):
         ax.text(0.1, 0.9, "", fontsize=12, verticalalignment='center', transform=ax.transAxes)
@@ -140,11 +145,13 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
     def plot_sublist(fig, gs, sublist, row):
         ax = fig.add_subplot(gs[row, 0])
         plot_text(ax, sublist[0] + (":" if sublist[0] != "" else ""))
+        
         for column, subsublist in enumerate(sublist[1:-1]):
-            ax = fig.add_subplot(gs[row, column+1])
             if isinstance(subsublist[0], str):
+                ax = fig.add_subplot(gs[row, column+1])
                 plot_text(ax, subsublist[0])
             elif subsublist[-1] == "image":
+                ax = fig.add_subplot(gs[row, column+1])
                 plot_image(ax, subsublist[0])
             elif subsublist[-1] == "bar_plot":
                 ax = fig.add_subplot(gs[row, 1:])
@@ -153,6 +160,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
                 ax = fig.add_subplot(gs[row, 1:])
                 plot_line_plot(ax, subsublist[0])          
             elif subsublist[-1] == "touch":
+                ax = fig.add_subplot(gs[row, column+1])
                 plot_touch(ax, subsublist[0])
         return(1)
         
