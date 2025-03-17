@@ -36,7 +36,7 @@ class RecurrentReplayBuffer:
             before_and_after = True, 
             args = self.args)
         self.touch = VariableBuffer(
-            shape = (self.args.touch_shape,), 
+            shape = (self.args.touch_shape + self.args.joint_aspects,), 
             before_and_after = True, 
             args = self.args)
         self.command_voice = VariableBuffer(

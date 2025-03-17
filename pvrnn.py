@@ -78,8 +78,8 @@ class PVRNN_LAYER(nn.Module):
         
         self.touch_z = ZP_ZQ(
             zp_in_features = self.args.h_w_action_size,
-            zq_in_features = self.args.h_w_action_size + self.args.touch_encode_size, 
-            out_features = self.args.touch_state_size, args = self.args)
+            zq_in_features = self.args.h_w_action_size + self.args.touch_encode_size + self.args.joint_aspects, 
+            out_features = self.args.touch_state_size + self.args.joint_aspects, args = self.args)
         
         self.command_voice_z = ZP_ZQ(
             zp_in_features = self.args.h_w_action_size,
@@ -93,7 +93,7 @@ class PVRNN_LAYER(nn.Module):
     
         # New hidden state: Previous hidden state, zq value, plus higher-layer hidden state if not top.
         self.mtrnn = MTRNN(
-                input_size = self.args.vision_state_size + self.args.touch_state_size + self.args.voice_state_size + self.args.voice_state_size,
+                input_size = self.args.vision_state_size + self.args.touch_state_size + self.args.joint_aspects + self.args.voice_state_size + self.args.voice_state_size,
                 hidden_size = self.args.pvrnn_mtrnn_size, 
                 time_constant = time_scale,
                 args = self.args)

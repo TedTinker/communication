@@ -210,49 +210,26 @@ def make_robot(robot_name, parts):
     
 
 if(cluster):
-    from .one_head_arm_b import parts
+    from .two_head_arm_a import parts
 else:
-    from one_head_arm_b import parts
-make_robot("one_head_arm_b", parts)
+    from two_head_arm_a import parts
+make_robot("two_head_arm_a", parts)
+
+
 
 if(cluster):
-    from .two_side_arm import parts
+    from .two_head_arm_b import parts
 else:
-    from two_side_arm import parts
-make_robot("two_side_arm", parts)
+    from two_head_arm_b import parts
+make_robot("two_head_arm_b", parts)
 
-if(cluster):
-    from .four_side_arm import parts
-else: 
-    from four_side_arm import parts
-make_robot("four_side_arm", parts)
 
+"""
 if(cluster):
-    from .two_head_arm_g import parts
+    from .two_head_arm_c import parts
 else:
-    from two_head_arm_g import parts
-make_robot("two_head_arm_g", parts)
-
-
-
-"""to_do = [
-    "two_side_arm",
-    "one_head_arm",
-    "two_head_arm",
-    "two_head_arm_b",
-    "two_head_arm_c",
-    "two_head_arm_d"
-]
-
-def import_and_make_robot(module_name, cluster):
-    if cluster:
-        module = __import__(f".{module_name}", globals(), locals(), ["parts"], 0)
-    else:
-        module = __import__(module_name, globals(), locals(), ["parts"], 0)
-    make_robot(module_name, module.parts)
-
-for name in to_do:
-    import_and_make_robot(name, cluster)"""
+    from two_head_arm_c import parts
+make_robot("two_head_arm_c", parts)"""
 
 
 

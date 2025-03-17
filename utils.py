@@ -1,15 +1,7 @@
 #%% 
 
 # To do:
-#   Consider adding "touch" goal.
-#   Add joint-positions to tactile sensation.
-#   Am I running epochs at the rate I expect?
-
-#   Make it work FASTER. Trying float16 on cuda, getting NaN.
-#   Jun wants it 5x continuous. 
-#       You'll probably need to make PVRNN multilayer, 
-#       and make curiosity look several steps ahead,
-#       and add mini-rewards for partially doing tasks. 
+#   Jun wants left-right more local. Maybe force lower wheel-speed to qualify.
 
 import os
 import pickle
@@ -92,10 +84,11 @@ class Task:
 task_map = {
     0:  Task("A", "SILENCE"),
     1:  Task("B", "WATCH"),
-    2:  Task("C", "PUSH"),     
-    3:  Task("D", "PULL"),   
-    4:  Task("E", "LEFT"),   
-    5:  Task("F", "RIGHT")}    
+    2:  Task("C", "TOP"),
+    3:  Task("D", "PUSH"),     
+    4:  Task("E", "PULL"),   
+    5:  Task("F", "LEFT"),   
+    6:  Task("G", "RIGHT")}    
 max_len_taskname = max([len(t.name) for t in task_map.values()])
 task_name_list = [task.name for task in task_map.values()]
 
@@ -109,12 +102,12 @@ class Color:
         return(f"{self.char}, {self.name}")
     
 color_map = {
-    0: Color("G", "RED",     (1,0,0,1)), 
-    1: Color("H", "GREEN",   (0,1,0,1)),
-    2: Color("I", "BLUE",    (0,0,1,1)),
-    3: Color("J", "CYAN",    (0,1,1,1)), 
-    4: Color("K", "PINK",    (1,0,1,1)), 
-    5: Color("L", "YELLOW",  (1,1,0,1))} 
+    0: Color("H", "RED",     (1,0,0,1)), 
+    1: Color("I", "GREEN",   (0,1,0,1)),
+    2: Color("J", "BLUE",    (0,0,1,1)),
+    3: Color("K", "CYAN",    (0,1,1,1)), 
+    4: Color("L", "PINK",    (1,0,1,1)), 
+    5: Color("M", "YELLOW",  (1,1,0,1))} 
 max_len_color_name = max([len(c.name) for c in color_map.values()])
 color_name_list = [c.name for c in color_map.values()]
 
@@ -170,10 +163,6 @@ class Goal:
         return(f"{'Command' if command else 'Report'}: {self.human_text}")
         
 empty_goal = Goal(task_map[0], task_map[0], task_map[0], parenting = False)
-
-
-
-
 
 
 
@@ -385,10 +374,12 @@ def literal(arg_string): return(ast.literal_eval(arg_string))
 parser = argparse.ArgumentParser()
 
     # Stuff I'm testing right now   
-parser.add_argument('--robot_name',                     type=str,           default = "two_side_arm",
+parser.add_argument('--robot_name',                     type=str,           default = "two_head_arm_a",
                     help='Options: two_side_arm, one_head_arm.') 
-parser.add_argument('--consideration',                  type=int,           default = 1,
-                    help='Extrinsic reward for choosing correct task, shape, and color.') 
+parser.add_argument('--force',                          type=float,         default = 15000,
+                    help='Force for moving joints.') 
+parser.add_argument('--gravity',                        type=float,         default = -9.8,
+                    help='Force of gravity.') 
 
     
 
@@ -421,9 +412,12 @@ parser.add_argument('--load_agents',                    type=literal,       defa
 
 
     # Things which have list-values.
-parser.add_argument('--epochs_per_processor',           type=literal,       default = [(70000, "wpulr")],
+"""parser.add_argument('--epochs_per_processor',           type=literal,       default = [(70000, "wtpulr")],
+                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')"""
+parser.add_argument('--epochs',           type=int,       default = 70000,
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-
+parser.add_argument('--processor',           type=str,       default = "wtplr",
+                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
     
 
     # Simulation details
@@ -464,13 +458,11 @@ parser.add_argument('--reward',                         type=float,         defa
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
                     help='How should reward increase?')   
-parser.add_argument('--max_steps',                      type=int,           default = 10,       # CHANGE
+parser.add_argument('--max_steps',                      type=int,           default = 30,     
                     help='How many steps the agent can make in one episode.')
-parser.add_argument('--steps_per_epoch',                type=int,           default = 10,       # CHANGE
-                    help='How many steps the agent takes between epochs.')
 parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
                     help='Extrinsic punishment for taking max_steps steps.')
-parser.add_argument('--step_cost',                      type=float,         default = .975,     # CHANGE
+parser.add_argument('--step_cost',                      type=float,         default = .99,    
                     help='How much extrinsic rewards are reduced per step.')
 parser.add_argument('--max_voice_len',                  type=int,           default = 3,
                     help='Maximum length of voice.')
@@ -478,6 +470,8 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 
 parser.add_argument('--watch_duration',                 type=int,           default = 3,
+                    help='How long must the agent watch the object to achieve watching.')
+parser.add_argument('--top_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--push_duration',                  type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
@@ -492,13 +486,14 @@ parser.add_argument('--pointing_at_object_for_left',    type=float,         defa
                     help='How close must the agent watch the object to achieve pushing left or right.')
 parser.add_argument('--watch_distance',                 type=float,         default = 8,
                     help='How close must the agent watch the object to achieve watching.')
+parser.add_argument('--top_arm_min_angle',              type=float,         default = pi/10,
+                    help='How elevated the agent\'s arm must be to touch the object from above.')
 parser.add_argument('--global_push_amount',             type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--global_pull_amount',             type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--local_push_pull_limit',          type=float,         default = .3,
                     help='Prevent bogus pushing/pulling by requiring local stillness.')
-
 parser.add_argument('--global_left_right_amount',       type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
@@ -629,12 +624,12 @@ parser.add_argument("--hidden_state_eta_report_voice_reduction_type",  type=str,
 
 
     # Saving data
-parser.add_argument('--keep_data',                      type=int,           default = 250,
+parser.add_argument('--keep_data',                      type=int,           default = 500,
                     help='How many epochs should pass before keep data.')
 parser.add_argument('--temp',                           type=literal,       default = False,
                     help='Should this use data saved temporarily?')      
 
-parser.add_argument('--epochs_per_gen_test',            type=int,           default = 25,
+parser.add_argument('--epochs_per_gen_test',            type=int,           default = 50,
                     help='How many epochs should pass before trying generalization test.')
 
 parser.add_argument('--agents_per_behavior_analysis',   type=int,           default = 1,
@@ -690,49 +685,27 @@ def update_args(arg_set):
     if(arg_set.comp == "deigo"):
         arg_set.half = False
         
-    if(arg_set.robot_name == "two_side_arm"):
-        arg_set.min_joint_1_angle = 0
-        arg_set.max_joint_1_angle = pi/2
-        arg_set.min_joint_2_angle = 0
-        arg_set.max_joint_2_angle = pi/2
-        arg_set.wheels_joints_shape = 4
-        
-    if(arg_set.robot_name == "four_side_arm"):
-        arg_set.min_joint_1_angle = 0
-        arg_set.max_joint_1_angle = pi/2
-        arg_set.min_joint_2_angle = -pi/4
-        arg_set.max_joint_2_angle = pi/4
-        arg_set.min_joint_3_angle = 0
-        arg_set.max_joint_3_angle = pi/2
-        arg_set.min_joint_4_angle = -pi/4
-        arg_set.max_joint_4_angle = pi/4
-        arg_set.wheels_joints_shape = 6
-        
     if("two_head_arm" in arg_set.robot_name):
         arg_set.min_joint_1_angle = -pi/4
         arg_set.max_joint_1_angle = pi/4
         arg_set.min_joint_2_angle = -pi/2
         arg_set.max_joint_2_angle = 0
         arg_set.wheels_joints_shape = 4
-        
-    if("one_head_arm_b" in arg_set.robot_name):
-        arg_set.min_joint_1_angle = -pi/2
-        arg_set.max_joint_1_angle = 0
-        arg_set.wheels_joints_shape = 3
        
     num_sensors, sensors = get_num_sensors(args.robot_name)
     arg_set.touch_state_size = num_sensors
-    arg_set.touch_encode_size = num_sensors 
+    arg_set.touch_encode_size = num_sensors
     arg_set.touch_shape = num_sensors
     arg_set.sensor_names = sensors
+    arg_set.joint_aspects = 4
     
-    #arg_set.steps_per_epoch = arg_set.max_steps
+    arg_set.steps_per_epoch = arg_set.max_steps
     arg_set.voice_shape = len(voice_map)
     arg_set.obs_encode_size = arg_set.vision_encode_size + arg_set.touch_encode_size + arg_set.voice_encode_size
     arg_set.h_w_wheels_joints_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size + arg_set.voice_encode_size
-    arg_set.epochs = [epochs_for_processor[0] for epochs_for_processor in arg_set.epochs_per_processor]
-    arg_set.processor_list = [epochs_for_processor[1] for epochs_for_processor in arg_set.epochs_per_processor]
+    """arg_set.epochs = [epochs_for_processor[0] for epochs_for_processor in arg_set.epochs_per_processor]
+    arg_set.processor_list = [epochs_for_processor[1] for epochs_for_processor in arg_set.epochs_per_processor]"""
     arg_set.right_duration = arg_set.left_duration
     return(arg_set)
 

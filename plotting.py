@@ -180,7 +180,7 @@ def plots(plot_dicts, min_max_dict):
     too_many_plot_dicts = len(plot_dicts) > 16
     levels = [90, 99]
     if(not too_many_plot_dicts):
-        fig, axs = plt.subplots(34, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
+        fig, axs = plt.subplots(36, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
                 
     for i, plot_dict in enumerate(plot_dicts):
         row_num = 0

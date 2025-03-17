@@ -8,20 +8,10 @@ from agent import Agent
 args.show_duration = True
 
 args.local = True
-args.alpha = None
-args.normal_alpha = .1
-args.curiosity = "hidden_state"
-args.processor_list = ["wpulr"]
+args.processor_list = ["wtpulr"]
 args.epochs = [10]
-args.agents_per_component_data = 0
-args.eta_reduction = .99
-args.reward = 10
-args.steps_per_epoch = args.max_steps
-args.steps_per_step = 200
-args.smooth_steps = True
+args.time_step = .1
 
-args.robot_name = "one_head_arm_b"
-update_args(args)
 
 
 """x = 4

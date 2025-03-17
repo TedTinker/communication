@@ -5,7 +5,7 @@ import numpy as np
 from time import sleep
 from random import uniform, choice
 
-from utils import task_map, shape_map, color_map, make_objects_and_task, print, Goal, Obs, empty_goal
+from utils import task_map, shape_map, color_map, make_objects_and_task, print, Goal, Obs, empty_goal, opposite_relative_to
 from utils_submodule import pad_zeros
 from arena import Arena, get_physics
 
@@ -72,6 +72,25 @@ class Processor:
             for i, (link_name, value) in enumerate(object_dict.items()):
                 touched[i] += value
                 
+        joint_angles = arena.get_joint_angles()
+        joint_angles_regularized = []
+        for key, angle in joint_angles.items():
+            joint_angle = opposite_relative_to(
+                angle, 
+                getattr(self.args, f'min_joint_{key}_angle'), 
+                getattr(self.args, f'max_joint_{key}_angle'))
+            joint_angles_regularized.append((1 + joint_angle)/2)
+            
+        joint_speeds = arena.get_joint_speeds()
+        joint_speeds_regularized = []
+        for key, angle in joint_speeds.items():
+            joint_speed = opposite_relative_to(
+                angle, 
+                -self.args.max_joint_speed,
+                self.args.max_joint_speed)
+            joint_speeds_regularized.append((1 + joint_speed)/2)
+                
+        touched += joint_angles_regularized + joint_speeds_regularized
         touch = torch.tensor([touched]).float()
         
         report_voice = self.report_voice_1 if agent_1 else self.report_voice_2

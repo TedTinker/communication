@@ -78,7 +78,11 @@ class Agent:
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.processors = {
-            "wpulr" :       Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, 
+            "wtpulr" :      Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, 
+                                      full_name = "All Tasks"),
+            "wtplr" :       Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 0), (5, 1), (6, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, 
+                                      full_name = "All Tasks"),
+            "wpulr" :       Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 0), (3, 1), (4, 1), (5, 1), (6, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, 
                                       full_name = "All Tasks"),
             }
         
@@ -187,7 +191,7 @@ class Agent:
         self.arena_1 = Arena(physicsClient_1, args = self.args)
         physicsClient_2 = get_physics(GUI = False, args = self.args)
         self.arena_2 = Arena(physicsClient_2, args = self.args)
-        self.processor_name = self.args.processor_list[0]
+        self.processor_name = self.args.processor
         
     def give_actor_voice(self):
         self.actor.voice_out.load_state_dict(self.forward.predict_obs.command_voice_out.state_dict())
@@ -206,26 +210,14 @@ class Agent:
         
     def training(self, q = None, sleep_time = None):      
         self.regular_checks(force = True, sleep_time = sleep_time)
-        while(True):
-            cumulative_epochs = 0
-            for i, epochs in enumerate(self.args.epochs): 
-                cumulative_epochs += epochs
-                if(self.epochs == cumulative_epochs):                     
-                    self.regular_checks(force = True, sleep_time = sleep_time)
-                    linestyle = self.processors[self.processor_name].linestyle
-                    full_name = self.processors[self.processor_name].full_name
-                    self.processor_name = self.args.processor_list[i+1] 
-                    self.old_memories.append(deepcopy(self.memory))
-                    self.plot_dict["division_epochs"].append((self.total_epochs, linestyle, full_name))
-                    self.regular_checks(force = True, swapping = True, sleep_time = sleep_time)
-            step = self.training_episode(sleep_time = sleep_time)
+        while(True):                
+            self.training_episode(sleep_time = sleep_time)
             if(self.check_ping()):
                 self.save_dicts()
-
-            percent_done = str(self.epochs / sum(self.args.epochs))
+            percent_done = str(self.epochs / self.args.epochs)
             if(q != None):
                 q.put((self.agent_num, percent_done))
-            if(self.epochs >= sum(self.args.epochs)): 
+            if(self.epochs >= self.args.epochs): 
                 linestyle = self.processors[self.processor_name].linestyle
                 full_name = self.processors[self.processor_name].full_name
                 self.plot_dict["division_epochs"].append((self.total_epochs, linestyle, full_name))
@@ -451,7 +443,7 @@ class Agent:
             if(to_push != None):
                 to_push.push(self.memory)
         
-        percent_done = self.epochs / sum(self.args.epochs)
+        percent_done = self.epochs / self.args.epochs
         
         if(self.args.hidden_state_eta_report_voice_reduction_type == "linear"):
             self.hidden_state_eta_report_voice_reduction = 1 - percent_done
@@ -460,7 +452,7 @@ class Agent:
             self.hidden_state_eta_report_voice_reduction = 1 - (percent_done ** exp)
         if(self.args.hidden_state_eta_report_voice_reduction_type.startswith("sigmoid")):
             k = float(self.args.hidden_state_eta_report_voice_reduction_type.split("_")[-1])
-            self.hidden_state_eta_report_voice_reduction = 1 - (1 / (1 + np.exp(-k * (self.epochs - sum(self.args.epochs)/2))))
+            self.hidden_state_eta_report_voice_reduction = 1 - (1 / (1 + np.exp(-k * (self.epochs - self.args.epochs/2))))
             
         if(self.args.reward_inflation_type == "linear"):
             self.reward_inflation = percent_done
@@ -469,7 +461,7 @@ class Agent:
             self.reward_inflation = percent_done ** exp
         if(self.args.reward_inflation_type.startswith("sigmoid")):
             k = float(self.args.reward_inflation_type.split("_")[-1])
-            self.reward_inflation = (1 / (1 + np.exp(-k * (self.epochs - sum(self.args.epochs)/2))))
+            self.reward_inflation = (1 / (1 + np.exp(-k * (self.epochs - self.args.epochs/2))))
                         
         end_time = duration()
         print_duration(start_time, end_time, "\nTraining episode", "\n")
@@ -595,8 +587,8 @@ class Agent:
             def display_step(step, agent_1 = True, done = False, stopping = False, dreaming = False):
                 if(not display):
                     return
-                print(f"\n{self.processor.goal.human_text}", end = " ")
-                print("STEP:", step)
+                #print(f"\n{self.processor.goal.human_text}", end = " ")
+                #print("STEP:", step)
                 plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False, dreaming = dreaming, args = self.args)
                 if(not self.processor.parenting and not stopping):
                     display_step(step, agent_1 = False, stopping = True)
@@ -606,8 +598,8 @@ class Agent:
             def video_display_step(step, agent_1 = True, done = False, stopping = False, dreaming = False):
                 if(not video_display):
                     return
-                print(f"\n{self.processor.goal.human_text}", end = " ")
-                print("STEP:", step)
+                #print(f"\n{self.processor.goal.human_text}", end = " ")
+                #print("STEP:", step)
                 plot_video_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = True, dreaming = dreaming, args = self.args)
                 if(not self.processor.parenting and not stopping):
                     video_display_step(step, agent_1 = False, stopping = True)
@@ -989,7 +981,7 @@ class Agent:
         
 
 
-        if(self.epochs == 1 or self.epochs >= sum(self.args.epochs) or self.epochs % self.args.keep_data == 0):
+        if(self.epochs == 1 or self.epochs >= self.args.epochs or self.epochs % self.args.keep_data == 0):
             self.plot_dict["accuracy_loss"].append(accuracy)
             self.plot_dict["vision_loss"].append(vision_loss)
             self.plot_dict["touch_loss"].append(touch_loss)

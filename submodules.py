@@ -158,9 +158,9 @@ class Touch_IN(nn.Module):
         
         self.a = nn.Sequential(
             nn.Linear(
-                in_features = self.args.touch_shape,
-                out_features = self.args.touch_encode_size),
-            nn.BatchNorm1d(self.args.touch_encode_size),  # Tested, use this
+                in_features = self.args.touch_shape + self.args.joint_aspects,
+                out_features = self.args.touch_encode_size + self.args.joint_aspects),
+            nn.BatchNorm1d(self.args.touch_encode_size + self.args.joint_aspects),  # Tested, use this
             nn.PReLU())
         
         self.apply(init_weights)
@@ -190,7 +190,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(touch_in, 
-                                (episodes, steps, args.touch_shape)))
+                                (episodes, steps, args.touch_shape + args.joint_aspects)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     
@@ -210,7 +210,7 @@ class Touch_OUT(nn.Module):
             #nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
             nn.Linear(
                 in_features = self.args.h_w_wheels_joints_size,
-                out_features = self.args.touch_shape),
+                out_features = self.args.touch_shape + self.args.joint_aspects),
             nn.Tanh())
         
         self.apply(init_weights)

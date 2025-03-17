@@ -9,6 +9,7 @@ from skimage.transform import resize
 from copy import deepcopy
 
 max_radius = .6
+mass = 100
 
 
 
@@ -33,7 +34,7 @@ f"""
             </geometry>
         </collision>
         <inertial>
-            <mass value="100"/>
+            <mass value="{mass}"/>
             <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
         </inertial>
     </link>
@@ -99,8 +100,8 @@ if last_folder == "pybullet_data":
     
   
 shapes = [pillar, pole, dumbbell, delta, hourglass]
-names = ["PILLAR", "POLE", "DUMBBELL", "DELTA", "HOURGLASS"]
-letters = ["M", "N", "O", "P", "Q"]
+names = ["PILLAR", "POLE", "DUMBBELL", "CONE", "HOURGLASS"]
+letters = ["N", "O", "P", "Q", "R"]
 file_names = []
 
 for i in range(len(shapes)):

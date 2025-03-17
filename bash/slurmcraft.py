@@ -81,46 +81,17 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_touch" : 0})
 
 add_this("t",   {
-    "max_steps" : [10, 30],
-    "steps_per_epoch" : [10, 30]})         
+    })
 
-add_this("one_head_arm", {"robot_name" : "one_head_arm"})
+add_this("b", {"robot_name" : "two_head_arm_b"}) 
 
-add_this("one_head_arm_b", {"robot_name" : "one_head_arm_b"})
+add_this("slow", {
+    "time_step" : .1,
+    "global_push_amount" : .1,
+    "global_pull_amount" : .1,
+    "global_left_right_amount" : .1
+})       
 
-add_this("two_head_arm_c", {"robot_name" : "two_head_arm_c"})
-
-add_this("two_head_arm_g", {"robot_name" : "two_head_arm_g"})
-
-add_this("four_side_arm", {"robot_name" : "four_side_arm"})
-
-
-
-add_this("m",   {
-    "try_multi_step" : ["False", "True"],
-    "steps_ahead" : 2})     
-
-
-"""
-parser.add_argument('--push_amount',                    type=float,         default = .75,
-                    help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--pull_amount',                    type=float,         default = .25,
-                    help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--left_right_amount',              type=float,         default = .25,
-                    help='Needed distance of an object for push/pull/left/right.')
-                    """
-def add_steps(x):
-    add_this(str(x),   {                                           # Five times stuff!
-        "max_steps" : int(10 * x),
-        "time_step" : .2 / x,
-        "steps_per_step" : int(20 / x),
-        "push_amount" : .75 / x,
-        "pull_amount" : .25 / x,
-        "left_right_amount" : .25 / x
-        })
-    
-add_steps(2)
-add_steps(4)
 
 
 
