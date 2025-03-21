@@ -91,10 +91,7 @@ class Arena():
         self.physicsClient = physicsClient
         self.objects_in_play = {}
         self.durations = {"watch" : {}, "top": {}, "push" : {}, "pull" : {}, "left" : {}, "right" : {}}
-        
-        self.upper_starting_pos = object_upper_starting_pos
-        self.lower_starting_pos = object_lower_starting_pos
-        
+                        
         # Make floor and lower level.
         plane_positions = [[0, 0]]
         plane_ids = []
@@ -127,19 +124,20 @@ class Arena():
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
                         
         # Place objects on lower level for future use.
+        angularDamping = 100
         self.loaded = {key : [] for key in shape_map.keys()}
         self.object_indexs = []
         for i, shape in shape_map.items():
             for j in range(2):
-                pos = (5*i, 5*j, self.lower_starting_pos)
+                pos = (5*i, 5*j, object_lower_starting_pos)
                 shape_urdf_file = f"pybullet_data/shapes/{shape.file_name}"
                 object_index = p.loadURDF(shape_urdf_file, pos, p.getQuaternionFromEuler([0, 0, pi/2]), 
                                           useFixedBase=False, globalScaling = self.args.object_size, physicsClientId=self.physicsClient)
-                p.changeDynamics(object_index, -1, maxJointVelocity = 10000)
+                p.changeDynamics(object_index, -1, maxJointVelocity = 10000, angularDamping=angularDamping)
                 for link_index in range(p.getNumJoints(object_index, physicsClientId = self.physicsClient)):
                     joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
-                    p.changeDynamics(object_index, link_index, maxJointVelocity = 10000)
-                self.loaded[i].append((object_index, (pos[0], pos[1], self.lower_starting_pos)))
+                    p.changeDynamics(object_index, link_index, maxJointVelocity = 10000, angularDamping=angularDamping)
+                self.loaded[i].append((object_index, (pos[0], pos[1], object_lower_starting_pos)))
                 self.object_indexs.append(object_index)
                 
                 
@@ -176,7 +174,7 @@ class Arena():
             object_index, idle_pos = self.loaded[shape_index][already_in_play[shape_index]]
             already_in_play[shape_index] += 1
             x, y = set_positions[i]
-            p.resetBasePositionAndOrientation(object_index, (x, y, self.upper_starting_pos), (0, 0, 0, 1), physicsClientId = self.physicsClient)
+            p.resetBasePositionAndOrientation(object_index, (x, y, object_upper_starting_pos), (0, 0, 0, 1), physicsClientId = self.physicsClient)
             self.object_faces_up(object_index)
                 
             link_name = p.getBodyInfo(object_index)[0].decode('utf-8')
@@ -307,7 +305,7 @@ class Arena():
         angle_to_agent = math.atan2(delta_y, delta_x)
         (roll, pitch, _) = p.getEulerFromQuaternion(obj_orn, physicsClientId=self.physicsClient)
         new_orn = p.getQuaternionFromEuler([0, 0, angle_to_agent if not isnan(angle_to_agent) else 0])
-        p.resetBasePositionAndOrientation(object_index, (obj_pos[0], obj_pos[1], self.upper_starting_pos), new_orn, physicsClientId=self.physicsClient)
+        p.resetBasePositionAndOrientation(object_index, (obj_pos[0], obj_pos[1], object_upper_starting_pos), new_orn, physicsClientId=self.physicsClient)
         
     def get_object_positions(self):
         object_positions = {}
@@ -573,14 +571,14 @@ class Arena():
             topping = touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle
                                     
             # Is the object pushed/pulled away from its starting position, relative to the agent's starting position and angle?
-            pushing = touching and (global_movement_forward >= self.args.global_push_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_watch) # and (abs(local_movement_forward) <= self.args.local_push_pull_limit)
-            pulling = touching and (global_movement_forward <= -self.args.global_pull_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_watch) # and (abs(local_movement_forward) <= self.args.local_push_pull_limit)
+            pushing = touching and (global_movement_forward >= self.args.global_push_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_watch) 
+            pulling = touching and (global_movement_forward <= -self.args.global_pull_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_watch) 
                         
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
-            lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_left) # and (local_movement_left >= self.args.local_left_right_amount)
-            righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_left) # and (local_movement_left <= -self.args.local_left_right_amount)
-            
-
+            left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
+            good_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) < self.args.max_wheel_speed_for_left
+            lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_left) and good_speed
+            righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_left) and good_speed
             
             if(verbose):
                 print(f"\n\nTouching: {touching}. Touching body: {touching_body}.")
@@ -592,7 +590,6 @@ class Arena():
                 print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{self.durations['right'][object_index]} steps \n\n")
     
                 
-            # You'll need to put topping in here
             active_changes = []
             if pushing:
                 active_changes.append(("pushing", global_movement_forward))
@@ -614,6 +611,8 @@ class Arena():
                     lefting = True
                 elif highest_change == "righting":
                     righting = True   
+            if(pushing or pulling or lefting or righting):
+                topping = False
                         
                     
                         
@@ -662,16 +661,18 @@ class Arena():
                                                     
         report_voice = empty_goal
         wrong_object = False
+        task_performed = None
                 
         for (color, shape), (watched, topped, pushed, pulled, lefted, righted, watching, topping, pushing, pulling, lefting, righting) in objects_goals.items():
             # If any one task is accomplished, find the task/color/shape.
-            
-            print(f"\n\n{color.name, shape.name, topped, topping}\n\n")
-            
+                        
             if(sum([watched, topped, pushed, pulled, lefted, righted]) == 1):
                 # If the correct object, check the task.
+                if(watched):
+                    task_performed = "watched"  
+                else:
+                    task_performed = "other"
                 if(color == self.goal.color and shape == self.goal.shape):
-                    print(f"\n\nCHECKING TASK\n\n")
                     if(
                         (self.goal.task.name == "WATCH" and watched and not (topping or pushing or pulling or lefting or righting)) or 
                         (self.goal.task.name == "TOP" and topped and not (watching or pushing or pulling or lefting or righting)) or 
@@ -698,7 +699,10 @@ class Arena():
                 
         if(wrong_object):
             win = False 
-            reward = 0
+            if(task_performed == "watched"):
+                reward = 0
+            else:
+                reward = self.args.wrong_object_punishment
 
         if(self.goal.task.name == "FREEPLAY"):
             reward = 0
@@ -738,7 +742,6 @@ class Arena():
         proj_matrix = proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far)
         _, _, rgba, depth, _ = p.getCameraImage(
             width=self.args.image_size * 2, height=self.args.image_size * 2,
-            #width=self.args.image_size, height=self.args.image_size,
             projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
             physicsClientId = self.physicsClient)
         rgb = np.divide(rgba[:,:,:-1], 255)
@@ -755,3 +758,7 @@ if __name__ == "__main__":
     from utils import args
     physicsClient = get_physics(GUI = True, args = args)
     arena = Arena(physicsClient, args = args)
+    
+    while True:
+        sleep(0.05)
+        p.stepSimulation(physicsClientId=arena.physicsClient)

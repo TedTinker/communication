@@ -2,6 +2,7 @@
 
 # To do:
 #   Jun wants left-right more local. Maybe force lower wheel-speed to qualify.
+#   Try using wider image.
 
 import os
 import pickle
@@ -412,16 +413,14 @@ parser.add_argument('--load_agents',                    type=literal,       defa
 
 
     # Things which have list-values.
-"""parser.add_argument('--epochs_per_processor',           type=literal,       default = [(70000, "wtpulr")],
-                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')"""
-parser.add_argument('--epochs',           type=int,       default = 70000,
+parser.add_argument('--epochs',                         type=int,       default = 60000,
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--processor',           type=str,       default = "wtplr",
+parser.add_argument('--processor',                      type=str,       default = "wtplr",
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
     
 
     # Simulation details
-parser.add_argument('--time_step',                      type=float,         default = .2,
+parser.add_argument('--time_step',                      type=float,         default = .1,
                     help='numSubSteps in pybullet environment.')
 parser.add_argument('--steps_per_step',                 type=int,           default = 20,
                     help='numSubSteps in pybullet environment.')
@@ -456,6 +455,8 @@ parser.add_argument('--max_joint_speed',                type=float,         defa
     # Processor details
 parser.add_argument('--reward',                         type=float,         default = 10,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
+parser.add_argument('--wrong_object_punishment',        type=float,         default = 0,
+                    help='Negative reward for punishing doing anything to the wrong object (except watching).') 
 parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
                     help='How should reward increase?')   
 parser.add_argument('--max_steps',                      type=int,           default = 30,     
@@ -484,17 +485,20 @@ parser.add_argument('--pointing_at_object_for_watch',   type=float,         defa
                     help='How close must the agent watch the object to achieve watching, pushing, or pulling.')
 parser.add_argument('--pointing_at_object_for_left',    type=float,         default = pi/3,
                     help='How close must the agent watch the object to achieve pushing left or right.')
+parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 11,
+                    help='How close must the agent watch the object to achieve pushing left or right.')
+
 parser.add_argument('--watch_distance',                 type=float,         default = 8,
                     help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--top_arm_min_angle',              type=float,         default = pi/10,
                     help='How elevated the agent\'s arm must be to touch the object from above.')
-parser.add_argument('--global_push_amount',             type=float,         default = .25,
+parser.add_argument('--global_push_amount',             type=float,         default = .1,
                     help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--global_pull_amount',             type=float,         default = .25,
+parser.add_argument('--global_pull_amount',             type=float,         default = .1,
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--local_push_pull_limit',          type=float,         default = .3,
                     help='Prevent bogus pushing/pulling by requiring local stillness.')
-parser.add_argument('--global_left_right_amount',       type=float,         default = .25,
+parser.add_argument('--global_left_right_amount',       type=float,         default = .1,
                     help='Needed distance of an object for push/pull/left/right.')
 parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
                     help='Needed distance of an object for push/pull/left/right.')
@@ -635,7 +639,7 @@ parser.add_argument('--epochs_per_gen_test',            type=int,           defa
 parser.add_argument('--agents_per_behavior_analysis',   type=int,           default = 1,
                     help='How many agents to save episodes.')
 
-parser.add_argument('--epochs_per_agent_save',          type=int,           default = 35000,
+parser.add_argument('--epochs_per_agent_save',          type=int,           default = 30000,
                     help='How many epochs should pass before saving agent model.')
 parser.add_argument('--agents_per_agent_save',          type=int,           default = 2,
                     help='How many epochs should pass before saving agent model.')

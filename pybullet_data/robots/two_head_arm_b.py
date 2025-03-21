@@ -7,17 +7,13 @@ except ImportError:
     
 arm_mass = 2
 arm_thickness = .2
-arm_length = 2.75
+arm_length = 1.75
 
 joint_1_height = .2
 
-wrist_length = .1
-
-number_of_hand_parts = 16
-ignore_these_hand_parts = 5
-hand_radius = 1
-hand_part_height = 1
-hand_part_length = 2 * hand_radius * math.sin(math.pi / number_of_hand_parts)
+hand_length = 1
+hand_height = 1.25
+hand_width = 1
 
 parts = [
     
@@ -118,61 +114,13 @@ parts = [
         inertia = [0.01, 0, 0, 1.25, 0, 1.25]),
     
     Part(
-        name = "wrist",
+        name = "hand",
         mass = arm_mass,
-        size = (arm_thickness, arm_thickness, wrist_length),
+        size = (hand_length, hand_width, hand_height),
         joint_parent = "arm", 
-        joint_origin = (arm_length / 2 - arm_thickness / 2, 0, - wrist_length / 2 - arm_thickness / 2),
+        joint_origin = (arm_length / 2 + hand_length / 2, 0, - hand_height / 2 + arm_thickness / 2),
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
-        sensors = 1,
-        sensor_sides = ["start", "stop", "left", "right"]),
-    
-    Part(
-        name = "hand_part_0",
-        mass = arm_mass,
-        size = (arm_thickness, hand_part_length, hand_part_height),
-        joint_parent = "wrist", 
-        joint_origin = (0, 0, - wrist_length / 2 - hand_part_height / 2),
-        joint_axis = (0, 1, 0),
-        joint_type = "fixed",
-        sensors = 1,
-        sensor_sides = ["bottom", "top", "start", "stop"],
-        inertia = [0.2, 0, 0, 0.2, 0, 0.03]),
-    
-
+        sensors = 1),
     
     ]
-
-# Apothem (distance from circle center to chord midpoint)
-a = hand_part_length / (2 * math.tan(math.pi / number_of_hand_parts))
-
-for hand_part_number in range(1, number_of_hand_parts):
-    
-    making_hand_part = hand_part_number <= ignore_these_hand_parts or hand_part_number >= number_of_hand_parts - ignore_these_hand_parts
-    first_hand_part = hand_part_number == ignore_these_hand_parts
-    last_hand_part = hand_part_number == number_of_hand_parts - ignore_these_hand_parts
-    
-    if(making_hand_part):
-
-        theta = -math.pi/2 + (2 * math.pi * hand_part_number / number_of_hand_parts)
-        center_x = a * (1 - math.cos(2 * math.pi * hand_part_number / number_of_hand_parts))
-        center_y = a * math.sin(2 * math.pi * hand_part_number / number_of_hand_parts)
-        
-        sensor_sides = ["bottom", "top", "left", "right"] + (["stop"] if first_hand_part else ["start"] if last_hand_part else [])
-
-        parts.append(
-                Part(
-                    name = f"hand_part_{hand_part_number}",
-                    mass = arm_mass,
-                    size = (hand_part_length, arm_thickness, hand_part_height),
-                    joint_parent = f"hand_part_0", 
-                    joint_origin = (-center_x, center_y, 0),   
-                    joint_axis = (0, 1, 0),
-                    joint_type = "fixed",
-                    sensors = 1,
-                    sensor_sides = sensor_sides,
-                    joint_rpy=(0, 0, theta),
-                    inertia = [0.2, 0, 0, 0.2, 0, 0.03]),   
-        )
-        

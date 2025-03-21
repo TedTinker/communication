@@ -7,9 +7,14 @@ from math import pi, sin, cos, radians, tan
 import matplotlib.pyplot as plt
 from skimage.transform import resize
 from copy import deepcopy
+from time import sleep
 
+base_radius = .6
 max_radius = .6
-mass = 100
+base_mass = 100
+
+base_ixx = base_iyy = (1/12) * base_mass * (3 * base_radius**2 + base_radius**2)
+base_izz = 0.5 * base_mass * base_radius**2
 
 
 
@@ -22,7 +27,7 @@ f"""
     <link name="base">
         <visual>
             <geometry>
-                <cylinder length=".1" radius="{max_radius}"/>
+                <cylinder length=".1" radius="{base_radius}"/>
             </geometry>
             <material name="base_material">
                 <color rgba="1 1 1 1"/> 
@@ -30,23 +35,33 @@ f"""
         </visual>
         <collision>
             <geometry>
-                <cylinder length=".1" radius="{max_radius}"/>
+                <cylinder length=".1" radius="{base_radius}"/>
             </geometry>
         </collision>
         <inertial>
-            <mass value="{mass}"/>
-            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
+            <origin xyz="0 0 0"/> 
+            <mass value="{base_mass}"/>
+            <inertia ixx="{base_ixx}" ixy="0" ixz="0" iyy="{base_iyy}" iyz="0" izz="{base_izz}"/>
         </inertial>
     </link>
 """
 
 
 
-def innards(lengths, radia):
+def innards(lengths, radia, mass = 10):
     text = "<!-- Definition of the shape -->\n"
     
+    volumes = [pi * r**2 * l for r, l in zip(radia, lengths)]
+    total_volume = sum(volumes)
+    link_masses = [mass * (v / total_volume) for v in volumes]
+    
     length_so_far = .05
-    for i, (length, radius) in enumerate(zip(lengths, radia)):
+    total_length = .05 + sum(lengths)
+    for i, (length, radius, link_mass) in enumerate(zip(lengths, radia, link_masses)):
+        
+        ixx = iyy = (1/12) * link_mass * (3 * radius**2 + length**2)
+        izz = 0.5 * link_mass * radius**2
+        
         text += \
 f""" 
     <link name="{i}">
@@ -65,8 +80,9 @@ f"""
             </geometry>
         </collision>
         <inertial>
-            <mass value=".1"/>
-            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
+            <origin xyz="0 0 {0}"/> 
+            <mass value="{link_mass}"/>
+            <inertia ixx="{ixx}" ixy="0" ixz="0" iyy="{iyy}" iyz="0" izz="{izz}"/>
         </inertial>
     </link>
 
@@ -80,16 +96,16 @@ f"""
     text += "\n</robot>"
     return(text)
 
-pillar = innards([1], [max_radius])
-pole = innards([1], [.2])
-dumbbell = innards([.9, .1], [.2, max_radius])
-delta = innards([.1] * 10, [max_radius - i/18 for i in range(1, 11)])
-
 hourglass_part = [max_radius - i/11 for i in range(6)]
 hourglass_part_reversed = deepcopy(hourglass_part)
 hourglass_part_reversed.reverse()
 all_hourglass = hourglass_part[1:] + hourglass_part_reversed[1:]
-hourglass = innards([.1] * 10, all_hourglass)
+
+pillar      = innards(lengths = [1],        radia = [max_radius])
+pole        = innards(lengths = [1],        radia = [.2])
+dumbbell    = innards(lengths = [.9, .1],   radia = [.2, max_radius])
+cone        = innards(lengths = [.1] * 10,  radia = [max_radius - i/18 for i in range(1, 11)])
+hourglass   = innards(lengths = [.1] * 10,  radia = all_hourglass)
 
 current_dir = os.getcwd()
 last_folder = os.path.basename(os.getcwd())
@@ -99,7 +115,7 @@ if last_folder == "pybullet_data":
     
     
   
-shapes = [pillar, pole, dumbbell, delta, hourglass]
+shapes = [pillar, pole, dumbbell, cone, hourglass]
 names = ["PILLAR", "POLE", "DUMBBELL", "CONE", "HOURGLASS"]
 letters = ["N", "O", "P", "Q", "R"]
 file_names = []
@@ -115,6 +131,15 @@ for i in range(len(shapes)):
 
 physicsClient = p.connect(p.GUI)
 p.setAdditionalSearchPath("pybullet_data")
+p.setGravity(0, 0, -9.8, physicsClientId = physicsClient)
+
+"""plane_positions = [[0, 0]]
+plane_ids = []
+for position in plane_positions:
+    plane_id = p.loadURDF(f"plane.urdf", position + [0], globalScaling=2, useFixedBase=True, physicsClientId=physicsClient)
+    plane_ids.append(plane_id)
+    plane_id = p.loadURDF(f"plane.urdf", position + [-10], globalScaling=2, useFixedBase=True, physicsClientId=physicsClient)
+    plane_ids.append(plane_id)"""
 
 these_colors = [
     (1, 0, 0, 1),
@@ -180,6 +205,10 @@ for image_size in [16]:
             rgbs.append(rgb)
         all_rgbs.append(rgbs)
     plot_these(all_rgbs)
+    
+while True:
+    sleep(0.05)
+    p.stepSimulation(physicsClientId=physicsClient)
   
 #p.disconnect(physicsClientId = physicsClient)
 

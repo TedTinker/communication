@@ -10,9 +10,9 @@ from agent import Agent
 
 
 
-hyper_parameters = "ect_slow_5"
-agent_num = "0002"
-epochs = "070000"
+hyper_parameters = "ect_1"
+agent_num = "0001"
+epochs = "060000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading...", end = " ")
@@ -21,7 +21,7 @@ load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{ep
 with gzip.open(load_path, "rb") as f:
     agent = pickle.load(f) 
 agent.start_physics(GUI = True)
-        
+                
 episodes = 0
 wins = 0
 print("Ready to go!")
@@ -37,7 +37,7 @@ print("Ready to go!")
     
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(2, 1)], 
+    tasks_and_weights = [(6, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
@@ -48,12 +48,12 @@ agent.processor_name = 0
 episodes += 1
 win = agent.save_episodes(
     test = False, 
-    verbose = True,
+    verbose = False,
     display = False, 
     video_display = True,
     sleep_time = 1, 
     waiting = False, 
-    user_action = True, 
+    user_action = False, 
     dreaming = False)
 if(win): 
     wins += 1

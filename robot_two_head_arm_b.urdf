@@ -654,13 +654,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="2.75 0.2 0.2"/>
+                <box size="1.75 0.2 0.2"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="2.75 0.2 0.2"/>
+                <box size="1.75 0.2 0.2"/>
             </geometry>
         </collision>
     </link>
@@ -690,7 +690,7 @@
     <joint name="arm_arm_sensor_0_start_joint" type="fixed">
         <parent link="arm"/>
         <child link="arm_sensor_0_start"/>
-        <origin xyz="1.375 0 0"
+        <origin xyz="0.875 0 0"
                 rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
         
@@ -707,13 +707,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="2.75 0.2 0.02"/>
+                <box size="1.75 0.2 0.02"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="2.75 0.2 0.02"/>
+                <box size="1.75 0.2 0.02"/>
             </geometry>
         </collision>
     </link>
@@ -738,13 +738,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="2.75 0.2 0.02"/>
+                <box size="1.75 0.2 0.02"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="2.75 0.2 0.02"/>
+                <box size="1.75 0.2 0.02"/>
             </geometry>
         </collision>
     </link>
@@ -769,13 +769,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="2.75 0.02 0.2"/>
+                <box size="1.75 0.02 0.2"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="2.75 0.02 0.2"/>
+                <box size="1.75 0.02 0.2"/>
             </geometry>
         </collision>
     </link>
@@ -800,13 +800,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="2.75 0.02 0.2"/>
+                <box size="1.75 0.02 0.2"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="2.75 0.02 0.2"/>
+                <box size="1.75 0.02 0.2"/>
             </geometry>
         </collision>
     </link>
@@ -823,15 +823,15 @@
     <joint name="joint_2_arm_joint" type="fixed">
         <parent link="joint_2"/>
         <child link="arm"/>
-        <origin xyz="1.475 0 0"
+        <origin xyz="0.975 0 0"
                 rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
         
     </joint>
 
 
-    <!-- wrist -->
-    <link name="wrist">
+    <!-- hand -->
+    <link name="hand">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <mass value="2"/>
@@ -840,20 +840,20 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.2 0.2 0.1"/>
+                <box size="1 1 1.25"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.2 0.2 0.1"/>
+                <box size="1 1 1.25"/>
             </geometry>
         </collision>
     </link>
 
 
-    <!-- wrist_sensor_0_start -->
-    <link name="wrist_sensor_0_start">
+    <!-- hand_sensor_0_start -->
+    <link name="hand_sensor_0_start">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <mass value="0"/>
@@ -862,29 +862,29 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.02 0.2 0.1"/>
+                <box size="0.02 1 1.25"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.02 0.2 0.1"/>
+                <box size="0.02 1 1.25"/>
             </geometry>
         </collision>
     </link>
-    <!-- Joint: wrist, wrist_sensor_0_start -->
-    <joint name="wrist_wrist_sensor_0_start_joint" type="fixed">
-        <parent link="wrist"/>
-        <child link="wrist_sensor_0_start"/>
-        <origin xyz="0.1 0 0"
+    <!-- Joint: hand, hand_sensor_0_start -->
+    <joint name="hand_hand_sensor_0_start_joint" type="fixed">
+        <parent link="hand"/>
+        <child link="hand_sensor_0_start"/>
+        <origin xyz="0.5 0 0"
                 rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
         
     </joint>
 
 
-    <!-- wrist_sensor_0_stop -->
-    <link name="wrist_sensor_0_stop">
+    <!-- hand_sensor_0_stop -->
+    <link name="hand_sensor_0_stop">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <mass value="0"/>
@@ -893,29 +893,29 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.02 0.2 0.1"/>
+                <box size="0.02 1 1.25"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.02 0.2 0.1"/>
+                <box size="0.02 1 1.25"/>
             </geometry>
         </collision>
     </link>
-    <!-- Joint: wrist, wrist_sensor_0_stop -->
-    <joint name="wrist_wrist_sensor_0_stop_joint" type="fixed">
-        <parent link="wrist"/>
-        <child link="wrist_sensor_0_stop"/>
-        <origin xyz="-0.1 0 0"
+    <!-- Joint: hand, hand_sensor_0_stop -->
+    <joint name="hand_hand_sensor_0_stop_joint" type="fixed">
+        <parent link="hand"/>
+        <child link="hand_sensor_0_stop"/>
+        <origin xyz="-0.5 0 0"
                 rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
         
     </joint>
 
 
-    <!-- wrist_sensor_0_left -->
-    <link name="wrist_sensor_0_left">
+    <!-- hand_sensor_0_top -->
+    <link name="hand_sensor_0_top">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <mass value="0"/>
@@ -924,29 +924,29 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.2 0.02 0.1"/>
+                <box size="1.0 1 0.02"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.2 0.02 0.1"/>
+                <box size="1.0 1 0.02"/>
             </geometry>
         </collision>
     </link>
-    <!-- Joint: wrist, wrist_sensor_0_left -->
-    <joint name="wrist_wrist_sensor_0_left_joint" type="fixed">
-        <parent link="wrist"/>
-        <child link="wrist_sensor_0_left"/>
-        <origin xyz="0 0.1 0"
+    <!-- Joint: hand, hand_sensor_0_top -->
+    <joint name="hand_hand_sensor_0_top_joint" type="fixed">
+        <parent link="hand"/>
+        <child link="hand_sensor_0_top"/>
+        <origin xyz="0 0 0.625"
                 rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
         
     </joint>
 
 
-    <!-- wrist_sensor_0_right -->
-    <link name="wrist_sensor_0_right">
+    <!-- hand_sensor_0_bottom -->
+    <link name="hand_sensor_0_bottom">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <mass value="0"/>
@@ -955,1798 +955,93 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.2 0.02 0.1"/>
+                <box size="1.0 1 0.02"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <box size="0.2 0.02 0.1"/>
+                <box size="1.0 1 0.02"/>
             </geometry>
         </collision>
     </link>
-    <!-- Joint: wrist, wrist_sensor_0_right -->
-    <joint name="wrist_wrist_sensor_0_right_joint" type="fixed">
-        <parent link="wrist"/>
-        <child link="wrist_sensor_0_right"/>
-        <origin xyz="0 -0.1 0"
+    <!-- Joint: hand, hand_sensor_0_bottom -->
+    <joint name="hand_hand_sensor_0_bottom_joint" type="fixed">
+        <parent link="hand"/>
+        <child link="hand_sensor_0_bottom"/>
+        <origin xyz="0 0 -0.625"
                 rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
         
     </joint>
-    <!-- Joint: arm, wrist -->
-    <joint name="arm_wrist_joint" type="fixed">
+
+
+    <!-- hand_sensor_0_left -->
+    <link name="hand_sensor_0_left">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.0 0.02 1.25"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.0 0.02 1.25"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: hand, hand_sensor_0_left -->
+    <joint name="hand_hand_sensor_0_left_joint" type="fixed">
+        <parent link="hand"/>
+        <child link="hand_sensor_0_left"/>
+        <origin xyz="0 0.5 0"
+                rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        
+    </joint>
+
+
+    <!-- hand_sensor_0_right -->
+    <link name="hand_sensor_0_right">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.0 0.02 1.25"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.0 0.02 1.25"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: hand, hand_sensor_0_right -->
+    <joint name="hand_hand_sensor_0_right_joint" type="fixed">
+        <parent link="hand"/>
+        <child link="hand_sensor_0_right"/>
+        <origin xyz="0 -0.5 0"
+                rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        
+    </joint>
+    <!-- Joint: arm, hand -->
+    <joint name="arm_hand_joint" type="fixed">
         <parent link="arm"/>
-        <child link="wrist"/>
-        <origin xyz="1.275 0 -0.15000000000000002"
+        <child link="hand"/>
+        <origin xyz="1.375 0 -0.525"
                 rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_0 -->
-    <link name="hand_part_0">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="2"/>
-            <inertia ixx="0.2" ixy="0" ixz="0" iyy="0.2" iyz="0" izz="0.03"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.2 0.3901806440322565 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.2 0.3901806440322565 1"/>
-            </geometry>
-        </collision>
-    </link>
-
-
-    <!-- hand_part_0_sensor_0_start -->
-    <link name="hand_part_0_sensor_0_start">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.02 0.3901806440322565 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.02 0.3901806440322565 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_0, hand_part_0_sensor_0_start -->
-    <joint name="hand_part_0_hand_part_0_sensor_0_start_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_0_sensor_0_start"/>
-        <origin xyz="0.1 0 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_0_sensor_0_stop -->
-    <link name="hand_part_0_sensor_0_stop">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.02 0.3901806440322565 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.02 0.3901806440322565 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_0, hand_part_0_sensor_0_stop -->
-    <joint name="hand_part_0_hand_part_0_sensor_0_stop_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_0_sensor_0_stop"/>
-        <origin xyz="-0.1 0 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_0_sensor_0_top -->
-    <link name="hand_part_0_sensor_0_top">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.2 0.3901806440322565 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.2 0.3901806440322565 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_0, hand_part_0_sensor_0_top -->
-    <joint name="hand_part_0_hand_part_0_sensor_0_top_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_0_sensor_0_top"/>
-        <origin xyz="0 0 0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_0_sensor_0_bottom -->
-    <link name="hand_part_0_sensor_0_bottom">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.2 0.3901806440322565 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.2 0.3901806440322565 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_0, hand_part_0_sensor_0_bottom -->
-    <joint name="hand_part_0_hand_part_0_sensor_0_bottom_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_0_sensor_0_bottom"/>
-        <origin xyz="0 0 -0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-    <!-- Joint: wrist, hand_part_0 -->
-    <joint name="wrist_hand_part_0_joint" type="fixed">
-        <parent link="wrist"/>
-        <child link="hand_part_0"/>
-        <origin xyz="0 0 -0.55"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_1 -->
-    <link name="hand_part_1">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="2"/>
-            <inertia ixx="0.2" ixy="0" ixz="0" iyy="0.2" iyz="0" izz="0.03"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-
-
-    <!-- hand_part_1_sensor_0_top -->
-    <link name="hand_part_1_sensor_0_top">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_1, hand_part_1_sensor_0_top -->
-    <joint name="hand_part_1_hand_part_1_sensor_0_top_joint" type="fixed">
-        <parent link="hand_part_1"/>
-        <child link="hand_part_1_sensor_0_top"/>
-        <origin xyz="0 0 0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_1_sensor_0_bottom -->
-    <link name="hand_part_1_sensor_0_bottom">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_1, hand_part_1_sensor_0_bottom -->
-    <joint name="hand_part_1_hand_part_1_sensor_0_bottom_joint" type="fixed">
-        <parent link="hand_part_1"/>
-        <child link="hand_part_1_sensor_0_bottom"/>
-        <origin xyz="0 0 -0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_1_sensor_0_left -->
-    <link name="hand_part_1_sensor_0_left">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_1, hand_part_1_sensor_0_left -->
-    <joint name="hand_part_1_hand_part_1_sensor_0_left_joint" type="fixed">
-        <parent link="hand_part_1"/>
-        <child link="hand_part_1_sensor_0_left"/>
-        <origin xyz="0 0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_1_sensor_0_right -->
-    <link name="hand_part_1_sensor_0_right">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_1, hand_part_1_sensor_0_right -->
-    <joint name="hand_part_1_hand_part_1_sensor_0_right_joint" type="fixed">
-        <parent link="hand_part_1"/>
-        <child link="hand_part_1_sensor_0_right"/>
-        <origin xyz="0 -0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-    <!-- Joint: hand_part_0, hand_part_1 -->
-    <joint name="hand_part_0_hand_part_1_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_1"/>
-        <origin xyz="-0.07465783405034261 0.3753302775178652 0"
-                rpy="0 0 -1.1780972450961724"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_2 -->
-    <link name="hand_part_2">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="2"/>
-            <inertia ixx="0.2" ixy="0" ixz="0" iyy="0.2" iyz="0" izz="0.03"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-
-
-    <!-- hand_part_2_sensor_0_top -->
-    <link name="hand_part_2_sensor_0_top">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_2, hand_part_2_sensor_0_top -->
-    <joint name="hand_part_2_hand_part_2_sensor_0_top_joint" type="fixed">
-        <parent link="hand_part_2"/>
-        <child link="hand_part_2_sensor_0_top"/>
-        <origin xyz="0 0 0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_2_sensor_0_bottom -->
-    <link name="hand_part_2_sensor_0_bottom">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_2, hand_part_2_sensor_0_bottom -->
-    <joint name="hand_part_2_hand_part_2_sensor_0_bottom_joint" type="fixed">
-        <parent link="hand_part_2"/>
-        <child link="hand_part_2_sensor_0_bottom"/>
-        <origin xyz="0 0 -0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_2_sensor_0_left -->
-    <link name="hand_part_2_sensor_0_left">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_2, hand_part_2_sensor_0_left -->
-    <joint name="hand_part_2_hand_part_2_sensor_0_left_joint" type="fixed">
-        <parent link="hand_part_2"/>
-        <child link="hand_part_2_sensor_0_left"/>
-        <origin xyz="0 0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_2_sensor_0_right -->
-    <link name="hand_part_2_sensor_0_right">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_2, hand_part_2_sensor_0_right -->
-    <joint name="hand_part_2_hand_part_2_sensor_0_right_joint" type="fixed">
-        <parent link="hand_part_2"/>
-        <child link="hand_part_2_sensor_0_right"/>
-        <origin xyz="0 -0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-    <!-- Joint: hand_part_0, hand_part_2 -->
-    <joint name="hand_part_0_hand_part_2_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_2"/>
-        <origin xyz="-0.2872653577421566 0.6935199226610735 0"
-                rpy="0 0 -0.7853981633974483"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_3 -->
-    <link name="hand_part_3">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="2"/>
-            <inertia ixx="0.2" ixy="0" ixz="0" iyy="0.2" iyz="0" izz="0.03"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-
-
-    <!-- hand_part_3_sensor_0_top -->
-    <link name="hand_part_3_sensor_0_top">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_3, hand_part_3_sensor_0_top -->
-    <joint name="hand_part_3_hand_part_3_sensor_0_top_joint" type="fixed">
-        <parent link="hand_part_3"/>
-        <child link="hand_part_3_sensor_0_top"/>
-        <origin xyz="0 0 0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_3_sensor_0_bottom -->
-    <link name="hand_part_3_sensor_0_bottom">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_3, hand_part_3_sensor_0_bottom -->
-    <joint name="hand_part_3_hand_part_3_sensor_0_bottom_joint" type="fixed">
-        <parent link="hand_part_3"/>
-        <child link="hand_part_3_sensor_0_bottom"/>
-        <origin xyz="0 0 -0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_3_sensor_0_left -->
-    <link name="hand_part_3_sensor_0_left">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_3, hand_part_3_sensor_0_left -->
-    <joint name="hand_part_3_hand_part_3_sensor_0_left_joint" type="fixed">
-        <parent link="hand_part_3"/>
-        <child link="hand_part_3_sensor_0_left"/>
-        <origin xyz="0 0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_3_sensor_0_right -->
-    <link name="hand_part_3_sensor_0_right">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_3, hand_part_3_sensor_0_right -->
-    <joint name="hand_part_3_hand_part_3_sensor_0_right_joint" type="fixed">
-        <parent link="hand_part_3"/>
-        <child link="hand_part_3_sensor_0_right"/>
-        <origin xyz="0 -0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-    <!-- Joint: hand_part_0, hand_part_3 -->
-    <joint name="hand_part_0_hand_part_3_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_3"/>
-        <origin xyz="-0.605455002885365 0.9061274463528877 0"
-                rpy="0 0 -0.39269908169872414"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_4 -->
-    <link name="hand_part_4">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="2"/>
-            <inertia ixx="0.2" ixy="0" ixz="0" iyy="0.2" iyz="0" izz="0.03"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-
-
-    <!-- hand_part_4_sensor_0_top -->
-    <link name="hand_part_4_sensor_0_top">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_4, hand_part_4_sensor_0_top -->
-    <joint name="hand_part_4_hand_part_4_sensor_0_top_joint" type="fixed">
-        <parent link="hand_part_4"/>
-        <child link="hand_part_4_sensor_0_top"/>
-        <origin xyz="0 0 0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_4_sensor_0_bottom -->
-    <link name="hand_part_4_sensor_0_bottom">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_4, hand_part_4_sensor_0_bottom -->
-    <joint name="hand_part_4_hand_part_4_sensor_0_bottom_joint" type="fixed">
-        <parent link="hand_part_4"/>
-        <child link="hand_part_4_sensor_0_bottom"/>
-        <origin xyz="0 0 -0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_4_sensor_0_left -->
-    <link name="hand_part_4_sensor_0_left">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_4, hand_part_4_sensor_0_left -->
-    <joint name="hand_part_4_hand_part_4_sensor_0_left_joint" type="fixed">
-        <parent link="hand_part_4"/>
-        <child link="hand_part_4_sensor_0_left"/>
-        <origin xyz="0 0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_4_sensor_0_right -->
-    <link name="hand_part_4_sensor_0_right">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_4, hand_part_4_sensor_0_right -->
-    <joint name="hand_part_4_hand_part_4_sensor_0_right_joint" type="fixed">
-        <parent link="hand_part_4"/>
-        <child link="hand_part_4_sensor_0_right"/>
-        <origin xyz="0 -0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-    <!-- Joint: hand_part_0, hand_part_4 -->
-    <joint name="hand_part_0_hand_part_4_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_4"/>
-        <origin xyz="-0.9807852804032302 0.9807852804032303 0"
-                rpy="0 0 0.0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_5 -->
-    <link name="hand_part_5">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="2"/>
-            <inertia ixx="0.2" ixy="0" ixz="0" iyy="0.2" iyz="0" izz="0.03"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-
-
-    <!-- hand_part_5_sensor_0_stop -->
-    <link name="hand_part_5_sensor_0_stop">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.02 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.02 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_5, hand_part_5_sensor_0_stop -->
-    <joint name="hand_part_5_hand_part_5_sensor_0_stop_joint" type="fixed">
-        <parent link="hand_part_5"/>
-        <child link="hand_part_5_sensor_0_stop"/>
-        <origin xyz="-0.19509032201612825 0 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_5_sensor_0_top -->
-    <link name="hand_part_5_sensor_0_top">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_5, hand_part_5_sensor_0_top -->
-    <joint name="hand_part_5_hand_part_5_sensor_0_top_joint" type="fixed">
-        <parent link="hand_part_5"/>
-        <child link="hand_part_5_sensor_0_top"/>
-        <origin xyz="0 0 0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_5_sensor_0_bottom -->
-    <link name="hand_part_5_sensor_0_bottom">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_5, hand_part_5_sensor_0_bottom -->
-    <joint name="hand_part_5_hand_part_5_sensor_0_bottom_joint" type="fixed">
-        <parent link="hand_part_5"/>
-        <child link="hand_part_5_sensor_0_bottom"/>
-        <origin xyz="0 0 -0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_5_sensor_0_left -->
-    <link name="hand_part_5_sensor_0_left">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_5, hand_part_5_sensor_0_left -->
-    <joint name="hand_part_5_hand_part_5_sensor_0_left_joint" type="fixed">
-        <parent link="hand_part_5"/>
-        <child link="hand_part_5_sensor_0_left"/>
-        <origin xyz="0 0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_5_sensor_0_right -->
-    <link name="hand_part_5_sensor_0_right">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_5, hand_part_5_sensor_0_right -->
-    <joint name="hand_part_5_hand_part_5_sensor_0_right_joint" type="fixed">
-        <parent link="hand_part_5"/>
-        <child link="hand_part_5_sensor_0_right"/>
-        <origin xyz="0 -0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-    <!-- Joint: hand_part_0, hand_part_5 -->
-    <joint name="hand_part_0_hand_part_5_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_5"/>
-        <origin xyz="-1.3561155579210953 0.9061274463528877 0"
-                rpy="0 0 0.39269908169872414"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_11 -->
-    <link name="hand_part_11">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="2"/>
-            <inertia ixx="0.2" ixy="0" ixz="0" iyy="0.2" iyz="0" izz="0.03"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-
-
-    <!-- hand_part_11_sensor_0_start -->
-    <link name="hand_part_11_sensor_0_start">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.02 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.02 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_11, hand_part_11_sensor_0_start -->
-    <joint name="hand_part_11_hand_part_11_sensor_0_start_joint" type="fixed">
-        <parent link="hand_part_11"/>
-        <child link="hand_part_11_sensor_0_start"/>
-        <origin xyz="0.19509032201612825 0 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_11_sensor_0_top -->
-    <link name="hand_part_11_sensor_0_top">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_11, hand_part_11_sensor_0_top -->
-    <joint name="hand_part_11_hand_part_11_sensor_0_top_joint" type="fixed">
-        <parent link="hand_part_11"/>
-        <child link="hand_part_11_sensor_0_top"/>
-        <origin xyz="0 0 0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_11_sensor_0_bottom -->
-    <link name="hand_part_11_sensor_0_bottom">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_11, hand_part_11_sensor_0_bottom -->
-    <joint name="hand_part_11_hand_part_11_sensor_0_bottom_joint" type="fixed">
-        <parent link="hand_part_11"/>
-        <child link="hand_part_11_sensor_0_bottom"/>
-        <origin xyz="0 0 -0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_11_sensor_0_left -->
-    <link name="hand_part_11_sensor_0_left">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_11, hand_part_11_sensor_0_left -->
-    <joint name="hand_part_11_hand_part_11_sensor_0_left_joint" type="fixed">
-        <parent link="hand_part_11"/>
-        <child link="hand_part_11_sensor_0_left"/>
-        <origin xyz="0 0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_11_sensor_0_right -->
-    <link name="hand_part_11_sensor_0_right">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_11, hand_part_11_sensor_0_right -->
-    <joint name="hand_part_11_hand_part_11_sensor_0_right_joint" type="fixed">
-        <parent link="hand_part_11"/>
-        <child link="hand_part_11_sensor_0_right"/>
-        <origin xyz="0 -0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-    <!-- Joint: hand_part_0, hand_part_11 -->
-    <joint name="hand_part_0_hand_part_11_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_11"/>
-        <origin xyz="-1.356115557921096 -0.9061274463528874 0"
-                rpy="0 0 2.7488935718910685"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_12 -->
-    <link name="hand_part_12">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="2"/>
-            <inertia ixx="0.2" ixy="0" ixz="0" iyy="0.2" iyz="0" izz="0.03"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-
-
-    <!-- hand_part_12_sensor_0_top -->
-    <link name="hand_part_12_sensor_0_top">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_12, hand_part_12_sensor_0_top -->
-    <joint name="hand_part_12_hand_part_12_sensor_0_top_joint" type="fixed">
-        <parent link="hand_part_12"/>
-        <child link="hand_part_12_sensor_0_top"/>
-        <origin xyz="0 0 0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_12_sensor_0_bottom -->
-    <link name="hand_part_12_sensor_0_bottom">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_12, hand_part_12_sensor_0_bottom -->
-    <joint name="hand_part_12_hand_part_12_sensor_0_bottom_joint" type="fixed">
-        <parent link="hand_part_12"/>
-        <child link="hand_part_12_sensor_0_bottom"/>
-        <origin xyz="0 0 -0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_12_sensor_0_left -->
-    <link name="hand_part_12_sensor_0_left">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_12, hand_part_12_sensor_0_left -->
-    <joint name="hand_part_12_hand_part_12_sensor_0_left_joint" type="fixed">
-        <parent link="hand_part_12"/>
-        <child link="hand_part_12_sensor_0_left"/>
-        <origin xyz="0 0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_12_sensor_0_right -->
-    <link name="hand_part_12_sensor_0_right">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_12, hand_part_12_sensor_0_right -->
-    <joint name="hand_part_12_hand_part_12_sensor_0_right_joint" type="fixed">
-        <parent link="hand_part_12"/>
-        <child link="hand_part_12_sensor_0_right"/>
-        <origin xyz="0 -0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-    <!-- Joint: hand_part_0, hand_part_12 -->
-    <joint name="hand_part_0_hand_part_12_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_12"/>
-        <origin xyz="-0.9807852804032305 -0.9807852804032303 0"
-                rpy="0 0 3.141592653589793"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_13 -->
-    <link name="hand_part_13">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="2"/>
-            <inertia ixx="0.2" ixy="0" ixz="0" iyy="0.2" iyz="0" izz="0.03"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-
-
-    <!-- hand_part_13_sensor_0_top -->
-    <link name="hand_part_13_sensor_0_top">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_13, hand_part_13_sensor_0_top -->
-    <joint name="hand_part_13_hand_part_13_sensor_0_top_joint" type="fixed">
-        <parent link="hand_part_13"/>
-        <child link="hand_part_13_sensor_0_top"/>
-        <origin xyz="0 0 0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_13_sensor_0_bottom -->
-    <link name="hand_part_13_sensor_0_bottom">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_13, hand_part_13_sensor_0_bottom -->
-    <joint name="hand_part_13_hand_part_13_sensor_0_bottom_joint" type="fixed">
-        <parent link="hand_part_13"/>
-        <child link="hand_part_13_sensor_0_bottom"/>
-        <origin xyz="0 0 -0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_13_sensor_0_left -->
-    <link name="hand_part_13_sensor_0_left">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_13, hand_part_13_sensor_0_left -->
-    <joint name="hand_part_13_hand_part_13_sensor_0_left_joint" type="fixed">
-        <parent link="hand_part_13"/>
-        <child link="hand_part_13_sensor_0_left"/>
-        <origin xyz="0 0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_13_sensor_0_right -->
-    <link name="hand_part_13_sensor_0_right">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_13, hand_part_13_sensor_0_right -->
-    <joint name="hand_part_13_hand_part_13_sensor_0_right_joint" type="fixed">
-        <parent link="hand_part_13"/>
-        <child link="hand_part_13_sensor_0_right"/>
-        <origin xyz="0 -0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-    <!-- Joint: hand_part_0, hand_part_13 -->
-    <joint name="hand_part_0_hand_part_13_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_13"/>
-        <origin xyz="-0.6054550028853648 -0.9061274463528876 0"
-                rpy="0 0 3.5342917352885177"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_14 -->
-    <link name="hand_part_14">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="2"/>
-            <inertia ixx="0.2" ixy="0" ixz="0" iyy="0.2" iyz="0" izz="0.03"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-
-
-    <!-- hand_part_14_sensor_0_top -->
-    <link name="hand_part_14_sensor_0_top">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_14, hand_part_14_sensor_0_top -->
-    <joint name="hand_part_14_hand_part_14_sensor_0_top_joint" type="fixed">
-        <parent link="hand_part_14"/>
-        <child link="hand_part_14_sensor_0_top"/>
-        <origin xyz="0 0 0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_14_sensor_0_bottom -->
-    <link name="hand_part_14_sensor_0_bottom">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_14, hand_part_14_sensor_0_bottom -->
-    <joint name="hand_part_14_hand_part_14_sensor_0_bottom_joint" type="fixed">
-        <parent link="hand_part_14"/>
-        <child link="hand_part_14_sensor_0_bottom"/>
-        <origin xyz="0 0 -0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_14_sensor_0_left -->
-    <link name="hand_part_14_sensor_0_left">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_14, hand_part_14_sensor_0_left -->
-    <joint name="hand_part_14_hand_part_14_sensor_0_left_joint" type="fixed">
-        <parent link="hand_part_14"/>
-        <child link="hand_part_14_sensor_0_left"/>
-        <origin xyz="0 0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_14_sensor_0_right -->
-    <link name="hand_part_14_sensor_0_right">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_14, hand_part_14_sensor_0_right -->
-    <joint name="hand_part_14_hand_part_14_sensor_0_right_joint" type="fixed">
-        <parent link="hand_part_14"/>
-        <child link="hand_part_14_sensor_0_right"/>
-        <origin xyz="0 -0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-    <!-- Joint: hand_part_0, hand_part_14 -->
-    <joint name="hand_part_0_hand_part_14_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_14"/>
-        <origin xyz="-0.28726535774215683 -0.6935199226610738 0"
-                rpy="0 0 3.9269908169872414"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_15 -->
-    <link name="hand_part_15">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="2"/>
-            <inertia ixx="0.2" ixy="0" ixz="0" iyy="0.2" iyz="0" izz="0.03"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 1"/>
-            </geometry>
-        </collision>
-    </link>
-
-
-    <!-- hand_part_15_sensor_0_top -->
-    <link name="hand_part_15_sensor_0_top">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_15, hand_part_15_sensor_0_top -->
-    <joint name="hand_part_15_hand_part_15_sensor_0_top_joint" type="fixed">
-        <parent link="hand_part_15"/>
-        <child link="hand_part_15_sensor_0_top"/>
-        <origin xyz="0 0 0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_15_sensor_0_bottom -->
-    <link name="hand_part_15_sensor_0_bottom">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.2 0.02"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_15, hand_part_15_sensor_0_bottom -->
-    <joint name="hand_part_15_hand_part_15_sensor_0_bottom_joint" type="fixed">
-        <parent link="hand_part_15"/>
-        <child link="hand_part_15_sensor_0_bottom"/>
-        <origin xyz="0 0 -0.5"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_15_sensor_0_left -->
-    <link name="hand_part_15_sensor_0_left">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_15, hand_part_15_sensor_0_left -->
-    <joint name="hand_part_15_hand_part_15_sensor_0_left_joint" type="fixed">
-        <parent link="hand_part_15"/>
-        <child link="hand_part_15_sensor_0_left"/>
-        <origin xyz="0 0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- hand_part_15_sensor_0_right -->
-    <link name="hand_part_15_sensor_0_right">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.3901806440322565 0.02 1"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: hand_part_15, hand_part_15_sensor_0_right -->
-    <joint name="hand_part_15_hand_part_15_sensor_0_right_joint" type="fixed">
-        <parent link="hand_part_15"/>
-        <child link="hand_part_15_sensor_0_right"/>
-        <origin xyz="0 -0.1 0"
-                rpy="0 0 0"/>
-        <axis xyz="0 1 0"/>
-        
-    </joint>
-    <!-- Joint: hand_part_0, hand_part_15 -->
-    <joint name="hand_part_0_hand_part_15_joint" type="fixed">
-        <parent link="hand_part_0"/>
-        <child link="hand_part_15"/>
-        <origin xyz="-0.07465783405034283 -0.3753302775178658 0"
-                rpy="0 0 4.319689898685965"/>
         <axis xyz="0 1 0"/>
         
     </joint>

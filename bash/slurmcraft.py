@@ -81,17 +81,7 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_touch" : 0})
 
 add_this("t",   {
-    })
-
-add_this("b", {"robot_name" : "two_head_arm_b"}) 
-
-add_this("slow", {
-    "time_step" : .1,
-    "global_push_amount" : .1,
-    "global_pull_amount" : .1,
-    "global_left_right_amount" : .1
-})       
-
+    "max_wheel_speed_for_left" : [3, 4, 5]})
 
 
 

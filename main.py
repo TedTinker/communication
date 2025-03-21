@@ -64,19 +64,20 @@ if __name__ == '__main__':
     
         if any(progress_dict[key] != prev_progress_dict[key] for key in progress_dict.keys()):
             prev_progress_dict = progress_dict.copy()
-            string = "" ; hundreds = 0
+            string = "" 
+            hundreds = 0
             values = list(progress_dict.values()) ; values.sort()
             so_far = duration()
             lowest = float(values[0])
             estimated_total = estimate_total_duration(lowest)
             if(estimated_total == "?:??:??"): to_do = "?:??:??"
-            else:                                   to_do = estimated_total - so_far
+            else:                             to_do = estimated_total - so_far
             values = [str(floor(100 * float(value))).ljust(3, " ") for value in values]
             for value in values:
                 if(value != "100"): string += " " + value
                 else:               hundreds += 1 
             if(hundreds > 0): string += " ##" + " 100" * hundreds
-            string = "{} ({} left):".format(so_far, to_do) + string
+            string = "{} ({} left):\t".format(so_far, to_do) + string
             if(hundreds == 0): string += " ##"
             string = string.rstrip() + "."
             print(string)

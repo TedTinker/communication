@@ -7,12 +7,13 @@ except ImportError:
     
 arm_mass = 2
 arm_thickness = .2
-arm_length = 2.75
+arm_length = 1.75
 
 joint_1_height = .2
 
 hand_length = 1
-hand_height = 1
+hand_height = 1.25
+hand_width = arm_thickness
 
 parts = [
     
@@ -115,12 +116,11 @@ parts = [
     Part(
         name = "hand",
         mass = arm_mass,
-        size = (hand_length, arm_thickness, hand_height),
+        size = (hand_length, hand_width, hand_height),
         joint_parent = "arm", 
-        joint_origin = (arm_length / 2 - hand_length / 2, 0, - hand_height / 2 - arm_thickness / 2),
+        joint_origin = (arm_length / 2 + hand_length / 2, 0, - hand_height / 2 + arm_thickness / 2),
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
-        sensors = 1,
-        sensor_sides = ["start", "stop", "left", "right"]),
+        sensors = 1),
     
     ]

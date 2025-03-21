@@ -18,8 +18,9 @@
             </geometry>
         </collision>
         <inertial>
+            <origin xyz="0 0 0"/> 
             <mass value="100"/>
-            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
+            <inertia ixx="11.999999999999998" ixy="0" ixz="0" iyy="11.999999999999998" iyz="0" izz="18.0"/>
         </inertial>
     </link>
 <!-- Definition of the shape -->
@@ -40,8 +41,9 @@
             </geometry>
         </collision>
         <inertial>
-            <mass value=".1"/>
-            <inertia ixx=".1" ixy=".1" ixz=".1" iyy=".1" iyz=".1" izz=".1"/>
+            <origin xyz="0 0 0"/> 
+            <mass value="10.0"/>
+            <inertia ixx="0.9333333333333333" ixy="0" ixz="0" iyy="0.9333333333333333" iyz="0" izz="0.20000000000000004"/>
         </inertial>
     </link>
 

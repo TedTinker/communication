@@ -109,7 +109,7 @@ def make_robot(robot_name, parts):
         sensor_positions.extend(part.sensor_positions)
         sensor_dimensions.extend(part.sensor_dimensions)
         sensor_angles.extend(part.sensor_angles)
-    sensor_values = [0.1] * len(sensor_positions)  # Adjust values for testing
+    sensor_values = [0] * len(sensor_positions)  # Adjust values for testing
 
     def apply_rotation(vertices, position, angle):
         rotation = R.from_euler('xyz', angle, degrees=False)  # Ensure radians are used
@@ -123,7 +123,8 @@ def make_robot(robot_name, parts):
         sensor_dimensions = sensor_dimensions, 
         sensor_angles = sensor_angles, 
         show = False,
-        figsize = None):
+        figsize = None,
+        save_path = None):
         
         if(figsize == None):
             fig = plt.figure()
@@ -194,6 +195,8 @@ def make_robot(robot_name, parts):
         ax.grid(False)
         ax.set_axis_off()
 
+        if(save_path != None):
+            plt.savefig(save_path, bbox_inches = "tight")
         if(show):
             plt.show()
             plt.close()
@@ -224,8 +227,8 @@ else:
 make_robot("two_head_arm_b", parts)
 
 
-"""
-if(cluster):
+
+"""if(cluster):
     from .two_head_arm_c import parts
 else:
     from two_head_arm_c import parts
@@ -243,7 +246,6 @@ if(__name__ == "__main__"):
     num_bots = len(robot_dict)
     for i, robot_name in enumerate(robot_dict.keys()):
         sensor_plotter, sensor_values = robot_dict[robot_name]
-        sensor_plotter(sensor_values, show = True, figsize = (10, 10))
         robot_index = p.loadURDF("robot_{}.urdf".format(robot_name), (-1 + num_bots * 10 / 2 - i * 10, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                                     useFixedBase=True, globalScaling = 2, physicsClientId=physicsClient)
         p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
@@ -259,6 +261,12 @@ if(__name__ == "__main__"):
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
         initial_position = (-5, 0, 0)  # Replace with the actual starting position
         initial_orientation = p.getQuaternionFromEuler([0, 0, pi/2])  # Replace with the actual starting orientation
+        
+        sensor_plotter(sensor_values, show = True, figsize = (10, 10), save_path = f"sensor_plots/{robot_name}_{str(0).zfill(3)}.png")
+        """for i in range(len(sensor_values)):
+            sensor_values[i] = 1
+            sensor_plotter(sensor_values, show = True, figsize = (10, 10), save_path = f"sensor_plots/{robot_name}_{str(i+1).zfill(3)}.png")
+            sensor_values[i] = 0"""
         
     # Simulation loop
     while True:
