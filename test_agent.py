@@ -10,7 +10,7 @@ from agent import Agent
 
 
 
-hyper_parameters = "ect_1"
+hyper_parameters = "eft_9"
 agent_num = "0001"
 epochs = "060000"
 saved_file = "saved_deigo"
@@ -31,13 +31,12 @@ print("Ready to go!")
     #1,  # Watch
     #2,  # Top
     #3,  # Push
-    #4,  # Pull
-    #5,  # Left
-    #6   # Right   
+    #4,  # Left
+    #5   # Right   
     
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(6, 1)], 
+    tasks_and_weights = [(4, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
@@ -48,12 +47,12 @@ agent.processor_name = 0
 episodes += 1
 win = agent.save_episodes(
     test = False, 
-    verbose = False,
-    display = False, 
-    video_display = True,
+    verbose = True,
+    display = True, 
+    video_display = False,
     sleep_time = 1, 
     waiting = False, 
-    user_action = False, 
+    user_action = True, 
     dreaming = False)
 if(win): 
     wins += 1

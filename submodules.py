@@ -25,7 +25,7 @@ class Vision_IN(nn.Module):
         
         image_dims = 4
         
-        vision_size = (1, image_dims, self.args.image_size, self.args.image_size)
+        vision_size = (1, image_dims, self.args.image_size * (2 if self.args.wide_view else 1), self.args.image_size)
         example = torch.zeros(vision_size)
         
         self.a = nn.Sequential()
@@ -92,7 +92,7 @@ class Vision_OUT(nn.Module):
             # nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
             nn.Linear(
                 in_features = self.args.h_w_wheels_joints_size,
-                out_features = self.out_features_channels * (self.args.image_size//self.args.divisions) * (self.args.image_size//self.args.divisions)))
+                out_features = self.out_features_channels * (self.args.image_size//self.args.divisions) * (self.args.image_size//self.args.divisions)  * (2 if self.args.wide_view else 1)))
         
         self.b = nn.Sequential(
             nn.BatchNorm2d(self.out_features_channels), # Tested, use this
@@ -118,7 +118,7 @@ class Vision_OUT(nn.Module):
         start_time, episodes, steps, [h_w_wheels_joints] = model_start([(h_w_wheels_joints, "lin")], self.args.device, self.args.half)
 
         a = self.a(h_w_wheels_joints)
-        a = a.reshape(episodes * steps, self.out_features_channels, self.args.image_size//self.args.divisions, self.args.image_size//self.args.divisions)
+        a = a.reshape(episodes * steps, self.out_features_channels, self.args.image_size//self.args.divisions, self.args.image_size//self.args.divisions * (2 if self.args.wide_view else 1))
         vision = self.b(a)
             
         vision = (vision + 1) / 2

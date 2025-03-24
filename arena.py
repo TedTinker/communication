@@ -90,7 +90,7 @@ class Arena():
         self.args = args
         self.physicsClient = physicsClient
         self.objects_in_play = {}
-        self.durations = {"watch" : {}, "top": {}, "push" : {}, "pull" : {}, "left" : {}, "right" : {}}
+        self.durations = {"watch" : {}, "top": {}, "push" : {}, "left" : {}, "right" : {}}
                         
         # Make floor and lower level.
         plane_positions = [[0, 0]]
@@ -164,7 +164,7 @@ class Arena():
         self.joint_accelerations = {key: 0 for key in self.joint_indices.keys()}
         
         self.objects_in_play = {}
-        self.durations = {"watch" : {}, "top" : {}, "push" : {}, "pull" : {}, "left" : {}, "right" : {}}
+        self.durations = {"watch" : {}, "top" : {}, "push" : {}, "left" : {}, "right" : {}}
         already_in_play = {key : 0 for key in shape_map.keys()}
         if(set_positions == None):
             set_positions = self.generate_positions(len(objects), self.args.max_object_distance)
@@ -189,7 +189,7 @@ class Arena():
                     p.changeVisualShape(object_index, i, rgbaColor = color.rgba, physicsClientId=self.physicsClient)
                         
             self.objects_in_play[(color_index, shape_index, idle_pos)] = object_index
-            for task in ["watch", "top", "push", "pull", "left", "right"]:
+            for task in ["watch", "top", "push", "left", "right"]:
                 self.durations[task][object_index] = 0
             
         self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
@@ -516,8 +516,8 @@ class Arena():
                 
         for i, ((color_index, shape_index, _), object_index) in enumerate(self.objects_in_play.items()):
             watched = False 
+            topped = False
             pushed = False 
-            pulled = False 
             lefted = False 
             righted = False
             
@@ -570,9 +570,8 @@ class Arena():
             # Is the object touched by the arm, while the arm-angle is high?
             topping = touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle
                                     
-            # Is the object pushed/pulled away from its starting position, relative to the agent's starting position and angle?
+            # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
             pushing = touching and (global_movement_forward >= self.args.global_push_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_watch) 
-            pulling = touching and (global_movement_forward <= -self.args.global_pull_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_watch) 
                         
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
@@ -584,17 +583,14 @@ class Arena():
                 print(f"\n\nTouching: {touching}. Touching body: {touching_body}.")
                 print(f"Watching ({watching}): \t\t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['watch'][object_index]} steps")
                 print(f"Topping ({topping}): \n\t{-round(self.get_joint_angles()[2], 2)} vs {round(self.args.top_arm_min_angle, 2)} limit \t{self.durations['top'][object_index]} steps")
-                print(f"Pushing ({pushing}): \n\t{round(global_movement_forward, 2)} out of {self.args.global_push_amount} global, \t {round(local_movement_forward, 2)} out of {self.args.local_push_pull_limit} local limit \t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['push'][object_index]} steps")
-                print(f"Pulling ({pulling}): \n\t{round(global_movement_forward, 2)} out of {-self.args.global_pull_amount} global, \t {round(local_movement_forward, 2)} out of {self.args.local_push_pull_limit} local limit \t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['pull'][object_index]} steps")
-                print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{self.durations['left'][object_index]} steps")
-                print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{self.durations['right'][object_index]} steps \n\n")
+                print(f"Pushing ({pushing}): \n\t{round(global_movement_forward, 2)} out of {self.args.global_push_amount} global, \t {round(local_movement_forward, 2)} out of {self.args.local_push_limit} local limit \t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['push'][object_index]} steps")
+                print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['left'][object_index]} steps")
+                print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['right'][object_index]} steps \n\n")
     
                 
             active_changes = []
             if pushing:
                 active_changes.append(("pushing", global_movement_forward))
-            if pulling:
-                active_changes.append(("pulling", abs(global_movement_forward)))  
             if lefting:
                 active_changes.append(("lefting", global_movement_left))
             if righting:
@@ -602,16 +598,14 @@ class Arena():
             if len(active_changes) > 1:
                 active_changes.sort(key=lambda x: x[1], reverse=True)
                 highest_change = active_changes[0][0]
-                pushing, pulling, lefting, righting = False, False, False, False
+                pushing, lefting, righting = False, False, False
                 if highest_change == "pushing":
                     pushing = True
-                elif highest_change == "pulling":
-                    pulling = True
                 elif highest_change == "lefting":
                     lefting = True
                 elif highest_change == "righting":
                     righting = True   
-            if(pushing or pulling or lefting or righting):
+            if(pushing or lefting or righting):
                 topping = False
                         
                     
@@ -621,7 +615,6 @@ class Arena():
                 print(f"Watching: ({watching})")
                 print(f"Topping: ({topping})") 
                 print(f"Pushing: ({pushing})")
-                print(f"Pulling: ({pulling})")
                 print(f"Lefting: ({lefting})")
                 print(f"Righting: ({righting})\n") 
                 
@@ -637,7 +630,6 @@ class Arena():
             watched = update_duration("watch",  watching,   object_index, self.args.watch_duration)
             topped  = update_duration("top",    topping,    object_index, self.args.top_duration)
             pushed  = update_duration("push",   pushing,    object_index, self.args.push_duration)
-            pulled  = update_duration("pull",   pulling,    object_index, self.args.pull_duration)
             lefted  = update_duration("left",   lefting,    object_index, self.args.left_duration)
             righted = update_duration("right",  righting,   object_index, self.args.right_duration)
             
@@ -646,12 +638,11 @@ class Arena():
                 print(f"Watched: ({watched})")
                 print(f"Topped: ({topped})")
                 print(f"Pushed: ({pushed})")
-                print(f"Pulled: ({pulled})")
                 print(f"Lefted: ({lefted})")
                 print(f"Righted: ({righted})\n")
                 
             key = (color_map[color_index], shape_map[shape_index])
-            new_value = [watched, topped, pushed, pulled, lefted, righted, watching, topping, pushing, pulling, lefting, righting]
+            new_value = [watched, topped, pushed, lefted, righted, watching, topping, pushing, lefting, righting]
 
             # If there are multiple of the same object, consider them all.
             if key in objects_goals:
@@ -663,10 +654,10 @@ class Arena():
         wrong_object = False
         task_performed = None
                 
-        for (color, shape), (watched, topped, pushed, pulled, lefted, righted, watching, topping, pushing, pulling, lefting, righting) in objects_goals.items():
+        for (color, shape), (watched, topped, pushed, lefted, righted, watching, topping, pushing, lefting, righting) in objects_goals.items():
             # If any one task is accomplished, find the task/color/shape.
                         
-            if(sum([watched, topped, pushed, pulled, lefted, righted]) == 1):
+            if(sum([watched, topped, pushed, lefted, righted]) == 1):
                 # If the correct object, check the task.
                 if(watched):
                     task_performed = "watched"  
@@ -674,12 +665,11 @@ class Arena():
                     task_performed = "other"
                 if(color == self.goal.color and shape == self.goal.shape):
                     if(
-                        (self.goal.task.name == "WATCH" and watched and not (topping or pushing or pulling or lefting or righting)) or 
-                        (self.goal.task.name == "TOP" and topped and not (watching or pushing or pulling or lefting or righting)) or 
-                        (self.goal.task.name == "PUSH" and pushed and not (watching or topping or pulling or lefting or righting)) or
-                        (self.goal.task.name == "PULL" and pulled and not (watching or topping or pushing or lefting or righting)) or
-                        (self.goal.task.name == "LEFT" and lefted and not (watching or topping or pushing or pulling or righting)) or
-                        (self.goal.task.name == "RIGHT" and righted and not (watching or topping or pushing or pulling or lefting))):   
+                        (self.goal.task.name == "WATCH" and watched and not (topping or pushing or lefting or righting)) or 
+                        (self.goal.task.name == "TOP" and topped and not (watching or pushing or lefting or righting)) or 
+                        (self.goal.task.name == "PUSH" and pushed and not (watching or topping or lefting or righting)) or
+                        (self.goal.task.name == "LEFT" and lefted and not (watching or topping or pushing or righting)) or
+                        (self.goal.task.name == "RIGHT" and righted and not (watching or topping or pushing or lefting))):   
                         win = True 
                         reward = self.args.reward
                 # If a task is occuring with a wrong object, no reward.
@@ -688,13 +678,12 @@ class Arena():
                     
             # Report's voice reflects ongoing processes
             task_in_progress = None
-            if(sum([watching, topping, pushing, pulling, lefting, righting]) >= 1):
+            if(sum([watching, topping, pushing, lefting, righting]) >= 1):
                 if(watching): task_in_progress = task_map[1]
                 if(topping):  task_in_progress = task_map[2]
                 if(pushing):  task_in_progress = task_map[3]
-                if(pulling):  task_in_progress = task_map[4]
-                if(lefting):  task_in_progress = task_map[5] # If pushing/pulling but also lefting/righting,
-                if(righting): task_in_progress = task_map[6] # use lefting/righting
+                if(lefting):  task_in_progress = task_map[4] # If pushing but also lefting/righting,
+                if(righting): task_in_progress = task_map[5] # use lefting/righting
                 report_voice = Goal(task_in_progress, color, shape, parenting = False)
                 
         if(wrong_object):
@@ -739,9 +728,13 @@ class Arena():
             cameraEyePosition = [pos[0] + x*.1, pos[1] + y*.1, 2], 
             cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    
             cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
-        proj_matrix = proj_matrix = p.computeProjectionMatrix(left, right, bottom, top, near, far)
+        proj_matrix = proj_matrix = p.computeProjectionMatrix(
+            left * (2 if self.args.wide_view else 1), 
+            right * (2 if self.args.wide_view else 1), 
+            bottom, top, near, far)
         _, _, rgba, depth, _ = p.getCameraImage(
-            width=self.args.image_size * 2, height=self.args.image_size * 2,
+            width=self.args.image_size * 4 if self.args.wide_view else self.args.image_size * 2, 
+            height=self.args.image_size * 2,
             projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
             physicsClientId = self.physicsClient)
         rgb = np.divide(rgba[:,:,:-1], 255)
@@ -749,7 +742,7 @@ class Arena():
         if(d.max() == d.min()): pass
         else: d = (d - d.min())/(d.max()-d.min())
         vision = np.concatenate([rgb, d], axis = -1)
-        vision = resize(vision, (self.args.image_size, self.args.image_size, 4))
+        vision = resize(vision, (self.args.image_size, self.args.image_size * (2 if self.args.wide_view else 1), 4))
         return(vision)
         
     

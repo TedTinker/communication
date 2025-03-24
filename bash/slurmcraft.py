@@ -81,7 +81,9 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_touch" : 0})
 
 add_this("t",   {
-    "max_wheel_speed_for_left" : [3, 4, 5]})
+    "max_wheel_speed_for_left" : [3, 4, 5],
+    "wide_view" : ["False", "True"],
+    "robot_name" : ["two_head_arm_a", "two_head_arm_b"]})
 
 
 

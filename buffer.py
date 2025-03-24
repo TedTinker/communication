@@ -32,7 +32,7 @@ class RecurrentReplayBuffer:
         self.num_episodes = 0
 
         self.vision = VariableBuffer(
-            shape = (self.args.image_size, self.args.image_size, 4), 
+            shape = (self.args.image_size, self.args.image_size * (2 if self.args.wide_view else 1), 4), 
             before_and_after = True, 
             args = self.args)
         self.touch = VariableBuffer(

@@ -13,7 +13,8 @@ joint_1_height = .2
 
 hand_length = 1
 hand_height = 1.25
-hand_width = 1
+hand_width = arm_thickness * 3
+
 
 parts = [
     

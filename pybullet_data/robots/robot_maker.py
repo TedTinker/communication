@@ -55,6 +55,13 @@ def make_robot(robot_name, parts):
     pixels = image.load()
     width, height = image.size
     back_squares = [(x, -y + squares_per_side - 1) for x in range(width) for y in range(height) if pixels[x, y] == 0]
+    
+    image = Image.open(f"{add_this}robot_side.png")
+    image = image.convert("L")
+    pixels = image.load()
+    width, height = image.size
+    left_squares = [(x, -y + squares_per_side - 1) for x in range(width) for y in range(height) if pixels[x, y] == 0]
+    right_squares = [(x, -y + squares_per_side - 1) for x in range(width) for y in range(height) if pixels[x, y] == 0]
 
     def make_face(x_y_list, which = "front"):
         for face_part_num, (x, y) in enumerate(x_y_list):
@@ -70,6 +77,12 @@ def make_robot(robot_name, parts):
             if(which == "back"):
                 size = (.002, 1/squares_per_side, 1/squares_per_side)
                 joint_origin = (-.501, x, y)
+            if(which == "left"):
+                size = (1/squares_per_side, .002, 1/squares_per_side)
+                joint_origin = (x, -.501, y)
+            if(which == "right"):
+                size = (1/squares_per_side, .002, 1/squares_per_side)
+                joint_origin = (x, .501, y)
                             
             parts.append(Part(
                 name = f"body_face_{which}_{face_part_num}",
@@ -83,6 +96,8 @@ def make_robot(robot_name, parts):
     make_face(front_squares, which = "front")
     make_face(top_squares, which = "top")
     make_face(back_squares, which = "back")
+    #make_face(left_squares, which = "left")
+    #make_face(right_squares, which = "right")
 
     robot = \
     """<?xml version="1.0"?>
@@ -225,14 +240,6 @@ if(cluster):
 else:
     from two_head_arm_b import parts
 make_robot("two_head_arm_b", parts)
-
-
-
-"""if(cluster):
-    from .two_head_arm_c import parts
-else:
-    from two_head_arm_c import parts
-make_robot("two_head_arm_c", parts)"""
 
 
 

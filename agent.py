@@ -78,11 +78,7 @@ class Agent:
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.processors = {
-            "wtpulr" :      Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, 
-                                      full_name = "All Tasks"),
-            "wtplr" :       Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 0), (5, 1), (6, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, 
-                                      full_name = "All Tasks"),
-            "wpulr" :       Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 0), (3, 1), (4, 1), (5, 1), (6, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, 
+            "wtplr" :       Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, 
                                       full_name = "All Tasks"),
             }
         

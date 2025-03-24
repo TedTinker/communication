@@ -1,8 +1,7 @@
 #%% 
 
 # To do:
-#   Jun wants left-right more local. Maybe force lower wheel-speed to qualify.
-#   Try using wider image.
+#   Jun wants left-right more local. Maybe reduce arm-angle range.
 
 import os
 import pickle
@@ -87,9 +86,8 @@ task_map = {
     1:  Task("B", "WATCH"),
     2:  Task("C", "TOP"),
     3:  Task("D", "PUSH"),     
-    4:  Task("E", "PULL"),   
-    5:  Task("F", "LEFT"),   
-    6:  Task("G", "RIGHT")}    
+    4:  Task("E", "LEFT"),   
+    5:  Task("F", "RIGHT")}    
 max_len_taskname = max([len(t.name) for t in task_map.values()])
 task_name_list = [task.name for task in task_map.values()]
 
@@ -103,12 +101,12 @@ class Color:
         return(f"{self.char}, {self.name}")
     
 color_map = {
-    0: Color("H", "RED",     (1,0,0,1)), 
-    1: Color("I", "GREEN",   (0,1,0,1)),
-    2: Color("J", "BLUE",    (0,0,1,1)),
-    3: Color("K", "CYAN",    (0,1,1,1)), 
-    4: Color("L", "PINK",    (1,0,1,1)), 
-    5: Color("M", "YELLOW",  (1,1,0,1))} 
+    0: Color("G", "RED",     (1,0,0,1)), 
+    1: Color("H", "GREEN",   (0,1,0,1)),
+    2: Color("I", "BLUE",    (0,0,1,1)),
+    3: Color("J", "CYAN",    (0,1,1,1)), 
+    4: Color("K", "PINK",    (1,0,1,1)), 
+    5: Color("L", "YELLOW",  (1,1,0,1))} 
 max_len_color_name = max([len(c.name) for c in color_map.values()])
 color_name_list = [c.name for c in color_map.values()]
 
@@ -275,7 +273,7 @@ if(__name__ == "__main__"):
 
 all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
 training_combos = [(a, c, s) for (a, c, s) in all_combos if 
-                   a == 0 or
+                   a == 0 or a == 1 or
                    ((s + c) % 2 == 1 and a % 2 == 0) or
                    ((s + c) % 2 == 0 and a % 2 == 1)]
 
@@ -329,6 +327,7 @@ def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shap
     return(color_num, shape_num)
 
 def make_objects_and_task(num_objects, allowed_tasks_and_weights, allowed_colors, allowed_shapes, test = False):
+    #print(f"num_objects {num_objects}, allowed_tasks_and_weights {allowed_tasks_and_weights}, allowed_colors {allowed_colors}, allowed_shapes {allowed_shapes}, test {test}")
     tasks   = [v for v, w in allowed_tasks_and_weights]
     weights = [w for v, w in allowed_tasks_and_weights]
     task_num = choices(tasks, weights=weights, k=1)[0]
@@ -377,10 +376,8 @@ parser = argparse.ArgumentParser()
     # Stuff I'm testing right now   
 parser.add_argument('--robot_name',                     type=str,           default = "two_head_arm_a",
                     help='Options: two_side_arm, one_head_arm.') 
-parser.add_argument('--force',                          type=float,         default = 15000,
-                    help='Force for moving joints.') 
-parser.add_argument('--gravity',                        type=float,         default = -9.8,
-                    help='Force of gravity.') 
+parser.add_argument('--wide_view',                      type=literal,       default = False,
+                    help='Does the agent see 180 degrees?')    
 
     
 
@@ -432,6 +429,10 @@ parser.add_argument('--object_size',                    type=float,         defa
                     help='How large is the agent\'s body?')    
 parser.add_argument('--body_size',                      type=float,         default = 2,
                     help='How large is the agent\'s body?')        
+parser.add_argument('--force',                          type=float,         default = 15000,
+                    help='Force for moving joints.') 
+parser.add_argument('--gravity',                        type=float,         default = -9.8,
+                    help='Force of gravity.') 
 
 
 
@@ -476,13 +477,11 @@ parser.add_argument('--top_duration',                  type=int,           defau
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--push_duration',                  type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--pull_duration',                  type=int,           default = 3,
-                    help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
 
 parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/6,
-                    help='How close must the agent watch the object to achieve watching, pushing, or pulling.')
+                    help='How close must the agent watch the object to achieve watching or pushing.')
 parser.add_argument('--pointing_at_object_for_left',    type=float,         default = pi/3,
                     help='How close must the agent watch the object to achieve pushing left or right.')
 parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 11,
@@ -490,18 +489,16 @@ parser.add_argument('--max_wheel_speed_for_left',       type=float,         defa
 
 parser.add_argument('--watch_distance',                 type=float,         default = 8,
                     help='How close must the agent watch the object to achieve watching.')
-parser.add_argument('--top_arm_min_angle',              type=float,         default = pi/10,
+parser.add_argument('--top_arm_min_angle',              type=float,         default = pi/12,
                     help='How elevated the agent\'s arm must be to touch the object from above.')
 parser.add_argument('--global_push_amount',             type=float,         default = .1,
-                    help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--global_pull_amount',             type=float,         default = .1,
-                    help='Needed distance of an object for push/pull/left/right.')
-parser.add_argument('--local_push_pull_limit',          type=float,         default = .3,
-                    help='Prevent bogus pushing/pulling by requiring local stillness.')
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--local_push_limit',          type=float,         default = .3,
+                    help='Prevent bogus pushing by requiring local stillness.')
 parser.add_argument('--global_left_right_amount',       type=float,         default = .1,
-                    help='Needed distance of an object for push/pull/left/right.')
+                    help='Needed distance of an object for push/left/right.')
 parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
-                    help='Needed distance of an object for push/pull/left/right.')
+                    help='Needed distance of an object for push/left/right.')
 
 
     # Module  
@@ -674,10 +671,6 @@ def get_num_sensors(robot_name):
     num_sensors = len(sensors)
     return(num_sensors, sensors)
 
-
-
-if(__name__ == "__main__"):
-    print("Sensors:", num_sensors)
     
     
 def extend_list_to_match_length(target_list, length, value):

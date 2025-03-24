@@ -6,4 +6,4 @@
 #SBATCH --mem=50G
 #SBATCH --ntasks=30
 module load singularity
-singularity exec maze.sif python communication/main.py --comp deigo --arg_name et_1 --alpha None --normal_alpha 0.1 --max_wheel_speed_for_left 5 --processor wtplr  --agents $agents_per_job --previous_agents $previous_agents
+singularity exec maze.sif python communication/main.py --comp deigo --arg_name et_1 --alpha None --normal_alpha 0.1 --max_wheel_speed_for_left 3 --wide_view False --robot_name two_head_arm_a  --agents $agents_per_job --previous_agents $previous_agents
