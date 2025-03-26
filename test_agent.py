@@ -11,7 +11,7 @@ from agent import Agent
 
 
 hyper_parameters = "eft_9"
-agent_num = "0001"
+agent_num = "0002"
 epochs = "060000"
 saved_file = "saved_deigo"
 
@@ -47,9 +47,9 @@ agent.processor_name = 0
 episodes += 1
 win = agent.save_episodes(
     test = False, 
-    verbose = True,
-    display = True, 
-    video_display = False,
+    verbose = False,
+    display = False, 
+    video_display = True,
     sleep_time = 1, 
     waiting = False, 
     user_action = True, 

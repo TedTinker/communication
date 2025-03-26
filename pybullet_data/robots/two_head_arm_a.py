@@ -13,7 +13,8 @@ joint_1_height = .2
 
 hand_length = 1
 hand_height = 1.25
-hand_width = arm_thickness
+hand_width = arm_thickness * 3
+
 
 parts = [
     
@@ -110,7 +111,7 @@ parts = [
         joint_axis = (0, 1, 0),
         joint_type = "fixed",
         sensors = 1,
-        sensor_sides = ["left", "right", "top", "bottom", "start"],
+        sensor_sides = ["left", "right", "top", "bottom"],
         inertia = [0.01, 0, 0, 1.25, 0, 1.25]),
     
     Part(

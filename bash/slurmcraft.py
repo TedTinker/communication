@@ -82,8 +82,7 @@ add_this("c",   {                                           # Curiosity of langu
 
 add_this("t",   {
     "max_wheel_speed_for_left" : [3, 4, 5],
-    "wide_view" : ["False", "True"],
-    "robot_name" : ["two_head_arm_a", "two_head_arm_b"]})
+    "max_joint_1_angle" : [pi/4, pi/5, pi/6, pi/8]})
 
 
 

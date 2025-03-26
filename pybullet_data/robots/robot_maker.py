@@ -235,14 +235,6 @@ make_robot("two_head_arm_a", parts)
 
 
 
-if(cluster):
-    from .two_head_arm_b import parts
-else:
-    from two_head_arm_b import parts
-make_robot("two_head_arm_b", parts)
-
-
-
 if(__name__ == "__main__"):
     
     physicsClient = p.connect(p.GUI)
@@ -270,12 +262,14 @@ if(__name__ == "__main__"):
         initial_orientation = p.getQuaternionFromEuler([0, 0, pi/2])  # Replace with the actual starting orientation
         
         sensor_plotter(sensor_values, show = True, figsize = (10, 10), save_path = f"sensor_plots/{robot_name}_{str(0).zfill(3)}.png")
-        """for i in range(len(sensor_values)):
+        for i in range(len(sensor_values)):
             sensor_values[i] = 1
             sensor_plotter(sensor_values, show = True, figsize = (10, 10), save_path = f"sensor_plots/{robot_name}_{str(i+1).zfill(3)}.png")
-            sensor_values[i] = 0"""
+            sensor_values[i] = 0
         
     # Simulation loop
     while True:
         sleep(0.05)
         p.stepSimulation(physicsClientId=physicsClient)
+
+# %%

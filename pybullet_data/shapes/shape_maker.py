@@ -150,7 +150,7 @@ these_colors = [
 ]
 
 for index, (i, file_name) in enumerate(zip([-2, -1, 0, 1, 2], file_names)):
-    object_index = p.loadURDF("{}".format(file_name), (-5, 15 * i, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+    object_index = p.loadURDF("{}".format(file_name), (-5, 2.5 * i, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                                 useFixedBase=False, globalScaling = 2, physicsClientId=physicsClient)
     color = these_colors[index]
     p.changeVisualShape(object_index, -1, rgbaColor = color, physicsClientId = physicsClient)
@@ -206,9 +206,9 @@ for image_size in [16]:
         all_rgbs.append(rgbs)
     plot_these(all_rgbs)
     
-while True:
+"""while True:
     sleep(0.05)
-    p.stepSimulation(physicsClientId=physicsClient)
+    p.stepSimulation(physicsClientId=physicsClient)"""
   
 #p.disconnect(physicsClientId = physicsClient)
 

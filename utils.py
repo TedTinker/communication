@@ -1,7 +1,9 @@
 #%% 
 
 # To do:
-#   Jun wants left-right more local. Maybe reduce arm-angle range.
+#   Jun wants left-right to use the arm more. Try different max-wheel-speed and redefining left/right to mean from one side of agent to the other.
+#   I think top should take priority over left/right, so the agent can't push left/right touching the top.
+#   Let's just drop the joint-sensors.
 
 import os
 import pickle
@@ -446,10 +448,14 @@ parser.add_argument('--max_wheel_speed',                type=float,         defa
 parser.add_argument('--angular_scaler',                 type=float,         default = .4,
                     help='How to scale angular velocity vs linear velocity.')
 
-parser.add_argument('--max_joint_acceleration',         type=float,         default = 100000,
-                    help='Max joint acceleration.')
 parser.add_argument('--max_joint_speed',                type=float,         default = 8,
                     help='Max joint speed.')
+parser.add_argument('--max_joint_1_angle',              type=float,         default = pi/4,
+                    help='Max yaw angle.')
+parser.add_argument('--min_joint_2_angle',              type=float,         default = -pi/2,
+                    help='Max yaw angle.')
+parser.add_argument('--max_joint_2_angle',              type=float,         default = 0,
+                    help='Max yaw angle.')
 
 
 
@@ -682,12 +688,8 @@ def update_args(arg_set):
     if(arg_set.comp == "deigo"):
         arg_set.half = False
         
-    if("two_head_arm" in arg_set.robot_name):
-        arg_set.min_joint_1_angle = -pi/4
-        arg_set.max_joint_1_angle = pi/4
-        arg_set.min_joint_2_angle = -pi/2
-        arg_set.max_joint_2_angle = 0
-        arg_set.wheels_joints_shape = 4
+    arg_set.min_joint_1_angle = -arg_set.max_joint_1_angle
+    arg_set.wheels_joints_shape = 4
        
     num_sensors, sensors = get_num_sensors(args.robot_name)
     arg_set.touch_state_size = num_sensors
