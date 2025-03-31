@@ -15,9 +15,6 @@ from arena_navigator import run_tk
 
 
 
-
-
-
 def get_physics(GUI, args, w = 10, h = 10):
     if(GUI):
         physicsClient = p.connect(p.GUI)
@@ -124,6 +121,7 @@ class Arena():
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
                         
         # Place objects on lower level for future use.
+        linearDamping = 1
         angularDamping = 100
         self.loaded = {key : [] for key in shape_map.keys()}
         self.object_indexs = []
@@ -133,10 +131,10 @@ class Arena():
                 shape_urdf_file = f"pybullet_data/shapes/{shape.file_name}"
                 object_index = p.loadURDF(shape_urdf_file, pos, p.getQuaternionFromEuler([0, 0, pi/2]), 
                                           useFixedBase=False, globalScaling = self.args.object_size, physicsClientId=self.physicsClient)
-                p.changeDynamics(object_index, -1, maxJointVelocity = 10000, angularDamping=angularDamping)
+                p.changeDynamics(object_index, -1, maxJointVelocity = 10000, linearDamping=linearDamping, angularDamping=angularDamping)
                 for link_index in range(p.getNumJoints(object_index, physicsClientId = self.physicsClient)):
                     joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
-                    p.changeDynamics(object_index, link_index, maxJointVelocity = 10000, angularDamping=angularDamping)
+                    p.changeDynamics(object_index, link_index, maxJointVelocity = 10000, linearDamping=linearDamping, angularDamping=angularDamping)
                 self.loaded[i].append((object_index, (pos[0], pos[1], object_lower_starting_pos)))
                 self.object_indexs.append(object_index)
                 
@@ -202,10 +200,14 @@ class Arena():
                
         self.objects_local_pos_start = {}
         self.objects_local_pos_end = {}
+        self.objects_angle_start = {}
+        self.objects_angle_end = {}
         start_agent_pos, start_agent_orn = p.getBasePositionAndOrientation(self.robot_index)
         for object_index in self.objects_in_play.values():
             self.objects_local_pos_start[object_index] = self.get_local_position_of_object(object_index, start_agent_pos, start_agent_orn)
             self.objects_local_pos_end[object_index] = self.get_local_position_of_object(object_index, start_agent_pos, start_agent_orn)
+            self.objects_angle_start[object_index] = self.get_object_angle(object_index)
+            self.objects_angle_end[object_index] = self.get_object_angle(object_index)
             
             
             
@@ -217,6 +219,7 @@ class Arena():
         start_agent_pos, start_agent_orn = p.getBasePositionAndOrientation(self.robot_index)
         for object_index in self.objects_in_play.values():
             self.objects_local_pos_start[object_index] = self.get_local_position_of_object(object_index, start_agent_pos, start_agent_orn)
+            self.objects_angle_start[object_index] = self.get_object_angle(object_index)
         
         touching = self.touching_any_object()
         for object_index, touch_dict in touching.items():
@@ -272,6 +275,7 @@ class Arena():
         stop_agent_pos, stop_agent_orn = p.getBasePositionAndOrientation(self.robot_index)
         for object_index in self.objects_in_play.values():
             self.objects_local_pos_end[object_index] = self.get_local_position_of_object(object_index, stop_agent_pos, stop_agent_orn)
+            self.objects_angle_end[object_index] = self.get_object_angle(object_index)
         
         
         
@@ -321,6 +325,23 @@ class Arena():
             inv_agent_pos, inv_agent_orn,  
             obj_pos, obj_orn)
         return local_obj_pos # (x_local, y_local, z_local)
+    
+    def get_object_angle(self, object_index):
+        object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
+        agent_pos, agent_ori = p.getBasePositionAndOrientation(self.robot_index, physicsClientId = self.physicsClient)
+        distance_vector = np.subtract(object_pos[:2], agent_pos[:2])
+        distance = np.linalg.norm(distance_vector)
+        normalized_distance_vector = distance_vector / distance
+        rotation_matrix = p.getMatrixFromQuaternion(agent_ori, physicsClientId = self.physicsClient)
+        forward_vector = np.array([rotation_matrix[0], rotation_matrix[3]])
+        forward_vector /= np.linalg.norm(forward_vector)
+        dot_product = np.dot(forward_vector, normalized_distance_vector)
+        angle_radians = np.arccos(np.clip(dot_product, -1.0, 1.0))  
+        angle_degrees = degrees(angle_radians)
+        cross_product = np.cross(np.append(forward_vector, 0), np.append(normalized_distance_vector, 0))
+        if cross_product[2] < 0:  
+            angle_radians = -angle_radians
+        return(angle_radians)
             
     def touching_object(self, object_index):
         touching = {}
@@ -487,16 +508,6 @@ class Arena():
             agent_pos, agent_ori = p.getBasePositionAndOrientation(self.robot_index, physicsClientId = self.physicsClient)
             distance_vector = np.subtract(object_pos[:2], agent_pos[:2])
             distance = np.linalg.norm(distance_vector)
-            normalized_distance_vector = distance_vector / distance
-            rotation_matrix = p.getMatrixFromQuaternion(agent_ori, physicsClientId = self.physicsClient)
-            forward_vector = np.array([rotation_matrix[0], rotation_matrix[3]])
-            forward_vector /= np.linalg.norm(forward_vector)
-            dot_product = np.dot(forward_vector, normalized_distance_vector)
-            angle_radians = np.arccos(np.clip(dot_product, -1.0, 1.0))  
-            angle_degrees = degrees(angle_radians)
-            cross_product = np.cross(np.append(forward_vector, 0), np.append(normalized_distance_vector, 0))
-            if cross_product[2] < 0:  
-                angle_radians = -angle_radians
                 
             # How is the object moving in relation to the agent?
             (x_before, y_before, z_before) = self.objects_start[object_index]
@@ -511,39 +522,55 @@ class Arena():
             object_local_pos_end = self.objects_local_pos_end[object_index]
             local_movement_forward = object_local_pos_end[0] - object_local_pos_start[0]
             local_movement_left = object_local_pos_end[1] - object_local_pos_start[1]
+
+            # Changes in angle relative of agent.
+            object_angle_start = self.objects_angle_start[object_index]
+            object_angle_end = self.objects_angle_end[object_index]
+            angle_change = object_angle_end - object_angle_start
+            object_angle_start_degrees = degrees(object_angle_start)
+            object_angle_end_degrees = degrees(object_angle_end)
+            angle_change_degrees = degrees(angle_change)
             
             if(verbose):
                 print(f"Object: {color_map[color_index].name} {shape_map[shape_index].name}")
-                print(f"Angle from agent to object: {round(angle_degrees, 2)}")
+                print(f"Angle from agent to object: \t{round(object_angle_start_degrees, 2)} before, \t{round(object_angle_end_degrees, 2)} after, \t{round(angle_change_degrees, 2)} change")
                 print(f"Movement forward: \t{round(global_movement_forward, 2)} global, \t{round(local_movement_forward, 2)} local")
                 print(f"Movement left: \t\t{round(global_movement_left, 2)} global, \t{round(local_movement_left, 2)} local")
                 print(f"Angle of movement: {round(v_rx, 2), round(v_ry, 2)}")
             
             # Is the agent watching an object?
-            watching = abs(angle_radians) < self.args.pointing_at_object_for_watch and not touching and distance <= self.args.watch_distance
+            watching = abs(object_angle_end) < self.args.pointing_at_object_for_watch and not touching and distance <= self.args.watch_distance
             
             # Is the object touched by the arm, while the arm-angle is high?
             topping = touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle
                                     
             # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
-            pushing = touching and (global_movement_forward >= self.args.global_push_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_watch) 
+            pushing = touching and (global_movement_forward >= self.args.global_push_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_watch) 
                         
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
             good_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) < self.args.max_wheel_speed_for_left
-            lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_left) and good_speed
-            righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and (abs(angle_radians) < self.args.pointing_at_object_for_left) and good_speed
+            if(self.args.harder_left_right):
+                lefting = touching and good_speed and global_movement_left > 0 and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and angle_change > self.args.harder_left_right_amount
+                righting = touching and good_speed and global_movement_left < 0 and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and angle_change < -self.args.harder_left_right_amount
+            else:
+                lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed
+                righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed
             
             if(verbose):
                 print(f"\n\nTouching: {touching}. Touching body: {touching_body}.")
-                print(f"Watching ({watching}): \t\t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['watch'][object_index]} steps")
-                print(f"Topping ({topping}): \n\t{-round(self.get_joint_angles()[2], 2)} vs {round(self.args.top_arm_min_angle, 2)} limit \t{self.durations['top'][object_index]} steps")
-                print(f"Pushing ({pushing}): \n\t{round(global_movement_forward, 2)} out of {self.args.global_push_amount} global, \t {round(local_movement_forward, 2)} out of {self.args.local_push_limit} local limit \t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['push'][object_index]} steps")
-                print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['left'][object_index]} steps")
-                print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(angle_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['right'][object_index]} steps \n\n")
+                print(f"Watching ({watching}): \t\t{round(angle_change_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['watch'][object_index]} steps")
+                print(f"Topping ({topping}): \n\t{-round(degrees(self.get_joint_angles()[2]), 2)} degrees vs {round(degrees(self.args.top_arm_min_angle), 2)} limit \t{self.durations['top'][object_index]} steps")
+                print(f"Pushing ({pushing}): \n\t{round(global_movement_forward, 2)} out of {self.args.global_push_amount} global, \t {round(local_movement_forward, 2)} out of {self.args.local_push_limit} local limit \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['push'][object_index]} steps")
+                if(self.args.harder_left_right):
+                    print(f"Lefting ({lefting}): \n\t{round(angle_change_degrees, 2)} degrees out of {round(degrees(self.args.harder_left_right_amount), 2)} change, \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['left'][object_index]} steps")
+                    print(f"Righting ({righting}): \n\t{round(angle_change_degrees, 2)} degrees out of {-round(degrees(self.args.harder_left_right_amount), 2)} change, \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['right'][object_index]} steps \n\n")
+                else:
+                    print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['left'][object_index]} steps")
+                    print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['right'][object_index]} steps \n\n")
     
                 
-            active_changes = []
+            """active_changes = []
             if pushing:
                 active_changes.append(("pushing", global_movement_forward))
             if lefting:
@@ -559,14 +586,18 @@ class Arena():
                 elif highest_change == "lefting":
                     lefting = True
                 elif highest_change == "righting":
-                    righting = True   
-            if(pushing or lefting or righting):
-                topping = False
-            # Try this instead
-            # If(topping):
-            #   pushing = False
-            #   lefting = False 
-            #   righting = False
+                    righting = True   """
+            
+            if(lefting or righting):
+                pushing = False
+            if(self.args.prefer_top):
+                if(topping):
+                    pushing = False
+                    lefting = False 
+                    righting = False
+            else:
+                if(pushing or lefting or righting):
+                    topping = False
                         
                     
                         
@@ -626,10 +657,10 @@ class Arena():
                 if(color == self.goal.color and shape == self.goal.shape):
                     if(
                         (self.goal.task.name == "WATCH" and watched and not (topping or pushing or lefting or righting)) or 
-                        (self.goal.task.name == "TOP" and topped and not (watching or pushing or lefting or righting)) or 
-                        (self.goal.task.name == "PUSH" and pushed and not (watching or topping or lefting or righting)) or
-                        (self.goal.task.name == "LEFT" and lefted and not (watching or topping or pushing or righting)) or
-                        (self.goal.task.name == "RIGHT" and righted and not (watching or topping or pushing or lefting))):   
+                        (self.goal.task.name == "TOUCH TOP" and topped and not (watching or pushing or lefting or righting)) or 
+                        (self.goal.task.name == "PUSH FORWARD" and pushed and not (watching or topping or lefting or righting)) or
+                        (self.goal.task.name == "PUSH LEFT" and lefted and not (watching or topping or pushing or righting)) or
+                        (self.goal.task.name == "PUSH RIGHT" and righted and not (watching or topping or pushing or lefting))):   
                         win = True 
                         reward = self.args.reward
                 # If a task is occuring with a wrong object, no reward.
@@ -652,9 +683,6 @@ class Arena():
                 reward = 0
             else:
                 reward = self.args.wrong_object_punishment
-
-        if(self.goal.task.name == "FREEPLAY"):
-            reward = 0
             
         if(verbose):
             print(f"\nReport voice: \'{report_voice.human_text}\'")
@@ -689,11 +717,11 @@ class Arena():
             cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    
             cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
         proj_matrix = proj_matrix = p.computeProjectionMatrix(
-            left * (2 if self.args.wide_view else 1), 
-            right * (2 if self.args.wide_view else 1), 
+            left, 
+            right, 
             bottom, top, near, far)
         _, _, rgba, depth, _ = p.getCameraImage(
-            width=self.args.image_size * 4 if self.args.wide_view else self.args.image_size * 2, 
+            width=self.args.image_size * 2, 
             height=self.args.image_size * 2,
             projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
             physicsClientId = self.physicsClient)
@@ -702,7 +730,7 @@ class Arena():
         if(d.max() == d.min()): pass
         else: d = (d - d.min())/(d.max()-d.min())
         vision = np.concatenate([rgb, d], axis = -1)
-        vision = resize(vision, (self.args.image_size, self.args.image_size * (2 if self.args.wide_view else 1), 4))
+        vision = resize(vision, (self.args.image_size, self.args.image_size, 4))
         return(vision)
         
     

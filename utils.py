@@ -1,9 +1,8 @@
 #%% 
 
 # To do:
-#   Jun wants left-right to use the arm more. Try different max-wheel-speed and redefining left/right to mean from one side of agent to the other.
-#   I think top should take priority over left/right, so the agent can't push left/right touching the top.
-#   Let's just drop the joint-sensors.
+#   Jun wants left-right to use the arm more. Try redefining left/right to mean from one side of agent to the other.
+#   Pushed objects never stop. Experiment with friction, although it seems tough. Or, linearDamping.
 
 import os
 import pickle
@@ -86,10 +85,10 @@ class Task:
 task_map = {
     0:  Task("A", "SILENCE"),
     1:  Task("B", "WATCH"),
-    2:  Task("C", "TOP"),
-    3:  Task("D", "PUSH"),     
-    4:  Task("E", "LEFT"),   
-    5:  Task("F", "RIGHT")}    
+    2:  Task("C", "TOUCH TOP"),
+    3:  Task("D", "PUSH FORWARD"),     
+    4:  Task("E", "PUSH LEFT"),   
+    5:  Task("F", "PUSH RIGHT")}    
 max_len_taskname = max([len(t.name) for t in task_map.values()])
 task_name_list = [task.name for task in task_map.values()]
 
@@ -103,12 +102,12 @@ class Color:
         return(f"{self.char}, {self.name}")
     
 color_map = {
-    0: Color("G", "RED",     (1,0,0,1)), 
-    1: Color("H", "GREEN",   (0,1,0,1)),
-    2: Color("I", "BLUE",    (0,0,1,1)),
-    3: Color("J", "CYAN",    (0,1,1,1)), 
-    4: Color("K", "PINK",    (1,0,1,1)), 
-    5: Color("L", "YELLOW",  (1,1,0,1))} 
+    0: Color("G", "RED",        (1,0,0,1)), 
+    1: Color("H", "GREEN",      (0,1,0,1)),
+    2: Color("I", "BLUE",       (0,0,1,1)),
+    3: Color("J", "CYAN",       (0,1,1,1)), 
+    4: Color("K", "MAGENTA",    (1,0,1,1)), 
+    5: Color("L", "YELLOW",     (1,1,0,1))} 
 max_len_color_name = max([len(c.name) for c in color_map.values()])
 color_name_list = [c.name for c in color_map.values()]
 
@@ -378,9 +377,14 @@ parser = argparse.ArgumentParser()
     # Stuff I'm testing right now   
 parser.add_argument('--robot_name',                     type=str,           default = "two_head_arm_a",
                     help='Options: two_side_arm, one_head_arm.') 
-parser.add_argument('--wide_view',                      type=literal,       default = False,
-                    help='Does the agent see 180 degrees?')    
-
+parser.add_argument('--prefer_top',                     type=literal,       default = False,
+                    help='Should topping overwrite pushing?')    
+parser.add_argument('--harder_left_right',              type=literal,       default = True,
+                    help='Should pushing left/right be the more demanding version?')    
+parser.add_argument("--harder_left_right_amount",       type=float,         default = pi/24,
+                    help='If using the harder_left_right, how far must the object be pushed from one side to the other?')
+parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 11,
+                    help='How close must the agent watch the object to achieve pushing left or right.')
     
 
     # Meta 
@@ -450,7 +454,7 @@ parser.add_argument('--angular_scaler',                 type=float,         defa
 
 parser.add_argument('--max_joint_speed',                type=float,         default = 8,
                     help='Max joint speed.')
-parser.add_argument('--max_joint_1_angle',              type=float,         default = pi/4,
+parser.add_argument('--max_joint_1_angle',              type=float,         default = pi/6,
                     help='Max yaw angle.')
 parser.add_argument('--min_joint_2_angle',              type=float,         default = -pi/2,
                     help='Max yaw angle.')
@@ -489,8 +493,6 @@ parser.add_argument('--left_duration',                  type=int,           defa
 parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/6,
                     help='How close must the agent watch the object to achieve watching or pushing.')
 parser.add_argument('--pointing_at_object_for_left',    type=float,         default = pi/3,
-                    help='How close must the agent watch the object to achieve pushing left or right.')
-parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 11,
                     help='How close must the agent watch the object to achieve pushing left or right.')
 
 parser.add_argument('--watch_distance',                 type=float,         default = 8,

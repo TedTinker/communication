@@ -81,8 +81,9 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_touch" : 0})
 
 add_this("t",   {
-    "max_wheel_speed_for_left" : [3, 4, 5],
-    "max_joint_1_angle" : [pi/4, pi/5, pi/6, pi/8]})
+    "harder_left_right_amount" : [pi/24, pi/32],
+    "max_joint_1_angle" : [pi/4, pi/6],
+    "max_wheel_speed_for_left" : [5, 8, 11]})
 
 
 
@@ -114,7 +115,7 @@ if(__name__ == "__main__" and args.arg_list == []):
     print("ALL POSSIBLE HYPERPARAMETERS:")
     for key, value in slurm_dict.items(): 
         print(key, ":", value)
-    interesting = []
+    interesting = [f"ect_{i}" for i in range(1, 13)]
     if(len(interesting) != 0):
         print("\n\n\nTHESE HYPERPARAMETERS:")
         for this in interesting:

@@ -84,8 +84,6 @@ parts = [
         joint_origin = (0, 0, .5 + joint_1_height / 2), 
         joint_axis = (0, 0, 1),
         joint_type = "continuous",
-        sensors = 1,
-        sensor_sides = ["left", "right", "start", "stop"],
         joint_limits = [-math.pi/4, math.pi/4, 999, 999],
         inertia = [.01, 0, 0, .01, 0, .01]),
     
@@ -97,8 +95,6 @@ parts = [
         joint_origin = (0, 0, joint_1_height / 2 + arm_thickness / 2), 
         joint_axis = (0, 1, 0),
         joint_type = "continuous",
-        sensors = 1,
-        sensor_sides = ["left", "right", "top", "stop"],
         joint_limits = [-math.pi/2, 0, 999, 999],
         inertia = [.01, 0, 0, .01, 0, .01]),
     
