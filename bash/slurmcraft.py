@@ -81,9 +81,9 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_touch" : 0})
 
 add_this("t",   {
-    "harder_left_right_amount" : [pi/24, pi/32],
-    "max_joint_1_angle" : [pi/4, pi/6],
-    "max_wheel_speed_for_left" : [5, 8, 11]})
+    "global_push_amount" : [.1, .2, .3],
+    "global_left_right_amount" : [.1, .2, .3]
+})
 
 
 

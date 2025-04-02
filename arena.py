@@ -110,13 +110,18 @@ class Arena():
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
         p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
         self.sensors = []
+        self.wheels = []
         for link_index in range(p.getNumJoints(self.robot_index, physicsClientId = self.physicsClient)):
             joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
             link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
             p.changeDynamics(self.robot_index, link_index, maxJointVelocity = 10000)
+            if("wheel" in link_name):
+                self.wheels.append((link_index, link_name))
             if("sensor" in link_name):
                 self.sensors.append((link_index, link_name))
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 0, 0, sensor_alpha), physicsClientId = self.physicsClient)
+            elif("spoke" in link_name):
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, 1), physicsClientId = self.physicsClient)
             else:
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
                         
@@ -399,7 +404,13 @@ class Arena():
         y = linear_velocity * sin(yaw)
         angular_velocity = (right_wheel_speed - left_wheel_speed) * self.args.angular_scaler
         p.resetBaseVelocity(self.robot_index, linearVelocity=[x, y, 0], angularVelocity=[0, 0, angular_velocity], physicsClientId = self.physicsClient)
-        
+        for index, name in self.wheels:
+            if(name == "left_wheel"):
+                speed = left_wheel_speed 
+            else:
+                speed = right_wheel_speed
+            p.setJointMotorControl2(self.robot_index, index, controlMode = p.VELOCITY_CONTROL, targetVelocity = -4 * speed, physicsClientId=self.physicsClient)
+
     def get_robot_velocities(self):
         linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_index, physicsClientId=self.physicsClient)
         vx, vy, _ = linear_velocity  # Get only x, y velocities
@@ -569,24 +580,24 @@ class Arena():
                     print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['left'][object_index]} steps")
                     print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['right'][object_index]} steps \n\n")
     
-                
-            """active_changes = []
-            if pushing:
-                active_changes.append(("pushing", global_movement_forward))
-            if lefting:
-                active_changes.append(("lefting", global_movement_left))
-            if righting:
-                active_changes.append(("righting", abs(global_movement_left))) 
-            if len(active_changes) > 1:
-                active_changes.sort(key=lambda x: x[1], reverse=True)
-                highest_change = active_changes[0][0]
-                pushing, lefting, righting = False, False, False
-                if highest_change == "pushing":
-                    pushing = True
-                elif highest_change == "lefting":
-                    lefting = True
-                elif highest_change == "righting":
-                    righting = True   """
+            if(not self.args.harder_left_right):
+                active_changes = []
+                if pushing:
+                    active_changes.append(("pushing", global_movement_forward))
+                if lefting:
+                    active_changes.append(("lefting", global_movement_left))
+                if righting:
+                    active_changes.append(("righting", abs(global_movement_left))) 
+                if len(active_changes) > 1:
+                    active_changes.sort(key=lambda x: x[1], reverse=True)
+                    highest_change = active_changes[0][0]
+                    pushing, lefting, righting = False, False, False
+                    if highest_change == "pushing":
+                        pushing = True
+                    elif highest_change == "lefting":
+                        lefting = True
+                    elif highest_change == "righting":
+                        righting = True 
             
             if(lefting or righting):
                 pushing = False

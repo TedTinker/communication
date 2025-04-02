@@ -10,9 +10,9 @@ from agent import Agent
 
 
 
-hyper_parameters = "et_1"
-agent_num = "0002"
-epochs = "000000"
+hyper_parameters = "eft_4"
+agent_num = "0001"
+epochs = "060000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading...", end = " ")
@@ -36,8 +36,8 @@ print("Ready to go!")
     
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(5, 1)], 
-    objects = 2, 
+    tasks_and_weights = [(4, 1)], 
+    objects = 1, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
     parenting = True)}
@@ -48,7 +48,7 @@ episodes += 1
 win = agent.save_episodes(
     test = False, 
     verbose = True,
-    display = False, 
+    display = True, 
     video_display = True,
     sleep_time = 1, 
     waiting = False, 

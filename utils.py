@@ -2,7 +2,7 @@
 
 # To do:
 #   Jun wants left-right to use the arm more. Try redefining left/right to mean from one side of agent to the other.
-#   Pushed objects never stop. Experiment with friction, although it seems tough. Or, linearDamping.
+#   Try adding longer durations instead of just 3; episodes are ending so fast!
 
 import os
 import pickle
@@ -379,12 +379,21 @@ parser.add_argument('--robot_name',                     type=str,           defa
                     help='Options: two_side_arm, one_head_arm.') 
 parser.add_argument('--prefer_top',                     type=literal,       default = False,
                     help='Should topping overwrite pushing?')    
-parser.add_argument('--harder_left_right',              type=literal,       default = True,
+parser.add_argument('--harder_left_right',              type=literal,       default = False,
                     help='Should pushing left/right be the more demanding version?')    
 parser.add_argument("--harder_left_right_amount",       type=float,         default = pi/24,
                     help='If using the harder_left_right, how far must the object be pushed from one side to the other?')
-parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 11,
+parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 5,
                     help='How close must the agent watch the object to achieve pushing left or right.')
+
+parser.add_argument('--global_push_amount',             type=float,         default = .1,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--local_push_limit',          type=float,         default = .3,
+                    help='Prevent bogus pushing by requiring local stillness.')
+parser.add_argument('--global_left_right_amount',       type=float,         default = .1,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
+                    help='Needed distance of an object for push/left/right.')
     
 
     # Meta 
@@ -499,14 +508,6 @@ parser.add_argument('--watch_distance',                 type=float,         defa
                     help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--top_arm_min_angle',              type=float,         default = pi/12,
                     help='How elevated the agent\'s arm must be to touch the object from above.')
-parser.add_argument('--global_push_amount',             type=float,         default = .1,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--local_push_limit',          type=float,         default = .3,
-                    help='Prevent bogus pushing by requiring local stillness.')
-parser.add_argument('--global_left_right_amount',       type=float,         default = .1,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
-                    help='Needed distance of an object for push/left/right.')
 
 
     # Module  

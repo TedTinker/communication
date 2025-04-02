@@ -29,7 +29,6 @@ tasks = dict_to_ordered_list(task_map)
 colors = dict_to_ordered_list(color_map)
 shapes = dict_to_ordered_list(shape_map)
 
-
 def generate_random_string():
     return random.choice([t.char for t in tasks[:2]]) + random.choice([c.char for c in colors[:2]]) + random.choice([s.char for s in shapes[:2]])
 
