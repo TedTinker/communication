@@ -81,8 +81,7 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_touch" : 0})
 
 add_this("t",   {
-    "global_push_amount" : [.1, .2, .3],
-    "global_left_right_amount" : [.1, .2, .3]
+    "be_near_distance" : [2.5, 2.75, 3, 3.25, 3.5, 3.75, 4]
 })
 
 

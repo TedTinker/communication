@@ -78,14 +78,14 @@ class Agent:
         #os.sched_setaffinity(0, {self.args.cpu})
         
         self.processors = {
-            "wtplr" :       Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],     objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, 
-                                      full_name = "All Tasks"),
-            }
+            "all" :       Processor(
+                self.args, self.arena_1, self.arena_2, 
+                tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1)],     
+                objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, full_name = "All Tasks")}
         
         self.all_processors = {f"{task_map[task].name}_{color_map[color].name}_{shape_map[shape].name}" : 
             Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(task, 1)], objects = 2, colors = [color], shapes = [shape], parenting = True) for task, color, shape in \
-                product([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
-                #product([0, 1], [0, 1], [0, 1])}
+                product([1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
         all_processor_names = list(self.all_processors.keys())
         self.all_processor_names = all_processor_names
         
@@ -137,6 +137,7 @@ class Agent:
             "steps" : [],
             
             "behavior" : {},
+            "component_data" : {},
             
             "accuracy_loss" : [], 
             "complexity_loss" : [],
@@ -199,6 +200,8 @@ class Agent:
             (self.agent_num <= self.args.agents_per_agent_save and self.epochs % self.args.epochs_per_agent_save == 0) or 
             (self.agent_num <= self.args.agents_per_agent_save and force)):
             self.save_agent()
+        if(self.epochs % self.args.epochs_per_component_data == 0 or force):
+            self.get_component_data()
         if(self.epochs % self.args.epochs_per_gen_test == 0 or force):
             self.gen_test(sleep_time = sleep_time)  
         
@@ -218,9 +221,7 @@ class Agent:
                 full_name = self.processors[self.processor_name].full_name
                 self.plot_dict["division_epochs"].append((self.total_epochs, linestyle, full_name))
                 break
-                        
             self.regular_checks(sleep_time = sleep_time)
-        
         self.regular_checks(force = True)
         self.save_dicts(final = True)
         
@@ -705,16 +706,18 @@ class Agent:
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
             Obs(vision, touch, command_voice, report_voice), Action(wheels_joints, voice_out))
         
-        command_voice_zq = command_voice_is.zq.detach().cpu().numpy()
         labels = labels.detach().cpu().numpy()
-        all_mask = all_mask.detach().cpu().numpy()   
-        
         non_zero_mask = labels[:, 0, 0] != 0  # This checks if the first element of each sequence is not 0
-        command_voice_zq_filtered = command_voice_zq[non_zero_mask]
-        labels_filtered = labels[non_zero_mask]
-        all_mask_filtered = all_mask[non_zero_mask]
-                
-        return command_voice_zq, labels, all_mask, command_voice_zq_filtered, labels_filtered, all_mask_filtered
+        all_mask = all_mask.detach().cpu().numpy()  
+        
+        vision_zq = vision_is.zq.detach().cpu().numpy()
+        touch_zq = touch_is.zq.detach().cpu().numpy()
+        command_voice_zq = command_voice_is.zq.detach().cpu().numpy()
+        report_voice_zq = report_voice_is.zq.detach().cpu().numpy()
+        
+        self.plot_dict["component_data"][self.epochs] = {
+            "labels" : labels, "non_zero_mask" : non_zero_mask, "all_mask" : all_mask, 
+            "vision_zq" : vision_zq, "touch_zq" : touch_zq, "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq}
         
         
         

@@ -31,7 +31,7 @@ robot_dict = {}
 
 
 
-def make_robot(robot_name, parts):
+def make_robot(robot_name, parts, face = True):
             
     for part in parts:
         part.sensor_text = part.get_sensors_text(parts)
@@ -100,11 +100,18 @@ def make_robot(robot_name, parts):
             
         return(face_sizes, face_positions)
         
-    front_face_sizes, front_face_positions = make_face(front_squares, which = "front")
-    back_face_sizes, back_face_positions = make_face(back_squares, which = "back")
-    left_face_sizes, left_face_positions = make_face(left_squares, which = "left")
-    right_face_sizes, right_face_positions = make_face(right_squares, which = "right")
-    top_face_sizes, top_face_positions = make_face(top_squares, which = "top")
+    if(face):
+        front_face_sizes, front_face_positions = make_face(front_squares, which = "front")
+        back_face_sizes, back_face_positions = make_face(back_squares, which = "back")
+        left_face_sizes, left_face_positions = make_face(left_squares, which = "left")
+        right_face_sizes, right_face_positions = make_face(right_squares, which = "right")
+        top_face_sizes, top_face_positions = make_face(top_squares, which = "top")
+    else:
+        front_face_sizes, front_face_positions = [], []
+        back_face_sizes, back_face_positions = [], []
+        left_face_sizes, left_face_positions = [], []
+        right_face_sizes, right_face_positions = [], []
+        top_face_sizes, top_face_positions = [], []
 
     face_sizes = front_face_sizes + back_face_sizes + left_face_sizes + right_face_sizes + top_face_sizes
     face_positions = front_face_positions + back_face_positions + left_face_positions + right_face_positions + top_face_positions
@@ -123,7 +130,7 @@ def make_robot(robot_name, parts):
         new_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
         os.chdir(new_dir)    
         
-    with open(f"robot_{robot_name}.urdf", 'w') as file:
+    with open(f"{robot_name}.urdf", 'w') as file:
         file.write(robot)
         
     # Example usage with actual robot parts data
@@ -308,10 +315,10 @@ def make_robot(robot_name, parts):
     
 
 if(cluster):
-    from .two_head_arm_a import parts
+    from .robot import parts
 else:
-    from two_head_arm_a import parts
-make_robot("two_head_arm_a", parts)
+    from robot import parts
+make_robot("robot", parts)
 
 
 
@@ -325,7 +332,7 @@ if(__name__ == "__main__"):
     num_bots = len(robot_dict)
     for i, robot_name in enumerate(robot_dict.keys()):
         sensor_plotter, sensor_values = robot_dict[robot_name]
-        robot_index = p.loadURDF("robot_{}.urdf".format(robot_name), (-1 + num_bots * 10 / 2 - i * 10, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+        robot_index = p.loadURDF("{}.urdf".format(robot_name), (-1 + num_bots * 10 / 2 - i * 10, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                                     useFixedBase=True, globalScaling = 2, physicsClientId=physicsClient)
         p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
         for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
@@ -336,7 +343,7 @@ if(__name__ == "__main__"):
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, .15), physicsClientId = physicsClient)
             elif("face" in link_name or "wheel" in link_name):
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = physicsClient)
-            elif("spoke" in link_name):
+            elif("spoke" in link_name or "outline" in link_name):
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 1, 1, 1), physicsClientId = physicsClient)
             else:
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)

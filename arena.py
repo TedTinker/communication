@@ -87,7 +87,7 @@ class Arena():
         self.args = args
         self.physicsClient = physicsClient
         self.objects_in_play = {}
-        self.durations = {"watch" : {}, "top": {}, "push" : {}, "left" : {}, "right" : {}}
+        self.durations = {"watch" : {}, "be_near": {}, "top": {}, "push" : {}, "left" : {}, "right" : {}}
                         
         # Make floor and lower level.
         plane_positions = [[0, 0]]
@@ -101,7 +101,7 @@ class Arena():
         # Place robot. 
         self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = self.physicsClient)
                 
-        robot_urdf_path = f"pybullet_data/robots/robot_{self.args.robot_name}.urdf"
+        robot_urdf_path = f"pybullet_data/robots/{self.args.robot_name}.urdf"
         self.robot_index = p.loadURDF(robot_urdf_path, (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
         self.joint_indices = get_joint_indices(self.robot_index, physicsClient=self.physicsClient) 
         self.wheel_accelerations = [0, 0]
@@ -167,7 +167,7 @@ class Arena():
         self.joint_accelerations = {key: 0 for key in self.joint_indices.keys()}
         
         self.objects_in_play = {}
-        self.durations = {"watch" : {}, "top" : {}, "push" : {}, "left" : {}, "right" : {}}
+        self.durations = {"watch" : {}, "be_near" : {}, "top" : {}, "push" : {}, "left" : {}, "right" : {}}
         already_in_play = {key : 0 for key in shape_map.keys()}
         if(set_positions == None):
             set_positions = self.generate_positions(len(objects), self.args.max_object_distance)
@@ -192,7 +192,7 @@ class Arena():
                     p.changeVisualShape(object_index, i, rgbaColor = color.rgba, physicsClientId=self.physicsClient)
                         
             self.objects_in_play[(color_index, shape_index, idle_pos)] = object_index
-            for task in ["watch", "top", "push", "left", "right"]:
+            for task in ["watch", "be_near", "top", "push", "left", "right"]:
                 self.durations[task][object_index] = 0
             
         self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
@@ -503,6 +503,7 @@ class Arena():
                 
         for i, ((color_index, shape_index, _), object_index) in enumerate(self.objects_in_play.items()):
             watched = False 
+            been_near = False
             topped = False
             pushed = False 
             lefted = False 
@@ -551,6 +552,9 @@ class Arena():
             
             # Is the agent watching an object?
             watching = abs(object_angle_end) < self.args.pointing_at_object_for_watch and not touching and distance <= self.args.watch_distance
+            being_near = watching and distance <= self.args.be_near_distance
+            if(being_near):
+                watching = False
             
             # Is the object touched by the arm, while the arm-angle is high?
             topping = touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle
@@ -571,6 +575,7 @@ class Arena():
             if(verbose):
                 print(f"\n\nTouching: {touching}. Touching body: {touching_body}.")
                 print(f"Watching ({watching}): \t\t{round(angle_change_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['watch'][object_index]} steps")
+                print(f"Being Near ({being_near}): \t\t{round(angle_change_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{round(distance, 2)} units out of {round(self.args.be_near_distance, 2)} \t{self.durations['be_near'][object_index]} steps")
                 print(f"Topping ({topping}): \n\t{-round(degrees(self.get_joint_angles()[2]), 2)} degrees vs {round(degrees(self.args.top_arm_min_angle), 2)} limit \t{self.durations['top'][object_index]} steps")
                 print(f"Pushing ({pushing}): \n\t{round(global_movement_forward, 2)} out of {self.args.global_push_amount} global, \t {round(local_movement_forward, 2)} out of {self.args.local_push_limit} local limit \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['push'][object_index]} steps")
                 if(self.args.harder_left_right):
@@ -614,11 +619,12 @@ class Arena():
                         
             if(verbose):
                 print(f"After consideration:")
-                print(f"Watching: ({watching})")
-                print(f"Topping: ({topping})") 
-                print(f"Pushing: ({pushing})")
-                print(f"Lefting: ({lefting})")
-                print(f"Righting: ({righting})\n") 
+                print(f"Watching: {watching}")
+                print(f"Being Near: {being_near}")
+                print(f"Topping: {topping}") 
+                print(f"Pushing: {pushing}")
+                print(f"Lefting: {lefting}")
+                print(f"Righting: {righting}\n") 
                 
 
             
@@ -629,23 +635,25 @@ class Arena():
                     self.durations[action_name][object_index] = 0
                 return self.durations[action_name][object_index] >= duration_threshold
 
-            watched = update_duration("watch",  watching,   object_index, self.args.watch_duration)
-            topped  = update_duration("top",    topping,    object_index, self.args.top_duration)
-            pushed  = update_duration("push",   pushing,    object_index, self.args.push_duration)
-            lefted  = update_duration("left",   lefting,    object_index, self.args.left_duration)
-            righted = update_duration("right",  righting,   object_index, self.args.right_duration)
+            watched     = update_duration("watch",      watching,   object_index, self.args.watch_duration)
+            been_near   = update_duration("be_near",    being_near, object_index, self.args.be_near_duration)
+            topped      = update_duration("top",        topping,    object_index, self.args.top_duration)
+            pushed      = update_duration("push",       pushing,    object_index, self.args.push_duration)
+            lefted      = update_duration("left",       lefting,    object_index, self.args.left_duration)
+            righted     = update_duration("right",      righting,   object_index, self.args.right_duration)
             
             if(verbose):
                 print(f"Finished:")
-                print(f"Watched: ({watched})")
-                print(f"Topped: ({topped})")
-                print(f"Pushed: ({pushed})")
-                print(f"Lefted: ({lefted})")
-                print(f"Righted: ({righted})\n")
+                print(f"Watched: {watched}")
+                print(f"Topped: {topped}")
+                print(f"Been Near: {been_near}")
+                print(f"Pushed: {pushed}")
+                print(f"Lefted: {lefted}")
+                print(f"Righted: {righted}\n")
                 
             key = (color_map[color_index], shape_map[shape_index])
-            new_value = [watched, topped, pushed, lefted, righted, watching, topping, pushing, lefting, righting]
-
+            new_value = [watched, been_near, topped, pushed, lefted, righted, watching, being_near, topping, pushing, lefting, righting]
+            
             # If there are multiple of the same object, consider them all.
             if key in objects_goals:
                 objects_goals[key] = [old or new for old, new in zip(objects_goals[key], new_value)]
@@ -656,10 +664,10 @@ class Arena():
         wrong_object = False
         task_performed = None
                 
-        for (color, shape), (watched, topped, pushed, lefted, righted, watching, topping, pushing, lefting, righting) in objects_goals.items():
+        for (color, shape), (watched, been_near, topped, pushed, lefted, righted, watching, being_near, topping, pushing, lefting, righting) in objects_goals.items():
             # If any one task is accomplished, find the task/color/shape.
                         
-            if(sum([watched, topped, pushed, lefted, righted]) == 1):
+            if(sum([watched, been_near, topped, pushed, lefted, righted]) == 1):
                 # If the correct object, check the task.
                 if(watched):
                     task_performed = "watched"  
@@ -667,11 +675,12 @@ class Arena():
                     task_performed = "other"
                 if(color == self.goal.color and shape == self.goal.shape):
                     if(
-                        (self.goal.task.name == "WATCH" and watched and not (topping or pushing or lefting or righting)) or 
-                        (self.goal.task.name == "TOUCH TOP" and topped and not (watching or pushing or lefting or righting)) or 
-                        (self.goal.task.name == "PUSH FORWARD" and pushed and not (watching or topping or lefting or righting)) or
-                        (self.goal.task.name == "PUSH LEFT" and lefted and not (watching or topping or pushing or righting)) or
-                        (self.goal.task.name == "PUSH RIGHT" and righted and not (watching or topping or pushing or lefting))):   
+                        (self.goal.task.name == "WATCH"         and watched     and not (               being_near or   topping or  pushing or  lefting or  righting)) or 
+                        (self.goal.task.name == "BE NEAR"       and been_near   and not (watching or                    topping or  pushing or  lefting or  righting)) or 
+                        (self.goal.task.name == "TOUCH THE TOP" and topped      and not (watching or    being_near or               pushing or  lefting or  righting)) or 
+                        (self.goal.task.name == "PUSH FORWARD"  and pushed      and not (watching or    being_near or   topping or              lefting or  righting)) or
+                        (self.goal.task.name == "PUSH LEFT"     and lefted      and not (watching or    being_near or   topping or  pushing or              righting)) or
+                        (self.goal.task.name == "PUSH RIGHT"    and righted     and not (watching or    being_near or   topping or  pushing or  lefting))):   
                         win = True 
                         reward = self.args.reward
                 # If a task is occuring with a wrong object, no reward.
@@ -680,12 +689,13 @@ class Arena():
                     
             # Report's voice reflects ongoing processes
             task_in_progress = None
-            if(sum([watching, topping, pushing, lefting, righting]) >= 1):
-                if(watching): task_in_progress = task_map[1]
-                if(topping):  task_in_progress = task_map[2]
-                if(pushing):  task_in_progress = task_map[3]
-                if(lefting):  task_in_progress = task_map[4] # If pushing but also lefting/righting,
-                if(righting): task_in_progress = task_map[5] # use lefting/righting
+            if(sum([watching, being_near, topping, pushing, lefting, righting]) >= 1):
+                if(watching):   task_in_progress = task_map[1]
+                if(being_near): task_in_progress = task_map[2]
+                if(topping):    task_in_progress = task_map[3]
+                if(pushing):    task_in_progress = task_map[4]
+                if(lefting):    task_in_progress = task_map[5] # If pushing but also lefting/righting,
+                if(righting):   task_in_progress = task_map[6] # use lefting/righting
                 report_voice = Goal(task_in_progress, color, shape, parenting = False)
                 
         if(wrong_object):

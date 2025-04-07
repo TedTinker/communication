@@ -1,7 +1,7 @@
 #%% 
 
 # To do:
-#   Jun wants left-right to use the arm more. Try redefining left/right to mean from one side of agent to the other.
+#   Are are generalized win-rates so weird? Everything but "all" look like they're only half full.
 #   Try adding longer durations instead of just 3; episodes are ending so fast!
 
 import os
@@ -85,10 +85,11 @@ class Task:
 task_map = {
     0:  Task("A", "SILENCE"),
     1:  Task("B", "WATCH"),
-    2:  Task("C", "TOUCH TOP"),
-    3:  Task("D", "PUSH FORWARD"),     
-    4:  Task("E", "PUSH LEFT"),   
-    5:  Task("F", "PUSH RIGHT")}    
+    2:  Task("C", "BE NEAR"),
+    3:  Task("D", "TOUCH THE TOP"),
+    4:  Task("E", "PUSH FORWARD"),     
+    5:  Task("F", "PUSH LEFT"),   
+    6:  Task("G", "PUSH RIGHT")}    
 max_len_taskname = max([len(t.name) for t in task_map.values()])
 task_name_list = [task.name for task in task_map.values()]
 
@@ -102,12 +103,12 @@ class Color:
         return(f"{self.char}, {self.name}")
     
 color_map = {
-    0: Color("G", "RED",        (1,0,0,1)), 
-    1: Color("H", "GREEN",      (0,1,0,1)),
-    2: Color("I", "BLUE",       (0,0,1,1)),
-    3: Color("J", "CYAN",       (0,1,1,1)), 
-    4: Color("K", "MAGENTA",    (1,0,1,1)), 
-    5: Color("L", "YELLOW",     (1,1,0,1))} 
+    0: Color("H", "RED",        (1,0,0,1)), 
+    1: Color("I", "GREEN",      (0,1,0,1)),
+    2: Color("J", "BLUE",       (0,0,1,1)),
+    3: Color("K", "CYAN",       (0,1,1,1)), 
+    4: Color("L", "MAGENTA",    (1,0,1,1)), 
+    5: Color("M", "YELLOW",     (1,1,0,1))} 
 max_len_color_name = max([len(c.name) for c in color_map.values()])
 color_name_list = [c.name for c in color_map.values()]
 
@@ -273,10 +274,49 @@ if(__name__ == "__main__"):
 
 
 all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
+#training_combos = [(a, c, s) for (a, c, s) in all_combos if 
+#                   a == 0 or a == 1 or
+#                   ((s + c) % 2 == 1 and a % 2 == 0) or
+#                   ((s + c) % 2 == 0 and a % 2 == 1)]
 training_combos = [(a, c, s) for (a, c, s) in all_combos if 
-                   a == 0 or a == 1 or
-                   ((s + c) % 2 == 1 and a % 2 == 0) or
-                   ((s + c) % 2 == 0 and a % 2 == 1)]
+                    a == 0 or a == 1 or
+                    
+                   (a == 2 and (s, c) in 
+                    [(0, 0), (0, 1), (0, 2), (0, 3),
+                            (1, 1), (1, 2), (1, 3), (1, 4),
+                                    (2, 2), (2, 3), (2, 4), (2, 5),
+                    (3, 0),                 (3, 3), (3, 4), (3, 5),
+                    (4, 0), (4, 1),                 (4, 4), (4, 5)]) or
+                   
+                    (a == 3 and (s, c) in 
+                    [       (0, 1), (0, 2), (0, 3), (0, 4),
+                                    (1, 2), (1, 3), (1, 4), (1, 5),
+                                            (2, 3), (2, 4), (2, 5),
+                    (3, 0), (3, 1),                 (3, 4), (3, 5),
+                    (4, 0), (4, 1), (4, 2),                 (4, 5)]) or
+                    
+                    (a == 4 and (s, c) in 
+                    [               (0, 2), (0, 3), (0, 4),
+                                    (1, 2), (1, 3), (1, 4), (1, 5),
+                                            (2, 3), (2, 4), (2, 5),
+                    (3, 0), (3, 1),                 (3, 4), (3, 5),
+                    (4, 0), (4, 1), (4, 2),                 (4, 5)]) or
+                    
+                    (a == 5 and (s, c) in 
+                    [       (0, 1), (0, 2), (0, 3), (0, 4),
+                                    (1, 2), (1, 3), (1, 4), (1, 5),
+                                            (2, 3), (2, 4), (2, 5),
+                    (3, 0), (3, 1),                 (3, 4), (3, 5),
+                    (4, 0), (4, 1), (4, 2),                 (4, 5)]) or
+                    
+                    (a == 6 and (s, c) in 
+                    [       (0, 1), (0, 2), (0, 3), (0, 4),
+                                    (1, 2), (1, 3), (1, 4), (1, 5),
+                                            (2, 3), (2, 4), (2, 5),
+                    (3, 0), (3, 1),                 (3, 4), (3, 5),
+                    (4, 0), (4, 1), (4, 2),                 (4, 5)])
+                   
+                   ]
 
 testing_combos = [combo for combo in all_combos if not combo in training_combos]
 
@@ -332,6 +372,7 @@ def make_objects_and_task(num_objects, allowed_tasks_and_weights, allowed_colors
     tasks   = [v for v, w in allowed_tasks_and_weights]
     weights = [w for v, w in allowed_tasks_and_weights]
     task_num = choices(tasks, weights=weights, k=1)[0]
+    
     goal_object = valid_color_shape(task_num, [], allowed_colors, allowed_shapes, test = test)
     colors_shapes_1 = [goal_object]
     colors_shapes_2 = [goal_object]
@@ -352,14 +393,11 @@ if(__name__ == "__main__"):
     for i in range(1):
         task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(2, [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])
         print(task.name, [(color.name, shape.name) for color, shape in colors_shapes_1], [(color.name, shape.name) for color, shape in colors_shapes_2])
-    print("\nTest")
-    for i in range(1):
-        task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(2, [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True)
-        print(task.name, [(color.name, shape.name) for color, shape in colors_shapes_1], [(color.name, shape.name) for color, shape in colors_shapes_2])
+    #print("\nTest")
+    #for i in range(1):
+    #    task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(2, [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True)
+    #    print(task.name, [(color.name, shape.name) for color, shape in colors_shapes_1], [(color.name, shape.name) for color, shape in colors_shapes_2])
         
-    task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(1, [(0, 1)], [0], [0])
-    print(task.name, [(color.name, shape.name) for color, shape in colors_shapes_1], [(color.name, shape.name) for color, shape in colors_shapes_2])
-
         
         
         
@@ -375,7 +413,7 @@ def literal(arg_string): return(ast.literal_eval(arg_string))
 parser = argparse.ArgumentParser()
 
     # Stuff I'm testing right now   
-parser.add_argument('--robot_name',                     type=str,           default = "two_head_arm_a",
+parser.add_argument('--robot_name',                     type=str,           default = "robot",
                     help='Options: two_side_arm, one_head_arm.') 
 parser.add_argument('--prefer_top',                     type=literal,       default = False,
                     help='Should topping overwrite pushing?')    
@@ -385,12 +423,14 @@ parser.add_argument("--harder_left_right_amount",       type=float,         defa
                     help='If using the harder_left_right, how far must the object be pushed from one side to the other?')
 parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 5,
                     help='How close must the agent watch the object to achieve pushing left or right.')
+parser.add_argument('--be_near_distance',               type=float,         default = 3,
+                    help='How close must the agent watch the object to achieve be_near.')
 
 parser.add_argument('--global_push_amount',             type=float,         default = .1,
                     help='Needed distance of an object for push/left/right.')
 parser.add_argument('--local_push_limit',          type=float,         default = .3,
                     help='Prevent bogus pushing by requiring local stillness.')
-parser.add_argument('--global_left_right_amount',       type=float,         default = .1,
+parser.add_argument('--global_left_right_amount',       type=float,         default = .2,
                     help='Needed distance of an object for push/left/right.')
 parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
                     help='Needed distance of an object for push/left/right.')
@@ -425,9 +465,9 @@ parser.add_argument('--load_agents',                    type=literal,       defa
 
 
     # Things which have list-values.
-parser.add_argument('--epochs',                         type=int,       default = 60000,
+parser.add_argument('--epochs',                         type=int,       default = 50000,
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--processor',                      type=str,       default = "wtplr",
+parser.add_argument('--processor',                      type=str,       default = "all",
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
     
 
@@ -492,7 +532,9 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 parser.add_argument('--watch_duration',                 type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--top_duration',                  type=int,           default = 3,   
+parser.add_argument('--be_near_duration',               type=int,           default = 3,
+                    help='How long must the agent watch the object to achieve watching.')
+parser.add_argument('--top_duration',                   type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--push_duration',                  type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
@@ -645,10 +687,15 @@ parser.add_argument('--epochs_per_gen_test',            type=int,           defa
 parser.add_argument('--agents_per_behavior_analysis',   type=int,           default = 1,
                     help='How many agents to save episodes.')
 
-parser.add_argument('--epochs_per_agent_save',          type=int,           default = 30000,
+parser.add_argument('--epochs_per_agent_save',          type=int,           default = 25000,
                     help='How many epochs should pass before saving agent model.')
 parser.add_argument('--agents_per_agent_save',          type=int,           default = 2,
                     help='How many epochs should pass before saving agent model.')
+
+parser.add_argument('--epochs_per_component_data',      type=int,           default = 2500,
+                    help='How many epochs should pass before saving an episode.')
+parser.add_argument('--agents_per_component_data',      type=int,           default = 2,
+                    help='How many agents to save episodes.')
 
 
 
@@ -666,7 +713,7 @@ except:
     
 # Checking robot parts.
 def get_num_sensors(robot_name):
-    urdf_path = "pybullet_data/robots/robot_{}.urdf".format(args.robot_name)
+    urdf_path = "pybullet_data/robots/{}.urdf".format(args.robot_name)
     physicsClient = p.connect(p.DIRECT)
     default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
     robot_index = p.loadURDF(urdf_path, (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)

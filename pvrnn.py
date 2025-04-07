@@ -296,8 +296,8 @@ class PVRNN(nn.Module):
         task_labels = labels[:, :, 0].clone().unsqueeze(-1)
         color_labels = labels[:, :, 1].clone().unsqueeze(-1)
         shape_labels = labels[:, :, 2].clone().unsqueeze(-1)
-        color_labels[color_labels != 0] = color_labels[color_labels != 0] - 5  # 6-11 -> 1-6
-        shape_labels[shape_labels != 0] = shape_labels[shape_labels != 0] - 11  # 12-16 -> 1-5
+        color_labels[color_labels != 0] = color_labels[color_labels != 0] - 7  # 7-12 -> 1-6
+        shape_labels[shape_labels != 0] = shape_labels[shape_labels != 0] - 13  # 13-17 -> 1-5
 
         labels = torch.cat((task_labels, color_labels, shape_labels), dim=-1)
                         

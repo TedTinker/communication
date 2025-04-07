@@ -2,6 +2,7 @@
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.table import Table
 import tkinter as tk
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
@@ -36,8 +37,22 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
     obs = episode_dict[f"obs_{agent_num}"][step]
     vision = obs.vision[0, :, :, :-1]
     touch = obs.touch.tolist()[0]
+    
     command_voice = obs.command_voice.human_friendly_text()
     report_voice = obs.report_voice.human_friendly_text(command = False)
+        
+    command_task = obs.command_voice.task.name.replace(" ", "\n")
+    command_color = obs.command_voice.color.name.replace(" ", "\n")
+    command_shape = obs.command_voice.shape.name.replace(" ", "\n")
+
+    report_task = obs.report_voice.task.name.replace(" ", "\n")
+    report_color = obs.report_voice.color.name.replace(" ", "\n")
+    report_shape = obs.report_voice.shape.name.replace(" ", "\n")
+    
+    cell_data = [
+        ["", "Task", "Color", "Shape"],
+        ["Command", command_task, command_color, command_shape],
+        ["Report", report_task, report_color, report_shape]]
 
     dpi = 100  
     # Create figure with no facecolor (transparent)
@@ -87,24 +102,21 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
         spine.set_edgecolor('black')
         spine.set_linewidth(3)
     
-    # Command and report text on the main axes, aligned to the right.
-    main_ax.text(
-        .94, 0.10, command_voice,
-        fontsize=15,
-        transform=main_ax.transAxes,
-        zorder=3,
-        ha='right',
-        va='center',
-        bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3', alpha=1.0, linewidth=2))
+    # Command and report text
+    table_ax = fig.add_axes([0.05, -0.125, 0.9, 0.25])  # position: [left, bottom, width, height]
+    table_ax.set_axis_off()
+    table = Table(table_ax, bbox=[0, 0, 1, 1])
 
-    main_ax.text(
-        .94, 0.04, report_voice,
-        fontsize=15,
-        transform=main_ax.transAxes,
-        zorder=3,
-        ha='right',
-        va='center',
-        bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3', alpha=1.0, linewidth=2))
+    n_rows, n_cols = len(cell_data), len(cell_data[0])
+    width, height = 1.0 / n_cols, 1.0 / n_rows
+
+    for i in range(n_rows):
+        for j in range(n_cols):
+            text = cell_data[i][j]
+            cell = table.add_cell(i, j, width, height, text=text, loc='center', facecolor='white', edgecolor='black')
+            cell.get_text().set_fontsize(14)  # Set fontsize here
+
+    table_ax.add_table(table)
     
 
     
@@ -121,7 +133,7 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
 
 if __name__ == "__main__":
     print("name:\n{}\n".format(args.arg_name),)
-    plot_dicts, min_max_dict, complete_order = load_dicts()
+    plot_dicts, min_max_dict, complete_order = load_dicts(args)
     plot_episodes(complete_order, plot_dicts)
     print("\nDuration: {}. Done!".format(duration()))
     

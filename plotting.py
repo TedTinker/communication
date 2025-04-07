@@ -187,6 +187,7 @@ def plots(plot_dicts, min_max_dict):
         if(not too_many_plot_dicts):
             ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
         args = plot_dict["args"]
+        args.robot_name = "robot"
         print(f"\nStarting {plot_dict['arg_name']}.")
         epochs = plot_dict["division_epochs"][0]
         
@@ -230,6 +231,8 @@ def plots(plot_dicts, min_max_dict):
                 if(key != "xs"):
                     win_dict[key] *= 100
                     gen_win_dict[key] *= 100
+                else:
+                    gen_win_dict[key] *= args.epochs_per_gen_test
                                 
             def plot_rolling_average_wins(here, gen = False):
                 this_win_dict = gen_win_dict if gen else win_dict

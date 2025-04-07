@@ -14,7 +14,7 @@ def run():
     agent = Agent(
         args = args,
         i = 1, 
-        GUI = True)
+        GUI = False)
     agent.training(sleep_time = 1)
     
 run()
