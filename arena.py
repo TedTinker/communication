@@ -628,19 +628,19 @@ class Arena():
                 
 
             
-            def update_duration(action_name, action_now, object_index, duration_threshold):
+            def update_duration(action_name, action_now, object_index):
                 if action_now:
                     self.durations[action_name][object_index] += 1
                 else:
                     self.durations[action_name][object_index] = 0
-                return self.durations[action_name][object_index] >= duration_threshold
+                return self.durations[action_name][object_index] >= self.args.task_duration
 
-            watched     = update_duration("watch",      watching,   object_index, self.args.watch_duration)
-            been_near   = update_duration("be_near",    being_near, object_index, self.args.be_near_duration)
-            topped      = update_duration("top",        topping,    object_index, self.args.top_duration)
-            pushed      = update_duration("push",       pushing,    object_index, self.args.push_duration)
-            lefted      = update_duration("left",       lefting,    object_index, self.args.left_duration)
-            righted     = update_duration("right",      righting,   object_index, self.args.right_duration)
+            watched     = update_duration("watch",      watching,   object_index)
+            been_near   = update_duration("be_near",    being_near, object_index)
+            topped      = update_duration("top",        topping,    object_index)
+            pushed      = update_duration("push",       pushing,    object_index)
+            lefted      = update_duration("left",       lefting,    object_index)
+            righted     = update_duration("right",      righting,   object_index)
             
             if(verbose):
                 print(f"Finished:")

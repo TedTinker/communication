@@ -81,7 +81,29 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_touch" : 0})
 
 add_this("t",   {
-    "be_near_distance" : [2.5, 2.75, 3, 3.25, 3.5, 3.75, 4]
+    "task_duration" : [3, 4]
+})
+
+
+add_this("vision",   {
+    "curiosity" : "hidden_state",
+    "hidden_state_eta_vision" : [.1, .3, 1],
+    "hidden_state_eta_touch" : 0,
+    "hidden_state_eta_report_voice" : 0
+})
+
+add_this("touch",   {
+    "curiosity" : "hidden_state",
+    "hidden_state_eta_vision" : 0,
+    "hidden_state_eta_touch" : [.01, .03, .1],
+    "hidden_state_eta_report_voice" : 0
+})
+
+add_this("report_voice",   {
+    "curiosity" : "hidden_state",
+    "hidden_state_eta_vision" : 0,
+    "hidden_state_eta_touch" : 0,
+    "hidden_state_eta_report_voice" : [1, 1.5, 3]
 })
 
 

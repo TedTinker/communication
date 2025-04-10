@@ -82,10 +82,11 @@ class Agent:
                 self.args, self.arena_1, self.arena_2, 
                 tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1)],     
                 objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, full_name = "All Tasks")}
-        
+
         self.all_processors = {f"{task_map[task].name}_{color_map[color].name}_{shape_map[shape].name}" : 
             Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(task, 1)], objects = 2, colors = [color], shapes = [shape], parenting = True) for task, color, shape in \
                 product([1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
+                #product([1, 2, 5, 6], [0, 5], [0, 4])}
         all_processor_names = list(self.all_processors.keys())
         self.all_processor_names = all_processor_names
         
@@ -675,7 +676,6 @@ class Agent:
         processor_lens = []
         for processor_name in self.all_processor_names:
             self.processor = self.all_processors[processor_name]
-            #print(self.processor.processor)
             self.processor.begin(test = None)    
             done, complete_reward, steps, \
                 (to_push_list_1, prev_action_1, hq_1), \
@@ -707,17 +707,20 @@ class Agent:
             Obs(vision, touch, command_voice, report_voice), Action(wheels_joints, voice_out))
         
         labels = labels.detach().cpu().numpy()
-        non_zero_mask = labels[:, 0, 0] != 0  # This checks if the first element of each sequence is not 0
+        non_zero_mask = labels[:, :, 0] != 0  # This checks if the first element of each sequence is not 0
         all_mask = all_mask.detach().cpu().numpy()  
         
         vision_zq = vision_is.zq.detach().cpu().numpy()
         touch_zq = touch_is.zq.detach().cpu().numpy()
         command_voice_zq = command_voice_is.zq.detach().cpu().numpy()
         report_voice_zq = report_voice_is.zq.detach().cpu().numpy()
+        hq = hqs.detach().cpu().numpy()
+        
+        #print(non_zero_mask)
         
         self.plot_dict["component_data"][self.epochs] = {
             "labels" : labels, "non_zero_mask" : non_zero_mask, "all_mask" : all_mask, 
-            "vision_zq" : vision_zq, "touch_zq" : touch_zq, "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq}
+            "vision_zq" : vision_zq, "touch_zq" : touch_zq, "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq, "hq" : hq}
         
         
         

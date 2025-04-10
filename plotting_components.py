@@ -8,7 +8,9 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.manifold import Isomap
-#import umap
+from sklearn.preprocessing import StandardScaler
+import torch
+import plotly.graph_objects as go
 
 from utils import args, duration, load_dicts, print, task_map, color_map, shape_map
 
@@ -16,190 +18,37 @@ from utils import args, duration, load_dicts, print, task_map, color_map, shape_
 
 print("name:\n{}\n".format(args.arg_name),)
 
-dpi = 50
-
-task_names = ['WATCH', 'BE NEAR', 'TOUCH THE TOP', 'PUSH FORWARD', 'PUSH LEFT', 'PUSH RIGHT']
-color_names = ['RED', 'GREEN', 'BLUE', 'CYAN', 'PINK', 'YELLOW']
-shape_names = ['PILLAR', 'POLE', 'DUMBBELL', 'CONE', 'HOURGLASS']
-
-lda_task = LDA(n_components = len(task_names) - 1)
-lda_color = LDA(n_components = len(color_names) - 1)
-lda_shape = LDA(n_components = len(shape_names) - 1)
 
 
+task_mapping = {
+    'WATCH': '#FF0000',         # Red
+    'BE NEAR': '#00FF00',       # Green
+    'TOUCH THE TOP': '#0000FF', # Blue
+    'PUSH FORWARD': '#00FFFF',  # Cyan
+    'PUSH LEFT': '#FF00FF',     # Magenta
+    'PUSH RIGHT': '#FFFF00'}    # Yellow
 
-def color_based_on_title(task_name):
-    task_str, color_str, shape_str = task_name.split('_')
-    task_index = task_names.index(task_str)
-    color_index = color_names.index(color_str)
-    shape_index = shape_names.index(shape_str)
-    
-    task_normalized = task_index / (len(task_names) - 1)
-    color_normalized = color_index / (len(color_names) - 1)
-    shape_normalized = shape_index / (len(shape_names) - 1)
-    
-    r = int(task_normalized * 255)
-    g = int(color_normalized * 255)
-    b = int(shape_normalized * 255)
-    
-    color = f'rgb({r}, {g}, {b})'
-    
-    #print(task_name, "\t", color)
-    return color
+color_mapping = {
+    'RED': '#FF0000',           
+    'GREEN': '#00FF00',
+    'BLUE': '#0000FF',
+    'CYAN': '#00FFFF',
+    'MAGENTA': '#FF00FF',
+    'YELLOW': '#FFFF00'}
+
+shape_mapping = {
+    'PILLAR': '#FF0000',        # Red
+    'POLE': '#00FF00',          # Greed
+    'DUMBBELL': '#0000FF',      # Blue
+    'CONE': '#00FFFF',          # Cyan
+    'HOURGLASS': '#FF00FF'}     # Magenta
 
 
 
-def add_jitter(values, jitter_amount=0.1):
-    noise = np.random.uniform(-jitter_amount, jitter_amount, size=values.shape)
-    return values + noise
-
-
-
-"""def plot_interactive_3d(plot_dict, file_name="plot"):
-    args = plot_dict["args"]
-    for agent_num, values_for_composition in enumerate(plot_dict["component_data"]):
-        if(values_for_composition != {}):
-            print("\nAGENT NUM", agent_num)
-            for epochs, comp_dict in values_for_composition.items():
-                print("EPOCHS", epochs)
-
-                labels = comp_dict["labels"]
-                non_zero_mask = comp_dict["non_zero_mask"]
-                all_mask = comp_dict["all_mask"]
-                vision_zq = comp_dict["vision_zq"]
-                touch_zq = comp_dict["touch_zq"]
-                command_voice_zq = comp_dict["command_voice_zq"]
-                report_voice_zq = comp_dict["report_voice_zq"]
-                
-                labels_filtered = labels[non_zero_mask]
-                all_mask_filtered = all_mask[non_zero_mask]
-                vision_zq_filtered = vision_zq[non_zero_mask]
-                touch_zq_filtered = touch_zq[non_zero_mask]
-                command_voice_zq_filtered = command_voice_zq[non_zero_mask]
-                report_voice_zq_filtered = report_voice_zq[non_zero_mask]
-                
-                labels = labels.reshape(-1, labels.shape[-1])
-                labels = labels[all_mask.reshape(-1).astype(bool)]
-                
-                labels_filtered = labels_filtered.reshape(-1, labels_filtered.shape[-1])
-                labels_filtered = labels_filtered[all_mask_filtered.reshape(-1).astype(bool)]
-                                
-                def plot_lda(this, this_filtered, type_name):         
-                    try: os.mkdir(f"thesis_pics/composition/{args.arg_name}/lda")
-                    except: pass
-                    try: os.mkdir(f"thesis_pics/composition/{args.arg_name}/lda/{type_name}")
-                    except: pass
-                    
-                    all_processor_names = plot_dict["all_processor_names"]
-                    
-                    episode_indexes = [0]
-                    episode_index = 0             
-                    for mask in all_mask: 
-                        episode_len = int(mask.sum().item())
-                        episode_indexes.append(episode_len + episode_index)
-                        episode_index = episode_indexes[-1]     
-                                                                        
-                    this = this.reshape(-1, this.shape[-1])
-                    this = this[all_mask.reshape(-1).astype(bool)]
-                    
-                    this_filtered = this_filtered.reshape(-1, this_filtered.shape[-1])
-                    this_filtered = this_filtered[all_mask_filtered.reshape(-1).astype(bool)]            
-                                                                                                                                                                     
-                    lda_task.fit(this, labels[:,0])
-                    lda_color.fit(this_filtered, labels_filtered[:,1])
-                    lda_shape.fit(this_filtered, labels_filtered[:,2])
-                    
-                    task_probs = lda_task.predict_proba(this)
-                    color_probs = lda_color.predict_proba(this_filtered)
-                    shape_probs = lda_shape.predict_proba(this_filtered)
-                                                                                                                                                           
-                    all_pred_tasks = []
-                    all_pred_colors = []
-                    all_pred_shapes = []
-                    
-                    fig = go.Figure()
-                
-                    for i, processor_name in enumerate(all_processor_names):
-                        start_idx = episode_indexes[i]
-                        end_idx = episode_indexes[i + 1]
-                        these_task_probs = task_probs[start_idx:end_idx]
-                        pred_tasks = np.argmax(these_task_probs, axis = 1)
-                        all_pred_tasks.append(pred_tasks)
-                        
-                        these_color_probs = color_probs[start_idx:end_idx]
-                        pred_colors = np.argmax(these_color_probs, axis = 1)
-                        all_pred_colors.append(pred_colors)
-                        pc = np.array([item for sublist in all_pred_colors for item in sublist])
-                        
-                        these_shape_probs = shape_probs[start_idx:end_idx]        
-                        pred_shapes = np.argmax(these_shape_probs, axis = 1)
-                        all_pred_shapes.append(pred_shapes)
-
-                    output_file = f"thesis_pics/composition/{args.arg_name}/lda/{type_name}/{file_name}_epoch_{epochs}_{type_name}_agent_num_{agent_num}_{args.arg_name}_lda"
-                    output_file_2d = output_file + ".png"
-                    
-                    all_pred_tasks = np.array([item for sublist in all_pred_tasks for item in sublist])
-                    all_pred_colors = np.array([item for sublist in all_pred_colors for item in sublist])
-                    all_pred_shapes = np.array([item for sublist in all_pred_shapes for item in sublist])
-                                        
-                    fig, axs = plt.subplots(1, 3, figsize=(20, 7))
-                    fig.suptitle(f'LDA for {args.arg_name} using {type_name} in epoch {epochs}', fontsize=16)
-                    
-                    size = 1 
-                    jitter = .3
-                    
-                    jittered_labels = add_jitter(labels, jitter)
-                    jittered_labels_filtered = add_jitter(labels_filtered, jitter)
-                    all_pred_tasks = add_jitter(all_pred_tasks, jitter)
-                    all_pred_colors = add_jitter(all_pred_colors, jitter)
-                    all_pred_shapes = add_jitter(all_pred_shapes, jitter)
-                    
-                    #print("Tasks:",  len(jittered_labels[:,0]),          all_pred_tasks.shape)
-                    #print("Colors:", len(jittered_labels_filtered[:,1]), all_pred_colors.shape)
-                    #print("Shapes:", len(jittered_labels_filtered[:,2]), all_pred_shapes.shape)
-                    #print("\n\n")
-                    
-                    print(jittered_labels.shape, all_pred_tasks.shape, all_pred_colors.shape, all_pred_shapes.shape)
-                    axs[0].scatter(jittered_labels[:,0] + 1, all_pred_tasks, c = "black", s = size)
-                    axs[0].set_title('Tasks')
-                    axs[0].set_xlabel('Real Labels')
-                    axs[0].set_ylabel('LDA Predictions')
-                    axs[0].set_xticks([2, 3, 4, 5, 6, 7])  
-                    axs[0].set_xticklabels(task_names)  
-                    axs[0].set_yticks([0, 1, 2, 3, 4, 5]) 
-                    axs[0].set_yticklabels(task_names) 
-                    plt.setp(axs[0].get_xticklabels(), rotation=45, ha="right")
-                    plt.setp(axs[0].get_yticklabels(), rotation=0, ha="right")
-
-                    axs[1].scatter(jittered_labels_filtered[:,1], all_pred_colors, c = "black", s = size)
-                    axs[1].set_title('Colors')
-                    axs[1].set_xlabel('Real Labels')
-                    axs[1].set_ylabel('LDA Predictions')
-                    axs[1].set_xticks([2, 3, 4, 5, 6, 7])  
-                    axs[1].set_xticklabels(color_names)  
-                    axs[1].set_yticks([0, 1, 2, 3, 4, 5]) 
-                    axs[1].set_yticklabels(color_names) 
-                    plt.setp(axs[1].get_xticklabels(), rotation=45, ha="right")
-                    plt.setp(axs[1].get_yticklabels(), rotation=0, ha="right")
-
-                    axs[2].scatter(jittered_labels_filtered[:,2], all_pred_shapes, c = "black", s = size)
-                    axs[2].set_title('Shapes')
-                    axs[2].set_xlabel('Real Labels')
-                    axs[2].set_ylabel('LDA Predictions')
-                    axs[2].set_xticks([2, 3, 4, 5, 6])  
-                    axs[2].set_xticklabels(shape_names)  
-                    axs[2].set_yticks([0, 1, 2, 3, 4]) 
-                    axs[2].set_yticklabels(shape_names) 
-                    plt.setp(axs[2].get_xticklabels(), rotation=45, ha="right")
-                    plt.setp(axs[2].get_yticklabels(), rotation=0, ha="right")
-                    plt.tight_layout()
-                    plt.savefig(output_file_2d)
-                    plt.close()
-                    
-                    print(f"LDA for {args.arg_name} using {type_name} in epoch {epochs} plotted.")
-                    
-                for type_name, this, this_filtered in [("command_voice_zq", command_voice_zq, command_voice_zq_filtered)]:
-                    plot_lda(this, this_filtered, type_name)"""
+scaler = StandardScaler() # Not used
+pca = PCA(n_components=2, random_state=42)
+pca_3d = PCA(n_components=3, random_state=42)
+isomap = Isomap(n_components=2, n_neighbors=10)  
                     
                     
                     
@@ -215,93 +64,47 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                 all_mask = comp_dict["all_mask"]
                 all_mask_filtered = all_mask[non_zero_mask]
                 
-                labels = comp_dict["labels"]
-                labels_filtered = labels[non_zero_mask]
+                print("\n", non_zero_mask.shape, all_mask.shape, all_mask_filtered.shape)
                 
-                labels = labels.reshape(-1, labels.shape[-1])
-                labels = labels[all_mask.reshape(-1).astype(bool)]
-                labels_filtered = labels_filtered.reshape(-1, labels_filtered.shape[-1])
-                labels_filtered = labels_filtered[all_mask_filtered.reshape(-1).astype(bool)]
+                def process_component(comp_dict, key):
+                    try:
+                        data = comp_dict[key].detach().cpu().numpy()
+                    except:
+                        data = comp_dict[key]
+                    print("\n1: ", data.shape)
+                    data = data[non_zero_mask]
+                    print("2: ", data.shape)
+                    data = data.reshape(-1, data.shape[-1])
+                    print("3: ", data.shape)
+                    data = data[all_mask_filtered.reshape(-1).astype(bool)]
+                    print("4: ", data.shape)
+                    return data
+
+                components = ["labels", "vision_zq", "touch_zq", "command_voice_zq", "report_voice_zq", "hq"]
+
+                results = {}
+                for key in components:
+                    results[key] = process_component(
+                        comp_dict, key)
                 
-                vision_zq = comp_dict["vision_zq"]
-                vision_zq_filtered = vision_zq[non_zero_mask]
-                
-                vision_zq = vision_zq.reshape(-1, vision_zq.shape[-1])
-                vision_zq = vision_zq[all_mask.reshape(-1).astype(bool)]
-                vision_zq_filtered = vision_zq_filtered.reshape(-1, vision_zq_filtered.shape[-1])
-                vision_zq_filtered = vision_zq_filtered[all_mask_filtered.reshape(-1).astype(bool)]     
-                
-                touch_zq = comp_dict["touch_zq"]
-                touch_zq_filtered = touch_zq[non_zero_mask]
-                
-                touch_zq = touch_zq.reshape(-1, touch_zq.shape[-1])
-                touch_zq = touch_zq[all_mask.reshape(-1).astype(bool)]
-                touch_zq_filtered = touch_zq_filtered.reshape(-1, touch_zq_filtered.shape[-1])
-                touch_zq_filtered = touch_zq_filtered[all_mask_filtered.reshape(-1).astype(bool)]       
-                
-                command_voice_zq = comp_dict["command_voice_zq"]
-                command_voice_zq_filtered = command_voice_zq[non_zero_mask]
-                
-                command_voice_zq = command_voice_zq.reshape(-1, command_voice_zq.shape[-1])
-                command_voice_zq = command_voice_zq[all_mask.reshape(-1).astype(bool)]
-                command_voice_zq_filtered = command_voice_zq_filtered.reshape(-1, command_voice_zq_filtered.shape[-1])
-                command_voice_zq_filtered = command_voice_zq_filtered[all_mask_filtered.reshape(-1).astype(bool)]  
-                    
-                report_voice_zq = comp_dict["report_voice_zq"]
-                report_voice_zq_filtered = report_voice_zq[non_zero_mask]
-                
-                report_voice_zq = report_voice_zq.reshape(-1, report_voice_zq.shape[-1])
-                report_voice_zq = report_voice_zq[all_mask.reshape(-1).astype(bool)]
-                report_voice_zq_filtered = report_voice_zq_filtered.reshape(-1, report_voice_zq_filtered.shape[-1])
-                report_voice_zq_filtered = report_voice_zq_filtered[all_mask_filtered.reshape(-1).astype(bool)]  
-                
-                tasks = labels_filtered[:, 0]
-                colors = labels_filtered[:, 1]
-                shapes = labels_filtered[:, 2]
+                tasks = results["labels"][:, 0]
+                colors = results["labels"][:, 1]
+                shapes = results["labels"][:, 2]
                 unique_tasks = np.unique(tasks)
                 unique_colors = np.unique(colors)
                 unique_shapes = np.unique(shapes)
-                
-                task_mapping = {
-                    'WATCH': '#FF0000',
-                    'BE NEAR': '#00FF00',
-                    'TOUCH THE TOP': '#0000FF',
-                    'PUSH FORWARD': '#00FFFF',
-                    'PUSH LEFT': '#FF00FF',
-                    'PUSH RIGHT': '#FFFF00'}
-                
-                color_mapping = {
-                    'RED': '#FF0000',
-                    'GREEN': '#00FF00',
-                    'BLUE': '#0000FF',
-                    'CYAN': '#00FFFF',
-                    'MAGENTA': '#FF00FF',
-                    'YELLOW': '#FFFF00'}
-                
-                shape_mapping = {
-                    'PILLAR': '#FF0000',
-                    'POLE': '#00FF00',
-                    'DUMBBELL': '#0000FF',
-                    'CONE': '#00FFFF',
-                    'HOURGLASS': '#FF00FF'}
-                
-                
-                
-                pca = PCA(n_components=2, random_state=42)
-                isomap = Isomap(n_components=2, n_neighbors=10)  # You can tune `n_neighbors`
+
 
                 
-                
-                def plot_reduction(this, this_filtered, type_name, reducer, method_name):
+                def plot_2d_reduction(type_name, reducer, method_name):
+                    
                     try:
                         os.makedirs(f"thesis_pics/composition/{args.arg_name}/{method_name}/{type_name}", exist_ok=True)
                     except Exception as e:
-                        print(f"Directory creation failed: {e}")          
-
-                    this_2d = reducer.fit_transform(this)
-
-                    output_file = f"thesis_pics/composition/{args.arg_name}/{method_name}/{type_name}/{file_name}_epoch_{epochs}_{type_name}_agent_num_{agent_num}_{args.arg_name}_{method_name}"
-                    output_file_2d = output_file + ".png"
+                        print(f"Directory creation failed: {e}")     
+                        
+                    this = results[type_name] 
+                    this = reducer.fit_transform(this)
 
                     fig, axes = plt.subplots(1, 3, figsize=(18, 6), sharex=True, sharey=True, constrained_layout=True)
 
@@ -333,19 +136,136 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                         )
                         ax.grid(True)
 
-                    plot_by_attribute(axes[0], this_2d, tasks, unique_tasks, task_map, task_mapping, "Task")
-                    plot_by_attribute(axes[1], this_2d, colors, unique_colors, color_map, color_mapping, "Color")
-                    plot_by_attribute(axes[2], this_2d, shapes, unique_shapes, shape_map, shape_mapping, "Shape")
+                    plot_by_attribute(axes[0], this, tasks,  unique_tasks,  task_map,  task_mapping,  "Task")
+                    plot_by_attribute(axes[1], this, colors, unique_colors, color_map, color_mapping, "Color")
+                    plot_by_attribute(axes[2], this, shapes, unique_shapes, shape_map, shape_mapping, "Shape")
 
-                    plt.suptitle(f"{method_name.upper()} of Command-Voice Posterior z_q\nAgent {agent_num}, epoch {epochs}", fontsize=16)
-                    plt.savefig(output_file_2d, bbox_inches="tight")
+                    plt.suptitle(f"{method_name.upper()} of {type_name}\nAgent {agent_num}, epoch {epochs}", fontsize=16)
+                    output_file = f"thesis_pics/composition/{args.arg_name}/{method_name}/{type_name}/{file_name}_epoch_{epochs}_{type_name}_agent_num_{agent_num}_{args.arg_name}_{method_name}.png"
+                    plt.savefig(output_file, bbox_inches="tight")
                     plt.close()
+                        
+                        
                     
+                def plot_3d_reduction(type_name, reducer, method_name):
+                    import plotly.graph_objects as go
+                    import numpy as np
+                    import os
                     
-                    
-                for type_name, this, this_filtered in [("command_voice_zq", command_voice_zq, command_voice_zq_filtered)]:
-                    plot_reduction(this, this_filtered, type_name, pca, "pca")
-                    #plot_reduction(this, this_filtered, type_name, isomap, "isomap")
+                    this = results[type_name]
+
+                    # Ensure output directory exists
+                    try:
+                        os.makedirs(f"thesis_pics/composition/{args.arg_name}/{method_name}/{type_name}", exist_ok=True)
+                    except Exception as e:
+                        print(f"Directory creation failed: {e}")
+
+                    # Perform dimensionality reduction
+                    this = reducer.fit_transform(this)
+                    x, y, z = this[:, 0], this[:, 1], this[:, 2]
+
+                    # Get the output file path
+                    output_file = (
+                        f"thesis_pics/composition/{args.arg_name}/{method_name}/{type_name}/"
+                        f"{file_name}_epoch_{epochs}_{type_name}_agent_num_{agent_num}_{args.arg_name}_{method_name}_3d.html")
+
+                    # Helper functions for colors and opacities
+                    def get_colors(labels, label_map, mapping, active_labels):
+                        return [
+                            mapping[label_map[label].name] if label in active_labels else '#D3D3D3'
+                            for label in labels]
+
+                    def get_opacities(labels, active_labels):
+                        return .7
+
+                    # Active label sets (all visible initially)
+                    active_tasks = set(np.unique(tasks))
+                    active_colors = set(np.unique(colors))
+                    active_shapes = set(np.unique(shapes))
+
+                    trace_list = []
+
+                    # Create 3D scatter traces
+                    def make_trace(label_type, label_data, label_map, mapping, active_set, visible=True):
+                        return go.Scatter3d(
+                            x=x, y=y, z=z,
+                            mode='markers',
+                            visible=visible,
+                            marker=dict(
+                                size=4,
+                                color=get_colors(label_data, label_map, mapping, active_set),
+                                opacity=get_opacities(label_data, active_set)
+                            ),
+                            text=[f"{label_type}: {label_map[l].name}" for l in label_data],
+                            hoverinfo='text',
+                            name=label_type
+                        )
+
+                    # Main data traces
+                    trace_task = make_trace("Task", tasks, task_map, task_mapping, active_tasks, visible=True)
+                    trace_color = make_trace("Color", colors, color_map, color_mapping, active_colors, visible=False)
+                    trace_shape = make_trace("Shape", shapes, shape_map, shape_mapping, active_shapes, visible=False)
+
+                    trace_list += [trace_task, trace_color, trace_shape]
+
+                    # Add dummy legend traces for the current mode
+                    def make_legend_traces(label_map, mapping, current_label_type):
+                        return [
+                            go.Scatter3d(
+                                x=[None], y=[None], z=[None],
+                                mode='markers',
+                                marker=dict(size=6, color=color),
+                                name=key,
+                                showlegend=True,
+                                visible=(current_label_type == 'Task')  # toggle visibility
+                            )
+                            for key, color in mapping.items()
+                        ]
+
+                    trace_list += make_legend_traces(task_map, task_mapping, 'Task')
+                    trace_list += make_legend_traces(color_map, color_mapping, 'Color')
+                    trace_list += make_legend_traces(shape_map, shape_mapping, 'Shape')
+
+                    # Buttons to toggle between modes
+                    view_buttons = [
+                        dict(label="Task", method="update", args=[{"visible": [True, False, False] + [True]*6 + [False]*6 + [False]*5},
+                                                                    {"title": "3D PCA - Task"}]),
+                        dict(label="Color", method="update", args=[{"visible": [False, True, False] + [False]*6 + [True]*6 + [False]*5},
+                                                                    {"title": "3D PCA - Color"}]),
+                        dict(label="Shape", method="update", args=[{"visible": [False, False, True] + [False]*6 + [False]*6 + [True]*5},
+                                                                    {"title": "3D PCA - Shape"}]),
+                    ]
+
+                    # Build the figure
+                    fig = go.Figure(data=trace_list)
+
+                    fig.update_layout(
+                        updatemenus=[
+                            dict(
+                                type="buttons",
+                                direction="right",
+                                buttons=view_buttons,
+                                x=0.1,
+                                y=1.2,
+                                showactive=True
+                            )
+                        ],
+                        scene=dict(
+                            xaxis_title="PC1",
+                            yaxis_title="PC2",
+                            zaxis_title="PC3"
+                        ),
+                        title=f"3D PCA of {type_name} | Agent {agent_num}, Epoch {epochs}"
+                    )
+
+                    # Save to HTML
+                    fig.write_html(output_file)
+
+                                    
+                                    
+                for type_name in ["command_voice_zq", "hq"]:
+                    plot_2d_reduction(type_name, pca, "pca")
+                    plot_3d_reduction(type_name, pca_3d, "pca_3d")
                     
 
 
@@ -354,11 +274,8 @@ def plots(plot_dicts):
         args = plot_dict["args"]
         try: os.mkdir(f"thesis_pics/composition/{args.arg_name}")
         except: pass
-        print(f"\nStarting {args.arg_name}.")
-        
-        #plot_interactive_3d(plot_dict)
+        print(f"\nStarting {args.arg_name}.")        
         plot_dimension_reduction(plot_dict)
-
         print(f"Finished {args.arg_name}.")
         print(f"Duration: {duration()}")
         

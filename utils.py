@@ -291,30 +291,30 @@ training_combos = [(a, c, s) for (a, c, s) in all_combos if
                     (a == 3 and (s, c) in 
                     [       (0, 1), (0, 2), (0, 3), (0, 4),
                                     (1, 2), (1, 3), (1, 4), (1, 5),
-                                            (2, 3), (2, 4), (2, 5),
+                    (3, 0),                 (2, 3), (2, 4), (2, 5),
                     (3, 0), (3, 1),                 (3, 4), (3, 5),
                     (4, 0), (4, 1), (4, 2),                 (4, 5)]) or
                     
                     (a == 4 and (s, c) in 
-                    [               (0, 2), (0, 3), (0, 4),
-                                    (1, 2), (1, 3), (1, 4), (1, 5),
-                                            (2, 3), (2, 4), (2, 5),
-                    (3, 0), (3, 1),                 (3, 4), (3, 5),
-                    (4, 0), (4, 1), (4, 2),                 (4, 5)]) or
+                    [               (0, 2), (0, 3), (0, 4), (0, 5),
+                    (1, 0),                 (1, 3), (1, 4), (1, 5),
+                    (2, 0), (2, 1),                 (2, 4), (2, 5),
+                    (3, 0), (3, 1), (3, 2),                 (3, 5),
+                    (4, 0), (4, 1), (4, 2), (4, 3)                ]) or
                     
                     (a == 5 and (s, c) in 
-                    [       (0, 1), (0, 2), (0, 3), (0, 4),
-                                    (1, 2), (1, 3), (1, 4), (1, 5),
-                                            (2, 3), (2, 4), (2, 5),
-                    (3, 0), (3, 1),                 (3, 4), (3, 5),
-                    (4, 0), (4, 1), (4, 2),                 (4, 5)]) or
+                    [(0, 0),                (0, 3), (0, 4), (0, 5),
+                    (1, 0), (1, 1),                 (1, 4), (1, 5),
+                    (2, 0), (2, 1), (2, 2),                 (2, 5),
+                    (3, 0), (3, 1), (3, 2), (3, 3),             
+                            (4, 1), (4, 2), (4, 3), (4, 4)        ]) or
                     
                     (a == 6 and (s, c) in 
-                    [       (0, 1), (0, 2), (0, 3), (0, 4),
-                                    (1, 2), (1, 3), (1, 4), (1, 5),
-                                            (2, 3), (2, 4), (2, 5),
-                    (3, 0), (3, 1),                 (3, 4), (3, 5),
-                    (4, 0), (4, 1), (4, 2),                 (4, 5)])
+                    [(0, 0),(0, 1),                 (0, 4), (0, 5),
+                    (1, 0), (1, 1), (1, 2),                 (1, 5),
+                    (2, 0), (2, 1), (2, 2), (2, 3),
+                            (3, 1), (3, 2), (3, 3), (3, 4), 
+                                    (4, 2), (4, 3), (4, 4), (4, 5)])
                    
                    ]
 
@@ -530,15 +530,7 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 
 
-parser.add_argument('--watch_duration',                 type=int,           default = 3,
-                    help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--be_near_duration',               type=int,           default = 3,
-                    help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--top_duration',                   type=int,           default = 3,   
-                    help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--push_duration',                  type=int,           default = 3,
-                    help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--left_duration',                  type=int,           default = 3,   
+parser.add_argument('--task_duration',                 type=int,           default = 4,
                     help='How long must the agent watch the object to achieve watching.')
 
 parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/6,
@@ -668,7 +660,7 @@ parser.add_argument("--beta_report_voice",              type=float,         defa
                     help='Relative importance of complexity for voice.')
 parser.add_argument("--prediction_error_eta_report_voice", type=float,      default = 1,
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
-parser.add_argument("--hidden_state_eta_report_voice",  type=float,         default = 1.5,
+parser.add_argument("--hidden_state_eta_report_voice",  type=float,         default = 11,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
 parser.add_argument("--hidden_state_eta_report_voice_reduction_type",  type=str,         default = "None",
                     help='How should interest in report_voice chance?') 
@@ -755,7 +747,6 @@ def update_args(arg_set):
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size + arg_set.voice_encode_size
     """arg_set.epochs = [epochs_for_processor[0] for epochs_for_processor in arg_set.epochs_per_processor]
     arg_set.processor_list = [epochs_for_processor[1] for epochs_for_processor in arg_set.epochs_per_processor]"""
-    arg_set.right_duration = arg_set.left_duration
     return(arg_set)
 
 for arg_set in [default_args, args]:
