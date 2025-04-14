@@ -1,4 +1,5 @@
-#%% 
+#%%
+
 import os
 import re
 import subprocess
@@ -89,8 +90,11 @@ class GUIApp:
     def __init__(self, root):
         self.root = root
         self.root.title('Arg Name Monitor')
+        # Set full-screen; you can toggle full-screen off later if needed
+        #self.root.attributes("-fullscreen", True)
         self.arg_name_data_dict = {}
         self.arg_name_frames = {}
+        self.max_columns = 9  # Maximum columns per row in the grid layout
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
         self.update_interval = 2000  # milliseconds
@@ -98,8 +102,13 @@ class GUIApp:
         self.update_data()
 
     def build_ui(self):
+        # Create a canvas with a vertical scrollbar
         self.canvas = tk.Canvas(self.main_frame)
-        self.scrollbar = tk.Scrollbar(self.main_frame, orient="horizontal", command=self.canvas.xview)
+        self.scrollbar = tk.Scrollbar(self.main_frame, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
+        
         self.scrollable_frame = tk.Frame(self.canvas)
         self.scrollable_frame.bind(
             "<Configure>",
@@ -108,19 +117,16 @@ class GUIApp:
             )
         )
         self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor='nw')
-        self.canvas.configure(xscrollcommand=self.scrollbar.set)
-        self.canvas.pack(side="top", fill="both", expand=True)
-        self.scrollbar.pack(side="bottom", fill="x")
-
-        # Add a frame for the "All" buttons
+        
+        # Add a frame for the "All" buttons at the bottom of the main_frame
         all_buttons_frame = tk.Frame(self.main_frame)
         all_buttons_frame.pack(side="bottom", pady=5)
 
-        # Add the "Create Files for All" button
+        # "Create Files for All" button
         all_button = tk.Button(all_buttons_frame, text="Create Files for All", command=self.create_files_for_all)
         all_button.pack(side="left", padx=5)
 
-        # Add the "Delete Files for All" button
+        # "Delete Files for All" button
         delete_all_button = tk.Button(all_buttons_frame, text="Delete Files for All", command=self.delete_files_for_all)
         delete_all_button.pack(side="left", padx=5)
 
@@ -150,14 +156,22 @@ class GUIApp:
         for arg_name in list(self.arg_name_data_dict.keys()):
             if arg_name not in existing_arg_names:
                 self.remove_arg_name_frame(arg_name)
-        # Update the frames
+        # Update the frames (both content and grid positions)
         for arg_name, arg_data in self.arg_name_data_dict.items():
             self.update_arg_name_frame(arg_data)
+        self.reposition_arg_frames()
         # Schedule the next update
         self.root.after(self.update_interval, self.update_data)
 
+    def reposition_arg_frames(self):
+        sorted_keys = natsorted(self.arg_name_data_dict.keys())
+        for idx, arg_name in enumerate(sorted_keys):
+            frame = self.arg_name_frames[arg_name]
+            row = idx // self.max_columns
+            col = idx % self.max_columns
+            frame.grid_configure(row=row, column=col, padx=5, pady=5, sticky="n")
+
     def add_arg_name_frame(self, arg_data):
-        col_index = len(self.arg_name_frames)  # Calculate column index dynamically
         frame = tk.Frame(self.scrollable_frame, bd=2, relief=tk.GROOVE)
         label = tk.Label(frame, text=f'arg_name: {arg_data.arg_name}')
         label.pack(side=tk.TOP, anchor='w')
@@ -175,8 +189,9 @@ class GUIApp:
         files_listbox = tk.Listbox(frame)
         files_listbox.pack(side=tk.TOP, fill=tk.X, expand=True)
         arg_data.files_listbox = files_listbox
-        # Place frame in the correct column and align it to the top
-        frame.grid(row=0, column=col_index, padx=5, pady=5, sticky="n")  # sticky="n" aligns to the top
+        
+        # Initially grid the frame; its final position will be adjusted in reposition_arg_frames()
+        frame.grid(row=0, column=0, padx=5, pady=5, sticky="n")
         self.arg_name_frames[arg_data.arg_name] = frame
 
     def remove_arg_name_frame(self, arg_name):
@@ -224,5 +239,6 @@ if __name__ == '__main__':
     root = tk.Tk()
     app = GUIApp(root)
     root.mainloop()
+
 
 # %%

@@ -2,7 +2,8 @@
 
 # To do:
 #   Are are generalized win-rates so weird? Everything but "all" look like they're only half full.
-#   Try adding longer durations instead of just 3; episodes are ending so fast!
+#   Try with "WATCH" having generalization tests.
+#   Adjust time-stuff to keep from phasing.
 
 import os
 import pickle
