@@ -214,7 +214,7 @@
     <link name="left_wheel">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
+            <mass value="0.1"/>
             <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
         </inertial>
         <visual>
@@ -307,7 +307,7 @@
     <link name="right_wheel">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
+            <mass value="0.1"/>
             <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
         </inertial>
         <visual>
@@ -607,6 +607,223 @@
         <parent link="joint_2"/>
         <child link="arm"/>
         <origin xyz="0.975 0 0"
+                rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        
+    </joint>
+
+
+    <!-- arm_outline_1 -->
+    <link name="arm_outline_1">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.77 0.01 0.01"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.77 0.01 0.01"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: arm, arm_outline_1 -->
+    <joint name="arm_arm_outline_1_joint" type="fixed">
+        <parent link="arm"/>
+        <child link="arm_outline_1"/>
+        <origin xyz="0 0.1 0.1"
+                rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        
+    </joint>
+
+
+    <!-- arm_outline_2 -->
+    <link name="arm_outline_2">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.77 0.01 0.01"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.77 0.01 0.01"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: arm, arm_outline_2 -->
+    <joint name="arm_arm_outline_2_joint" type="fixed">
+        <parent link="arm"/>
+        <child link="arm_outline_2"/>
+        <origin xyz="0 -0.1 0.1"
+                rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        
+    </joint>
+
+
+    <!-- arm_outline_3 -->
+    <link name="arm_outline_3">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.77 0.01 0.01"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.77 0.01 0.01"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: arm, arm_outline_3 -->
+    <joint name="arm_arm_outline_3_joint" type="fixed">
+        <parent link="arm"/>
+        <child link="arm_outline_3"/>
+        <origin xyz="0 0.1 -0.1"
+                rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        
+    </joint>
+
+
+    <!-- arm_outline_4 -->
+    <link name="arm_outline_4">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.77 0.01 0.01"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="1.77 0.01 0.01"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: arm, arm_outline_4 -->
+    <joint name="arm_arm_outline_4_joint" type="fixed">
+        <parent link="arm"/>
+        <child link="arm_outline_4"/>
+        <origin xyz="0 -0.1 -0.1"
+                rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        
+    </joint>
+
+
+    <!-- arm_outline_5 -->
+    <link name="arm_outline_5">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.01 0.01 0.22"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.01 0.01 0.22"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: arm, arm_outline_5 -->
+    <joint name="arm_arm_outline_5_joint" type="fixed">
+        <parent link="arm"/>
+        <child link="arm_outline_5"/>
+        <origin xyz="0.875 0.1 0"
+                rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        
+    </joint>
+
+
+    <!-- arm_outline_6 -->
+    <link name="arm_outline_6">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.01 0.01 0.22"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.01 0.01 0.22"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: arm, arm_outline_6 -->
+    <joint name="arm_arm_outline_6_joint" type="fixed">
+        <parent link="arm"/>
+        <child link="arm_outline_6"/>
+        <origin xyz="0.875 -0.1 0"
+                rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        
+    </joint>
+
+
+    <!-- arm_outline_7 -->
+    <link name="arm_outline_7">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.01 0.22 0.01"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.01 0.22 0.01"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: arm, arm_outline_7 -->
+    <joint name="arm_arm_outline_7_joint" type="fixed">
+        <parent link="arm"/>
+        <child link="arm_outline_7"/>
+        <origin xyz="0.875 0 -0.1"
                 rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
         

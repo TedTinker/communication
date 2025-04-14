@@ -273,11 +273,32 @@ if(__name__ == "__main__"):
 
 
 
+"""def get_matrix_pattern(a_values, rows=5, cols=6):
+    excluded = set()
+    for a in a_values:
+        for r in range(rows):
+            c = (r + a) % cols  
+            excluded.add((r, c))
+    return [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in excluded]
+
+pattern_lookup = {
+    2: set(get_matrix_pattern([-2, -1])),
+    3: set(get_matrix_pattern([-1, 0])),
+    4: set(get_matrix_pattern([0, 1])),
+    5: set(get_matrix_pattern([1, 2])),
+    6: set(get_matrix_pattern([2, 3]))}
+
 all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
-#training_combos = [(a, c, s) for (a, c, s) in all_combos if 
-#                   a == 0 or a == 1 or
-#                   ((s + c) % 2 == 1 and a % 2 == 0) or
-#                   ((s + c) % 2 == 0 and a % 2 == 1)]
+training_combos = [(a, c, s) for (a, c, s) in all_combos if 
+                    a == 0 or a == 1 or
+                    (a == 2 and (s, c) in pattern_lookup[2]) or
+                    (a == 3 and (s, c) in pattern_lookup[3]) or
+                    (a == 4 and (s, c) in pattern_lookup[4]) or
+                    (a == 5 and (s, c) in pattern_lookup[5]) or
+                    (a == 6 and (s, c) in pattern_lookup[6])]"""
+
+
+all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
 training_combos = [(a, c, s) for (a, c, s) in all_combos if 
                     a == 0 or a == 1 or
                     
@@ -291,7 +312,7 @@ training_combos = [(a, c, s) for (a, c, s) in all_combos if
                     (a == 3 and (s, c) in 
                     [       (0, 1), (0, 2), (0, 3), (0, 4),
                                     (1, 2), (1, 3), (1, 4), (1, 5),
-                    (3, 0),                 (2, 3), (2, 4), (2, 5),
+                    (2, 0),                 (2, 3), (2, 4), (2, 5),
                     (3, 0), (3, 1),                 (3, 4), (3, 5),
                     (4, 0), (4, 1), (4, 2),                 (4, 5)]) or
                     
@@ -530,7 +551,15 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 
 
-parser.add_argument('--task_duration',                 type=int,           default = 4,
+parser.add_argument('--watch_duration',                 type=int,           default = 3,
+                    help='How long must the agent watch the object to achieve watching.')
+parser.add_argument('--be_near_duration',               type=int,           default = 3,
+                    help='How long must the agent watch the object to achieve watching.')
+parser.add_argument('--top_duration',                   type=int,           default = 3,   
+                    help='How long must the agent watch the object to achieve watching.')
+parser.add_argument('--push_duration',                  type=int,           default = 3,
+                    help='How long must the agent watch the object to achieve watching.')
+parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
 
 parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/6,
@@ -660,7 +689,7 @@ parser.add_argument("--beta_report_voice",              type=float,         defa
                     help='Relative importance of complexity for voice.')
 parser.add_argument("--prediction_error_eta_report_voice", type=float,      default = 1,
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
-parser.add_argument("--hidden_state_eta_report_voice",  type=float,         default = 11,
+parser.add_argument("--hidden_state_eta_report_voice",  type=float,         default = 1,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
 parser.add_argument("--hidden_state_eta_report_voice_reduction_type",  type=str,         default = "None",
                     help='How should interest in report_voice chance?') 
@@ -747,6 +776,7 @@ def update_args(arg_set):
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size + arg_set.voice_encode_size
     """arg_set.epochs = [epochs_for_processor[0] for epochs_for_processor in arg_set.epochs_per_processor]
     arg_set.processor_list = [epochs_for_processor[1] for epochs_for_processor in arg_set.epochs_per_processor]"""
+    arg_set.right_duration = arg_set.left_duration
     return(arg_set)
 
 for arg_set in [default_args, args]:

@@ -340,13 +340,11 @@ if(__name__ == "__main__"):
             link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
             p.changeDynamics(robot_index, link_index, maxJointVelocity = 10000)
             if("sensor" in link_name):
-                p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, .15), physicsClientId = physicsClient)
-            elif("face" in link_name or "wheel" in link_name):
-                p.changeVisualShape(robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = physicsClient)
+                p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, 0), physicsClientId = physicsClient)
             elif("spoke" in link_name or "outline" in link_name):
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 1, 1, 1), physicsClientId = physicsClient)
             else:
-                p.changeVisualShape(robot_index, link_index, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
+                p.changeVisualShape(robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = physicsClient)
         initial_position = (-5, 0, 0)  # Replace with the actual starting position
         initial_orientation = p.getQuaternionFromEuler([0, 0, pi/2])  # Replace with the actual starting orientation
         

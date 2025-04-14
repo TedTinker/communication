@@ -81,7 +81,7 @@ add_this("c",   {                                           # Curiosity of langu
     "hidden_state_eta_touch" : 0})
 
 add_this("t",   {
-    "task_duration" : [3, 4]
+    "task_duration" : [3]
 })
 
 
