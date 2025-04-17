@@ -236,7 +236,7 @@ def make_robot(robot_name, parts, face = True):
                 [vertices[4], vertices[7], vertices[3], vertices[0]]
             ]
 
-            poly3d = Poly3DCollection(faces, facecolors=(0, 0, 0, .025), linewidths=0.5, edgecolors=(0, 0, 0, .025))
+            poly3d = Poly3DCollection(faces, facecolors=(0, 0, 0, .05), linewidths=0.5, edgecolors=(0, 0, 0, .05))
             ax.add_collection3d(poly3d)
             
         for face_size, face_position in zip(face_sizes, face_positions):
@@ -260,7 +260,7 @@ def make_robot(robot_name, parts, face = True):
             segments = [[circle[i], circle[(i + 1) % num_sides]] for i in range(num_sides)]
 
             # Draw as wireframe circle
-            ring = Line3DCollection(segments, colors=(0, 0, 0, 0.1), linewidths=1)
+            ring = Line3DCollection(segments, colors=(0, 0, 0, 0.2), linewidths=1)
             ax.add_collection3d(ring)
             
         for i, (position, dimension, angle) in enumerate(zip(wheel_positions, wheel_dimensions, wheel_angles)):
@@ -303,7 +303,7 @@ def make_robot(robot_name, parts, face = True):
             plt.show()
             plt.close()
         else:
-            plt.savefig('temp_plot.png')  # Save the plot as an image file
+            plt.savefig('temp_plot.png', bbox_inches="tight", dpi=300)  # Save the plot as an image file
             plt.close()
             image = Image.open('temp_plot.png')
             image_array = np.array(image)
@@ -332,7 +332,7 @@ if(__name__ == "__main__"):
     num_bots = len(robot_dict)
     for i, robot_name in enumerate(robot_dict.keys()):
         sensor_plotter, sensor_values = robot_dict[robot_name]
-        robot_index = p.loadURDF("{}.urdf".format(robot_name), (-1 + num_bots * 10 / 2 - i * 10, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+        robot_index = p.loadURDF("{}.urdf".format(robot_name), (-7 + num_bots * 10 / 2 - i * 10, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                                     useFixedBase=True, globalScaling = 2, physicsClientId=physicsClient)
         p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
         for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):

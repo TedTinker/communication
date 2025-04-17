@@ -4,13 +4,27 @@ import numpy as np
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE" # Without this, pyplot crashes the kernal
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.manifold import Isomap
 from sklearn.preprocessing import StandardScaler
 import torch
+from torch import nn 
+import torch.optim as optim
+import torch.nn.functional as F
 import plotly.graph_objects as go
+from plotly.colors import sample_colorscale
+from collections import defaultdict
+
+from utils import testing_combos
+
+
+
+# import umap # I NEEEEED IIIIT
+
+
 
 from utils import args, duration, load_dicts, print, task_map, color_map, shape_map
 
@@ -18,38 +32,145 @@ from utils import args, duration, load_dicts, print, task_map, color_map, shape_
 
 print("name:\n{}\n".format(args.arg_name),)
 
-
-
-task_mapping = {
-    'WATCH': '#FF0000',         # Red
-    'BE NEAR': '#00FF00',       # Green
-    'TOUCH THE TOP': '#0000FF', # Blue
-    'PUSH FORWARD': '#00FFFF',  # Cyan
-    'PUSH LEFT': '#FF00FF',     # Magenta
-    'PUSH RIGHT': '#FFFF00'}    # Yellow
-
-color_mapping = {
-    'RED': '#FF0000',           
-    'GREEN': '#00FF00',
-    'BLUE': '#0000FF',
-    'CYAN': '#00FFFF',
-    'MAGENTA': '#FF00FF',
-    'YELLOW': '#FFFF00'}
-
-shape_mapping = {
-    'PILLAR': '#FF0000',        # Red
-    'POLE': '#00FF00',          # Greed
-    'DUMBBELL': '#0000FF',      # Blue
-    'CONE': '#00FFFF',          # Cyan
-    'HOURGLASS': '#FF00FF'}     # Magenta
+epochs_for_classification = 50
 
 
 
-scaler = StandardScaler() # Not used
-pca = PCA(n_components=2, random_state=42)
-pca_3d = PCA(n_components=3, random_state=42)
-isomap = Isomap(n_components=2, n_neighbors=10)  
-                    
+task_mapping_color = {
+    'WATCH':            '#FF0000',  # Red
+    'BE NEAR':          '#00FF00',  # Green
+    'TOUCH THE TOP':    '#0000FF',  # Blue
+    'PUSH FORWARD':     '#00DDDD',  # Cyan
+    'PUSH LEFT':        '#FF00FF',  # Magenta
+    'PUSH RIGHT':       '#DDDD00'}  # Yellow
+
+color_mapping_color = {
+    'RED':              '#FF0000',           
+    'GREEN':            '#00FF00',
+    'BLUE':             '#0000FF',
+    'CYAN':             '#00DDDD',
+    'MAGENTA':          '#FF00FF',
+    'YELLOW':           '#DDDD00'}
+
+shape_mapping_color = {
+    'PILLAR':           '#FF0000',  # Red
+    'POLE':             '#00FF00',  # Green
+    'DUMBBELL':         '#0000FF',  # Blue
+    'CONE':             '#00DDDD',  # Cyan
+    'HOURGLASS':        '#FF00FF'}  # Magenta
+
+
+
+task_mapping_letter = {
+    'WATCH':            "o",
+    'BE NEAR':          "*",
+    'TOUCH THE TOP':    "+",
+    'PUSH FORWARD':     "^",
+    'PUSH LEFT':        "<",
+    'PUSH RIGHT':       ">"}
+
+shape_mapping_marker = {
+    'PILLAR':           'o',   
+    'POLE':             's',   
+    'DUMBBELL':         'P',    
+    'CONE':             '^',   
+    'HOURGLASS':        'X'}   
+
+
+
+class Classifier(nn.Module):
+
+    def __init__(self, data):
+        super(Classifier, self).__init__()
+        
+        data_shape = data.shape[1]
+        
+        self.seq = nn.Sequential(
+            nn.Linear(
+                in_features = data_shape, 
+                out_features = data_shape),
+            nn.PReLU(),
+            nn.Linear(
+                in_features = data_shape, 
+                out_features = data_shape),
+            nn.PReLU(),
+            nn.Linear(
+                in_features = data_shape, 
+                out_features = 32))
+        self.task  = nn.Linear(32, 6)
+        self.color = nn.Linear(32, 6)
+        self.shape = nn.Linear(32, 5)
+
+    def forward(self, data):
+        embedding = self.seq(data)
+        return(embedding, self.task(embedding), self.color(embedding), self.shape(embedding))
+    
+    
+    
+def train_to_classify_2d(data, labels, epochs, method):
+    data = torch.from_numpy(data)
+    labels = torch.from_numpy(labels)
+    
+    reduced_dict = {}
+    
+    for classes in [("task", "color"), ("task", "shape"), ("color", "shape")]:    
+        print(classes)
+        classifier = Classifier(data)
+        optimizer = optim.Adam(classifier.parameters(), lr=.001)
+        classifier.train()
+        for e in range(epochs):
+            print(e, end = " ")
+            optimizer.zero_grad()
+            _, task, color, shape = classifier(data)
+            task_loss  = F.cross_entropy(task, labels[:, 0] - 1)    * (1 if "task" in classes else 0)
+            color_loss = F.cross_entropy(color, labels[:, 1])       * (1 if "color" in classes else 0)
+            shape_loss = F.cross_entropy(shape, labels[:, 2])       * (1 if "shape" in classes else 0)
+            loss = task_loss + color_loss + shape_loss
+            loss.backward()
+            optimizer.step()
+        print()
+        classifier.eval()
+        embedding, _, _, _ = classifier(data)
+        if(method == "pca"):
+            reduced = PCA(n_components=2, random_state=42).fit_transform(embedding.detach().cpu().numpy())
+        if(method == "tsne"):
+            reduced = TSNE(n_components=2, perplexity=10, random_state=42, learning_rate="auto", init = "pca").fit_transform(embedding.detach().cpu().numpy())
+        if(method == "umap"):
+            pass # PLEEEAAASE!
+        
+        reduced_dict["_".join(classes)] = reduced
+        
+    return(reduced_dict)
+
+
+
+def train_to_classify_3d(data, labels, epochs, method):
+    data = torch.from_numpy(data)
+    labels = torch.from_numpy(labels)
+    classifier = Classifier(data)
+    optimizer = optim.Adam(classifier.parameters(), lr=.001)
+    classifier.train()
+    for e in range(epochs):
+        print(e, end = " ")
+        optimizer.zero_grad()
+        _, task, color, shape = classifier(data)
+        task_loss  = F.cross_entropy(task, labels[:, 0] - 1)
+        color_loss = F.cross_entropy(color, labels[:, 1])
+        shape_loss = F.cross_entropy(shape, labels[:, 2])
+        loss = task_loss + color_loss + shape_loss
+        loss.backward()
+        optimizer.step()
+    print()
+    classifier.eval()
+    embedding, _, _, _ = classifier(data)
+    if(method == "pca"):
+        reduced = PCA(n_components=3, random_state=42).fit_transform(embedding.detach().cpu().numpy())
+    if(method == "tsne"):
+        reduced = TSNE(n_components=3, perplexity=10, random_state=42).fit_transform(embedding.detach().cpu().numpy())
+    if(method == "umap"):
+        pass # PLEEEAAASE!
+    return(reduced)
+             
                     
                     
 def plot_dimension_reduction(plot_dict, file_name = "plot"):
@@ -60,85 +181,142 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
             for epochs, comp_dict in values_for_composition.items():
                 print("EPOCHS", epochs)
 
-                non_zero_mask = comp_dict["non_zero_mask"]
-                all_mask = comp_dict["all_mask"]
-                all_mask_filtered = all_mask[non_zero_mask]
+                all_mask = comp_dict["all_mask"].astype(bool)                
+                max_episode_len = all_mask.shape[1]
+                all_mask = all_mask.reshape(-1, all_mask.shape[-1]).squeeze()
                 
-                print("\n", non_zero_mask.shape, all_mask.shape, all_mask_filtered.shape)
-                
-                def process_component(comp_dict, key):
-                    try:
-                        data = comp_dict[key].detach().cpu().numpy()
-                    except:
-                        data = comp_dict[key]
-                    print("\n1: ", data.shape)
-                    data = data[non_zero_mask]
-                    print("2: ", data.shape)
+                one_episode = np.arange(max_episode_len)
+                steps = np.broadcast_to(one_episode.reshape(1, max_episode_len, 1), (180, max_episode_len, 1))
+                steps = steps.reshape(-1, steps.shape[-1]).squeeze()
+                steps = steps[all_mask]
+                                
+                def process_component(key):
+                    data = comp_dict[key]
                     data = data.reshape(-1, data.shape[-1])
-                    print("3: ", data.shape)
-                    data = data[all_mask_filtered.reshape(-1).astype(bool)]
-                    print("4: ", data.shape)
+                    data = data[all_mask]
                     return data
 
                 components = ["labels", "vision_zq", "touch_zq", "command_voice_zq", "report_voice_zq", "hq"]
-
                 results = {}
                 for key in components:
-                    results[key] = process_component(
-                        comp_dict, key)
+                    results[key] = process_component(key)
                 
                 tasks = results["labels"][:, 0]
                 colors = results["labels"][:, 1]
                 shapes = results["labels"][:, 2]
+                is_test = [tuple(label) in testing_combos for label in results["labels"]] # Not sure if this is right.
                 unique_tasks = np.unique(tasks)
                 unique_colors = np.unique(colors)
                 unique_shapes = np.unique(shapes)
-
-
                 
-                def plot_2d_reduction(type_name, reducer, method_name):
+                
+                
+                def plot_2d_reduction(type_name, method_name, method):
                     
                     try:
                         os.makedirs(f"thesis_pics/composition/{args.arg_name}/{method_name}/{type_name}", exist_ok=True)
                     except Exception as e:
                         print(f"Directory creation failed: {e}")     
                         
-                    this = results[type_name] 
-                    this = reducer.fit_transform(this)
+                    data = results[type_name] 
+                    reduced_dict = train_to_classify_2d(data, results["labels"], epochs_for_classification, method)
+                    
+                    reduced_task_color  = reduced_dict["task_color"]
+                    reduced_task_shape  = reduced_dict["task_shape"]
+                    reduced_color_shape = reduced_dict["color_shape"]
 
-                    fig, axes = plt.subplots(1, 3, figsize=(18, 6), sharex=True, sharey=True, constrained_layout=True)
+                    dpi = 400  
+                    fig, axes = plt.subplots(1, 3, figsize=(18, 6), dpi = dpi, sharex=False, sharey=False, constrained_layout=True)
 
-                    def plot_by_attribute(ax, data_2d, labels, unique_labels, label_map, color_mapping, title):
-                        for label in unique_labels:
-                            idx = labels == label
-                            ax.scatter(
-                                data_2d[idx, 0], data_2d[idx, 1],
-                                label=label_map[label].name,
-                                alpha=0.6,
-                                color=color_mapping[label_map[label].name]
-                            )
+                    def plot_by_attribute(ax, reduced, title):
+                        min_x = min([r[0] for r in reduced])
+                        max_x = max([r[0] for r in reduced])
+                        min_y = min([r[1] for r in reduced])
+                        max_y = max([r[1] for r in reduced])
+                        
+                        s = 20
+                        test_s = 60
+                                                
+                        test_coords = [point for is_t, point in zip(is_test, reduced) if is_t]
+                        if test_coords:
+                            test_xs, test_ys = zip(*test_coords)  # unzip x and y values
+                            ax.scatter(test_xs, test_ys, color="#DDDDDD", marker="o", alpha=0.5, s= test_s, edgecolor='none', zorder=0)
+                            
+                        grouped_points = defaultdict(list)
+                        grouped_letters = {}
+                        
+                        for task, color, shape, (x, y) in zip(tasks, colors, shapes, reduced):
+                            key = (task_map[task].name, color_map[color].name, shape_map[shape].name)
+                            grouped_points[key].append((x, y))
+                            if key not in grouped_letters:
+                                grouped_letters[key] = task_mapping_letter[task_map[task].name]
+                        
+                        for (task_name, color_name, shape_name), coords in grouped_points.items():
+                            letter = grouped_letters[(task_name, color_name, shape_name)]
+                            color_val = color_mapping_color[color_name]
+                            marker = shape_mapping_marker[shape_name]
+                            xs, ys = zip(*coords)  # unzip x and y values
+                            if(title == "Task and Color"):
+                                ax.scatter(xs, ys, color=color_val, marker="o", alpha=0.4, s=s, edgecolor='none')
+                                for x, y in coords:
+                                    ax.text(x, y, letter, fontsize=6, alpha=0.4, ha='center', va='center')
+                            if(title == "Task and Shape"):
+                                ax.scatter(xs, ys, color="#000000", marker=marker, alpha=0.3, s=s, edgecolor='none')
+                                for x, y in coords:
+                                    ax.text(x, y, letter, fontsize=6, alpha=0.4, ha='center', va='center')
+                            if(title == "Color and Shape"):
+                                ax.scatter(xs, ys, color=color_val, marker=marker, alpha=0.4, s=s, edgecolor='none')
+                                       
+                        if title == "Color and Shape":
+                            legend_elements = []
+
+                            for task in unique_tasks:
+                                name = task_map[task].name
+                                letter = task_mapping_letter[name]
+                                legend_elements.append(Line2D([0], [0], marker='',
+                                                            label=f"{letter}    {name}",
+                                                            color='none'))
+
+                            for color in unique_colors:
+                                name = color_map[color].name
+                                color_val = color_mapping_color[name]
+                                legend_elements.append(Line2D([0], [0], marker='o', color='w',
+                                                            label=f"{name}",
+                                                            markerfacecolor=color_val, markersize=6))
+
+                            for shape in unique_shapes:
+                                name = shape_map[shape].name
+                                marker = shape_mapping_marker[name]
+                                legend_elements.append(Line2D([0], [0], marker=marker,
+                                                            label=f"{name}"))
+                                
+                            ax.legend(
+                                handles=legend_elements,
+                                fontsize=8,
+                                loc="upper left",
+                                bbox_to_anchor=(1.02, 1),
+                                borderaxespad=0,
+                                ncol=1,
+                                handletextpad=0.4,
+                                columnspacing=0.7,
+                                borderpad=0.3,
+                                markerscale=0.8)         
+                                            
                         ax.set_title(title)
                         ax.set_xlabel("Component 1")
-                        if title == "Task":
+                        if title == "Task and Color":
                             ax.set_ylabel("Component 2")
-                        ax.legend(
-                            title=title,
-                            fontsize=8,
-                            title_fontsize=8,
-                            loc="upper left",
-                            bbox_to_anchor=(1.02, 1),
-                            borderaxespad=0,
-                            ncol=1,
-                            handletextpad=0.4,
-                            columnspacing=0.7,
-                            borderpad=0.3,
-                            markerscale=0.8
-                        )
-                        ax.grid(True)
+                        ax.set_xticks([])      # remove x-axis ticks
+                        ax.set_yticks([])      # remove y-axis ticks
+                        ax.set_xticklabels([]) # remove x-axis tick labels
+                        ax.set_yticklabels([]) # remove y-axis tick labels
+                        ax.set_xlim([min_x, max_x])
+                        ax.set_ylim([min_y, max_y])
+                        ax.grid(False)
 
-                    plot_by_attribute(axes[0], this, tasks,  unique_tasks,  task_map,  task_mapping,  "Task")
-                    plot_by_attribute(axes[1], this, colors, unique_colors, color_map, color_mapping, "Color")
-                    plot_by_attribute(axes[2], this, shapes, unique_shapes, shape_map, shape_mapping, "Shape")
+                    plot_by_attribute(axes[0], reduced_task_color,  "Task and Color")
+                    plot_by_attribute(axes[1], reduced_task_shape,  "Task and Shape")
+                    plot_by_attribute(axes[2], reduced_color_shape, "Color and Shape")
 
                     plt.suptitle(f"{method_name.upper()} of {type_name}\nAgent {agent_num}, epoch {epochs}", fontsize=16)
                     output_file = f"thesis_pics/composition/{args.arg_name}/{method_name}/{type_name}/{file_name}_epoch_{epochs}_{type_name}_agent_num_{agent_num}_{args.arg_name}_{method_name}.png"
@@ -147,54 +325,35 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                         
                         
                     
-                def plot_3d_reduction(type_name, reducer, method_name):
-                    import plotly.graph_objects as go
-                    import numpy as np
-                    import os
+                def plot_3d_reduction(type_name, method_name, method):
                     
-                    this = results[type_name]
-
-                    # Ensure output directory exists
                     try:
                         os.makedirs(f"thesis_pics/composition/{args.arg_name}/{method_name}/{type_name}", exist_ok=True)
                     except Exception as e:
                         print(f"Directory creation failed: {e}")
-
-                    # Perform dimensionality reduction
-                    this = reducer.fit_transform(this)
-                    x, y, z = this[:, 0], this[:, 1], this[:, 2]
-
-                    # Get the output file path
-                    output_file = (
-                        f"thesis_pics/composition/{args.arg_name}/{method_name}/{type_name}/"
-                        f"{file_name}_epoch_{epochs}_{type_name}_agent_num_{agent_num}_{args.arg_name}_{method_name}_3d.html")
-
-                    # Helper functions for colors and opacities
-                    def get_colors(labels, label_map, mapping, active_labels):
-                        return [
-                            mapping[label_map[label].name] if label in active_labels else '#D3D3D3'
-                            for label in labels]
-
-                    def get_opacities(labels, active_labels):
-                        return .7
-
-                    # Active label sets (all visible initially)
-                    active_tasks = set(np.unique(tasks))
-                    active_colors = set(np.unique(colors))
-                    active_shapes = set(np.unique(shapes))
-
+                        
+                    data = results[type_name]
+                    reduced = train_to_classify_3d(data, results["labels"], epochs_for_classification, method)
+                    
+                    x, y, z = reduced[:, 0], reduced[:, 1], reduced[:, 2]
                     trace_list = []
 
+                    def get_colors(labels, label_map, mapping, unique_labels, transparent = False, verbose = False):
+                        return [mapping[label_map[label].name] if label in unique_labels else '#D3D3D3' for label in labels]
+
+                    def get_opacities(labels, unique_labels):
+                        return .7
+
                     # Create 3D scatter traces
-                    def make_trace(label_type, label_data, label_map, mapping, active_set, visible=True):
+                    def make_trace(label_type, label_data, label_map, mapping, unique_set, visible=True, verbose = False):
                         return go.Scatter3d(
                             x=x, y=y, z=z,
                             mode='markers',
                             visible=visible,
                             marker=dict(
                                 size=4,
-                                color=get_colors(label_data, label_map, mapping, active_set),
-                                opacity=get_opacities(label_data, active_set)
+                                color=get_colors(label_data, label_map, mapping, unique_set, verbose = verbose),
+                                opacity=get_opacities(label_data, unique_set)
                             ),
                             text=[f"{label_type}: {label_map[l].name}" for l in label_data],
                             hoverinfo='text',
@@ -202,9 +361,9 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                         )
 
                     # Main data traces
-                    trace_task = make_trace("Task", tasks, task_map, task_mapping, active_tasks, visible=True)
-                    trace_color = make_trace("Color", colors, color_map, color_mapping, active_colors, visible=False)
-                    trace_shape = make_trace("Shape", shapes, shape_map, shape_mapping, active_shapes, visible=False)
+                    trace_task  = make_trace("Task",  tasks,  task_map,  task_mapping_color,  unique_tasks,  visible=True)
+                    trace_color = make_trace("Color", colors, color_map, color_mapping_color, unique_colors, visible=False, verbose = True)
+                    trace_shape = make_trace("Shape", shapes, shape_map, shape_mapping_color, unique_shapes, visible=False)
 
                     trace_list += [trace_task, trace_color, trace_shape]
 
@@ -222,9 +381,9 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                             for key, color in mapping.items()
                         ]
 
-                    trace_list += make_legend_traces(task_map, task_mapping, 'Task')
-                    trace_list += make_legend_traces(color_map, color_mapping, 'Color')
-                    trace_list += make_legend_traces(shape_map, shape_mapping, 'Shape')
+                    trace_list += make_legend_traces(task_map,  task_mapping_color,  'Task')
+                    trace_list += make_legend_traces(color_map, color_mapping_color, 'Color')
+                    trace_list += make_legend_traces(shape_map, shape_mapping_color, 'Shape')
 
                     # Buttons to toggle between modes
                     view_buttons = [
@@ -259,13 +418,17 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                     )
 
                     # Save to HTML
+                    output_file = (
+                        f"thesis_pics/composition/{args.arg_name}/{method_name}/{type_name}/"
+                        f"{file_name}_epoch_{epochs}_{type_name}_agent_num_{agent_num}_{args.arg_name}_{method_name}_3d.html")
                     fig.write_html(output_file)
 
                                     
                                     
-                for type_name in ["command_voice_zq", "hq"]:
-                    plot_2d_reduction(type_name, pca, "pca")
-                    plot_3d_reduction(type_name, pca_3d, "pca_3d")
+                for type_name in ["hq"]:
+                    plot_2d_reduction(type_name, "pca_nn", "pca")
+                    #plot_3d_reduction(type_name, "pca_3d_nn", "pca")
+                    #plot_3d_reduction(type_name, "tsne_3d_nn", "tsne")
                     
 
 

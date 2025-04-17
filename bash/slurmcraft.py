@@ -73,21 +73,24 @@ def add_this(name, args):
         slurm_dict[new_key] = new_value
 
 add_this("e",   {"alpha" : "None", "normal_alpha" : .1})    # Agents with entropy
-add_this("n",   {"curiosity" : "prediction_error"})         # Agents with curiosity (prediction error)
-add_this("f",   {"curiosity" : "hidden_state"})             # Agents with curiosity (hidden state)
+
 add_this("c",   {                                           # Curiosity of language only
     "curiosity" : "hidden_state",
-    "hidden_state_eta_vision" : 0,
-    "hidden_state_eta_touch" : 0})
+    "hidden_state_eta_report_voice" : 1})
+
+add_this("f",   {
+    "curiosity" : "hidden_state",
+    "hidden_state_eta_vision" : .3,
+    "hidden_state_eta_touch" : .03,
+    "hidden_state_eta_report_voice" : 1})             # Agents with curiosity (hidden state)
 
 add_this("t",   {
     "task_duration" : [3]
 })
 
-
 add_this("vision",   {
     "curiosity" : "hidden_state",
-    "hidden_state_eta_vision" : [.1, .3, 1],
+    "hidden_state_eta_vision" : [.05, .075, .1, .3, .5, .75, 1],
     "hidden_state_eta_touch" : 0,
     "hidden_state_eta_report_voice" : 0
 })
@@ -95,7 +98,7 @@ add_this("vision",   {
 add_this("touch",   {
     "curiosity" : "hidden_state",
     "hidden_state_eta_vision" : 0,
-    "hidden_state_eta_touch" : [.01, .03, .1],
+    "hidden_state_eta_touch" : [.005, .0075, .01, .03, .05, .075, .1],
     "hidden_state_eta_report_voice" : 0
 })
 
@@ -103,7 +106,7 @@ add_this("report_voice",   {
     "curiosity" : "hidden_state",
     "hidden_state_eta_vision" : 0,
     "hidden_state_eta_touch" : 0,
-    "hidden_state_eta_report_voice" : [1, 1.5, 3]
+    "hidden_state_eta_report_voice" : [.3, .5, .75, 1, 1.5, 1.75, 2]
 })
 
 

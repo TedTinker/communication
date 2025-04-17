@@ -28,7 +28,7 @@ def get_physics(GUI, args, w = 10, h = 10):
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0, physicsClientId = physicsClient)
     p.setAdditionalSearchPath("pybullet_data")
     p.setGravity(0, 0, args.gravity, physicsClientId = physicsClient)
-    p.setTimeStep(args.time_step / args.steps_per_step, physicsClientId=physicsClient)  # More accurate time step
+    p.setTimeStep(args.time_step, physicsClientId=physicsClient)  # More accurate time step
     p.setPhysicsEngineParameter(numSolverIterations=1, numSubSteps=1, physicsClientId=physicsClient)  # Increased solver iterations for potentially better stability
     return(physicsClient)
     
@@ -270,7 +270,7 @@ class Arena():
                         if(touching[object_index][body_part]) > 1:
                             touching[object_index][body_part] = 1
                             
-            self.fix_joints()
+            joint_target_positions = self.fix_joints(joint_target_positions) # This should output something to make the joint's target into the min/max if needed.
             self.set_joint_target_positions(joint_target_positions)  
                                                                     
         self.objects_end = self.get_object_positions()
@@ -288,12 +288,6 @@ class Arena():
     # Functions for objects
     def generate_positions(self, n, distance):
         base_angle = uniform(0, 2 * pi)
-        closest_angle = 30
-        while( 
-                (base_angle < radians(closest_angle)) or 
-                (base_angle > radians(360 - closest_angle)) or 
-                (base_angle > radians(180 - closest_angle) and base_angle < radians(180 + closest_angle))):
-            base_angle = uniform(0, 2 * pi)
         x1 = distance * cos(base_angle)
         y1 = distance * sin(base_angle)
         r = distance 
@@ -462,7 +456,8 @@ class Arena():
             joint_angles[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[0]
         return joint_angles
     
-    def fix_joints(self):
+    # This should output something to make the joint's target into the min/max if needed.
+    """def fix_joints(self, joint_target_positions):
         joint_angles = self.get_joint_angles()
         new_joint_angles = {key: None for key in self.joint_indices.keys()}
         joint_speeds = self.get_joint_speeds()
@@ -480,6 +475,30 @@ class Arena():
                 joint_speeds[key] = -self.args.max_joint_speed
         self.set_joint_angles(new_joint_angles)
         self.set_joint_speeds(new_joint_speeds)
+        return(joint_target_positions)"""
+    
+    def fix_joints(self, joint_target_positions):
+        joint_angles = self.get_joint_angles()
+        joint_speeds = self.get_joint_speeds()
+        new_joint_speeds = {key: None for key in self.joint_indices.keys()}
+        for key in self.joint_indices.keys():
+            max_angle = getattr(self.args, f'max_joint_{key}_angle')
+            min_angle = getattr(self.args, f'min_joint_{key}_angle')
+            max_speed = self.args.max_joint_speed
+            
+            if(joint_angles[key] > max_angle):     
+                if(joint_target_positions[key] >= max_angle):
+                    joint_target_positions[key] = max_angle - .01
+            if(joint_angles[key] < min_angle):
+                if(joint_target_positions[key] <= min_angle):
+                    joint_target_positions[key] = min_angle + .01
+                
+            if(joint_speeds[key] > max_speed):
+                joint_speeds[key] = max_speed
+            if(joint_speeds[key] < -max_speed):
+                joint_speeds[key] = -max_speed
+                
+        return(joint_target_positions)
         
         
         

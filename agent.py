@@ -133,6 +133,7 @@ class Agent:
             "arg_title" : self.args.arg_title,
             "arg_name" : self.args.arg_name,
             "all_processor_names" : self.all_processor_names,
+            "testing_combos" : testing_combos,
             
             "division_epochs" : [],
             "steps" : [],

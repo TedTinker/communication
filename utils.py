@@ -1,9 +1,10 @@
 #%% 
 
 # To do:
-#   Are are generalized win-rates so weird? Everything but "all" look like they're only half full.
-#   Try with "WATCH" having generalization tests.
-#   Adjust time-stuff to keep from phasing.
+#   Why are generalized win-rates so weird? Everything but "all" look like they're only half full.
+#   Trying with "WATCH" having generalization tests. 
+#   Add cusiosity-plots to videos.
+#   Make compositions into 2D by only focusing on two parts of task-color-shape at a time.
 
 import os
 import pickle
@@ -274,7 +275,7 @@ if(__name__ == "__main__"):
 
 
 
-"""def get_matrix_pattern(a_values, rows=5, cols=6):
+def get_matrix_pattern(a_values, rows=5, cols=6):
     excluded = set()
     for a in a_values:
         for r in range(rows):
@@ -283,62 +284,24 @@ if(__name__ == "__main__"):
     return [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in excluded]
 
 pattern_lookup = {
-    2: set(get_matrix_pattern([-2, -1])),
-    3: set(get_matrix_pattern([-1, 0])),
-    4: set(get_matrix_pattern([0, 1])),
-    5: set(get_matrix_pattern([1, 2])),
-    6: set(get_matrix_pattern([2, 3]))}
+    1: set(get_matrix_pattern([-2, -1])),
+    2: set(get_matrix_pattern([-1, 0])),
+    3: set(get_matrix_pattern([0, 1])),
+    4: set(get_matrix_pattern([1, 2])),
+    5: set(get_matrix_pattern([2, 3])),
+    6: set(get_matrix_pattern([3, 4]))}
 
 all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
 training_combos = [(a, c, s) for (a, c, s) in all_combos if 
-                    a == 0 or a == 1 or
+                    a == 0 or 
+                    (a == 1 and (s, c) in pattern_lookup[1]) or
                     (a == 2 and (s, c) in pattern_lookup[2]) or
                     (a == 3 and (s, c) in pattern_lookup[3]) or
                     (a == 4 and (s, c) in pattern_lookup[4]) or
                     (a == 5 and (s, c) in pattern_lookup[5]) or
-                    (a == 6 and (s, c) in pattern_lookup[6])]"""
+                    (a == 6 and (s, c) in pattern_lookup[6])]
 
 
-all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
-training_combos = [(a, c, s) for (a, c, s) in all_combos if 
-                    a == 0 or a == 1 or
-                    
-                   (a == 2 and (s, c) in 
-                    [(0, 0), (0, 1), (0, 2), (0, 3),
-                            (1, 1), (1, 2), (1, 3), (1, 4),
-                                    (2, 2), (2, 3), (2, 4), (2, 5),
-                    (3, 0),                 (3, 3), (3, 4), (3, 5),
-                    (4, 0), (4, 1),                 (4, 4), (4, 5)]) or
-                   
-                    (a == 3 and (s, c) in 
-                    [       (0, 1), (0, 2), (0, 3), (0, 4),
-                                    (1, 2), (1, 3), (1, 4), (1, 5),
-                    (2, 0),                 (2, 3), (2, 4), (2, 5),
-                    (3, 0), (3, 1),                 (3, 4), (3, 5),
-                    (4, 0), (4, 1), (4, 2),                 (4, 5)]) or
-                    
-                    (a == 4 and (s, c) in 
-                    [               (0, 2), (0, 3), (0, 4), (0, 5),
-                    (1, 0),                 (1, 3), (1, 4), (1, 5),
-                    (2, 0), (2, 1),                 (2, 4), (2, 5),
-                    (3, 0), (3, 1), (3, 2),                 (3, 5),
-                    (4, 0), (4, 1), (4, 2), (4, 3)                ]) or
-                    
-                    (a == 5 and (s, c) in 
-                    [(0, 0),                (0, 3), (0, 4), (0, 5),
-                    (1, 0), (1, 1),                 (1, 4), (1, 5),
-                    (2, 0), (2, 1), (2, 2),                 (2, 5),
-                    (3, 0), (3, 1), (3, 2), (3, 3),             
-                            (4, 1), (4, 2), (4, 3), (4, 4)        ]) or
-                    
-                    (a == 6 and (s, c) in 
-                    [(0, 0),(0, 1),                 (0, 4), (0, 5),
-                    (1, 0), (1, 1), (1, 2),                 (1, 5),
-                    (2, 0), (2, 1), (2, 2), (2, 3),
-                            (3, 1), (3, 2), (3, 3), (3, 4), 
-                                    (4, 2), (4, 3), (4, 4), (4, 5)])
-                   
-                   ]
 
 testing_combos = [combo for combo in all_combos if not combo in training_combos]
 
@@ -494,7 +457,7 @@ parser.add_argument('--processor',                      type=str,       default 
     
 
     # Simulation details
-parser.add_argument('--time_step',                      type=float,         default = .1,
+parser.add_argument('--time_step',                      type=float,         default = .005,
                     help='numSubSteps in pybullet environment.')
 parser.add_argument('--steps_per_step',                 type=int,           default = 20,
                     help='numSubSteps in pybullet environment.')
@@ -506,7 +469,7 @@ parser.add_argument('--object_size',                    type=float,         defa
                     help='How large is the agent\'s body?')    
 parser.add_argument('--body_size',                      type=float,         default = 2,
                     help='How large is the agent\'s body?')        
-parser.add_argument('--force',                          type=float,         default = 15000,
+parser.add_argument('--force',                          type=float,         default = 30000,
                     help='Force for moving joints.') 
 parser.add_argument('--gravity',                        type=float,         default = -9.8,
                     help='Force of gravity.') 
@@ -653,9 +616,9 @@ parser.add_argument('--vision_scaler',                    type=float,         de
                     help='How much to consider vision prediction in accuracy compared to voice and touch.')   
 parser.add_argument("--beta_vision",                      type=float,         default = .03,
                     help='Relative importance of complexity for vision.')
-parser.add_argument("--prediction_error_eta_vision",      type=float,         default = .3,
+parser.add_argument("--prediction_error_eta_vision",      type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for vision.')    
-parser.add_argument("--hidden_state_eta_vision",          type=float,         default = .3,
+parser.add_argument("--hidden_state_eta_vision",          type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for vision.') 
 
 
@@ -664,9 +627,9 @@ parser.add_argument('--touch_scaler',                 type=float,         defaul
                     help='How much to consider touch prediction in accuracy compared to vision and voice.')   
 parser.add_argument("--beta_touch",                   type=float,         default = .3,
                     help='Relative importance of complexity for touch.')     
-parser.add_argument("--prediction_error_eta_touch",   type=float,         default = .03,
+parser.add_argument("--prediction_error_eta_touch",   type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for touch.')   
-parser.add_argument("--hidden_state_eta_touch",       type=float,         default = .03,
+parser.add_argument("--hidden_state_eta_touch",       type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for touch.') 
 
 
@@ -688,9 +651,9 @@ parser.add_argument('--report_voice_scaler',            type=float,         defa
                     help='How much to consider report voice prediction in accuracy compared to vision and touch.')     
 parser.add_argument("--beta_report_voice",              type=float,         default = .1,
                     help='Relative importance of complexity for voice.')
-parser.add_argument("--prediction_error_eta_report_voice", type=float,      default = 1,
+parser.add_argument("--prediction_error_eta_report_voice", type=float,      default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
-parser.add_argument("--hidden_state_eta_report_voice",  type=float,         default = 1,
+parser.add_argument("--hidden_state_eta_report_voice",  type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
 parser.add_argument("--hidden_state_eta_report_voice_reduction_type",  type=str,         default = "None",
                     help='How should interest in report_voice chance?') 
