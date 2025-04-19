@@ -9,7 +9,6 @@ args.show_duration = True
 
 args.local = True
 
-
 def run():
     agent = Agent(
         args = args,

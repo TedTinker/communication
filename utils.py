@@ -2,9 +2,7 @@
 
 # To do:
 #   Why are generalized win-rates so weird? Everything but "all" look like they're only half full.
-#   Trying with "WATCH" having generalization tests. 
-#   Add cusiosity-plots to videos.
-#   Make compositions into 2D by only focusing on two parts of task-color-shape at a time.
+#   I made a docker for a newer python version, to use umap, but I'll need to adjust things to use it.
 
 import os
 import pickle
@@ -284,12 +282,12 @@ def get_matrix_pattern(a_values, rows=5, cols=6):
     return [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in excluded]
 
 pattern_lookup = {
-    1: set(get_matrix_pattern([-2, -1])),
-    2: set(get_matrix_pattern([-1, 0])),
-    3: set(get_matrix_pattern([0, 1])),
-    4: set(get_matrix_pattern([1, 2])),
-    5: set(get_matrix_pattern([2, 3])),
-    6: set(get_matrix_pattern([3, 4]))}
+    1: set(get_matrix_pattern([0, 1])),
+    2: set(get_matrix_pattern([1, 2])),
+    3: set(get_matrix_pattern([2, 3])),
+    4: set(get_matrix_pattern([3, 4])),
+    5: set(get_matrix_pattern([-2, -1])),
+    6: set(get_matrix_pattern([-1, 0])),}
 
 all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
 training_combos = [(a, c, s) for (a, c, s) in all_combos if 

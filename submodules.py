@@ -372,7 +372,7 @@ class Voice_OUT(nn.Module):
             nn.Linear(
                 in_features = self.args.hidden_size, 
                 out_features = self.args.voice_shape),
-            nn.Softmax())
+            nn.Softmax(dim = -1))
         
         self.apply(init_weights)
         self.to(self.args.device)

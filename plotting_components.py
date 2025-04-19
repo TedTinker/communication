@@ -1,10 +1,13 @@
 #%%
 import os
+import random
 import numpy as np
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE" # Without this, pyplot crashes the kernal
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import matplotlib.image as mpimg
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
@@ -18,16 +21,8 @@ import plotly.graph_objects as go
 from plotly.colors import sample_colorscale
 from collections import defaultdict
 
-from utils import testing_combos
-
-
-
-# import umap # I NEEEEED IIIIT
-
-
-
-from utils import args, duration, load_dicts, print, task_map, color_map, shape_map
-
+from utils import testing_combos, args, duration, load_dicts, print, task_map, color_map, shape_map
+from utils_submodule import  init_weights
 
 
 print("name:\n{}\n".format(args.arg_name),)
@@ -44,6 +39,14 @@ task_mapping_color = {
     'PUSH LEFT':        '#FF00FF',  # Magenta
     'PUSH RIGHT':       '#DDDD00'}  # Yellow
 
+task_mapping_letter = {
+    'WATCH':            "W",
+    'BE NEAR':          "B",
+    'TOUCH THE TOP':    "T",
+    'PUSH FORWARD':     "F",
+    'PUSH LEFT':        "L",
+    'PUSH RIGHT':       "R"}
+
 color_mapping_color = {
     'RED':              '#FF0000',           
     'GREEN':            '#00FF00',
@@ -52,6 +55,24 @@ color_mapping_color = {
     'MAGENTA':          '#FF00FF',
     'YELLOW':           '#DDDD00'}
 
+def darken_hex_color(hex_color, factor=0.8):
+    """
+    Darkens the given hex color by the specified factor.
+    Factor should be between 0 (black) and 1 (no change).
+    """
+    hex_color = hex_color.lstrip('#')
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    
+    r = int(r * factor)
+    g = int(g * factor)
+    b = int(b * factor)
+
+    return f'#{r:02X}{g:02X}{b:02X}'
+
+color_mapping_color_dark = {name: darken_hex_color(hex_code) for name, hex_code in color_mapping_color.items()}
+
 shape_mapping_color = {
     'PILLAR':           '#FF0000',  # Red
     'POLE':             '#00FF00',  # Green
@@ -59,24 +80,53 @@ shape_mapping_color = {
     'CONE':             '#00DDDD',  # Cyan
     'HOURGLASS':        '#FF00FF'}  # Magenta
 
-
-
-task_mapping_letter = {
-    'WATCH':            "o",
-    'BE NEAR':          "*",
-    'TOUCH THE TOP':    "+",
-    'PUSH FORWARD':     "^",
-    'PUSH LEFT':        "<",
-    'PUSH RIGHT':       ">"}
-
 shape_mapping_marker = {
+    'PILLAR':           mpimg.imread('pybullet_data/shapes/pillar.png'),   
+    'POLE':             mpimg.imread('pybullet_data/shapes/pole.png'),   
+    'DUMBBELL':         mpimg.imread('pybullet_data/shapes/dumbbell.png'),    
+    'CONE':             mpimg.imread('pybullet_data/shapes/cone.png'),   
+    'HOURGLASS':        mpimg.imread('pybullet_data/shapes/hourglass.png')}   
+
+"""shape_mapping_marker = {
     'PILLAR':           'o',   
     'POLE':             's',   
     'DUMBBELL':         'P',    
     'CONE':             '^',   
-    'HOURGLASS':        'X'}   
+    'HOURGLASS':        'X'}   """
+        
+    
+    
+def colorize_marker_image(marker_img, hex_color, alpha = .3):
+    hex_color = hex_color.lstrip('#')
+    target_rgb = np.array([
+        int(hex_color[0:2], 16) / 255.0,
+        int(hex_color[2:4], 16) / 255.0,
+        int(hex_color[4:6], 16) / 255.0])
+    colorized = marker_img.copy()
+    mask = colorized[..., 3] > 0 
+    colorized[mask, 0] = target_rgb[0]
+    colorized[mask, 1] = target_rgb[1]
+    colorized[mask, 2] = target_rgb[2]
+    colorized[mask, 3] = alpha
+    return colorized
+
+shape_mapping_colored_marker = {}
+for shape_name, shape_marker in shape_mapping_marker.items():
+    shape_mapping_colored_marker[shape_name] = {}
+    shape_mapping_colored_marker[shape_name]["BLACK"] = colorize_marker_image(shape_marker, "#000000")
+    for color_name, color_color in color_mapping_color.items():
+        shape_mapping_colored_marker[shape_name][color_name] = colorize_marker_image(shape_marker, color_color)
 
 
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        
+        
 
 class Classifier(nn.Module):
 
@@ -100,6 +150,7 @@ class Classifier(nn.Module):
         self.task  = nn.Linear(32, 6)
         self.color = nn.Linear(32, 6)
         self.shape = nn.Linear(32, 5)
+        self.apply(init_weights)
 
     def forward(self, data):
         embedding = self.seq(data)
@@ -115,6 +166,7 @@ def train_to_classify_2d(data, labels, epochs, method):
     
     for classes in [("task", "color"), ("task", "shape"), ("color", "shape")]:    
         print(classes)
+        set_seed(42)
         classifier = Classifier(data)
         optimizer = optim.Adam(classifier.parameters(), lr=.001)
         classifier.train()
@@ -240,7 +292,7 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                         test_coords = [point for is_t, point in zip(is_test, reduced) if is_t]
                         if test_coords:
                             test_xs, test_ys = zip(*test_coords)  # unzip x and y values
-                            ax.scatter(test_xs, test_ys, color="#DDDDDD", marker="o", alpha=0.5, s= test_s, edgecolor='none', zorder=0)
+                            ax.scatter(test_xs, test_ys, facecolors='none', edgecolors="#000000", linewidths=0.5, marker='o', alpha=.5, s=test_s, zorder=0, linestyle='dotted')
                             
                         grouped_points = defaultdict(list)
                         grouped_letters = {}
@@ -253,19 +305,32 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                         
                         for (task_name, color_name, shape_name), coords in grouped_points.items():
                             letter = grouped_letters[(task_name, color_name, shape_name)]
+                            text_color_val = color_mapping_color_dark[color_name]
                             color_val = color_mapping_color[color_name]
                             marker = shape_mapping_marker[shape_name]
                             xs, ys = zip(*coords)  # unzip x and y values
+                            
+                            
+
                             if(title == "Task and Color"):
-                                ax.scatter(xs, ys, color=color_val, marker="o", alpha=0.4, s=s, edgecolor='none')
-                                for x, y in coords:
-                                    ax.text(x, y, letter, fontsize=6, alpha=0.4, ha='center', va='center')
+                                ax.scatter(xs, ys, color=text_color_val, marker=f'${letter}$', alpha=0.4, s=s, edgecolor='none', zorder=2)
+
                             if(title == "Task and Shape"):
-                                ax.scatter(xs, ys, color="#000000", marker=marker, alpha=0.3, s=s, edgecolor='none')
-                                for x, y in coords:
-                                    ax.text(x, y, letter, fontsize=6, alpha=0.4, ha='center', va='center')
+                                for (x, y) in zip(xs, ys):
+                                    colored_marker = shape_mapping_colored_marker[shape_name]["BLACK"]
+                                    imagebox = OffsetImage(colored_marker, zoom=0.2)  # Adjust zoom as needed
+                                    ab = AnnotationBbox(imagebox, (x, y), frameon=False, alpha=0.4, zorder=1)
+                                    ax.add_artist(ab)
+                                ax.scatter(xs, ys, color="black", marker=f'${letter}$', alpha=0.4, s=s, edgecolor='none', zorder=2)
+                                
                             if(title == "Color and Shape"):
-                                ax.scatter(xs, ys, color=color_val, marker=marker, alpha=0.4, s=s, edgecolor='none')
+                                for (x, y) in zip(xs, ys):
+                                    colored_marker = shape_mapping_colored_marker[shape_name][color_name]
+                                    imagebox = OffsetImage(colored_marker, zoom=0.2)  # Adjust zoom as needed
+                                    ab = AnnotationBbox(imagebox, (x, y), frameon=False, alpha=0.4, zorder=1)
+                                    ax.add_artist(ab)
+                                
+                            
                                        
                         if title == "Color and Shape":
                             legend_elements = []
@@ -273,9 +338,9 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                             for task in unique_tasks:
                                 name = task_map[task].name
                                 letter = task_mapping_letter[name]
-                                legend_elements.append(Line2D([0], [0], marker='',
-                                                            label=f"{letter}    {name}",
-                                                            color='none'))
+                                legend_elements.append(Line2D([0], [0], marker=f'${letter}$', linestyle='None', 
+                                                            label=f"{name}",
+                                                            color='black'))
 
                             for color in unique_colors:
                                 name = color_map[color].name
@@ -287,7 +352,7 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                             for shape in unique_shapes:
                                 name = shape_map[shape].name
                                 marker = shape_mapping_marker[name]
-                                legend_elements.append(Line2D([0], [0], marker=marker,
+                                legend_elements.append(Line2D([0], [0], marker="", linestyle='None', color='black', 
                                                             label=f"{name}"))
                                 
                             ax.legend(

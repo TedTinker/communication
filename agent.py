@@ -18,7 +18,7 @@ from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
 from utils import folder, wheels_joints_to_string, cpu_memory_usage, duration, print_duration, wait_for_button_press, \
-    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots, Goal, adjust_action
+    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots, Goal, adjust_action, testing_combos
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from processor import Processor

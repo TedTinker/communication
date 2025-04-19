@@ -9,6 +9,7 @@ from math import pi, sin, cos, tan, radians, degrees, sqrt, isnan
 from time import sleep
 from skimage.transform import resize
 import threading
+import pkg_resources
 
 from utils import shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, make_objects_and_task, duration, wait_for_button_press#, print
 from arena_navigator import run_tk
@@ -456,27 +457,6 @@ class Arena():
             joint_angles[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[0]
         return joint_angles
     
-    # This should output something to make the joint's target into the min/max if needed.
-    """def fix_joints(self, joint_target_positions):
-        joint_angles = self.get_joint_angles()
-        new_joint_angles = {key: None for key in self.joint_indices.keys()}
-        joint_speeds = self.get_joint_speeds()
-        new_joint_speeds = {key: None for key in self.joint_indices.keys()}
-        for key in self.joint_indices.keys():
-            if(joint_angles[key] > getattr(self.args, f'max_joint_{key}_angle')):     
-                new_joint_angles[key] = getattr(self.args, f'max_joint_{key}_angle') - .01
-                new_joint_speeds[key] = 0
-            if(joint_angles[key] < getattr(self.args, f'min_joint_{key}_angle')):
-                new_joint_angles[key] = getattr(self.args, f'min_joint_{key}_angle') + .01
-                new_joint_speeds[key] = 0
-            if(joint_speeds[key] > self.args.max_joint_speed):
-                joint_speeds[key] = self.args.max_joint_speed
-            if(joint_speeds[key] < -self.args.max_joint_speed):
-                joint_speeds[key] = -self.args.max_joint_speed
-        self.set_joint_angles(new_joint_angles)
-        self.set_joint_speeds(new_joint_speeds)
-        return(joint_target_positions)"""
-    
     def fix_joints(self, joint_target_positions):
         joint_angles = self.get_joint_angles()
         joint_speeds = self.get_joint_speeds()
@@ -765,6 +745,13 @@ class Arena():
             height=self.args.image_size * 2,
             projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
             physicsClientId = self.physicsClient)
+        
+        if(type(rgba) == np.ndarray):
+            pass
+        else:
+            rgba = np.array(rgba).reshape(32, 32, 4)
+            depth = np.array(depth).reshape(32, 32)
+            
         rgb = np.divide(rgba[:,:,:-1], 255)
         d = np.nan_to_num(np.expand_dims(depth, axis=-1), nan=1)
         if(d.max() == d.min()): pass

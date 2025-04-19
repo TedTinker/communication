@@ -45,8 +45,13 @@ def expand_args(name, args):
     return(name, combos)
 
 def convert_list(input_list):
-    converted = ['\[' + ','.join(map(str, sub_list)) + '\]' for sub_list in input_list]
+    converted = ['\\[' + ','.join(map(str, sub_list)) + '\\]' for sub_list in input_list]
     return(converted)
+
+#def convert_list(input_list):
+#    converted = ['\[' + ','.join(map(str, sub_list)) + '\]' for sub_list in input_list]
+#    return(converted)
+
 
 
 
@@ -84,29 +89,25 @@ add_this("f",   {
     "hidden_state_eta_touch" : .03,
     "hidden_state_eta_report_voice" : 1})             # Agents with curiosity (hidden state)
 
-add_this("t",   {
-    "task_duration" : [3]
-})
+
+
+add_this("t",   {})
+
+
 
 add_this("vision",   {
     "curiosity" : "hidden_state",
-    "hidden_state_eta_vision" : [.05, .075, .1, .3, .5, .75, 1],
-    "hidden_state_eta_touch" : 0,
-    "hidden_state_eta_report_voice" : 0
+    "hidden_state_eta_vision" : [.075, .1, .3, .5, .75],
 })
 
 add_this("touch",   {
     "curiosity" : "hidden_state",
-    "hidden_state_eta_vision" : 0,
-    "hidden_state_eta_touch" : [.005, .0075, .01, .03, .05, .075, .1],
-    "hidden_state_eta_report_voice" : 0
+    "hidden_state_eta_touch" : [.01, .03, .1, .3, 1],
 })
 
 add_this("report_voice",   {
     "curiosity" : "hidden_state",
-    "hidden_state_eta_vision" : 0,
-    "hidden_state_eta_touch" : 0,
-    "hidden_state_eta_report_voice" : [.3, .5, .75, 1, 1.5, 1.75, 2]
+    "hidden_state_eta_report_voice" : [.5, .75, 1, 1.5, 1.75]
 })
 
 
