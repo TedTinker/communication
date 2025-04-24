@@ -96,18 +96,27 @@ add_this("t",   {})
 
 
 add_this("vision",   {
+    "save_agents" : "False",
+    "save_behaviors" : "False",
+    "save_compositions" : "False",
     "curiosity" : "hidden_state",
     "hidden_state_eta_vision" : [.075, .1, .3, .5, .75],
 })
 
 add_this("touch",   {
+    "save_agents" : "False",
+    "save_behaviors" : "False",
+    "save_compositions" : "False",
     "curiosity" : "hidden_state",
-    "hidden_state_eta_touch" : [.01, .03, .1, .3, 1],
+    "hidden_state_eta_touch" : [.01, .03, .1, .3, 1], # Change to 1
 })
 
 add_this("report_voice",   {
+    "save_agents" : "False",
+    "save_behaviors" : "False",
+    "save_compositions" : "False",
     "curiosity" : "hidden_state",
-    "hidden_state_eta_report_voice" : [.5, .75, 1, 1.5, 1.75]
+    "hidden_state_eta_report_voice" : [.5, .75, 1, 1.5, 1.75] # Make it .75
 })
 
 
@@ -202,12 +211,12 @@ f"""
 singularity exec{nv} maze.sif python communication/plotting.py --comp {args.comp} --arg_title {combined} --arg_name plotting
 """[2:])
         
-    with open("plotting_components.slurm", "w") as f:
+    with open("plotting_composition.slurm", "w") as f:
         f.write(
 f"""
 {partition}
 {module}
-singularity exec{nv} maze.sif python communication/plotting_components.py --comp {args.comp} --arg_title {combined} --arg_name plotting_components
+singularity exec{nv} maze.sif python communication/plotting_composition.py --comp {args.comp} --arg_title {combined} --arg_name plotting_composition
 """[2:])
         
     with open("plotting_episodes.slurm", "w") as f:

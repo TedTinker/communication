@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import pickle
 import zipfile
 import gzip
+import sys
+from collections.abc import Mapping, Container
 
 import torch
 import torch.nn.functional as F
@@ -46,6 +48,14 @@ def get_uniform_weight(first_weight, num_weights):
 def make_tasks_and_weights(first_weight):
     u = get_uniform_weight(first_weight, 6)
     return([(0, first_weight)] + [(v, u) for v in [1, 2, 3, 4, 5]])
+
+def sizeof_fmt(num, suffix="B"):
+    """Convert bytes to human-readable KB, MB, GB, etc."""
+    for unit in ["", "K", "M", "G", "T", "P"]:
+        if abs(num) < 1024.0:
+            return f"{num:.2f} {unit}{suffix}"
+        num /= 1024.0
+    return f"{num:.2f} P{suffix}"
 
 fwpulr_tasks_and_weights = make_tasks_and_weights(50)
 
@@ -126,7 +136,6 @@ class Agent:
         self.complete_opt = optim.Adam(all_params, lr=self.args.lr, weight_decay=self.args.weight_decay)       
         
         self.memory = RecurrentReplayBuffer(self.args)
-        self.old_memories = []
         
         self.plot_dict = {
             "args" : self.args,
@@ -139,7 +148,7 @@ class Agent:
             "steps" : [],
             
             "behavior" : {},
-            "component_data" : {},
+            "composition_data" : {},
             
             "accuracy_loss" : [], 
             "complexity_loss" : [],
@@ -198,12 +207,14 @@ class Agent:
         
         
     def regular_checks(self, force = False, swapping = False, sleep_time = None):
-        if(
-            (self.agent_num <= self.args.agents_per_agent_save and self.epochs % self.args.epochs_per_agent_save == 0) or 
-            (self.agent_num <= self.args.agents_per_agent_save and force)):
-            self.save_agent()
-        if(self.epochs % self.args.epochs_per_component_data == 0 or force):
-            self.get_component_data()
+        if(self.args.save_agents): # Most problematic, roughly in order: behavior, compositions, memory, forward, forward_opt.
+            if(
+                (self.agent_num <= self.args.agents_per_agent_save and self.epochs % self.args.epochs_per_agent_save == 0) or 
+                (self.agent_num <= self.args.agents_per_agent_save and force)):
+                self.save_agent()
+        if(self.args.save_compositions):
+            if(self.epochs % self.args.epochs_per_composition_data == 0 or force):
+                self.get_composition_data()
         if(self.epochs % self.args.epochs_per_gen_test == 0 or force):
             self.gen_test(sleep_time = sleep_time)  
         
@@ -249,7 +260,7 @@ class Agent:
             
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
-            if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps", "behavior"]):
+            if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "composition_data", "episode_dicts", "agent_lists", "spot_names", "steps", "behavior"]):
                 if(key == "hidden_state"):
                     min_maxes = []
                     hidden_state = deepcopy(self.plot_dict[key])
@@ -415,8 +426,10 @@ class Agent:
                             prev_action_1, hq_1, obs_1,
                             prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
                         
-                if(self.args.agents_per_behavior_analysis == -1 or self.agent_num <= self.args.agents_per_behavior_analysis):  
-                    self.plot_dict["behavior"][self.episodes].append(get_goal_from_one_hots(to_push_1.next_obs.report_voice)) 
+                if(self.args.save_behaviors):
+                    if(self.args.agents_per_behavior_analysis == -1 or self.agent_num <= self.args.agents_per_behavior_analysis):  
+                        if(self.episodes == 0 or self.episodes % self.args.episodes_per_behavior_analysis == 0):
+                            self.plot_dict["behavior"][self.episodes].append(get_goal_from_one_hots(to_push_1.next_obs.report_voice)) 
                     
                 to_push_list_1.append(to_push_1)
                 to_push_list_2.append(to_push_2)
@@ -668,8 +681,8 @@ class Agent:
                     
                     
                     
-    def get_component_data(self, sleep_time = None):
-        if(self.args.agents_per_component_data != -1 and self.agent_num > self.args.agents_per_component_data): 
+    def get_composition_data(self, sleep_time = None):
+        if(self.args.agents_per_composition_data != -1 and self.agent_num > self.args.agents_per_composition_data): 
             return
         adjusted_args = deepcopy(self.args)
         adjusted_args.capacity = len(self.all_processors)
@@ -719,9 +732,8 @@ class Agent:
         
         #print(non_zero_mask)
         
-        self.plot_dict["component_data"][self.epochs] = {
-            "labels" : labels, "non_zero_mask" : non_zero_mask, "all_mask" : all_mask, 
-            "vision_zq" : vision_zq, "touch_zq" : touch_zq, "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq, "hq" : hq}
+        self.plot_dict["composition_data"][self.epochs] = {
+            "labels" : labels, "all_mask" : all_mask, "hq" : hq}
         
         
         
@@ -1021,21 +1033,60 @@ class Agent:
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
+    
+        
+    def sizeof_plot_dict(self):
+        """Print true deep sizes of self.plot_dict and other large self attributes."""
 
+        total_bytes = 0
+        
+        print("\n\n\n")
+        print("-" * 50)
+        print("Key".ljust(30), "Size")
+        print("-" * 50)
 
+        # Deep plot_dict
+        for key, value in self.plot_dict.items():
+            size_estimate = len(pickle.dumps(value))
+            if(size_estimate > 100000):
+                print(f"{key}:\t{sizeof_fmt(size_estimate)}")
+
+        print("-" * 50)
+
+        # Deep special attributes
+        keys_to_check = [
+            "arena_1", "arena_2", 
+            "log_alpha", "alpha_opt", 
+            "forward", "forward_opt", 
+            "actor", "actor_opt",
+            "memory"
+        ]
+
+        for attr_name in keys_to_check:
+            attr = getattr(self, attr_name, None)
+            if attr is not None:
+                try:
+                    size_estimate = len(pickle.dumps(attr))
+                    if(size_estimate > 100000):
+                        print(f"{attr_name}:\t{sizeof_fmt(size_estimate)}")
+                except Exception as e:
+                    print(f"{attr_name}:\t(Unserializable: {e})")
+            else:
+                print(f"{attr_name}: (None)")
+
+        print("-" * 50)
+        print(f"{'TOTAL'.ljust(30)}\t{sizeof_fmt(len(pickle.dumps(self)))}")
+        print("-" * 50)
+        print("\n\n\n")
+        
+        
+    
     def save_agent(self):
         if not self.args.local:
+            self.sizeof_plot_dict()
             save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz"
             with gzip.open(save_path, "wb") as f:
                 pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)  # Use max compression
-
-
-
-    #def save_agent(self):
-    #    if(not self.args.local):
-    #        save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pth.gz"
-    #        with gzip.open(save_path, "wb") as f:
-    #            torch.save(self.state_dict(), f)
                 
     def load_agent(self, load_path):
         with gzip.open(load_path, "rb") as f:

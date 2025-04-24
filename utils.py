@@ -1,8 +1,8 @@
 #%% 
 
 # To do:
-#   Why are generalized win-rates so weird? Everything but "all" look like they're only half full.
-#   I made a docker for a newer python version, to use umap, but I'll need to adjust things to use it.
+#   Try using the same classifier and PCA on different epochs.
+#   Still trying hyperparams.
 
 import os
 import pickle
@@ -440,8 +440,6 @@ parser.add_argument('--local',                          type=bool,          defa
                     help='Is this running on a local machine for testing?')
 parser.add_argument('--show_duration',                  type=bool,          default = False,
                     help='Should durations be printed?')
-parser.add_argument('--save_agents',                    type=literal,       default = False,
-                    help='Are we saving agents?')   
 parser.add_argument('--load_agents',                    type=literal,       default = False,
                     help='Are we loading agents?')    
 
@@ -667,17 +665,25 @@ parser.add_argument('--temp',                           type=literal,       defa
 parser.add_argument('--epochs_per_gen_test',            type=int,           default = 50,
                     help='How many epochs should pass before trying generalization test.')
 
-parser.add_argument('--agents_per_behavior_analysis',   type=int,           default = 1,
-                    help='How many agents to save episodes.')
-
-parser.add_argument('--epochs_per_agent_save',          type=int,           default = 25000,
+parser.add_argument('--save_agents',                    type=literal,       default = True,
+                    help='Do you save agents?')
+parser.add_argument('--epochs_per_agent_save',          type=int,           default = 5000,
                     help='How many epochs should pass before saving agent model.')
 parser.add_argument('--agents_per_agent_save',          type=int,           default = 2,
                     help='How many epochs should pass before saving agent model.')
 
-parser.add_argument('--epochs_per_component_data',      type=int,           default = 2500,
+parser.add_argument('--save_behaviors',                  type=literal,       default = True,
+                    help='How many agents to save episodes.')
+parser.add_argument('--episodes_per_behavior_analysis', type=int,           default = 10,
+                    help='How many agents to save episodes.')
+parser.add_argument('--agents_per_behavior_analysis',   type=int,           default = 1,
+                    help='How many agents to save episodes.')
+
+parser.add_argument('--save_compositions',                type=literal,       default = True,
+                    help='How many agents to save episodes.')
+parser.add_argument('--epochs_per_composition_data',      type=int,           default = 2500,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_component_data',      type=int,           default = 2,
+parser.add_argument('--agents_per_composition_data',      type=int,           default = 2,
                     help='How many agents to save episodes.')
 
 

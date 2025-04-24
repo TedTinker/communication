@@ -83,7 +83,7 @@ for folder in folders:
 
     # Compute min and max for 'min_max_dict'
     for key in min_max_dict.keys():
-        if key not in ["args", "arg_title", "arg_name", "all_processor_names", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "behavior"]:
+        if key not in ["args", "arg_title", "arg_name", "all_processor_names", "composition_data", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "behavior"]:
             minimum = None
             maximum = None
             for min_max in min_max_dict[key]:
