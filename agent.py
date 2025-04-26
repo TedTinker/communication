@@ -1084,9 +1084,15 @@ class Agent:
     def save_agent(self):
         if not self.args.local:
             self.sizeof_plot_dict()
+            plot_dict_backup = self.plot_dict
+            memory_backup = self.memory
+            self.plot_dict = None
+            self.memory = None
             save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz"
             with gzip.open(save_path, "wb") as f:
-                pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)  # Use max compression
+                pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+            self.plot_dict = plot_dict_backup
+            self.memory = memory_backup
                 
     def load_agent(self, load_path):
         with gzip.open(load_path, "rb") as f:

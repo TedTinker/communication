@@ -582,16 +582,16 @@ parser.add_argument("--d",                              type=int,           defa
 
 
     # Entropy
+parser.add_argument("--normal_alpha",                   type=float,         default = 0,
+                    help='Nonnegative value, how much to consider policy prior.') 
 parser.add_argument("--alpha",                          type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
-parser.add_argument("--target_entropy",                 type=float,         default = -1,
+parser.add_argument("--target_entropy",                 type=float,         default = 0,
                     help='Target for choosing alpha if alpha set to None. Recommended: negative size of wheels_joints-space.')      
 parser.add_argument("--alpha_text",                     type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy regarding agent voice. Set to None to use target_entropy_text.')        
-parser.add_argument("--target_entropy_text",            type=float,         default = -2,
+parser.add_argument("--target_entropy_text",            type=float,         default = 0,
                     help='Target for choosing alpha_text if alpha_text set to None. Recommended: negative size of voice_out-space.')      
-parser.add_argument("--normal_alpha",                   type=float,         default = 0,
-                    help='Nonnegative value, how much to consider policy prior.') 
 
 
 

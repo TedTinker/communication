@@ -77,23 +77,34 @@ def add_this(name, args):
                             new_value[arg_name] = condition[1]
         slurm_dict[new_key] = new_value
 
-add_this("e",   {"alpha" : "None", "normal_alpha" : .1})    # Agents with entropy
+add_this("e",   {
+    "alpha" : "None", 
+    "normal_alpha" : .05,
+    "target_entropy" : -1.5})    # Agents with entropy
 
 add_this("c",   {                                           # Curiosity of language only
     "curiosity" : "hidden_state",
-    "hidden_state_eta_report_voice" : 1})
+    "hidden_state_eta_report_voice" : .75})
 
 add_this("f",   {
     "curiosity" : "hidden_state",
     "hidden_state_eta_vision" : .3,
-    "hidden_state_eta_touch" : .03,
-    "hidden_state_eta_report_voice" : 1})             # Agents with curiosity (hidden state)
+    "hidden_state_eta_touch" : 2,
+    "hidden_state_eta_report_voice" : .75})             # Agents with curiosity (hidden state)
 
 
 
 add_this("t",   {})
 
 
+
+add_this("entropy",   {
+    "save_agents" : "False",
+    "save_behaviors" : "False",
+    "save_compositions" : "False",
+    "alpha" : "None", 
+    "normal_alpha" : [0, .05, .1, .3, .5],
+    "target_entropy" : [-2, -1, -.5, -.3]})
 
 add_this("vision",   {
     "save_agents" : "False",
@@ -108,7 +119,7 @@ add_this("touch",   {
     "save_behaviors" : "False",
     "save_compositions" : "False",
     "curiosity" : "hidden_state",
-    "hidden_state_eta_touch" : [.01, .03, .1, .3, 1], # Change to 1
+    "hidden_state_eta_touch" : [1, 1.5, 2, 3, 5], # Change to 2
 })
 
 add_this("report_voice",   {
@@ -116,7 +127,7 @@ add_this("report_voice",   {
     "save_behaviors" : "False",
     "save_compositions" : "False",
     "curiosity" : "hidden_state",
-    "hidden_state_eta_report_voice" : [.5, .75, 1, 1.5, 1.75] # Make it .75
+    "hidden_state_eta_report_voice" : [.3, .5, .75, 1, 1.5]
 })
 
 

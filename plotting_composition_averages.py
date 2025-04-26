@@ -26,8 +26,10 @@ from utils_submodule import  init_weights
 
 print("name:\n{}\n".format(args.arg_name),)
 
-epochs_for_classification = 50
+epochs_for_classification = 10
 lr = .01
+weight_decay = .0005
+noise_size = .1
 
 
 
@@ -139,6 +141,10 @@ class Classifier(nn.Module):
 
     def forward(self, data):
         embedding = self.seq(data)
+        if self.training:
+            std = embedding.std(unbiased=False)
+            noise = torch.randn_like(embedding) * (noise_size * std)
+            embedding = embedding + noise
         return(embedding, self.task(embedding), self.color(embedding), self.shape(embedding))
     
     
@@ -152,77 +158,234 @@ color_shape_classifier = Classifier(torch.zeros((1, 256)))
 
 
     
-def train_to_classify_2d(data, labels, epochs, classifier_pca_dict):
+def train_to_classify_2d(data, labels, epochs, classifier_pca_dict, agent_num, args):
     data = torch.from_numpy(data)
     labels = torch.from_numpy(labels)
-    
-    reduced_dict = {}
-    
-    for classes in [("task", "color"), ("task", "shape"), ("color", "shape")]:    
+            
+    all_task_losses = {}
+    all_color_losses = {}
+    all_shape_losses = {}
+    all_total_losses = {}
+
+    for classes in [("task", "color"), ("task", "shape"), ("color", "shape")]:
         set_seed(42)
         classifier = Classifier(data)
-        """if(classes == ("task", "color")):
-            classifier = task_color_classifier
-        if(classes == ("task", "shape")):
-            classifier = task_shape_classifier
-        if(classes == ("color", "shape")):
-            classifier = color_shape_classifier"""
-        optimizer = optim.Adam(classifier.parameters(), lr=lr)
+        optimizer = optim.Adam(classifier.parameters(), lr=lr, weight_decay=weight_decay)
         classifier.train()
-        for e in range(epochs):
-            print(e, end = " ")
+
+        task_losses, color_losses, shape_losses, total_losses = [], [], [], []
+
+        for e in range(epochs_for_classification):
+            print(e, end=" ")
             optimizer.zero_grad()
             _, task, color, shape = classifier(data)
-            task_loss  = F.cross_entropy(task, labels[:, 0] - 1)    * (1 if "task" in classes else 0)
-            color_loss = F.cross_entropy(color, labels[:, 1])       * (1 if "color" in classes else 0)
-            shape_loss = F.cross_entropy(shape, labels[:, 2])       * (1 if "shape" in classes else 0)
+            task_loss  = F.cross_entropy(task, labels[:, 0] - 1) * (1 if "task" in classes else 0)
+            color_loss = F.cross_entropy(color, labels[:, 1])    * (1 if "color" in classes else 0)
+            shape_loss = F.cross_entropy(shape, labels[:, 2])    * (1 if "shape" in classes else 0)
             loss = task_loss + color_loss + shape_loss
+
+            task_losses.append(task_loss.item())
+            color_losses.append(color_loss.item())
+            shape_losses.append(shape_loss.item())
+            total_losses.append(loss.item())
+
             loss.backward()
             optimizer.step()
         print()
+
         classifier.eval()
         embedding, _, _, _ = classifier(data)
         pca = PCA(n_components=2, random_state=42)
         pca.fit(embedding.detach().cpu().numpy())
+        classifier_pca_dict[epochs][classes] = (classifier, pca)
+
+        class_str = "_".join(classes)
+        all_task_losses[class_str] = task_losses
+        all_color_losses[class_str] = color_losses
+        all_shape_losses[class_str] = shape_losses
+        all_total_losses[class_str] = total_losses
+
+    # Determine y-axis limits
+    all_losses_combined = list(all_task_losses.values()) + list(all_color_losses.values()) + list(all_shape_losses.values()) + list(all_total_losses.values())
+    y_min = min(min(losses) for losses in all_losses_combined)
+    y_max = max(max(losses) for losses in all_losses_combined)
+    
+    fig, axs = plt.subplots(1, 3, figsize=(18, 5), sharey=True)
+    class_keys = list(all_total_losses.keys())
+
+    for i, class_str in enumerate(class_keys):
+        epochs_range = range(epochs_for_classification)
+        axs[i].plot(epochs_range, all_task_losses[class_str], label='Task Loss')
+        axs[i].plot(epochs_range, all_color_losses[class_str], label='Color Loss')
+        axs[i].plot(epochs_range, all_shape_losses[class_str], label='Shape Loss')
+        axs[i].plot(epochs_range, all_total_losses[class_str], label='Total Loss', linestyle='--', color='black')
+        axs[i].set_title(f"All Losses for {class_str}")
+        axs[i].set_xlabel("Epoch")
+        axs[i].set_ylabel("Loss")
+        axs[i].set_ylim(-.1, y_max + .1)
+    axs[0].legend(
+        loc='upper right',
+        fontsize='xx-small')
+
+    plt.tight_layout()
+    plt.savefig(f"thesis_pics/composition/{args.arg_name}/{agent_num}/loss_values/epochs_{epochs}.png")
+    plt.close()
+
+    return classifier_pca_dict
+
+
+def use_classifier_2d(data, classifier_pca):
+    data = torch.from_numpy(data)
+    reduced_dict = {}
+    for classes in [("task", "color"), ("task", "shape"), ("color", "shape")]:  
+        classifier, pca = classifier_pca[classes]
+        classifier.eval()
+        embedding, _, _, _ = classifier(data)
         reduced = pca.transform(embedding.detach().cpu().numpy())
         reduced_dict["_".join(classes)] = reduced
-        classifier_pca_dict["epochs"] = (classifier, pca)
-    return(reduced_dict, classifier_pca_dict)
+    return(reduced_dict)
 
 
 
-def train_to_classify_3d(data, labels, epochs):
-    data = torch.from_numpy(data)
-    labels = torch.from_numpy(labels)
-    classifier = Classifier(data)
-    optimizer = optim.Adam(classifier.parameters(), lr=.001)
-    classifier.train()
-    for e in range(epochs):
-        print(e, end = " ")
-        optimizer.zero_grad()
-        _, task, color, shape = classifier(data)
-        task_loss  = F.cross_entropy(task, labels[:, 0] - 1)
-        color_loss = F.cross_entropy(color, labels[:, 1])
-        shape_loss = F.cross_entropy(shape, labels[:, 2])
-        loss = task_loss + color_loss + shape_loss
-        loss.backward()
-        optimizer.step()
-    print()
-    classifier.eval()
-    embedding, _, _, _ = classifier(data)
-    reduced = PCA(n_components=3, random_state=42).fit_transform(embedding.detach().cpu().numpy())
-    return(reduced)
-             
+def plot_by_epoch_vs_epoch(data_dict, data_epochs, classifier_pca_dict, classifier_pca_epochs, agent_num, args):
+    data, labels = data_dict[data_epochs]
+    tasks = labels[:, 0]
+    colors = labels[:, 1]
+    shapes = labels[:, 2]
+    unique_tasks = np.unique(tasks)
+    unique_colors = np.unique(colors)
+    unique_shapes = np.unique(shapes)
+    classifier_pca = classifier_pca_dict[classifier_pca_epochs]
+    
+    reduced_dict = use_classifier_2d(data, classifier_pca)
+    
+    reduced_task_color  = reduced_dict["task_color"]
+    reduced_task_shape  = reduced_dict["task_shape"]
+    reduced_color_shape = reduced_dict["color_shape"]
+
+    dpi = 400  
+    zoom = .4
+    s = 40
+    test_s = 120
+    
+    fig, axes = plt.subplots(
+        1, 4, 
+        figsize=(19, 6), 
+        dpi=dpi, 
+        sharex=False, 
+        sharey=False, 
+        constrained_layout=True,
+        gridspec_kw={"width_ratios": [1, 1, 1, 0.4]}  # Make the last (legend) plot thinner
+    )
+
+    def plot_by_attribute(ax, reduced, title):
+        min_x = min([r[0] for r in reduced])
+        max_x = max([r[0] for r in reduced])
+        min_y = min([r[1] for r in reduced])
+        max_y = max([r[1] for r in reduced])
+                                
+        grouped_points = defaultdict(list)
+        grouped_letters = {}
+        
+        for task, color, shape, (x, y) in zip(tasks, colors, shapes, reduced):
+            key = (task, color, shape)
+            grouped_points[key].append((x, y))
+            if key not in grouped_letters:
+                grouped_letters[key] = task_mapping_letter[task_map[task].name]
+        
+        for (task, color, shape), coords in grouped_points.items():
+            task_name, color_name, shape_name = task_map[task].name, color_map[color].name, shape_map[shape].name
+            letter = grouped_letters[(task, color, shape)]
+            text_color_val = color_mapping_color_dark[color_name]
+            color_val = color_mapping_color[color_name]
+            marker = shape_mapping_marker[shape_name]
+            xs, ys = zip(*coords)  # unzip x and y values
+            x = sum(xs) / len(xs)
+            y = sum(ys) / len(ys)
+            
+            if((task, color, shape) in testing_combos):
+                ax.scatter(x, y, facecolors='none', edgecolors="#000000", linewidths=0.5, marker='o', alpha=.5, s=test_s, zorder=0, linestyle='dotted')
+
+            colored_marker = shape_mapping_colored_marker[shape_name][color_name]
+            imagebox = OffsetImage(colored_marker, zoom=zoom)  # Adjust zoom as needed
+            ab = AnnotationBbox(imagebox, (x, y), frameon=False, alpha=0.4, zorder=1)
+            ax.add_artist(ab)
+            ax.scatter(x, y, color=text_color_val, marker=f'${letter}$', alpha=0.4, s=s, edgecolor='none', zorder=2)
+                            
+        ax.set_title(title)
+        ax.set_xlabel("Component 1")
+        if title == "Task and Color":
+            ax.set_ylabel("Component 2")
+        ax.set_xticks([])      # remove x-axis ticks
+        ax.set_yticks([])      # remove y-axis ticks
+        ax.set_xticklabels([]) # remove x-axis tick labels
+        ax.set_yticklabels([]) # remove y-axis tick labels
+        ax.set_xlim([min_x, max_x])
+        ax.set_ylim([min_y, max_y])
+        ax.grid(False)
+
+    plot_by_attribute(axes[0], reduced_task_color,  "Task and Color")
+    plot_by_attribute(axes[1], reduced_task_shape,  "Task and Shape")
+    plot_by_attribute(axes[2], reduced_color_shape, "Color and Shape")
+    
+    ax = axes[3]
+    zoom = .4
+    s = 60
+    test_s = 120
+    
+    y = 10
+    for task_name, letter in task_mapping_letter.items():
+        ax.scatter(.1, y, color="black", marker=f'${letter}$', alpha=0.4, s=s, edgecolor='none')
+        ax.text(.3, y, s = task_name, horizontalalignment='left', verticalalignment='center', fontsize = 10)
+        y -= .5
+        
+    for color_name, color in color_mapping_color.items():
+        ax.scatter(.1, y, facecolors=color, edgecolors='none', s=test_s, alpha=0.4)
+        ax.text(.3, y, s = color_name, horizontalalignment='left', verticalalignment='center', fontsize = 10)
+        y -= .5
+        
+    for shape_name, marker in shape_mapping_marker.items():
+        colored_marker = shape_mapping_colored_marker[shape_name]["BLACK"]
+        imagebox = OffsetImage(colored_marker, zoom=zoom)  # Adjust zoom as needed
+        ab = AnnotationBbox(imagebox, (.1, y), frameon=False, alpha=0.4, zorder=1)
+        ax.add_artist(ab)
+        ax.text(.3, y, s = shape_name, horizontalalignment='left', verticalalignment='center', fontsize = 10)
+        y -= .5
+        
+    ax.scatter(.1, y, facecolors='none', edgecolors="#000000", linewidths=0.5, marker='o', alpha=.5, s=test_s, zorder=0, linestyle='dotted')
+    ax.text(.3, y, s = "TEST", horizontalalignment='left', verticalalignment='center', fontsize = 10)
+        
+    ax.set_xticks([])      # remove x-axis ticks
+    ax.set_yticks([])      # remove y-axis ticks
+    ax.set_xticklabels([]) # remove x-axis tick labels
+    ax.set_yticklabels([]) # remove y-axis tick labels
+    ax.set_xlim([0, .8])
+    ax.set_ylim([1, 10.5])
+
+    plt.suptitle(f"Tests for Generalization\nAgent {agent_num}, data epoch {data_epochs}, classifier_pca_epochs {classifier_pca_epochs}", fontsize=16)
+    os.makedirs(f"thesis_pics/composition/{args.arg_name}/{agent_num}/pca_{classifier_pca_epochs}", exist_ok = True)
+    plt.savefig(f"thesis_pics/composition/{args.arg_name}/{agent_num}/pca_{classifier_pca_epochs}/data_{data_epochs}.png", bbox_inches="tight")
+    plt.close()
+
                     
                     
-def plot_dimension_reduction(plot_dict, file_name = "plot"):
+def plot_dimension_reduction(plot_dict):
     args = plot_dict["args"]
     for agent_num, values_for_composition in enumerate(plot_dict["composition_data"]):
+
         if(values_for_composition != {}):
             print("\nAGENT NUM", agent_num)
             classifier_pca_dict = {}
+            data_dict = {}
+            
+            try:
+                os.makedirs(f"thesis_pics/composition/{args.arg_name}/{agent_num}/loss_values", exist_ok=True)
+            except Exception as e:
+                print(f"Directory creation failed: {e}")     
+        
             for epochs, comp_dict in values_for_composition.items():
                 print("EPOCHS", epochs)
+                classifier_pca_dict[epochs] = {}
 
                 all_mask = comp_dict["all_mask"].astype(bool)                
                 max_episode_len = all_mask.shape[1]
@@ -232,9 +395,7 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                 steps = np.broadcast_to(one_episode.reshape(1, max_episode_len, 1), (180, max_episode_len, 1))
                 steps = steps.reshape(-1, steps.shape[-1]).squeeze()
                 steps = steps[all_mask]
-                                
-                in_order_labels = comp_dict["labels"][:,0,:]
-                                
+                                                                
                 def process_component(key):
                     data = comp_dict[key]
                     data = data.reshape(-1, data.shape[-1])
@@ -246,246 +407,37 @@ def plot_dimension_reduction(plot_dict, file_name = "plot"):
                 for key in components:
                     results[key] = process_component(key)                    
                 
-                tasks = results["labels"][:, 0]
-                colors = results["labels"][:, 1]
-                shapes = results["labels"][:, 2]
-                unique_tasks = np.unique(tasks)
-                unique_colors = np.unique(colors)
-                unique_shapes = np.unique(shapes)
-                
-                def plot_2d_reduction(type_name, classifier_pca_dict):
+                labels = results["labels"]
+                                                    
+                try:
+                    os.makedirs(f"thesis_pics/composition/{args.arg_name}/{agent_num}", exist_ok=True)
+                except Exception as e:
+                    print(f"Directory creation failed: {e}")     
                     
+                data = results["hq"] 
+                data_dict[epochs] = (data, labels)
+
+                classifier_pca_dict = train_to_classify_2d(data, labels, epochs, classifier_pca_dict, agent_num, args)
+                    
+            for data_epochs in values_for_composition.keys():
+                for classifier_epochs in values_for_composition.keys():
                     try:
-                        os.makedirs(f"thesis_pics/composition/{args.arg_name}/{type_name}", exist_ok=True)
+                        os.makedirs(f"communication/saved_deigo/thesis_pics/composition/{args.arg_name}/{agent_num}/pca_{classifier_epochs}", exist_ok=True)
                     except Exception as e:
                         print(f"Directory creation failed: {e}")     
-                        
-                    zoom = .4
-                    s = 40
-                    test_s = 120
-                        
-                    data = results[type_name] 
-                    reduced_dict, classifier_pca_dict = train_to_classify_2d(data, results["labels"], epochs_for_classification, classifier_pca_dict)
                     
-                    reduced_task_color  = reduced_dict["task_color"]
-                    reduced_task_shape  = reduced_dict["task_shape"]
-                    reduced_color_shape = reduced_dict["color_shape"]
-
-                    dpi = 400  
-                    fig, axes = plt.subplots(
-                        1, 4, 
-                        figsize=(19, 6), 
-                        dpi=dpi, 
-                        sharex=False, 
-                        sharey=False, 
-                        constrained_layout=True,
-                        gridspec_kw={"width_ratios": [1, 1, 1, 0.4]}  # Make the last (legend) plot thinner
-                    )
-
-                    def plot_by_attribute(ax, reduced, title):
-                        min_x = min([r[0] for r in reduced])
-                        max_x = max([r[0] for r in reduced])
-                        min_y = min([r[1] for r in reduced])
-                        max_y = max([r[1] for r in reduced])
-                                                
-                        grouped_points = defaultdict(list)
-                        grouped_letters = {}
+                    print(f"DATA: {data_epochs}. Classifier: {classifier_epochs}")
+                    plot_by_epoch_vs_epoch(data_dict, data_epochs, classifier_pca_dict, classifier_epochs, agent_num, args)
                         
-                        for task, color, shape, (x, y) in zip(tasks, colors, shapes, reduced):
-                            key = (task, color, shape)
-                            grouped_points[key].append((x, y))
-                            if key not in grouped_letters:
-                                grouped_letters[key] = task_mapping_letter[task_map[task].name]
                         
-                        for (task, color, shape), coords in grouped_points.items():
-                            task_name, color_name, shape_name = task_map[task].name, color_map[color].name, shape_map[shape].name
-                            letter = grouped_letters[(task, color, shape)]
-                            text_color_val = color_mapping_color_dark[color_name]
-                            color_val = color_mapping_color[color_name]
-                            marker = shape_mapping_marker[shape_name]
-                            xs, ys = zip(*coords)  # unzip x and y values
-                            x = sum(xs) / len(xs)
-                            y = sum(ys) / len(ys)
                             
-                            if((task, color, shape) in testing_combos):
-                                ax.scatter(x, y, facecolors='none', edgecolors="#000000", linewidths=0.5, marker='o', alpha=.5, s=test_s, zorder=0, linestyle='dotted')
-
-                            colored_marker = shape_mapping_colored_marker[shape_name][color_name]
-                            imagebox = OffsetImage(colored_marker, zoom=zoom)  # Adjust zoom as needed
-                            ab = AnnotationBbox(imagebox, (x, y), frameon=False, alpha=0.4, zorder=1)
-                            ax.add_artist(ab)
-                            ax.scatter(x, y, color=text_color_val, marker=f'${letter}$', alpha=0.4, s=s, edgecolor='none', zorder=2)
-
-                                       
-                                            
-                        ax.set_title(title)
-                        ax.set_xlabel("Component 1")
-                        if title == "Task and Color":
-                            ax.set_ylabel("Component 2")
-                        ax.set_xticks([])      # remove x-axis ticks
-                        ax.set_yticks([])      # remove y-axis ticks
-                        ax.set_xticklabels([]) # remove x-axis tick labels
-                        ax.set_yticklabels([]) # remove y-axis tick labels
-                        ax.set_xlim([min_x, max_x])
-                        ax.set_ylim([min_y, max_y])
-                        ax.grid(False)
-
-                    plot_by_attribute(axes[0], reduced_task_color,  "Task and Color")
-                    plot_by_attribute(axes[1], reduced_task_shape,  "Task and Shape")
-                    plot_by_attribute(axes[2], reduced_color_shape, "Color and Shape")
-                    
-                    ax = axes[3]
-                    zoom = .4
-                    s = 60
-                    test_s = 120
-                    
-                    y = 10
-                    for task_name, letter in task_mapping_letter.items():
-                        ax.scatter(.1, y, color="black", marker=f'${letter}$', alpha=0.4, s=s, edgecolor='none')
-                        ax.text(.3, y, s = task_name, horizontalalignment='left', verticalalignment='center', fontsize = 10)
-                        y -= .5
-                        
-                    for color_name, color in color_mapping_color.items():
-                        ax.scatter(.1, y, facecolors=color, edgecolors='none', s=test_s, alpha=0.4)
-                        ax.text(.3, y, s = color_name, horizontalalignment='left', verticalalignment='center', fontsize = 10)
-                        y -= .5
-                        
-                    for shape_name, marker in shape_mapping_marker.items():
-                        colored_marker = shape_mapping_colored_marker[shape_name]["BLACK"]
-                        imagebox = OffsetImage(colored_marker, zoom=zoom)  # Adjust zoom as needed
-                        ab = AnnotationBbox(imagebox, (.1, y), frameon=False, alpha=0.4, zorder=1)
-                        ax.add_artist(ab)
-                        ax.text(.3, y, s = shape_name, horizontalalignment='left', verticalalignment='center', fontsize = 10)
-                        y -= .5
-                        
-                    ax.scatter(.1, y, facecolors='none', edgecolors="#000000", linewidths=0.5, marker='o', alpha=.5, s=test_s, zorder=0, linestyle='dotted')
-                    ax.text(.3, y, s = "TEST", horizontalalignment='left', verticalalignment='center', fontsize = 10)
-                        
-                    ax.set_xticks([])      # remove x-axis ticks
-                    ax.set_yticks([])      # remove y-axis ticks
-                    ax.set_xticklabels([]) # remove x-axis tick labels
-                    ax.set_yticklabels([]) # remove y-axis tick labels
-                    ax.set_xlim([0, .8])
-                    ax.set_ylim([1, 10.5])
-
-
-                    plt.suptitle(f"Tests for Generalization\nAgent {agent_num}, epoch {epochs}", fontsize=16)
-                    output_file = f"thesis_pics/composition/{args.arg_name}/{type_name}/{file_name}_epoch_{epochs}_{type_name}_agent_num_{agent_num}_{args.arg_name}.png"
-                    plt.savefig(output_file, bbox_inches="tight")
-                    plt.close()
-                        
-                        
-                    
-                def plot_3d_reduction(type_name):
-                    
-                    try:
-                        os.makedirs(f"thesis_pics/composition/{args.arg_name}/{type_name}", exist_ok=True)
-                    except Exception as e:
-                        print(f"Directory creation failed: {e}")
-                        
-                    data = results[type_name]
-                    reduced = train_to_classify_3d(data, results["labels"], epochs_for_classification)
-                    
-                    x, y, z = reduced[:, 0], reduced[:, 1], reduced[:, 2]
-                    trace_list = []
-
-                    def get_colors(labels, label_map, mapping, unique_labels, transparent = False, verbose = False):
-                        return [mapping[label_map[label].name] if label in unique_labels else '#D3D3D3' for label in labels]
-
-                    def get_opacities(labels, unique_labels):
-                        return .7
-
-                    # Create 3D scatter traces
-                    def make_trace(label_type, label_data, label_map, mapping, unique_set, visible=True, verbose = False):
-                        return go.Scatter3d(
-                            x=x, y=y, z=z,
-                            mode='markers',
-                            visible=visible,
-                            marker=dict(
-                                size=4,
-                                color=get_colors(label_data, label_map, mapping, unique_set, verbose = verbose),
-                                opacity=get_opacities(label_data, unique_set)
-                            ),
-                            text=[f"{label_type}: {label_map[l].name}" for l in label_data],
-                            hoverinfo='text',
-                            name=label_type
-                        )
-
-                    # Main data traces
-                    trace_task  = make_trace("Task",  tasks,  task_map,  task_mapping_color,  unique_tasks,  visible=True)
-                    trace_color = make_trace("Color", colors, color_map, color_mapping_color, unique_colors, visible=False, verbose = True)
-                    trace_shape = make_trace("Shape", shapes, shape_map, shape_mapping_color, unique_shapes, visible=False)
-
-                    trace_list += [trace_task, trace_color, trace_shape]
-
-                    # Add dummy legend traces for the current mode
-                    def make_legend_traces(label_map, mapping, current_label_type):
-                        return [
-                            go.Scatter3d(
-                                x=[None], y=[None], z=[None],
-                                mode='markers',
-                                marker=dict(size=6, color=color),
-                                name=key,
-                                showlegend=True,
-                                visible=(current_label_type == 'Task')  # toggle visibility
-                            )
-                            for key, color in mapping.items()
-                        ]
-
-                    trace_list += make_legend_traces(task_map,  task_mapping_color,  'Task')
-                    trace_list += make_legend_traces(color_map, color_mapping_color, 'Color')
-                    trace_list += make_legend_traces(shape_map, shape_mapping_color, 'Shape')
-
-                    # Buttons to toggle between modes
-                    view_buttons = [
-                        dict(label="Task", method="update", args=[{"visible": [True, False, False] + [True]*6 + [False]*6 + [False]*5},
-                                                                    {"title": "3D PCA - Task"}]),
-                        dict(label="Color", method="update", args=[{"visible": [False, True, False] + [False]*6 + [True]*6 + [False]*5},
-                                                                    {"title": "3D PCA - Color"}]),
-                        dict(label="Shape", method="update", args=[{"visible": [False, False, True] + [False]*6 + [False]*6 + [True]*5},
-                                                                    {"title": "3D PCA - Shape"}]),
-                    ]
-
-                    # Build the figure
-                    fig = go.Figure(data=trace_list)
-
-                    fig.update_layout(
-                        updatemenus=[
-                            dict(
-                                type="buttons",
-                                direction="right",
-                                buttons=view_buttons,
-                                x=0.1,
-                                y=1.2,
-                                showactive=True
-                            )
-                        ],
-                        scene=dict(
-                            xaxis_title="PC1",
-                            yaxis_title="PC2",
-                            zaxis_title="PC3"
-                        ),
-                        title=f"3D PCA of {type_name} | Agent {agent_num}, Epoch {epochs}"
-                    )
-
-                    # Save to HTML
-                    output_file = (
-                        f"thesis_pics/composition/{args.arg_name}/{type_name}/"
-                        f"{file_name}_epoch_{epochs}_{type_name}_agent_num_{agent_num}_{args.arg_name}_3d.html")
-                    fig.write_html(output_file)
-
-                                    
-                                    
-                for type_name in ["hq"]:
-                    plot_2d_reduction(type_name, classifier_pca_dict)
-                    #plot_3d_reduction(type_name)
                     
 
 
 def plots(plot_dicts):
     for i, plot_dict in enumerate(plot_dicts):
         args = plot_dict["args"]
-        try: os.mkdir(f"thesis_pics/composition/{args.arg_name}")
+        try: os.mkdir(f"saved_deigo/thesis_pics/composition/{args.arg_name}")
         except: pass
         print(f"\nStarting {args.arg_name}.")        
         plot_dimension_reduction(plot_dict)
@@ -496,10 +448,10 @@ def plots(plot_dicts):
 
 
 
-if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
+if(os.getcwd().split("/")[-1] != "communication"): 
+    os.chdir("communication")
 os.chdir(f"saved_{args.comp}")
-try: os.mkdir("thesis_pics/composition")
-except: pass
+os.makedirs("thesis_pics/composition", exist_ok=True)
     
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 plots(plot_dicts)
