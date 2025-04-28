@@ -1,7 +1,7 @@
 #%% 
 
 # To do:
-#   Try using the same classifier and PCA on different epochs.
+#   Try making the robot's arm move for left/right.
 #   Still trying hyperparams.
 
 import os

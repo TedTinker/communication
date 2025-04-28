@@ -94,7 +94,35 @@ add_this("f",   {
 
 
 
-add_this("t",   {})
+
+
+add_this("t1",   {
+    "save_agents" : "False",
+    "save_behaviors" : "False",
+    "save_compositions" : "False",
+    "watch_duration" : 4,
+    "be_near_duration" : 4, 
+    "top_duration" : 3, 
+    "push_duration" : 4})
+
+add_this("t2",   {
+    "save_agents" : "False",
+    "save_behaviors" : "False",
+    "save_compositions" : "False",
+    "watch_duration" : 4,
+    "be_near_duration" : 4, 
+    "top_duration" : 4, 
+    "push_duration" : 4})
+
+add_this("t3",   {
+    "save_agents" : "False",
+    "save_behaviors" : "False",
+    "save_compositions" : "False",
+    
+    "watch_duration" : 5,
+    "be_near_duration" : 5, 
+    "top_duration" : 5, 
+    "push_duration" : 5})
 
 
 
@@ -111,24 +139,21 @@ add_this("vision",   {
     "save_behaviors" : "False",
     "save_compositions" : "False",
     "curiosity" : "hidden_state",
-    "hidden_state_eta_vision" : [.075, .1, .3, .5, .75],
-})
+    "hidden_state_eta_vision" : [.075, .1, .3, .5, .75]})
 
 add_this("touch",   {
     "save_agents" : "False",
     "save_behaviors" : "False",
     "save_compositions" : "False",
     "curiosity" : "hidden_state",
-    "hidden_state_eta_touch" : [1, 1.5, 2, 3, 5], # Change to 2
-})
+    "hidden_state_eta_touch" : [1, 1.5, 2, 3, 5]})
 
 add_this("report_voice",   {
     "save_agents" : "False",
     "save_behaviors" : "False",
     "save_compositions" : "False",
     "curiosity" : "hidden_state",
-    "hidden_state_eta_report_voice" : [.3, .5, .75, 1, 1.5]
-})
+    "hidden_state_eta_report_voice" : [.3, .5, .75, 1, 1.5]})
 
 
 
