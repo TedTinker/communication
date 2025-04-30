@@ -65,7 +65,7 @@ for value_name in list(values_to_plot.values())[0].keys():
     
     
 
-def compare_and_plot(values_1, values_2, args_name_1, args_name_2, here, data_type='boolean', confidence=0.95):
+def compare_and_plot(values_1, values_2, args_name_1, args_name_2, here, data_type='boolean', confidence=0.9):
     n1, n2 = len(values_1), len(values_2)
     alpha = 1 - confidence
     z_value = stats.norm.ppf(1 - alpha / 2)  # Z-value for the confidence interval (two-tailed)

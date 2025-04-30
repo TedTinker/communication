@@ -404,8 +404,6 @@ parser.add_argument('--harder_left_right',              type=literal,       defa
                     help='Should pushing left/right be the more demanding version?')    
 parser.add_argument("--harder_left_right_amount",       type=float,         default = pi/24,
                     help='If using the harder_left_right, how far must the object be pushed from one side to the other?')
-parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 5,
-                    help='How close must the agent watch the object to achieve pushing left or right.')
 parser.add_argument('--be_near_distance',               type=float,         default = 3,
                     help='How close must the agent watch the object to achieve be_near.')
 
@@ -416,6 +414,11 @@ parser.add_argument('--local_push_limit',          type=float,         default =
 parser.add_argument('--global_left_right_amount',       type=float,         default = .2,
                     help='Needed distance of an object for push/left/right.')
 parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
+                    help='Needed distance of an object for push/left/right.')
+
+parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 5,
+                    help='How close must the agent watch the object to achieve pushing left or right.')
+parser.add_argument('--min_arm_speed_for_left',          type=float,         default = 0,
                     help='Needed distance of an object for push/left/right.')
     
 

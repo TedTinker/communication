@@ -564,6 +564,9 @@ class Arena():
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
             good_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) < self.args.max_wheel_speed_for_left
+            
+            good_arm_speed = True # Can we demand some arm movement?
+            
             if(self.args.harder_left_right):
                 lefting = touching and good_speed and global_movement_left > 0 and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and angle_change > self.args.harder_left_right_amount
                 righting = touching and good_speed and global_movement_left < 0 and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and angle_change < -self.args.harder_left_right_amount
