@@ -101,47 +101,11 @@ add_this("q",   {
 
 
 
-add_this("t1",   {
-    "watch_duration" : 4,
-    "be_near_duration" : 4, 
-    #"top_duration" : 4, 
-    "push_duration" : 4
-    })
+add_this("t",   {
+    "min_arm_speed_for_left" : [.3, .5],    # Make this much smaller
+    "global_push_amount" : [.1, .2],        # Try making this big
+    "global_left_right_amount" : [.2, .3]}) # Keep this low
 
-add_this("t2",   {
-    "watch_duration" : 5,
-    "be_near_duration" : 5, 
-    #"top_duration" : 4, 
-    "push_duration" : 5
-    })
-
-add_this("t3",   {
-    "watch_duration" : 6,
-    "be_near_duration" : 6, 
-    #"top_duration" : 4, 
-    "push_duration" : 6
-    })
-
-
-
-add_this("entropy",   {
-    "alpha" : "None", 
-    "normal_alpha" : [0, .05, .1, .3, .5],
-    "target_entropy" : [-2, -1, -.5, -.3]})
-
-add_this("vision",   {
-    "curiosity" : "hidden_state",
-    "hidden_state_eta_vision" : [.03, .05, .075, .1, .3],
-    "hidden_state_eta_report_voice" : .75})
-
-add_this("touch",   {
-    "curiosity" : "hidden_state",
-    "hidden_state_eta_touch" : [2, 3, 5, 10, 15],
-    "hidden_state_eta_report_voice" : .75})
-
-add_this("report_voice",   {
-    "curiosity" : "hidden_state",
-    "hidden_state_eta_report_voice" : [.3, .5, .75, 1, 1.5]})
 
 
 

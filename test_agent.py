@@ -12,7 +12,7 @@ from agent import Agent
 
 hyper_parameters = "ef"
 agent_num = "0002"
-epochs = "050000"
+epochs = "000000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading...", end = " ")
@@ -22,6 +22,8 @@ with gzip.open(load_path, "rb") as f:
     agent = pickle.load(f) 
 
 agent.start_physics(GUI = True)
+
+agent.args.min_arm_speed_for_left = .5
                                 
 episodes = 0
 wins = 0
@@ -49,7 +51,7 @@ agent.processor_name = 0
 episodes += 1
 win = agent.save_episodes(
     test = False, 
-    verbose = False,
+    verbose = True,
     display = False, 
     video_display = True,
     sleep_time = 1, 

@@ -419,6 +419,12 @@ class Arena():
         left_wheel = linear_velocity - (angular_velocity / self.args.angular_scaler)/2
         right_wheel = linear_velocity + (angular_velocity / self.args.angular_scaler)/2
         return left_wheel, right_wheel
+    
+    def get_joint_speeds(self):
+        joint_speeds = {}
+        for key, index in self.joint_indices.items(): 
+            joint_speeds[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[1]  
+        return joint_speeds
         
         
 
@@ -565,14 +571,20 @@ class Arena():
             left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
             good_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) < self.args.max_wheel_speed_for_left
             
-            good_arm_speed = True # Can we demand some arm movement?
+            arm_speed = self.get_joint_speeds()[1]
+            if(self.args.min_arm_speed_for_left == None):
+                good_arm_speed = True 
+            else:
+                good_arm_speed = abs(arm_speed) > self.args.min_arm_speed_for_left
+
+
             
             if(self.args.harder_left_right):
                 lefting = touching and good_speed and global_movement_left > 0 and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and angle_change > self.args.harder_left_right_amount
                 righting = touching and good_speed and global_movement_left < 0 and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and angle_change < -self.args.harder_left_right_amount
             else:
-                lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed
-                righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed
+                lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed and good_arm_speed
+                righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed and good_arm_speed
             
             if(verbose):
                 print(f"\n\nTouching: {touching}. Touching body: {touching_body}.")
@@ -584,8 +596,8 @@ class Arena():
                     print(f"Lefting ({lefting}): \n\t{round(angle_change_degrees, 2)} degrees out of {round(degrees(self.args.harder_left_right_amount), 2)} change, \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['left'][object_index]} steps")
                     print(f"Righting ({righting}): \n\t{round(angle_change_degrees, 2)} degrees out of {-round(degrees(self.args.harder_left_right_amount), 2)} change, \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['right'][object_index]} steps \n\n")
                 else:
-                    print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['left'][object_index]} steps")
-                    print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['right'][object_index]} steps \n\n")
+                    print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['left'][object_index]} steps")
+                    print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['right'][object_index]} steps \n\n")
     
             if(not self.args.harder_left_right):
                 active_changes = []

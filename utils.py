@@ -3,6 +3,7 @@
 # To do:
 #   Try making the robot's arm move for left/right.
 #   Still trying hyperparams.
+#   Use zq for PCA LDA
 
 import os
 import pickle
@@ -418,7 +419,7 @@ parser.add_argument('--local_left_right_amount',        type=float,         defa
 
 parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 5,
                     help='How close must the agent watch the object to achieve pushing left or right.')
-parser.add_argument('--min_arm_speed_for_left',          type=float,         default = 0,
+parser.add_argument('--min_arm_speed_for_left',          type=float,         default = None,
                     help='Needed distance of an object for push/left/right.')
     
 
