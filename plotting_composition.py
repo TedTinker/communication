@@ -396,7 +396,7 @@ def plots(plot_dicts):
         os.makedirs(f"saved_deigo/thesis_pics/composition/{args.arg_name}", exist_ok = True)
         for reducer_type in [
             "pca", 
-            #"lda"
+            "lda"
             ]:
             os.makedirs(f"saved_deigo/thesis_pics/composition/{reducer_type}/{args.arg_name}", exist_ok = True)
             print(f"\nStarting {args.arg_name}, {reducer_type}")        

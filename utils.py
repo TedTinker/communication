@@ -1,9 +1,9 @@
 #%% 
 
 # To do:
-#   Try making the robot's arm move for left/right.
-#   Still trying hyperparams.
-#   Use zq for PCA LDA
+#   Still trying hyperparams. Try making the robot's arm move for left/right.
+#   Use zq for PCA LDA. Can we animate a gif smoothly going from epoch to epoch?
+#   SOMETIMES IT LETS YOU COUNT TWO KINDS OF TASKS AT ONCE!? Test it, I think I fixed it.
 
 import os
 import pickle
@@ -419,7 +419,7 @@ parser.add_argument('--local_left_right_amount',        type=float,         defa
 
 parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 5,
                     help='How close must the agent watch the object to achieve pushing left or right.')
-parser.add_argument('--min_arm_speed_for_left',          type=float,         default = None,
+parser.add_argument('--min_arm_speed_for_left',          type=float,         default = -1,
                     help='Needed distance of an object for push/left/right.')
     
 

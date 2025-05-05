@@ -31,22 +31,22 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
     command_voice = obs.command_voice.human_friendly_text()
     report_voice = obs.report_voice.human_friendly_text(command = False)
         
-    command_task = obs.command_voice.task.name.replace(" ", "\n")
-    command_color = obs.command_voice.color.name.replace(" ", "\n")
-    command_shape = obs.command_voice.shape.name.replace(" ", "\n")
+    command_task = obs.command_voice.task.name# .replace(" ", "\n")
+    command_color = obs.command_voice.color.name# .replace(" ", "\n")
+    command_shape = obs.command_voice.shape.name# .replace(" ", "\n")
 
-    report_task = obs.report_voice.task.name.replace(" ", "\n")
-    report_color = obs.report_voice.color.name.replace(" ", "\n")
-    report_shape = obs.report_voice.shape.name.replace(" ", "\n")
+    report_task = obs.report_voice.task.name# .replace(" ", "\n")
+    report_color = obs.report_voice.color.name# .replace(" ", "\n")
+    report_shape = obs.report_voice.shape.name# .replace(" ", "\n")
     
     if(step != 0):
         posterior = episode_dict[f"posterior_predictions_{agent_num}"][step-1]
         posterior_report_voice = posterior.report_voice 
     else:
         posterior_report_voice = empty_goal
-    predicted_report_task = posterior_report_voice.task.name.replace(" ", "\n")
-    predicted_report_color = posterior_report_voice.color.name.replace(" ", "\n")
-    predicted_report_shape = posterior_report_voice.shape.name.replace(" ", "\n")
+    predicted_report_task = posterior_report_voice.task.name# .replace(" ", "\n")
+    predicted_report_color = posterior_report_voice.color.name# .replace(" ", "\n")
+    predicted_report_shape = posterior_report_voice.shape.name# .replace(" ", "\n")
     
     cell_data = [
         ["", "Task", "Color", "Shape"],
@@ -112,7 +112,7 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
     # Command, report, and predicted report text
     table_ax = fig.add_axes([0.05, -0.18, 0.9, 0.25])  # position: [left, bottom, width, height]
     table_ax.set_axis_off()
-    table = Table(table_ax, bbox=[0, 0, 1, 1])
+    """table = Table(table_ax, bbox=[0, 0, 1, 1])
 
     n_rows, n_cols = len(cell_data), len(cell_data[0])
     width, height = 1.0 / n_cols, 1.0 / n_rows
@@ -121,7 +121,13 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
         for j in range(n_cols):
             text = cell_data[i][j]
             cell = table.add_cell(i, j, width, height, text=text, loc='center', facecolor='white', edgecolor='black')
-            cell.get_text().set_fontsize(14)  # Set fontsize here
+            cell.get_text().set_fontsize(14)  # Set fontsize here"""
+            
+    # Jun wants just the text
+    fontsize = 12
+    table_ax.text(0, .8, s = f"Command:\n{command_task} {command_color} {command_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
+    table_ax.text(0, .45, s = f"Report:\n{report_task} {report_color} {report_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
+    table_ax.text(0, .1, s = f"Predicted Report:\n{predicted_report_task} {predicted_report_color} {predicted_report_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
             
     # Curiosity values
     all_curiosities = visual_curiosity + touch_curiosity + report_voice_curiosity
@@ -155,7 +161,7 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
             spine.set_edgecolor('gray')
             spine.set_linewidth(1)
 
-    table_ax.add_table(table)
+    #table_ax.add_table(table)
     
 
     

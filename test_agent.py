@@ -11,8 +11,8 @@ from agent import Agent
 
 
 hyper_parameters = "ef"
-agent_num = "0002"
-epochs = "000000"
+agent_num = "0001"
+epochs = "050000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading...", end = " ")
@@ -56,7 +56,7 @@ win = agent.save_episodes(
     video_display = True,
     sleep_time = 1, 
     waiting = False, 
-    user_action = True, 
+    user_action = False, 
     dreaming = False)
 if(win): 
     wins += 1

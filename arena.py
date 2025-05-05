@@ -548,21 +548,21 @@ class Arena():
             object_angle_end_degrees = degrees(object_angle_end)
             angle_change_degrees = degrees(angle_change)
             
-            if(verbose):
+            """if(verbose):
                 print(f"Object: {color_map[color_index].name} {shape_map[shape_index].name}")
                 print(f"Angle from agent to object: \t{round(object_angle_start_degrees, 2)} before, \t{round(object_angle_end_degrees, 2)} after, \t{round(angle_change_degrees, 2)} change")
                 print(f"Movement forward: \t{round(global_movement_forward, 2)} global, \t{round(local_movement_forward, 2)} local")
                 print(f"Movement left: \t\t{round(global_movement_left, 2)} global, \t{round(local_movement_left, 2)} local")
-                print(f"Angle of movement: {round(v_rx, 2), round(v_ry, 2)}")
+                print(f"Angle of movement: {round(v_rx, 2), round(v_ry, 2)}")"""
             
             # Is the agent watching an object?
             watching = abs(object_angle_end) < self.args.pointing_at_object_for_watch and not touching and distance <= self.args.watch_distance
+            
+            # Is the agent near an object?
             being_near = watching and distance <= self.args.be_near_distance
-            if(being_near):
-                watching = False
             
             # Is the object touched by the arm, while the arm-angle is high?
-            topping = touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle
+            topping = touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle            
                                     
             # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
             pushing = touching and (global_movement_forward >= self.args.global_push_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_watch) 
@@ -570,75 +570,57 @@ class Arena():
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
             good_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) < self.args.max_wheel_speed_for_left
-            
             arm_speed = self.get_joint_speeds()[1]
-            if(self.args.min_arm_speed_for_left == None):
-                good_arm_speed = True 
-            else:
-                good_arm_speed = abs(arm_speed) > self.args.min_arm_speed_for_left
-
-
+            good_arm_speed = abs(arm_speed) > self.args.min_arm_speed_for_left
+            lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed and good_arm_speed
+            righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed and good_arm_speed            
             
-            if(self.args.harder_left_right):
-                lefting = touching and good_speed and global_movement_left > 0 and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and angle_change > self.args.harder_left_right_amount
-                righting = touching and good_speed and global_movement_left < 0 and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and angle_change < -self.args.harder_left_right_amount
-            else:
-                lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed and good_arm_speed
-                righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed and good_arm_speed
-            
-            if(verbose):
+            """if(verbose):
                 print(f"\n\nTouching: {touching}. Touching body: {touching_body}.")
                 print(f"Watching ({watching}): \t\t{round(angle_change_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['watch'][object_index]} steps")
                 print(f"Being Near ({being_near}): \t\t{round(angle_change_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{round(distance, 2)} units out of {round(self.args.be_near_distance, 2)} \t{self.durations['be_near'][object_index]} steps")
                 print(f"Topping ({topping}): \n\t{-round(degrees(self.get_joint_angles()[2]), 2)} degrees vs {round(degrees(self.args.top_arm_min_angle), 2)} limit \t{self.durations['top'][object_index]} steps")
-                print(f"Pushing ({pushing}): \n\t{round(global_movement_forward, 2)} out of {self.args.global_push_amount} global, \t {round(local_movement_forward, 2)} out of {self.args.local_push_limit} local limit \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['push'][object_index]} steps")
-                if(self.args.harder_left_right):
-                    print(f"Lefting ({lefting}): \n\t{round(angle_change_degrees, 2)} degrees out of {round(degrees(self.args.harder_left_right_amount), 2)} change, \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['left'][object_index]} steps")
-                    print(f"Righting ({righting}): \n\t{round(angle_change_degrees, 2)} degrees out of {-round(degrees(self.args.harder_left_right_amount), 2)} change, \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{self.durations['right'][object_index]} steps \n\n")
-                else:
-                    print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['left'][object_index]} steps")
-                    print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t {round(local_movement_left, 2)} out of {self.args.local_left_right_amount} local \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['right'][object_index]} steps \n\n")
-    
-            if(not self.args.harder_left_right):
-                active_changes = []
-                if pushing:
-                    active_changes.append(("pushing", global_movement_forward))
-                if lefting:
-                    active_changes.append(("lefting", global_movement_left))
-                if righting:
-                    active_changes.append(("righting", abs(global_movement_left))) 
-                if len(active_changes) > 1:
-                    active_changes.sort(key=lambda x: x[1], reverse=True)
-                    highest_change = active_changes[0][0]
-                    pushing, lefting, righting = False, False, False
-                    if highest_change == "pushing":
-                        pushing = True
-                    elif highest_change == "lefting":
-                        lefting = True
-                    elif highest_change == "righting":
-                        righting = True 
+                print(f"Pushing ({pushing}): \n\t{round(global_movement_forward, 2)} out of {self.args.global_push_amount} global, \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['push'][object_index]} steps")
+                print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['left'][object_index]} steps")
+                print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['right'][object_index]} steps \n\n")
+            """
             
-            if(lefting or righting):
-                pushing = False
-            if(self.args.prefer_top):
-                if(topping):
-                    pushing = False
-                    lefting = False 
-                    righting = False
-            else:
-                if(pushing or lefting or righting):
-                    topping = False
+            # If pushing forward and/or pushing left or right, choose one.
+            active_changes = []
+            if pushing:
+                active_changes.append(("pushing", global_movement_forward))
+            if lefting:
+                active_changes.append(("lefting", global_movement_left))
+            if righting:
+                active_changes.append(("righting", -global_movement_left)) 
+            if len(active_changes) > 1:
+                active_changes.sort(key=lambda x: x[1], reverse=True)
+                highest_change = active_changes[0][0]
+                pushing, lefting, righting = False, False, False
+                if highest_change == "pushing":
+                    pushing = True
+                elif highest_change == "lefting":
+                    lefting = True
+                elif highest_change == "righting":
+                    righting = True 
+            
+            # Clear shared tasks.
+            if(being_near):
+                watching = False
+            if(pushing or lefting or righting):
+                watching = False
+                being_near = False
+                topping = False
+                            
                         
-                    
-                        
-            if(verbose):
+            """if(verbose):
                 print(f"After consideration:")
                 print(f"Watching: {watching}")
                 print(f"Being Near: {being_near}")
                 print(f"Topping: {topping}") 
                 print(f"Pushing: {pushing}")
                 print(f"Lefting: {lefting}")
-                print(f"Righting: {righting}\n") 
+                print(f"Righting: {righting}\n") """
                 
 
             
@@ -656,14 +638,17 @@ class Arena():
             lefted      = update_duration("left",       lefting,    object_index, self.args.left_duration)
             righted     = update_duration("right",      righting,   object_index, self.args.right_duration)
             
+            # IT SEEMS LIKE TASKS MIGHT OVERLAP. FIX IT! 
+            
             if(verbose):
                 print(f"Finished:")
-                print(f"Watched: {watched}")
-                print(f"Topped: {topped}")
-                print(f"Been Near: {been_near}")
-                print(f"Pushed: {pushed}")
-                print(f"Lefted: {lefted}")
-                print(f"Righted: {righted}\n")
+                print(f"\nINGs: {sum([watching, being_near, topping, pushing, lefting, righting])}\n")
+                print(f"Watching: \t{watching} \tWatched: \t{watched} \t {self.durations['watch'][object_index]} steps")
+                print(f"Being near: \t{being_near} \tBeen Near: \t{been_near} \t {self.durations['be_near'][object_index]} steps")
+                print(f"Topping: \t{topping} \tTopped: \t{topped} \t {self.durations['top'][object_index]} steps")
+                print(f"Pushing: \t{pushing} \tPushed: \t{pushed} \t {self.durations['push'][object_index]} steps")
+                print(f"Lefting: \t{lefting} \tLefted: \t{lefted} \t {self.durations['left'][object_index]} steps")
+                print(f"Righting: \t{righting} \tRighted: \t{righted} \t {self.durations['right'][object_index]} steps\n")
                 
             key = (color_map[color_index], shape_map[shape_index])
             new_value = [watched, been_near, topped, pushed, lefted, righted, watching, being_near, topping, pushing, lefting, righting]

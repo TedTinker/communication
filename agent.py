@@ -733,7 +733,8 @@ class Agent:
         #print(non_zero_mask)
         
         self.plot_dict["composition_data"][self.epochs] = {
-            "labels" : labels, "all_mask" : all_mask, "hq" : hq}
+            "labels" : labels, "all_mask" : all_mask, "hq" : hq,
+            "vision_zq" : vision_zq, "touch_zq" : touch_zq, "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq}
         
         
         
