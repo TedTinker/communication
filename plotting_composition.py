@@ -1,4 +1,16 @@
 #%%
+
+# To make this into an animation, we'll need to totally revamp it.
+# First, just get all dictionarites in meta_dictionaries:
+#   meta_data_dict
+#   meta_recorder_dict
+# Then make plot_by_epoch_vs_epoch:
+#   Input component to get data_dict and recorder_dict.
+#   Input data_epochs, recorder_epoch.
+#   If data_epochs is an integert, plot that.
+#   If if data_epochs is a tuple, plot the first, and data which smoothly changes to the last.
+
+
 import os
 import random
 import numpy as np
@@ -176,7 +188,7 @@ def use_reducer_by_epoch(data_dict, data_epochs, reducer_dict, reducer_epochs, a
 
 
 
-def plot_by_epoch_vs_epoch(reduced_dict, args):
+def plot_by_epoch_vs_epoch(reduced_dict, args, component):
     
     reduced_task_color  = reduced_dict["reduced"]["task_color"]
     reduced_task_shape  = reduced_dict["reduced"]["task_shape"]
@@ -195,8 +207,7 @@ def plot_by_epoch_vs_epoch(reduced_dict, args):
         sharex=False, 
         sharey=False, 
         constrained_layout=True,
-        gridspec_kw={"width_ratios": [1, 1, 1, 0.4]}  # Make the last (legend) plot thinner
-    )
+        gridspec_kw={"width_ratios": [1, 1, 1, 0.4]})
 
     def plot_by_attribute(ax, reduced, classes, title): 
         grouped_points = defaultdict(list)
@@ -324,19 +335,17 @@ def plot_by_epoch_vs_epoch(reduced_dict, args):
     ax.set_ylim([1, 10.5])
 
     # Save
-    plt.suptitle(f"Tests for Generalization\nAgent {args.agent_num}, data epoch {args.data_epochs}, {args.reducer_type} epochs {args.reducer_epochs}", fontsize=16)
-    os.makedirs(f"thesis_pics/composition/{args.arg_name}/agent_{args.agent_num}/{args.reducer_type}/{args.reducer_type}_{args.reducer_epochs}", exist_ok = True)
-    plt.savefig(f"thesis_pics/composition/{args.arg_name}/agent_{args.agent_num}/{args.reducer_type}/{args.reducer_type}_{args.reducer_epochs}/data_{args.data_epochs}.png", bbox_inches="tight")
+    plt.suptitle(f"Tests for Generalization\nAgent {args.agent_num}, data epoch {args.data_epochs}, {args.reducer_type} epochs {args.reducer_epochs}, {component}", fontsize=16)
+    os.makedirs(f"thesis_pics/composition/{args.arg_name}/agent_{args.agent_num}/{args.reducer_type}/{component}/{args.reducer_type}_{args.reducer_epochs}", exist_ok = True)
+    plt.savefig(f"thesis_pics/composition/{args.arg_name}/agent_{args.agent_num}/{args.reducer_type}/{component}/{args.reducer_type}_{args.reducer_epochs}/data_{args.data_epochs}.png", bbox_inches="tight")
     plt.close()
 
                     
                     
-def plot_dimension_reduction(plot_dict, reducer_type):
+def plot_dimension_reduction(plot_dict, reducer_type, component):
     args = plot_dict["args"]
-    args.reducer_type = reducer_type
     for agent_num, values_for_composition in enumerate(plot_dict["composition_data"]):
-        args.agent_num = agent_num
-
+        
         if(values_for_composition != {}):
             print("\nAGENT NUM", agent_num)
             reducer_dict = {}
@@ -344,7 +353,6 @@ def plot_dimension_reduction(plot_dict, reducer_type):
         
             for epochs, comp_dict in values_for_composition.items():
                 print("EPOCHS", epochs)
-                args.epochs = epochs
                 reducer_dict[epochs] = {}
 
                 all_mask = comp_dict["all_mask"].astype(bool)                
@@ -362,7 +370,7 @@ def plot_dimension_reduction(plot_dict, reducer_type):
                     data = data[all_mask]
                     return data
 
-                components = ["labels", "hq"] # Add zq for command here
+                components = ["labels", component] 
                 results = {}
                 for key in components:
                     results[key] = process_component(key)                    
@@ -371,7 +379,7 @@ def plot_dimension_reduction(plot_dict, reducer_type):
                                                     
                 os.makedirs(f"thesis_pics/composition/{args.arg_name}/agent_{agent_num}", exist_ok=True)  
                     
-                data = results["hq"] # Need to add zq
+                data = results[component] # Need to add zq
                 data_dict[epochs] = (data, labels)
 
                 reducer_dict = make_reducer(data, labels, reducer_dict, args)
@@ -383,7 +391,7 @@ def plot_dimension_reduction(plot_dict, reducer_type):
                     os.makedirs(f"thesis_pics/composition/{args.arg_name}/agent_{agent_num}/{reducer_type}/{reducer_type}_{reducer_epochs}", exist_ok=True)  
                     print(f"DATA: {data_epochs}. {reducer_type}: {reducer_epochs}")
                     reduced_dict = use_reducer_by_epoch(data_dict, data_epochs, reducer_dict, reducer_epochs, agent_num)
-                    plot_by_epoch_vs_epoch(reduced_dict, args)
+                    plot_by_epoch_vs_epoch(reduced_dict, args, component)
                         
                         
                             
@@ -394,13 +402,14 @@ def plots(plot_dicts):
     for i, plot_dict in enumerate(plot_dicts):
         args = plot_dict["args"]
         os.makedirs(f"saved_deigo/thesis_pics/composition/{args.arg_name}", exist_ok = True)
-        for reducer_type in [
-            "pca", 
-            "lda"
+        for reducer_type, component in [
+            #"pca", 
+            ("lda", "hq"),
+            ("lda", "command_voice_zq")
             ]:
-            os.makedirs(f"saved_deigo/thesis_pics/composition/{reducer_type}/{args.arg_name}", exist_ok = True)
-            print(f"\nStarting {args.arg_name}, {reducer_type}")        
-            plot_dimension_reduction(plot_dict, reducer_type)
+            os.makedirs(f"saved_deigo/thesis_pics/composition/{reducer_type}/{component}/{args.arg_name}", exist_ok = True)
+            print(f"\nStarting {args.arg_name}, {reducer_type}, {component}")        
+            plot_dimension_reduction(plot_dict, reducer_type, component)
             print(f"Finished.")
         print(f"Duration: {duration()}")
         

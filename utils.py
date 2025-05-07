@@ -3,6 +3,7 @@
 # To do:
 #   Still trying hyperparams. Try making the robot's arm move for left/right.
 #   Use zq for PCA LDA. Can we animate a gif smoothly going from epoch to epoch?
+#   In test_agent, allow free_play.
 #   SOMETIMES IT LETS YOU COUNT TWO KINDS OF TASKS AT ONCE!? Test it, I think I fixed it.
 
 import os

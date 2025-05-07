@@ -102,8 +102,7 @@ add_this("q",   {
 
 
 add_this("t",   {
-    "min_arm_speed_for_left" : [.01, .03, .05],    # Make this much smaller
-    "global_push_amount" : [.1, .3, .5],        # Try making this big
+    "min_arm_speed_for_left" : [.05, .1, .15, .2],   
 }) # Keep this low
 
 
