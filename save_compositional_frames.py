@@ -44,6 +44,6 @@ def images_to_video(image_folder, output_filename="output.mp4", fps=10):
 
 print(os.getcwd())
 images_to_video(
-    "saved_deigo/thesis_pics/composition/ef/agent_0/lda/command_voice_zq/lda_050000", 
-    "saved_deigo/thesis_pics/composition/ef/agent_0/lda/command_voice_zq/lda_050000.mp4",
+    "saved_deigo/thesis_pics/composition/ef/agent_1/lda/command_voice_zq/lda_050000", 
+    "saved_deigo/thesis_pics/composition/ef/agent_1/lda/command_voice_zq/lda_050000.mp4",
     10)

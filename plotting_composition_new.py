@@ -323,7 +323,7 @@ def smooth_plots(plot_dict, component, reducer_type, reducer_epochs, smooth_fram
     
     
 def plot(start_reduced_data_dict, stop_reduced_data_dict, fraction_of_start, component, reducer_type, data_epochs, smooth_frame, agent_num, reducer_epochs, arg_name):
-    print(f"\t\t\tPlot {data_epochs}.{smooth_frame} of component {component} reducer_type {reducer_type} for agent {agent_num}")
+    print(f"\t\t\tPlot {data_epochs}.{smooth_frame} of component {component} reducer_type {reducer_type} for agent {agent_num}...")
     
     """print("\nKeys in reduced_data_dict!")
     print_dict_keys(reduced_data_dict)
@@ -491,7 +491,7 @@ these_epochs = [i for i in range(0, 52500, 2500)]
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 for plot_dict in plot_dicts:
     for component in [
-        #"hq", 
+        "hq", 
         "command_voice_zq"
         ]:
         get_all_data(

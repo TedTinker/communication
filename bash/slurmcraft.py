@@ -102,8 +102,10 @@ add_this("q",   {
 
 
 add_this("t",   {
-    "min_arm_speed_for_left" : [.05, .1, .15, .2],   
-}) # Keep this low
+    "pointing_at_object_for_watch" : [pi/6, pi/8],   
+    "global_push_amount" : [.1, .15],
+    "watch_duration" : [3, 4, 5],
+}) 
 
 
 

@@ -12,10 +12,10 @@ from agent import Agent
 
 hyper_parameters = "e"
 agent_num = "0001"
-epochs = "050000"
+epochs = "000000"
 saved_file = "saved_deigo"
 
-print("\n\nLoading...", end = " ")
+print("\n\nLoading default agent...", end = " ")
 
 load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pkl.gz'
 with gzip.open(load_path, "rb") as f:
@@ -23,11 +23,43 @@ with gzip.open(load_path, "rb") as f:
 
 agent.start_physics(GUI = True)
 
-agent.args.min_arm_speed_for_left = .5
-                                
+
+
 episodes = 0
 wins = 0
 print("Ready to go!")
+
+
+
+#%%
+
+
+
+hyper_parameters = "e"
+agent_num = "0001"
+epochs = "020000"
+saved_file = "saved_deigo"
+
+"""hyper_parameters = "ef"
+agent_num = "0001"
+epochs = "020000"
+saved_file = "saved_deigo"""
+
+
+
+def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"):
+    print("\n\nLoading new agent...", end = " ")
+    load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pkl.gz'
+    with gzip.open(load_path, "rb") as f:
+        new_agent = pickle.load(f) 
+    agent.load_state_dict(new_agent.state_dict())
+    episodes = 0
+    wins = 0
+    print("Ready to go!")
+    
+change_agent(hyper_parameters, agent_num, epochs)
+     
+
 
 #%%
 
@@ -41,7 +73,7 @@ print("Ready to go!")
     
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(0, 1)], 
+    tasks_and_weights = [(6, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
@@ -52,12 +84,12 @@ agent.processor_name = 0
 episodes += 1
 win = agent.save_episodes(
     test = False, 
-    verbose = True,
+    verbose = False,
     display = False, 
     video_display = True,
     sleep_time = 1, 
     waiting = False, 
-    user_action = False, 
+    user_action = True, 
     dreaming = False)
 if(win): 
     wins += 1

@@ -411,7 +411,7 @@ parser.add_argument('--be_near_distance',               type=float,         defa
 
 parser.add_argument('--global_push_amount',             type=float,         default = .1,
                     help='Needed distance of an object for push/left/right.')
-parser.add_argument('--local_push_limit',          type=float,         default = .3,
+parser.add_argument('--local_push_limit',          type=float,         default = .3,            # Let's try using: large for pushing, small for toughing top.
                     help='Prevent bogus pushing by requiring local stillness.')
 parser.add_argument('--global_left_right_amount',       type=float,         default = .2,
                     help='Needed distance of an object for push/left/right.')
@@ -420,7 +420,7 @@ parser.add_argument('--local_left_right_amount',        type=float,         defa
 
 parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 5,
                     help='How close must the agent watch the object to achieve pushing left or right.')
-parser.add_argument('--min_arm_speed_for_left',          type=float,         default = -1,
+parser.add_argument('--min_arm_speed_for_left',          type=float,         default = .05,
                     help='Needed distance of an object for push/left/right.')
     
 
@@ -516,7 +516,7 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 
 
-parser.add_argument('--watch_duration',                 type=int,           default = 3,
+parser.add_argument('--watch_duration',                 type=int,           default = 5,
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--be_near_duration',               type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
@@ -527,7 +527,7 @@ parser.add_argument('--push_duration',                  type=int,           defa
 parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
 
-parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/6,
+parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/8,
                     help='How close must the agent watch the object to achieve watching or pushing.')
 parser.add_argument('--pointing_at_object_for_left',    type=float,         default = pi/3,
                     help='How close must the agent watch the object to achieve pushing left or right.')
