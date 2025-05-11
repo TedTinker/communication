@@ -35,15 +35,10 @@ print("Ready to go!")
 
 
 
-hyper_parameters = "e"
+hyper_parameters = "ef"
 agent_num = "0001"
-epochs = "020000"
+epochs = "000000"
 saved_file = "saved_deigo"
-
-"""hyper_parameters = "ef"
-agent_num = "0001"
-epochs = "020000"
-saved_file = "saved_deigo"""
 
 
 
@@ -53,6 +48,7 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
     with gzip.open(load_path, "rb") as f:
         new_agent = pickle.load(f) 
     agent.load_state_dict(new_agent.state_dict())
+    agent.args = new_agent.args
     episodes = 0
     wins = 0
     print("Ready to go!")
@@ -62,6 +58,8 @@ change_agent(hyper_parameters, agent_num, epochs)
 
 
 #%%
+
+agent.args.tanh_touch = True
 
     #0,  # Free Play (can we do this?)
     #1,  # Watch
@@ -74,7 +72,7 @@ change_agent(hyper_parameters, agent_num, epochs)
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
     tasks_and_weights = [(6, 1)], 
-    objects = 2, 
+    objects = 1, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
     parenting = True)}

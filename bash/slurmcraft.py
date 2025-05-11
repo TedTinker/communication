@@ -102,9 +102,26 @@ add_this("q",   {
 
 
 add_this("t",   {
-    "pointing_at_object_for_watch" : [pi/6, pi/8],   
-    "global_push_amount" : [.1, .15],
-    "watch_duration" : [3, 4, 5],
+    "tanh_touch" : [False, True],
+}) 
+
+
+
+add_this("t1",   {
+    "be_near_duration" : 4,
+    "push_duration" : 4
+}) 
+
+
+add_this("t2",   {
+    "be_near_duration" : 5,
+    "push_duration" : 5
+}) 
+
+add_this("t3",   {
+    "watch_duration" : 10,
+    "be_near_duration" : 5,
+    "push_duration" : 5
 }) 
 
 

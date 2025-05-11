@@ -42,8 +42,15 @@ def images_to_video(image_folder, output_filename="output.mp4", fps=10):
     print(f"Video saved as {output_filename}")
 
 
-print(os.getcwd())
-images_to_video(
-    "saved_deigo/thesis_pics/composition/ef/agent_1/lda/command_voice_zq/lda_050000", 
-    "saved_deigo/thesis_pics/composition/ef/agent_1/lda/command_voice_zq/lda_050000.mp4",
-    10)
+
+# hq 
+# command_voice_zq
+
+
+
+def export_here(arg_name, agent_num, reducer_type, component):
+    from_here = f"saved_deigo/thesis_pics/composition/{arg_name}/agent_{agent_num}/{reducer_type}/{component}/lda_050000"
+    to_here = f"saved_deigo/thesis_pics/composition/{arg_name}_agent_{agent_num}_{reducer_type}_{component}.mp4"
+    images_to_video(from_here, to_here, fps = 10)
+    
+export_here("ef", "1", "lda", "command_voice_zq")

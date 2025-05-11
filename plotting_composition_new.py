@@ -484,7 +484,7 @@ def plot_by_attribute(ax, start_reduced_data_dict, stop_reduced_data_dict, fract
         
     
 #these_epochs = [0, 2500, 10000, 20000, 30000, 40000, 50000]
-these_epochs = [i for i in range(0, 52500, 2500)]
+these_epochs = [i for i in range(0, 50250, 2500)]
 
 
 

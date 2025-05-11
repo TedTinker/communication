@@ -422,6 +422,9 @@ parser.add_argument('--max_wheel_speed_for_left',       type=float,         defa
                     help='How close must the agent watch the object to achieve pushing left or right.')
 parser.add_argument('--min_arm_speed_for_left',          type=float,         default = .05,
                     help='Needed distance of an object for push/left/right.')
+
+parser.add_argument('--tanh_touch',          type=literal,         default = False,
+                    help='Needed distance of an object for push/left/right.')
     
 
     # Meta 

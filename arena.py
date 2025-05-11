@@ -565,7 +565,9 @@ class Arena():
             
             
             
-            # Let's try using local push: large for pushing, small for toughing top.
+            # Let's try using local push: large for pushing, small for touching top.
+            #print(f"\n\nglobal_movement_forward: {global_movement_forward}. \nglobal_movement_left: {global_movement_left}\n\n")
+            #print(f"\n\nlocal_movement_forward: {local_movement_forward}. \nlocal_movement_left: {local_movement_left}\n\n")
             
             
             
@@ -644,9 +646,7 @@ class Arena():
             pushed      = update_duration("push",       pushing,    object_index, self.args.push_duration)
             lefted      = update_duration("left",       lefting,    object_index, self.args.left_duration)
             righted     = update_duration("right",      righting,   object_index, self.args.right_duration)
-            
-            # IT SEEMS LIKE TASKS MIGHT OVERLAP. FIX IT! 
-            
+                        
             if(verbose):
                 print(f"Finished:")
                 print(f"\nINGs: {sum([watching, being_near, topping, pushing, lefting, righting])}\n")
