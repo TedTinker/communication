@@ -492,7 +492,7 @@ plot_dicts, min_max_dict, complete_order = load_dicts(args)
 for plot_dict in plot_dicts:
     for component in [
         "hq", 
-        "command_voice_zq"
+        #"command_voice_zq"
         ]:
         get_all_data(
             plot_dict = plot_dict, 

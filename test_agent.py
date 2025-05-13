@@ -10,7 +10,7 @@ from agent import Agent
 
 
 
-hyper_parameters = "e"
+hyper_parameters = "ef_old"
 agent_num = "0001"
 epochs = "000000"
 saved_file = "saved_deigo"
@@ -35,9 +35,9 @@ print("Ready to go!")
 
 
 
-hyper_parameters = "ef"
+hyper_parameters = "ef_old"
 agent_num = "0001"
-epochs = "000000"
+epochs = "050000"
 saved_file = "saved_deigo"
 
 
@@ -69,12 +69,14 @@ agent.args.tanh_touch = True
     #5,  # Left
     #6   # Right   
     
+agent.args.min_arm_speed_for_left = .01
+    
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
     tasks_and_weights = [(6, 1)], 
     objects = 1, 
     colors = [0, 1, 2, 3, 4, 5], 
-    shapes = [0, 1, 2, 3, 4], 
+    shapes = [0], #, 1, 2, 3, 4], 
     parenting = True)}
 
 agent.processor_name = 0
@@ -82,7 +84,7 @@ agent.processor_name = 0
 episodes += 1
 win = agent.save_episodes(
     test = False, 
-    verbose = False,
+    verbose = True,
     display = False, 
     video_display = True,
     sleep_time = 1, 

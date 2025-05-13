@@ -38,7 +38,7 @@ class Part:
         joint_axis = (1, 0, 0),
         joint_type = "fixed",
         sensors = 0, 
-        sensor_width = .02, 
+        sensor_width = .03, 
         sensor_angle = 0,
         sensor_sides = ["start", "stop", "top", "bottom", "left", "right"],
         joint_rpy=(0, 0, 0),

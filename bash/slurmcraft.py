@@ -89,7 +89,7 @@ add_this("c",   {                                           # Curiosity of langu
 add_this("f",   {
     "curiosity" : "hidden_state",
     "hidden_state_eta_vision" : .05,
-    "hidden_state_eta_touch" : 2,
+    "hidden_state_eta_touch" : 2.5,
     "hidden_state_eta_report_voice" : .75})             # Agents with curiosity (hidden state)
 
 
@@ -101,27 +101,14 @@ add_this("q",   {
 
 
 
-add_this("t",   {
-    "tanh_touch" : [False, True],
-}) 
-
-
-
 add_this("t1",   {
-    "be_near_duration" : 4,
-    "push_duration" : 4
-}) 
+    "watch_duration" : [4, 5],
+    "test_train_num" : [1, 2, 3]
+    }) 
 
 
 add_this("t2",   {
-    "be_near_duration" : 5,
-    "push_duration" : 5
-}) 
-
-add_this("t3",   {
-    "watch_duration" : 10,
-    "be_near_duration" : 5,
-    "push_duration" : 5
+    "hidden_state_eta_touch" : [2.5, 3, 4]
 }) 
 
 

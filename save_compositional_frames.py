@@ -31,7 +31,7 @@ def images_to_video(image_folder, output_filename="output.mp4", fps=10):
     video = cv2.VideoWriter(output_filename, fourcc, fps, (width, height))
 
     for i, img_path in enumerate(image_files):
-        print(i/len(image_files))
+        print(round(i/len(image_files) * 100, 2))
         frame = cv2.imread(img_path)
         if frame is None:
             print(f"Warning: Skipping unreadable image {img_path}")
@@ -53,4 +53,4 @@ def export_here(arg_name, agent_num, reducer_type, component):
     to_here = f"saved_deigo/thesis_pics/composition/{arg_name}_agent_{agent_num}_{reducer_type}_{component}.mp4"
     images_to_video(from_here, to_here, fps = 10)
     
-export_here("ef", "1", "lda", "command_voice_zq")
+export_here("ef", "1", "lda", "hq")

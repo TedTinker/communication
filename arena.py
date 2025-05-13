@@ -555,10 +555,11 @@ class Arena():
                 print(f"Movement left: \t\t{round(global_movement_left, 2)} global, \t{round(local_movement_left, 2)} local")
                 print(f"Angle of movement: {round(v_rx, 2), round(v_ry, 2)}")
             
-            pointing_at_object = abs(object_angle_end) < self.args.pointing_at_object_for_watch
+            pointing_at_object_for_watch = abs(object_angle_end) < self.args.pointing_at_object_for_watch
+            pointing_at_object_for_left = abs(object_angle_end) < self.args.pointing_at_object_for_left
             
             # Is the agent watching an object?
-            watching = pointing_at_object and not touching and distance <= self.args.watch_distance
+            watching = pointing_at_object_for_watch and not touching and distance <= self.args.watch_distance
             
             # Is the agent near an object?
             being_near = watching and distance <= self.args.be_near_distance
@@ -572,18 +573,20 @@ class Arena():
             
             
             # Is the object touched by the arm, while the arm-angle is high?
-            topping = pointing_at_object and touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle            
+            topping = pointing_at_object_for_watch and touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle            
                                     
             # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
-            pushing = touching and (global_movement_forward >= self.args.global_push_amount) and pointing_at_object 
+            pushing = touching and (global_movement_forward >= self.args.global_push_amount) and pointing_at_object_for_watch 
                         
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
             good_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) < self.args.max_wheel_speed_for_left
             arm_speed = self.get_joint_speeds()[1]
-            good_arm_speed = abs(arm_speed) > self.args.min_arm_speed_for_left
-            lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and pointing_at_object and good_speed and good_arm_speed
-            righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and pointing_at_object and good_speed and good_arm_speed            
+            good_arm_speed_left = arm_speed > self.args.min_arm_speed_for_left
+            good_arm_speed_right = arm_speed < -self.args.min_arm_speed_for_left
+            good_arm_speed = good_arm_speed_left or good_arm_speed_right
+            lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and pointing_at_object_for_left and good_speed and good_arm_speed_left
+            righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and pointing_at_object_for_left and good_speed  and good_arm_speed_right            
             
             if(verbose):
                 print(f"\n\nTouching: {touching}. Touching body: {touching_body}.")
@@ -591,8 +594,8 @@ class Arena():
                 print(f"Being Near ({being_near}): \t\t{round(angle_change_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{round(distance, 2)} units out of {round(self.args.be_near_distance, 2)} \t{self.durations['be_near'][object_index]} steps")
                 print(f"Topping ({topping}): \n\t{-round(degrees(self.get_joint_angles()[2]), 2)} degrees vs {round(degrees(self.args.top_arm_min_angle), 2)} limit \t{self.durations['top'][object_index]} steps")
                 print(f"Pushing ({pushing}): \n\t{round(global_movement_forward, 2)} out of {self.args.global_push_amount} global, \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['push'][object_index]} steps")
-                print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['left'][object_index]} steps")
-                print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['right'][object_index]} steps \n\n")
+                print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t{round(degrees(object_angle_end), 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['left'][object_index]} steps")
+                print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t{round(degrees(object_angle_end), 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['right'][object_index]} steps \n\n")
             
             # If pushing forward and/or pushing left or right, choose one.
             active_changes = []

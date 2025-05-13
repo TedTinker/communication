@@ -4,7 +4,6 @@
 #   Still trying hyperparams. Try making the robot's arm move for left/right.
 #   Use zq for PCA LDA. Can we animate a gif smoothly going from epoch to epoch?
 #   In test_agent, allow free_play.
-#   SOMETIMES IT LETS YOU COUNT TWO KINDS OF TASKS AT ONCE!? Test it, I think I fixed it.
 
 import os
 import pickle
@@ -275,6 +274,10 @@ if(__name__ == "__main__"):
 
 
 
+all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
+
+
+
 def get_matrix_pattern(a_values, rows=5, cols=6):
     excluded = set()
     for a in a_values:
@@ -283,28 +286,51 @@ def get_matrix_pattern(a_values, rows=5, cols=6):
             excluded.add((r, c))
     return [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in excluded]
 
-pattern_lookup = {
+pattern_lookup_1 = {
     1: set(get_matrix_pattern([0, 1])),
     2: set(get_matrix_pattern([1, 2])),
     3: set(get_matrix_pattern([2, 3])),
     4: set(get_matrix_pattern([3, 4])),
     5: set(get_matrix_pattern([-2, -1])),
-    6: set(get_matrix_pattern([-1, 0])),}
+    6: set(get_matrix_pattern([-1, 0]))}
 
-all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
-training_combos = [(a, c, s) for (a, c, s) in all_combos if 
-                    a == 0 or 
-                    (a == 1 and (s, c) in pattern_lookup[1]) or
-                    (a == 2 and (s, c) in pattern_lookup[2]) or
-                    (a == 3 and (s, c) in pattern_lookup[3]) or
-                    (a == 4 and (s, c) in pattern_lookup[4]) or
-                    (a == 5 and (s, c) in pattern_lookup[5]) or
-                    (a == 6 and (s, c) in pattern_lookup[6])]
+pattern_lookup_2 = {
+    1: set(get_matrix_pattern([0, 1, 2])),
+    2: set(get_matrix_pattern([1, 2, 3])),
+    3: set(get_matrix_pattern([2, 3, 4])),
+    4: set(get_matrix_pattern([3, 4, 5])),
+    5: set(get_matrix_pattern([-2, -1, 0])),
+    6: set(get_matrix_pattern([-1, 0, 1]))}
+
+pattern_lookup_3 = {
+    1: set(get_matrix_pattern([0, 1, 2, 3])),
+    2: set(get_matrix_pattern([1, 2, 3, 4])),
+    3: set(get_matrix_pattern([2, 3, 4, 5])),
+    4: set(get_matrix_pattern([3, 4, 5, 6])),
+    5: set(get_matrix_pattern([-2, -1, 0, 1])),
+    6: set(get_matrix_pattern([-1, 0, 1, 2]))}
+
+def get_training_combos(pattern_lookup):
+    training_combos = [(a, c, s) for (a, c, s) in all_combos if 
+                        a == 0 or 
+                        (a == 1 and (s, c) in pattern_lookup[1]) or
+                        (a == 2 and (s, c) in pattern_lookup[2]) or
+                        (a == 3 and (s, c) in pattern_lookup[3]) or
+                        (a == 4 and (s, c) in pattern_lookup[4]) or
+                        (a == 5 and (s, c) in pattern_lookup[5]) or
+                        (a == 6 and (s, c) in pattern_lookup[6])]
+    return(training_combos)
+
+training_combos_1 = get_training_combos(pattern_lookup_1)
+training_combos_2 = get_training_combos(pattern_lookup_2)
+training_combos_3 = get_training_combos(pattern_lookup_3)
+
+testing_combos_1 = [combo for combo in all_combos if not combo in training_combos_1]
+testing_combos_2 = [combo for combo in all_combos if not combo in training_combos_2]
+testing_combos_3 = [combo for combo in all_combos if not combo in training_combos_3]
 
 
-
-testing_combos = [combo for combo in all_combos if not combo in training_combos]
-
+training_combos = training_combos_1
 
 
 if(__name__ == "__main__"):
@@ -338,7 +364,9 @@ if(__name__ == "__main__"):
 
 
 
-def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shapes, test = False):
+def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shapes, test_train_num, test = False):
+    testing_combos = testing_combos_1 if test_train_num == 1 else testing_combos_2 if testing_train_num == 2 else testing_combos_3
+    training_combos = training_combos_1 if test_train_num == 1 else training_combos_2 if testing_train_num == 2 else training_combos_3
     if(test == None):
         these_combos = testing_combos + training_combos
     elif(test):
@@ -352,19 +380,19 @@ def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shap
     color_num, shape_num = choice(these_combos)
     return(color_num, shape_num)
 
-def make_objects_and_task(num_objects, allowed_tasks_and_weights, allowed_colors, allowed_shapes, test = False):
+def make_objects_and_task(num_objects, allowed_tasks_and_weights, allowed_colors, allowed_shapes, test_train_num = 1, test = False):
     #print(f"num_objects {num_objects}, allowed_tasks_and_weights {allowed_tasks_and_weights}, allowed_colors {allowed_colors}, allowed_shapes {allowed_shapes}, test {test}")
     tasks   = [v for v, w in allowed_tasks_and_weights]
     weights = [w for v, w in allowed_tasks_and_weights]
     task_num = choices(tasks, weights=weights, k=1)[0]
     
-    goal_object = valid_color_shape(task_num, [], allowed_colors, allowed_shapes, test = test)
+    goal_object = valid_color_shape(task_num, [], allowed_colors, allowed_shapes, test_train_num, test = test)
     colors_shapes_1 = [goal_object]
     colors_shapes_2 = [goal_object]
     for n in range(num_objects-1):
-        colors_shapes_1.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
+        colors_shapes_1.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test_train_num, test = test))
     for n in range(num_objects-1):
-        colors_shapes_2.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test = test))
+        colors_shapes_2.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test_train_num, test = test))
     
     task = task_map[task_num]
     colors_shapes_1 = [(color_map[color_index], shape_map[shape_index]) for color_index, shape_index in colors_shapes_1]
@@ -420,10 +448,13 @@ parser.add_argument('--local_left_right_amount',        type=float,         defa
 
 parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 5,
                     help='How close must the agent watch the object to achieve pushing left or right.')
-parser.add_argument('--min_arm_speed_for_left',          type=float,         default = .05,
+parser.add_argument('--min_arm_speed_for_left',          type=float,         default = .001,
                     help='Needed distance of an object for push/left/right.')
 
-parser.add_argument('--tanh_touch',          type=literal,         default = False,
+parser.add_argument('--tanh_touch',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+
+parser.add_argument('--test_train_num',          type=int,         default = 1, # 1 for 1/3, 2 for 1/2, 3 for 2/3
                     help='Needed distance of an object for push/left/right.')
     
 
@@ -521,11 +552,11 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 parser.add_argument('--watch_duration',                 type=int,           default = 5,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--be_near_duration',               type=int,           default = 3,
+parser.add_argument('--be_near_duration',               type=int,           default = 4,
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--top_duration',                   type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--push_duration',                  type=int,           default = 3,
+parser.add_argument('--push_duration',                  type=int,           default = 5,
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
