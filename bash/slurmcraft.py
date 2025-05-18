@@ -102,8 +102,21 @@ add_this("q",   {
 
 
 add_this("t",   {
-    "min_arm_speed_for_left" : [.05, .1, .15, .2],   
-}) # Keep this low
+    "tanh_touch" : [False, True], 
+    "pointing_at_object_for_watch" : [pi/6, pi/8],
+    "watch_duration" : [3, 5]
+}) 
+
+
+add_this("testing_new_compositions",   {
+    "save_agents" : "False",
+    "save_behaviors" : "False",
+    "epochs_per_composition_data" : 10,
+    "agents_per_composition_data" : 1,
+    "epochs" : 30,
+    "keep_data" : 100
+    })
+
 
 
 

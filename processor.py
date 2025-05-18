@@ -93,6 +93,11 @@ class Processor:
         touched += joint_angles_regularized + joint_speeds_regularized
         touch = torch.tensor([touched]).float()
         
+        if(self.args.tanh_touch):
+            tanh_touch = torch.tanh((touch - .5) * 10)
+            tanh_touch = (tanh_touch + 1) / 2
+            touch = tanh_touch
+        
         report_voice = self.report_voice_1 if agent_1 else self.report_voice_2
                         
         return(Obs(vision, touch, self.goal, report_voice))

@@ -514,6 +514,12 @@ class Arena():
             lefted = False 
             righted = False
             
+            
+            
+            ### WARNING: MAY BE ALLOWING MULTIPLE TASKS AT ONCE
+            
+            
+            
             # Is the agent touching the object?
             objects_touch = self.objects_touch[object_index]
             objects_touch_body = {key: value for key, value in objects_touch.items() if "body" in key}

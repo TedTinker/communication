@@ -13,8 +13,8 @@ def run():
     agent = Agent(
         args = args,
         i = 1, 
-        GUI = False)
-    agent.training(sleep_time = 1)
+        GUI = True)
+    agent.training(sleep_time = 0)
     
 run()
 # %%

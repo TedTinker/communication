@@ -1,10 +1,10 @@
 #%% 
 
 # To do:
-#   Still trying hyperparams. Try making the robot's arm move for left/right.
-#   Use zq for PCA LDA. Can we animate a gif smoothly going from epoch to epoch?
-#   In test_agent, allow free_play.
-#   SOMETIMES IT LETS YOU COUNT TWO KINDS OF TASKS AT ONCE!? Test it, I think I fixed it.
+#   Make it so you can use 2/3, 1/2, or 1/3 of the goals for training.
+#   Make the curiosity/non-curiosity video into separate videos, with extra video for successes after training.
+#   SOMETIMES IT LETS YOU COUNT TWO KINDS OF TASKS AT ONCE!? Check again. AND MAKE SURE YOU DON'T ACCIDENTALLY CHANGE STUFF! LIKE ANGLE REQUIREMENTS!
+#   Still trying hyperparams. Try making the robot's arm move for left/right. Increase durations. 
 
 import os
 import pickle
@@ -275,6 +275,10 @@ if(__name__ == "__main__"):
 
 
 
+all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
+
+
+
 def get_matrix_pattern(a_values, rows=5, cols=6):
     excluded = set()
     for a in a_values:
@@ -283,26 +287,50 @@ def get_matrix_pattern(a_values, rows=5, cols=6):
             excluded.add((r, c))
     return [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in excluded]
 
-pattern_lookup = {
+pattern_lookup_1 = {
     1: set(get_matrix_pattern([0, 1])),
     2: set(get_matrix_pattern([1, 2])),
     3: set(get_matrix_pattern([2, 3])),
     4: set(get_matrix_pattern([3, 4])),
     5: set(get_matrix_pattern([-2, -1])),
-    6: set(get_matrix_pattern([-1, 0])),}
+    6: set(get_matrix_pattern([-1, 0]))}
 
-all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
-training_combos = [(a, c, s) for (a, c, s) in all_combos if 
-                    a == 0 or 
-                    (a == 1 and (s, c) in pattern_lookup[1]) or
-                    (a == 2 and (s, c) in pattern_lookup[2]) or
-                    (a == 3 and (s, c) in pattern_lookup[3]) or
-                    (a == 4 and (s, c) in pattern_lookup[4]) or
-                    (a == 5 and (s, c) in pattern_lookup[5]) or
-                    (a == 6 and (s, c) in pattern_lookup[6])]
+pattern_lookup_2 = {
+    1: set(get_matrix_pattern([0, 1, 2])),
+    2: set(get_matrix_pattern([1, 2, 3])),
+    3: set(get_matrix_pattern([2, 3, 4])),
+    4: set(get_matrix_pattern([3, 4, 5])),
+    5: set(get_matrix_pattern([-2, -1, 0])),
+    6: set(get_matrix_pattern([-1, 0, 1]))}
 
+pattern_lookup_3 = {
+    1: set(get_matrix_pattern([0, 1, 2, 3])),
+    2: set(get_matrix_pattern([1, 2, 3, 4])),
+    3: set(get_matrix_pattern([2, 3, 4, 5])),
+    4: set(get_matrix_pattern([3, 4, 5, 6])),
+    5: set(get_matrix_pattern([-2, -1, 0, 1])),
+    6: set(get_matrix_pattern([-1, 0, 1, 2]))}
 
+def get_training_combos(pattern_lookup):
+    training_combos = [(a, c, s) for (a, c, s) in all_combos if 
+                        a == 0 or 
+                        (a == 1 and (s, c) in pattern_lookup[1]) or
+                        (a == 2 and (s, c) in pattern_lookup[2]) or
+                        (a == 3 and (s, c) in pattern_lookup[3]) or
+                        (a == 4 and (s, c) in pattern_lookup[4]) or
+                        (a == 5 and (s, c) in pattern_lookup[5]) or
+                        (a == 6 and (s, c) in pattern_lookup[6])]
+    return(training_combos)
 
+training_combos_1 = get_training_combos(pattern_lookup_1)
+training_combos_2 = get_training_combos(pattern_lookup_2)
+training_combos_3 = get_training_combos(pattern_lookup_3)
+
+testing_combos_1 = [combo for combo in all_combos if not combo in training_combos_1]
+testing_combos_2 = [combo for combo in all_combos if not combo in training_combos_2]
+testing_combos_3 = [combo for combo in all_combos if not combo in training_combos_3]
+
+training_combos = training_combos_1
 testing_combos = [combo for combo in all_combos if not combo in training_combos]
 
 
@@ -422,6 +450,14 @@ parser.add_argument('--max_wheel_speed_for_left',       type=float,         defa
                     help='How close must the agent watch the object to achieve pushing left or right.')
 parser.add_argument('--min_arm_speed_for_left',          type=float,         default = -1,
                     help='Needed distance of an object for push/left/right.')
+
+parser.add_argument('--tanh_touch',          type=literal,         default = False,
+                    help='Needed distance of an object for push/left/right.')
+
+parser.add_argument('--test_train_num',          type=int,         default = 1, # 1 for 1/3, 2 for 1/2, 3 for 2/3
+                    help='Needed distance of an object for push/left/right.')
+    
+
     
 
     # Meta 
@@ -672,7 +708,7 @@ parser.add_argument('--epochs_per_gen_test',            type=int,           defa
 
 parser.add_argument('--save_agents',                    type=literal,       default = True,
                     help='Do you save agents?')
-parser.add_argument('--epochs_per_agent_save',          type=int,           default = 5000,
+parser.add_argument('--epochs_per_agent_save',          type=int,           default = 10000,
                     help='How many epochs should pass before saving agent model.')
 parser.add_argument('--agents_per_agent_save',          type=int,           default = 2,
                     help='How many epochs should pass before saving agent model.')
@@ -1036,7 +1072,7 @@ def calculate_dkl(mu_1, std_1, mu_2, std_2):
 
 
 def rolling_average(lst, window_size=500):
-    print(f"\n\nSOMETHING MIGHT BE GOING WRONG HERE! IN ROLLING AVERAGE :{lst}\n\n")
+    print(f"\nSOMETHING MIGHT BE GOING WRONG HERE! IN ROLLING AVERAGE :{lst}\n")
     try:
         new_list = [0 if lst[0] is None else float(lst[0])]
         for i in range(1, len(lst)):

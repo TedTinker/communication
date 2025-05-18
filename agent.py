@@ -96,7 +96,7 @@ class Agent:
         self.all_processors = {f"{task_map[task].name}_{color_map[color].name}_{shape_map[shape].name}" : 
             Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(task, 1)], objects = 2, colors = [color], shapes = [shape], parenting = True) for task, color, shape in \
                 product([1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
-                #product([1, 2, 5, 6], [0, 5], [0, 4])}
+                #product([1, 2], [1, 2], [1, 2])}
         all_processor_names = list(self.all_processors.keys())
         self.all_processor_names = all_processor_names
         
@@ -689,6 +689,68 @@ class Agent:
         temp_memory = RecurrentReplayBuffer(adjusted_args)
         processor_lens = []
         for processor_name in self.all_processor_names:
+            #print(processor_name)
+            self.processor = self.all_processors[processor_name]
+            total_steps = 0 
+            while(total_steps < 30):
+                self.processor.begin(test = None)    
+                done, complete_reward, steps, \
+                    (to_push_list_1, prev_action_1, hq_1), \
+                    (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
+                        
+                for step in range(self.args.max_steps):
+                    #print("Step", step)
+                    if(not done):
+                        obs_1 = self.get_agent_obs()
+                        obs_2 = self.get_agent_obs(agent_1 = False)
+                        prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, \
+                            prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2, \
+                                reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                                    prev_action_1, hq_1, obs_1,
+                                    prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
+                    to_push_list_1.append(to_push_1)
+                    if(done): 
+                        break
+                #print("DONE")
+                self.processor.done()
+                processor_lens.append(step)           
+                for to_push in to_push_list_1:
+                    to_push.done = False
+                    total_steps += 1
+                    if(total_steps >= 30):
+                        to_push.done = True
+                        to_push.push(temp_memory)
+                        break
+                    to_push.push(temp_memory)
+                
+        batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
+        vision, touch, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
+                
+        hps, hqs, vision_is, touch_is, command_voice_is, report_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
+            torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
+            Obs(vision, touch, command_voice, report_voice), Action(wheels_joints, voice_out))
+        
+        labels = labels.detach().cpu().numpy()
+        all_mask = all_mask.detach().cpu().numpy()  
+
+        vision_zq = vision_is.zq.detach().cpu().numpy()
+        touch_zq = touch_is.zq.detach().cpu().numpy()
+        command_voice_zq = command_voice_is.zq.detach().cpu().numpy()
+        report_voice_zq = report_voice_is.zq.detach().cpu().numpy()
+        hq = hqs.detach().cpu().numpy()
+                        
+        self.plot_dict["composition_data"][self.epochs] = {
+            "labels" : labels, "all_mask" : all_mask, "hq" : hq,
+            "vision_zq" : vision_zq, "touch_zq" : touch_zq, "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq}
+        
+    """def get_composition_data(self, sleep_time = None):
+        if(self.args.agents_per_composition_data != -1 and self.agent_num > self.args.agents_per_composition_data): 
+            return
+        adjusted_args = deepcopy(self.args)
+        adjusted_args.capacity = len(self.all_processors)
+        temp_memory = RecurrentReplayBuffer(adjusted_args)
+        processor_lens = []
+        for processor_name in self.all_processor_names:
             self.processor = self.all_processors[processor_name]
             self.processor.begin(test = None)    
             done, complete_reward, steps, \
@@ -734,7 +796,7 @@ class Agent:
         
         self.plot_dict["composition_data"][self.epochs] = {
             "labels" : labels, "all_mask" : all_mask, "hq" : hq,
-            "vision_zq" : vision_zq, "touch_zq" : touch_zq, "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq}
+            "vision_zq" : vision_zq, "touch_zq" : touch_zq, "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq}"""
         
         
         

@@ -5,4 +5,4 @@
 #SBATCH --time 72:00:00
 #SBATCH --mem=50G
 module load singularity
-singularity exec maze.sif python communication/plotting_p_val.py --comp deigo --arg_title ___ecqt_2+ecqt_3___ --arg_name plotting_p_values
+singularity exec maze.sif python communication/plotting_p_val.py --comp deigo --arg_title ___ef_testing_new_compositions___ --arg_name plotting_p_values
