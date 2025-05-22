@@ -102,20 +102,27 @@ add_this("q",   {
 
 
 add_this("t",   {
-    "tanh_touch" : [False, True], 
-    "pointing_at_object_for_watch" : [pi/6, pi/8],
-    "watch_duration" : [3, 5]
+    "test_train_num" : [1, 3],
+    "min_arm_speed_for_left" : [.01, .05],
+    "watch_duration" : [5, 6]
 }) 
 
 
-add_this("testing_new_compositions",   {
+
+add_this("t2",   {
+    "hidden_state_eta_touch" : [2, 3]
+}) 
+
+
+
+"""add_this("testing_new_compositions",   {
     "save_agents" : "False",
     "save_behaviors" : "False",
     "epochs_per_composition_data" : 10,
     "agents_per_composition_data" : 1,
     "epochs" : 30,
     "keep_data" : 100
-    })
+    })"""
 
 
 

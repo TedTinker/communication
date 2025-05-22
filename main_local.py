@@ -5,9 +5,10 @@ from math import pi
 from utils import args, get_num_sensors, update_args
 from agent import Agent
 
+args.local = True
 args.show_duration = True
 
-args.local = True
+args.save_compositions = False
 
 def run():
     agent = Agent(

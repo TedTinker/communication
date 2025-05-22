@@ -35,9 +35,9 @@ print("Ready to go!")
 
 
 
-hyper_parameters = "e"
+hyper_parameters = "ef"
 agent_num = "0001"
-epochs = "040000"
+epochs = "030000"
 saved_file = "saved_deigo"
 
 
@@ -61,8 +61,6 @@ change_agent(hyper_parameters, agent_num, epochs)
 
 
 
-agent.args.tanh_touch = True
-
     #0,  # Free Play (can we do this?)
     #1,  # Watch
     #2,  # Be Near
@@ -70,15 +68,13 @@ agent.args.tanh_touch = True
     #4,  # Push
     #5,  # Left
     #6   # Right   
-    
-agent.args.min_arm_speed_for_left = .01
-    
+        
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
     tasks_and_weights = [(6, 1)], 
     objects = 1, 
     colors = [0, 1, 2, 3, 4, 5], 
-    shapes = [0], #, 1, 2, 3, 4], 
+    shapes = [0, 1, 2, 3, 4], 
     parenting = True)}
 
 agent.processor_name = 0
@@ -88,10 +84,10 @@ win = agent.save_episodes(
     test = False, 
     verbose = True,
     display = False, 
-    video_display = True,
-    sleep_time = 1, 
+    video_display = False,
+    sleep_time = .5, 
     waiting = False, 
-    user_action = True, 
+    user_action = False, 
     dreaming = False)
 if(win): 
     wins += 1

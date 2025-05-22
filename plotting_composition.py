@@ -24,7 +24,7 @@ from scipy.spatial import procrustes
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
-from utils import testing_combos, args, duration, load_dicts, print, task_map, color_map, shape_map
+from utils import args, duration, load_dicts, print, task_map, color_map, shape_map
 from utils_submodule import  init_weights
 
 
@@ -390,8 +390,8 @@ def plot(start_reduced_data_dict, stop_reduced_data_dict, fraction_of_start, com
     ax.set_xlim([0, .8])
     ax.set_ylim([1, 10.5])
                 
-    os.makedirs(f"thesis_pics/composition/{arg_name}/agent_{agent_num}/{component}/{reducer_type}/{str(reducer_epochs).zfill(6)}", exist_ok = True)
-    plt.savefig(f"thesis_pics/composition/{arg_name}/agent_{agent_num}/{component}/{reducer_type}/{str(reducer_epochs).zfill(6)}/data_{str(data_epochs).zfill(6)}.{str(smooth_frame).zfill(3)}.png", bbox_inches="tight")
+    os.makedirs(f"thesis_pics/composition/{arg_name}/agent_{agent_num}/{component}/{reducer_type}", exist_ok = True)
+    plt.savefig(f"thesis_pics/composition/{arg_name}/agent_{agent_num}/{component}/{reducer_type}/data_{str(data_epochs).zfill(6)}.{str(smooth_frame).zfill(3)}.png", bbox_inches="tight")
     plt.close()
         
         
@@ -512,7 +512,10 @@ for plot_dict in plot_dicts:
         get_all_data(
             plot_dict = plot_dict, 
             component = component)
-        for reducer_type in ["lda"]:
+        for reducer_type in [
+            "lda", 
+            "pca"
+            ]:
             make_all_reducers(
                 plot_dict = plot_dict, 
                 component = component, 

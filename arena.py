@@ -11,7 +11,7 @@ from skimage.transform import resize
 import threading
 import pkg_resources
 
-from utils import shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, make_objects_and_task, duration, wait_for_button_press#, print
+from utils import shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, duration, wait_for_button_press#, print
 from arena_navigator import run_tk
 
 
@@ -494,7 +494,7 @@ class Arena():
         v_rx = cos(self.robot_start_yaw)
         v_ry = sin(self.robot_start_yaw)
         
-        if(verbose):
+        """if(verbose):
             printed_touching = False
             for object_key, object_dict in self.objects_touch.items():
                 for link_name, value in object_dict.items():
@@ -502,7 +502,7 @@ class Arena():
                         print(f"Touching {object_key} with {link_name}.")
                         printed_touching = True 
             if(printed_touching):
-                print("")
+                print("")"""
                         
         objects_goals = {}
                 
@@ -554,6 +554,8 @@ class Arena():
             object_angle_end_degrees = degrees(object_angle_end)
             angle_change_degrees = degrees(angle_change)
             
+            
+            
             """if(verbose):
                 print(f"Object: {color_map[color_index].name} {shape_map[shape_index].name}")
                 print(f"Angle from agent to object: \t{round(object_angle_start_degrees, 2)} before, \t{round(object_angle_end_degrees, 2)} after, \t{round(angle_change_degrees, 2)} change")
@@ -561,8 +563,11 @@ class Arena():
                 print(f"Movement left: \t\t{round(global_movement_left, 2)} global, \t{round(local_movement_left, 2)} local")
                 print(f"Angle of movement: {round(v_rx, 2), round(v_ry, 2)}")"""
             
+            
+            
             # Is the agent watching an object?
-            watching = abs(object_angle_end) < self.args.pointing_at_object_for_watch and not touching and distance <= self.args.watch_distance
+            watching_angle = abs(object_angle_end) < self.args.pointing_at_object_for_watch 
+            watching = watching_angle and not touching and distance <= self.args.watch_distance
             
             # Is the agent near an object?
             being_near = watching and distance <= self.args.be_near_distance
@@ -571,25 +576,30 @@ class Arena():
             topping = touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle            
                                     
             # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
-            pushing = touching and (global_movement_forward >= self.args.global_push_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_watch) 
+            pushing = touching and (global_movement_forward >= self.args.global_push_amount) and watching_angle
                         
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
-            good_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) < self.args.max_wheel_speed_for_left
+            good_wheel_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) < self.args.max_wheel_speed_for_left
             arm_speed = self.get_joint_speeds()[1]
-            good_arm_speed = abs(arm_speed) > self.args.min_arm_speed_for_left
-            lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed and good_arm_speed
-            righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_speed and good_arm_speed            
+            good_arm_speed = abs(arm_speed) >= self.args.min_arm_speed_for_left
+            lefting = touching and (global_movement_left >= self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_wheel_speed and good_arm_speed
+            righting = touching and (global_movement_left <= -self.args.global_left_right_amount) and (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_wheel_speed and good_arm_speed        
+            
+            
             
             """if(verbose):
-                print(f"\n\nTouching: {touching}. Touching body: {touching_body}.")
-                print(f"Watching ({watching}): \t\t{round(angle_change_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['watch'][object_index]} steps")
-                print(f"Being Near ({being_near}): \t\t{round(angle_change_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{round(distance, 2)} units out of {round(self.args.be_near_distance, 2)} \t{self.durations['be_near'][object_index]} steps")
-                print(f"Topping ({topping}): \n\t{-round(degrees(self.get_joint_angles()[2]), 2)} degrees vs {round(degrees(self.args.top_arm_min_angle), 2)} limit \t{self.durations['top'][object_index]} steps")
-                print(f"Pushing ({pushing}): \n\t{round(global_movement_forward, 2)} out of {self.args.global_push_amount} global, \t{round(object_angle_end_degrees, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_watch))} limit \t{self.durations['push'][object_index]} steps")
-                print(f"Lefting ({lefting}): \n\t{round(global_movement_left, 2)} out of {self.args.global_left_right_amount} global, \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['left'][object_index]} steps")
-                print(f"Righting ({righting}): \n\t{round(global_movement_left, 2)} out of {-self.args.global_left_right_amount} global, \t{round(object_angle_end, 2)} degrees out of {round(degrees(self.args.pointing_at_object_for_left))} limit \t{round(left_wheel_speed, 2), round(right_wheel_speed, 2)} out of {self.args.max_wheel_speed_for_left} wheel speed\t{round(arm_speed, 2)} out of {self.args.min_arm_speed_for_left} arm speed\t{self.durations['right'][object_index]} steps \n\n")
-            """
+                print(f"\nTouching: {touching}. Touching body: {touching_body}.")
+                print(f"Watching angle: {watching_angle}. Lefting angle: {lefting_angle}.")
+                print(f"Good wheel speed: {good_wheel_speed}. Good arm speed left: {good_arm_speed_left}. Good arm speed right: {good_arm_speed_right}.")
+                print(f"Watching \t({watching}): \t\t{self.durations['watch'][object_index]} steps")
+                print(f"Being Near \t({being_near}): \t\t{self.durations['be_near'][object_index]} steps")
+                print(f"Topping \t({topping}): \t\t{self.durations['top'][object_index]} steps")
+                print(f"Pushing \t({pushing}): \t\t{self.durations['push'][object_index]} steps")
+                print(f"Lefting \t({lefting}): \t\t{self.durations['left'][object_index]} steps")
+                print(f"Righting \t({righting}): \t\t{self.durations['right'][object_index]} steps\n")"""
+                
+                
             
             # If pushing forward and/or pushing left or right, choose one.
             active_changes = []
@@ -618,15 +628,16 @@ class Arena():
                 being_near = False
                 topping = False
                             
+
                         
             """if(verbose):
                 print(f"After consideration:")
-                print(f"Watching: {watching}")
-                print(f"Being Near: {being_near}")
-                print(f"Topping: {topping}") 
-                print(f"Pushing: {pushing}")
-                print(f"Lefting: {lefting}")
-                print(f"Righting: {righting}\n") """
+                print(f"Watching: \t{watching}")
+                print(f"Being Near: \t{being_near}")
+                print(f"Topping: \t{topping}") 
+                print(f"Pushing: \t{pushing}")
+                print(f"Lefting: \t{lefting}")
+                print(f"Righting: \t{righting}\n")"""
                 
 
             
@@ -644,17 +655,26 @@ class Arena():
             lefted      = update_duration("left",       lefting,    object_index, self.args.left_duration)
             righted     = update_duration("right",      righting,   object_index, self.args.right_duration)
             
-            # IT SEEMS LIKE TASKS MIGHT OVERLAP. FIX IT! 
             
+
             if(verbose):
+                ings = sum([watching, being_near, topping, pushing, lefting, righting])
                 print(f"Finished:")
-                print(f"\nINGs: {sum([watching, being_near, topping, pushing, lefting, righting])}\n")
+                print(f"INGs: {ings}")
+                if(ings > 1): 
+                    print("\t\tWARNING! MULTIPLE TASKS AT ONCE!")
                 print(f"Watching: \t{watching} \tWatched: \t{watched} \t {self.durations['watch'][object_index]} steps")
                 print(f"Being near: \t{being_near} \tBeen Near: \t{been_near} \t {self.durations['be_near'][object_index]} steps")
                 print(f"Topping: \t{topping} \tTopped: \t{topped} \t {self.durations['top'][object_index]} steps")
                 print(f"Pushing: \t{pushing} \tPushed: \t{pushed} \t {self.durations['push'][object_index]} steps")
                 print(f"Lefting: \t{lefting} \tLefted: \t{lefted} \t {self.durations['left'][object_index]} steps")
                 print(f"Righting: \t{righting} \tRighted: \t{righted} \t {self.durations['right'][object_index]} steps\n")
+                
+                
+                
+            ### WARNING: MAY BE ALLOWING MULTIPLE TASKS AT ONCE
+                
+                
                 
             key = (color_map[color_index], shape_map[shape_index])
             new_value = [watched, been_near, topped, pushed, lefted, righted, watching, being_near, topping, pushing, lefting, righting]
@@ -710,10 +730,10 @@ class Arena():
             else:
                 reward = self.args.wrong_object_punishment
             
-        if(verbose):
-            print(f"\nReport voice: \'{report_voice.human_text}\'")
+        """if(verbose):
+            print(f"Report voice: \'{report_voice.human_text}\'")
             print("Total reward:", reward)
-            print("Win:", win)
+            print("Win:", win)"""
                         
         return(reward, win, report_voice)
     

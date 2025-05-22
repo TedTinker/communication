@@ -21,7 +21,7 @@ class Processor:
     def begin(self, test = False, verbose = False):
         self.steps = 0            
         goal_task, self.current_objects_1, self.current_objects_2 = make_objects_and_task(
-            num_objects = self.objects, allowed_tasks_and_weights = self.tasks_and_weights, allowed_colors = self.colors, allowed_shapes = self.shapes, test = test)
+            num_objects = self.objects, allowed_tasks_and_weights = self.tasks_and_weights, allowed_colors = self.colors, allowed_shapes = self.shapes, test_train_num = self.args.test_train_num, test = test)
         goal_color, goal_shape = self.current_objects_1[0]
         if(goal_task.name == "FREEPLAY"):
             goal_color = goal_task
