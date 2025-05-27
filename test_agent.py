@@ -4,15 +4,16 @@ import pickle
 import gzip
 from math import pi
 import tkinter as tk
+import pybullet as p
 
 from processor import Processor
 from agent import Agent 
 
 
 
-hyper_parameters = "e"
+hyper_parameters = "ef_old"
 agent_num = "0001"
-epochs = "000000"
+epochs = "050000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -35,9 +36,9 @@ print("Ready to go!")
 
 
 
-hyper_parameters = "ef"
+hyper_parameters = "ef_old"
 agent_num = "0001"
-epochs = "030000"
+epochs = "050000"
 saved_file = "saved_deigo"
 
 
@@ -49,6 +50,12 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
         new_agent = pickle.load(f) 
     agent.load_state_dict(new_agent.state_dict())
     agent.args = new_agent.args
+    """multiply_steps_per_step = 5
+    agent.args.steps_per_step *= multiply_steps_per_step 
+    agent.args.time_step *= multiply_steps_per_step
+    agent.arena_1.args.steps_per_step = multiply_steps_per_step
+    agent.arena_1.args.time_step *= multiply_steps_per_step
+    p.setTimeStep(agent.args.time_step, physicsClientId=agent.arena_1.physicsClient)"""  # More accurate time step
     episodes = 0
     wins = 0
     print("Ready to go!")
@@ -71,8 +78,8 @@ change_agent(hyper_parameters, agent_num, epochs)
         
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(6, 1)], 
-    objects = 1, 
+    tasks_and_weights = [(3, 1)], 
+    objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
     parenting = True)}
@@ -82,9 +89,9 @@ agent.processor_name = 0
 episodes += 1
 win = agent.save_episodes(
     test = False, 
-    verbose = True,
+    verbose = False,
     display = False, 
-    video_display = False,
+    video_display = True,
     sleep_time = .5, 
     waiting = False, 
     user_action = False, 

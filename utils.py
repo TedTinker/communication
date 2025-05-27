@@ -448,13 +448,13 @@ parser.add_argument('--local_left_right_amount',        type=float,         defa
 
 parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 5,
                     help='How close must the agent watch the object to achieve pushing left or right.')
-parser.add_argument('--min_arm_speed_for_left',          type=float,         default = 0,
+parser.add_argument('--min_arm_speed_for_left',          type=float,         default = .01,
                     help='Needed distance of an object for push/left/right.')
 
 parser.add_argument('--tanh_touch',          type=literal,         default = True,
                     help='Needed distance of an object for push/left/right.')
 
-parser.add_argument('--test_train_num',          type=int,         default = 1, # 1 for 1/3, 2 for 1/2, 3 for 2/3
+parser.add_argument('--test_train_num',          type=int,         default = 3,
                     help='Needed distance of an object for push/left/right.')
     
 
@@ -552,7 +552,7 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 
 
-parser.add_argument('--watch_duration',                 type=int,           default = 5,
+parser.add_argument('--watch_duration',                 type=int,           default = 6,
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--be_near_duration',               type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
