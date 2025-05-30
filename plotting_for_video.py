@@ -13,7 +13,7 @@ import numpy as np
 import threading
 import time
 
-from utils import print, args, duration, load_dicts, wheels_joints_to_string, get_goal_from_one_hots, plot_number_bars, empty_goal
+from utils import print, args, duration, load_dicts, wheels_joints_to_string, plot_number_bars, empty_goal
 #from plotting_for_video_window import window
 from pybullet_data.robots.robot_maker import robot_dict
 
@@ -125,6 +125,7 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
             
     # Jun wants just the text
     fontsize = 12
+    print("AH HA! problem in plotting_for_video")
     table_ax.text(0, .8, s = f"Command:\n{command_task} {command_color} {command_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
     table_ax.text(0, .45, s = f"Report:\n{report_task} {report_color} {report_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
     table_ax.text(0, .1, s = f"Predicted Report:\n{predicted_report_task} {predicted_report_color} {predicted_report_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)

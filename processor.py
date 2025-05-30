@@ -26,7 +26,8 @@ class Processor:
         if(goal_task.name == "FREEPLAY"):
             goal_color = goal_task
             goal_shape = goal_task
-        self.goal = Goal(goal_task, goal_color, goal_shape, self.parenting)
+        print("MAKING GOAL IN BEGIN", self.args.language)
+        self.goal = Goal(goal_task, goal_color, goal_shape, self.parenting, language = self.args.language)
         self.arena_1.begin(self.current_objects_1, self.goal, self.parenting)
         if(not self.parenting):
             self.arena_2.begin(self.current_objects_2, self.goal, self.parenting)
@@ -42,6 +43,8 @@ class Processor:
         to_return = "\n\nSHAPE-COLORS (1):\t{}".format(["{} {}".format(color, shape) for color, shape in self.current_objects_1])
         if(not self.parenting):
             to_return += "\nSHAPE-COLORS (2):\t{}".format(["{} {}".format(color, shape) for color, shape in self.current_objects_2])
+        print("__STR__ LANGUAGE")
+        self.goal.make_texts(self.args.language)
         to_return += "\nGOAL:\t{} ({})".format(self.goal.char_text, self.goal.human_text)
         return(to_return)
     
@@ -121,6 +124,7 @@ class Processor:
             print("Joints:", [f"{key}: {round(value.item(), 2)}" for key, value in joint_speeds.items()])
             
         arena.step(left_wheel_speed, right_wheel_speed, joint_speeds, verbose = verbose, sleep_time = sleep_time)
+        
         reward, win, report_voice = arena.rewards(verbose = verbose)
         if(agent_1): 
             self.report_voice_1 = report_voice

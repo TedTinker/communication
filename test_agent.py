@@ -11,9 +11,9 @@ from agent import Agent
 
 
 
-hyper_parameters = "ef_old"
+hyper_parameters = "e"
 agent_num = "0001"
-epochs = "050000"
+epochs = "000000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -31,12 +31,17 @@ wins = 0
 print("Ready to go!")
 
 
+agent.args.language = "task_color_shape"
+
+agent.args.max_steps = 5
+
+
 
 #%%
 
 
 
-hyper_parameters = "ef_old"
+hyper_parameters = "ef"
 agent_num = "0001"
 epochs = "050000"
 saved_file = "saved_deigo"
@@ -49,7 +54,9 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
     with gzip.open(load_path, "rb") as f:
         new_agent = pickle.load(f) 
     agent.load_state_dict(new_agent.state_dict())
-    agent.args = new_agent.args
+    new_agent.args.language = "color_shape_task"
+    change_args(new_agent)
+
     """multiply_steps_per_step = 5
     agent.args.steps_per_step *= multiply_steps_per_step 
     agent.args.time_step *= multiply_steps_per_step
@@ -59,6 +66,25 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
     episodes = 0
     wins = 0
     print("Ready to go!")
+    
+def change_args(new_agent):
+    args = new_agent.args
+    agent.args = args
+    agent.arena_1.args = args
+    agent.arena_2.args = args
+    for processor_name, processor in new_agent.processors.items():
+        processor.args = args 
+        processor.arena_1.args = args
+        processor.arena_2.args = args
+        processor.goal.make_texts(args.language)
+    for processor_name, processor in new_agent.all_processors.items():
+        processor.args = args 
+        processor.arena_1.args = args
+        processor.arena_2.args = args
+        processor.goal.make_texts(args.language)
+        
+        
+    # STILL NEED TO DO GOALS AND MAYBE ARENA
     
 change_agent(hyper_parameters, agent_num, epochs)
      
@@ -76,6 +102,7 @@ change_agent(hyper_parameters, agent_num, epochs)
     #5,  # Left
     #6   # Right   
         
+print("MAKING AGENT LANGUAGE:", agent.args.language)
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
     tasks_and_weights = [(3, 1)], 

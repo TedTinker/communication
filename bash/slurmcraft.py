@@ -89,7 +89,7 @@ add_this("c",   {                                           # Curiosity of langu
 add_this("f",   {
     "curiosity" : "hidden_state",
     "hidden_state_eta_vision" : .05,
-    "hidden_state_eta_touch" : 3,
+    "hidden_state_eta_touch" : 4,       # This seems way to big!
     "hidden_state_eta_report_voice" : .75})             # Agents with curiosity (hidden state)
 
 
@@ -101,32 +101,28 @@ add_this("q",   {
 
 
 
-add_this("t7",   {
-    "watch_duration" : [6, 7],
-    "be_near_duration" : [4, 5],
-    "push_duration" : [4, 5]
+
+add_this("t",   {
+    "pointing_at_object_for_watch" : [pi/8, pi/10, pi/12] # Third on does good penalising non-curious.
 }) 
 
 
-
-
-add_this("t4",   {
-    "be_near_duration" : 4,
-    "push_duration" : 4
+add_this("t3",   {
+    "num_agents" : 3,
 }) 
 
-
-add_this("t5",   {
-    "be_near_duration" : 5,
-    "push_duration" : 5
+add_this("t10",   {
+    "num_agents" : 10,
 }) 
 
-
-
-add_this("tf",   {
-    "hidden_state_eta_touch" : [2, 2.5, 3, 4],
-    #"hidden_state_eta_vision" : [.07, .075, .08]
+add_this("t30",   {
+    "num_agents" : 30,
 }) 
+
+add_this("t90",   {
+    "num_agents" : 90,
+}) 
+
 
 
 

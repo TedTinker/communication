@@ -721,7 +721,8 @@ class Arena():
                 if(pushing):    task_in_progress = task_map[4]
                 if(lefting):    task_in_progress = task_map[5] # If pushing but also lefting/righting,
                 if(righting):   task_in_progress = task_map[6] # use lefting/righting
-                report_voice = Goal(task_in_progress, color, shape, parenting = False)
+                
+                report_voice = Goal(task_in_progress, color, shape, parenting = False, language = self.args.language)
                 
         if(wrong_object):
             win = False 
@@ -734,6 +735,8 @@ class Arena():
             print(f"Report voice: \'{report_voice.human_text}\'")
             print("Total reward:", reward)
             print("Win:", win)"""
+            
+        report_voice.make_texts(self.args.language)
                         
         return(reward, win, report_voice)
     
