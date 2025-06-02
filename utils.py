@@ -157,7 +157,7 @@ class Goal:
             self.color = self.task 
             self.shape = self.task
         self.one_hots = torch.zeros((3, len(task_map) + len(color_map) + len(shape_map)))
-        print("MAKING GOAL LANGUAGE:", language)
+        #print("MAKING GOAL LANGUAGE:", language)
         self.make_texts(language)
         
     def make_texts(self, language):
@@ -165,23 +165,23 @@ class Goal:
         sentence = []
         for word_type in word_types:
             sentence.append (self.task if word_type == "task" else self.color if word_type == "color" else self.shape)
-        print("MAKE TEXT LANGUAGE:", language)
-        print("SENTENCE:", [word.name for word in sentence], "\n")
+        #print("MAKE TEXT LANGUAGE:", language)
+        #print("SENTENCE:", [word.name for word in sentence], "\n")
         
-        print("AH HA! problem in make_texts")
+        #print("AH HA! problem in make_texts")
 
         word_1 = self.task
         word_2 = self.color
         word_3 = self.shape
         
-        print(word_types)
-        print("naive:", word_1.name, word_2.name, word_3.name)
+        #print(word_types)
+        #print("naive:", word_1.name, word_2.name, word_3.name)
         
-        l_word_1 = self.task if word_types[0] == "task" else self.color if word_types[0] == "color" else self.shape
+        """l_word_1 = self.task if word_types[0] == "task" else self.color if word_types[0] == "color" else self.shape
         l_word_2 = self.task if word_types[1] == "task" else self.color if word_types[1] == "color" else self.shape
         l_word_3 = self.task if word_types[2] == "task" else self.color if word_types[2] == "color" else self.shape
         
-        print("changed:", l_word_1.name, l_word_2.name, l_word_3.name)
+        print("changed:", l_word_1.name, l_word_2.name, l_word_3.name)"""
         
         for i, char in enumerate([word_1.char, word_2.char, word_3.char]):
             index = ord(char) - ord('A')
@@ -598,7 +598,7 @@ parser.add_argument('--push_duration',                  type=int,           defa
 parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
 
-parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/8,
+parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/12,
                     help='How close must the agent watch the object to achieve watching or pushing.')
 parser.add_argument('--pointing_at_object_for_left',    type=float,         default = pi/3,
                     help='How close must the agent watch the object to achieve pushing left or right.')

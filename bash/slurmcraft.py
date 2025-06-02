@@ -103,7 +103,20 @@ add_this("q",   {
 
 
 add_this("t",   {
-    "pointing_at_object_for_watch" : [pi/8, pi/10, pi/12] # Third on does good penalising non-curious.
+    "hidden_state_eta_touch" : [
+        1,
+        1.25, 
+        1.5, 
+        1.75,
+        2,
+        2.25, 
+        2.5, 
+        2.75,
+        3, 
+        3.25, 
+        3.5, 
+        3.75, 
+        4] # Third on does good penalising non-curious.
 }) 
 
 

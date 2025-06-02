@@ -26,7 +26,7 @@ class Processor:
         if(goal_task.name == "FREEPLAY"):
             goal_color = goal_task
             goal_shape = goal_task
-        print("MAKING GOAL IN BEGIN", self.args.language)
+        #print("MAKING GOAL IN BEGIN", self.args.language)
         self.goal = Goal(goal_task, goal_color, goal_shape, self.parenting, language = self.args.language)
         self.arena_1.begin(self.current_objects_1, self.goal, self.parenting)
         if(not self.parenting):
