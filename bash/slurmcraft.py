@@ -89,7 +89,7 @@ add_this("c",   {                                           # Curiosity of langu
 add_this("f",   {
     "curiosity" : "hidden_state",
     "hidden_state_eta_vision" : .05,
-    "hidden_state_eta_touch" : 4,       # This seems way to big!
+    "hidden_state_eta_touch" : 2.25,       # This seems way to big!
     "hidden_state_eta_report_voice" : .75})             # Agents with curiosity (hidden state)
 
 
