@@ -123,9 +123,26 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
             cell = table.add_cell(i, j, width, height, text=text, loc='center', facecolor='white', edgecolor='black')
             cell.get_text().set_fontsize(14)  # Set fontsize here"""
             
-    # Jun wants just the text
+    """word_types = episode_dict["language"].split("_")
+    print("WORD TYPES FROM EPISODE_DICT:\t ", word_types)
+    word_types = args.language.split("_")
+    print("WORD TYPES FROM ARGS:\t ", word_types)
+
+    sentence = []
+    for word_type in word_types:
+        sentence.append (command_task if word_type == "task" else command_color if word_type == "color" else command_shape)
+    print("WORD TYPES: \t\t", word_types)
+    print("SENTENCE:", sentence)"""
+    
+    
+
+
+
+
+
     fontsize = 12
     print("AH HA! problem in plotting_for_video")
+    #table_ax.text(0, .8, s = f"Command:\n{sentence[0]} {sentence[1]} {sentence[2]}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
     table_ax.text(0, .8, s = f"Command:\n{command_task} {command_color} {command_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
     table_ax.text(0, .45, s = f"Report:\n{report_task} {report_color} {report_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
     table_ax.text(0, .1, s = f"Predicted Report:\n{predicted_report_task} {predicted_report_color} {predicted_report_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)

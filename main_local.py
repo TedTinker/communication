@@ -7,6 +7,8 @@ from agent import Agent
 
 args.local = True
 args.show_duration = True
+#args.language = "color_task_shape"
+
 
 args.save_compositions = False
 

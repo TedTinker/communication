@@ -77,10 +77,6 @@ jid=$(sbatch --dependency=afterok:$dict_jid communication/bash/plotting.slurm | 
 echo "$jid : plotting"
 jid_list+=($jid)
 
-jid=$(sbatch --dependency=afterok:$dict_jid communication/bash/plotting_composition.slurm | awk '{print $4}')
-echo "$jid : plotting composition"
-jid_list+=($jid)
-
 jid=$(sbatch --dependency=afterok:$dict_jid communication/bash/plotting_p_values.slurm | awk '{print $4}')
 echo "$jid : plotting p-values"
 

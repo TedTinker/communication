@@ -3,7 +3,7 @@
 # To do:
 #   Make a video showing success with all kinds of task.
 #   SOMETIMES IT LETS YOU COUNT TWO KINDS OF TASKS AT ONCE!? Check again. AND MAKE SURE YOU DON'T ACCIDENTALLY CHANGE STUFF! LIKE ANGLE REQUIREMENTS!
-#   Still trying hyperparams. Increase durations. 
+#   Can we make the robot try goals described with a different grammar?
 
 import os
 import pickle
@@ -150,14 +150,15 @@ if(__name__ == "__main__"):
 
         
 class Goal:
-    def __init__(self, task, color, shape, parenting, language = "task_color_shape_DEFAULT"):
+    def __init__(self, task, color, shape, parenting, language = "task_color_shape"):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
+        self.language = language
         if(self.task.name == "SILENCE"):
             self.color = self.task 
             self.shape = self.task
         self.one_hots = torch.zeros((3, len(task_map) + len(color_map) + len(shape_map)))
-        #print("MAKING GOAL LANGUAGE:", language)
+        #print("LANGUAGE IN GOAL INIT: \t\t", language)
         self.make_texts(language)
         
     def make_texts(self, language):
@@ -165,27 +166,20 @@ class Goal:
         sentence = []
         for word_type in word_types:
             sentence.append (self.task if word_type == "task" else self.color if word_type == "color" else self.shape)
-        #print("MAKE TEXT LANGUAGE:", language)
-        #print("SENTENCE:", [word.name for word in sentence], "\n")
+        #print("\nLANGUAGE IN GOAL MAKE_TEXTS \t:", language)
+        #print("WORD TYPES: \t\t", word_types)
+        #print("SENTENCE:", [word.name for word in sentence])
         
-        #print("AH HA! problem in make_texts")
-
-        word_1 = self.task
-        word_2 = self.color
-        word_3 = self.shape
+        #print("This seems to work, but there's still a problem in get_goal_from_one_hots.")
         
-        #print(word_types)
-        #print("naive:", word_1.name, word_2.name, word_3.name)
-        
-        """l_word_1 = self.task if word_types[0] == "task" else self.color if word_types[0] == "color" else self.shape
-        l_word_2 = self.task if word_types[1] == "task" else self.color if word_types[1] == "color" else self.shape
-        l_word_3 = self.task if word_types[2] == "task" else self.color if word_types[2] == "color" else self.shape
-        
-        print("changed:", l_word_1.name, l_word_2.name, l_word_3.name)"""
-        
+        word_1 = self.task if word_types[0] == "task" else self.color if word_types[0] == "color" else self.shape
+        word_2 = self.task if word_types[1] == "task" else self.color if word_types[1] == "color" else self.shape
+        word_3 = self.task if word_types[2] == "task" else self.color if word_types[2] == "color" else self.shape
+                
         for i, char in enumerate([word_1.char, word_2.char, word_3.char]):
             index = ord(char) - ord('A')
             self.one_hots[i, index] = 1
+        #print(self.one_hots)
             
         self.char_text = f"{word_1.char}{word_2.char}{word_3.char}"
         self.human_text = f"{word_1.name} {word_2.name} {word_3.name}"
@@ -193,14 +187,20 @@ class Goal:
     def human_friendly_text(self, command = True):
         return(f"{'Command' if command else 'Report'}: {self.human_text}")
         
+print("EMPTY GOAL:")
 empty_goal = Goal(task_map[0], task_map[0], task_map[0], parenting = False)
+print("DONE WITH EMPTY GOAL")
 
 
 
 def get_goal_from_one_hots(one_hots, language):
+    
+    #print("LANGUAGE IN GET_GOAL_FROM_ONE_HOTS: \t")
         
     while(len(one_hots.shape) > 2):
         one_hots = one_hots.squeeze(0)
+        
+    # THIS WON'T WORK WITH DIFFERENT LANGUAGES! 
     task_one_hot = one_hots[0, : len(task_map)]
     color_one_hot = one_hots[1, len(task_map) : len(task_map) + len(color_map)]
     shape_one_hot = one_hots[2, len(task_map) + len(color_map) : len(task_map) + len(color_map) + len(shape_map)]
@@ -208,6 +208,10 @@ def get_goal_from_one_hots(one_hots, language):
     task_index = torch.argmax(task_one_hot).item()
     color_index = torch.argmax(color_one_hot).item()
     shape_index = torch.argmax(shape_one_hot).item()
+    
+    #if(task_index == 0):
+    #    color_index = 0
+    #    shape_index = 0
             
     task = task_map[task_index]
     color = color_map[color_index]
@@ -458,7 +462,7 @@ parser = argparse.ArgumentParser()
     # Stuff I'm testing right now   
 parser.add_argument('--num_agents',         type=int,         default = 0,
                     help='Needed distance of an object for push/left/right.')
-parser.add_argument('--language',           type=str,         default = "language",
+parser.add_argument('--language',           type=str,         default = "task_color_shape",
                     help='What is the pattern for words?')
     
 parser.add_argument('--robot_name',                     type=str,           default = "robot",

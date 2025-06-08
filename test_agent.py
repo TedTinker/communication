@@ -11,9 +11,9 @@ from agent import Agent
 
 
 
-hyper_parameters = "e"
+hyper_parameters = "ef_t3"
 agent_num = "0001"
-epochs = "000000"
+epochs = "005000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -41,9 +41,9 @@ agent.args.max_steps = 5
 
 
 
-hyper_parameters = "ef"
+hyper_parameters = "ef_t3"
 agent_num = "0001"
-epochs = "050000"
+epochs = "005000"
 saved_file = "saved_deigo"
 
 

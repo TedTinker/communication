@@ -722,6 +722,7 @@ class Arena():
                 if(lefting):    task_in_progress = task_map[5] # If pushing but also lefting/righting,
                 if(righting):   task_in_progress = task_map[6] # use lefting/righting
                 
+                #print("LANGUAGE IN ARENA REWARD: \t", self.args.language)
                 report_voice = Goal(task_in_progress, color, shape, parenting = False, language = self.args.language)
                 
         if(wrong_object):
