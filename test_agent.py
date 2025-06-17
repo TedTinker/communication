@@ -11,9 +11,9 @@ from agent import Agent
 
 
 
-hyper_parameters = "ef_t3"
-agent_num = "0001"
-epochs = "005000"
+hyper_parameters = "ef_q2t_2"
+agent_num = "0002"
+epochs = "050000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -31,20 +31,16 @@ wins = 0
 print("Ready to go!")
 
 
-agent.args.language = "task_color_shape"
-
-agent.args.max_steps = 5
-
 
 
 #%%
 
 
 
-hyper_parameters = "ef_t3"
-agent_num = "0001"
-epochs = "005000"
-saved_file = "saved_deigo"
+#hyper_parameters = "ef"
+#agent_num = "0001"
+#epochs = "050000"
+#saved_file = "saved_deigo"
 
 
 
@@ -57,12 +53,6 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
     new_agent.args.language = "color_shape_task"
     change_args(new_agent)
 
-    """multiply_steps_per_step = 5
-    agent.args.steps_per_step *= multiply_steps_per_step 
-    agent.args.time_step *= multiply_steps_per_step
-    agent.arena_1.args.steps_per_step = multiply_steps_per_step
-    agent.arena_1.args.time_step *= multiply_steps_per_step
-    p.setTimeStep(agent.args.time_step, physicsClientId=agent.arena_1.physicsClient)"""  # More accurate time step
     episodes = 0
     wins = 0
     print("Ready to go!")
@@ -76,12 +66,12 @@ def change_args(new_agent):
         processor.args = args 
         processor.arena_1.args = args
         processor.arena_2.args = args
-        processor.goal.make_texts(args.language)
+        #processor.goal.language = args.language
     for processor_name, processor in new_agent.all_processors.items():
         processor.args = args 
         processor.arena_1.args = args
         processor.arena_2.args = args
-        processor.goal.make_texts(args.language)
+        #processor.goal.language = args.language
         
         
     # STILL NEED TO DO GOALS AND MAYBE ARENA
@@ -102,10 +92,10 @@ change_agent(hyper_parameters, agent_num, epochs)
     #5,  # Left
     #6   # Right   
         
-print("MAKING AGENT LANGUAGE:", agent.args.language)
+#print("MAKING AGENT LANGUAGE:", agent.args.language)
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(3, 1)], 
+    tasks_and_weights = [(6, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
@@ -125,7 +115,7 @@ win = agent.save_episodes(
     dreaming = False)
 if(win): 
     wins += 1
-print(f"\tWIN RATE: {round(100 * (wins / episodes), 2)}% \t ({wins} wins out of {episodes} episodes)")
+#print(f"\tWIN RATE: {round(100 * (wins / episodes), 2)}% \t ({wins} wins out of {episodes} episodes)")
 
 
 

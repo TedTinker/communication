@@ -737,7 +737,7 @@ class Arena():
             print("Total reward:", reward)
             print("Win:", win)"""
             
-        report_voice.make_texts(self.args.language)
+        report_voice.make_texts() # I don't think we need this one?
                         
         return(reward, win, report_voice)
     

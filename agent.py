@@ -534,11 +534,11 @@ class Agent:
             for agent_id in [0, 1]:
                 for key in common_keys:
                     episode_dict[f"{key}_{agent_id}"] = []
-            print("LANGUAGE IN SAVE_EPISODES:", self.args.language)
+            #print("LANGUAGE IN SAVE_EPISODES:", self.args.language)
             episode_dict["language"] = self.args.language
             episode_dict["reward"] = []
             episode_dict["processor"] = self.processor
-            self.processor.goal.make_texts(self.args.language)
+            self.processor.goal.make_texts()
             episode_dict["goal"] = self.processor.goal
             
             done = False

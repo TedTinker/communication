@@ -159,10 +159,10 @@ class Goal:
             self.shape = self.task
         self.one_hots = torch.zeros((3, len(task_map) + len(color_map) + len(shape_map)))
         #print("LANGUAGE IN GOAL INIT: \t\t", language)
-        self.make_texts(language)
+        self.make_texts()
         
-    def make_texts(self, language):
-        word_types = language.split("_")
+    def make_texts(self):
+        word_types = self.language.split("_")
         sentence = []
         for word_type in word_types:
             sentence.append (self.task if word_type == "task" else self.color if word_type == "color" else self.shape)
@@ -178,6 +178,7 @@ class Goal:
                 
         for i, char in enumerate([word_1.char, word_2.char, word_3.char]):
             index = ord(char) - ord('A')
+            #print(f"in make texts: {i, char, index}")
             self.one_hots[i, index] = 1
         #print(self.one_hots)
             
@@ -201,13 +202,23 @@ def get_goal_from_one_hots(one_hots, language):
         one_hots = one_hots.squeeze(0)
         
     # THIS WON'T WORK WITH DIFFERENT LANGUAGES! 
-    task_one_hot = one_hots[0, : len(task_map)]
-    color_one_hot = one_hots[1, len(task_map) : len(task_map) + len(color_map)]
-    shape_one_hot = one_hots[2, len(task_map) + len(color_map) : len(task_map) + len(color_map) + len(shape_map)]
+    word_types = language.split("_")
+
+    word_1_len = len(task_map) if word_types[0] == "task" else len(color_map) if word_types[0] == "color" else len(shape_map)
+    word_2_len = len(task_map) if word_types[1] == "task" else len(color_map) if word_types[1] == "color" else len(shape_map)
+    word_3_len = len(task_map) if word_types[2] == "task" else len(color_map) if word_types[2] == "color" else len(shape_map)
     
-    task_index = torch.argmax(task_one_hot).item()
-    color_index = torch.argmax(color_one_hot).item()
-    shape_index = torch.argmax(shape_one_hot).item()
+    word_1_one_hot = one_hots[0, : word_1_len]
+    word_2_one_hot = one_hots[1, word_1_len : word_1_len + word_2_len]
+    word_3_one_hot = one_hots[2, word_1_len + word_2_len : word_1_len + word_2_len + word_3_len]
+    
+    word_1_index = torch.argmax(word_1_one_hot).item()
+    word_2_index = torch.argmax(word_2_one_hot).item()
+    word_3_index = torch.argmax(word_3_one_hot).item()
+    
+    task_index = word_1_index if word_types[0] == "task" else word_2_index if word_types[1] == "types" else word_3_index
+    color_index = word_1_index if word_types[0] == "color" else word_2_index if word_types[1] == "color" else word_3_index
+    shape_index = word_1_index if word_types[0] == "shape" else word_2_index if word_types[1] == "shape" else word_3_index
     
     #if(task_index == 0):
     #    color_index = 0
@@ -217,9 +228,10 @@ def get_goal_from_one_hots(one_hots, language):
     color = color_map[color_index]
     shape = shape_map[shape_index]
     
-    goal = Goal(task, color, shape, parenting=False, language = language)
     if(task.name == "SILENCE"):
         goal = empty_goal
+    else:    
+        goal = Goal(task, color, shape, parenting=False, language = language)
     return goal
 
 
@@ -747,7 +759,7 @@ parser.add_argument('--epochs_per_gen_test',            type=int,           defa
 
 parser.add_argument('--save_agents',                    type=literal,       default = True,
                     help='Do you save agents?')
-parser.add_argument('--epochs_per_agent_save',          type=int,           default = 2500,
+parser.add_argument('--epochs_per_agent_save',          type=int,           default = 10000,
                     help='How many epochs should pass before saving agent model.')
 parser.add_argument('--agents_per_agent_save',          type=int,           default = 2,
                     help='How many epochs should pass before saving agent model.')

@@ -141,7 +141,7 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
 
 
     fontsize = 12
-    print("AH HA! problem in plotting_for_video")
+    #print("AH HA! problem in plotting_for_video")
     #table_ax.text(0, .8, s = f"Command:\n{sentence[0]} {sentence[1]} {sentence[2]}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
     table_ax.text(0, .8, s = f"Command:\n{command_task} {command_color} {command_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
     table_ax.text(0, .45, s = f"Report:\n{report_task} {report_color} {report_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)

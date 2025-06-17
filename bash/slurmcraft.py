@@ -100,23 +100,24 @@ add_this("q",   {
     "save_compositions" : "False"})
 
 
+add_this("q2",   {
+    #"save_agents" : "False",
+    "save_behaviors" : "False",
+    "save_compositions" : "False"
+})
+
+
 
 
 add_this("t",   {
-    "hidden_state_eta_touch" : [
-        1,
-        1.25, 
-        1.5, 
-        1.75,
-        2,
-        2.25, 
-        2.5, 
-        2.75,
-        3, 
-        3.25, 
-        3.5, 
-        3.75, 
-        4] # Third on does good penalising non-curious.
+    "language" : [
+        "task_color_shape",
+        "task_shape_color",
+        "color_task_shape",
+        "color_shape_task",
+        "shape_task_color",
+        "shape_color_task"
+    ]
 }) 
 
 
