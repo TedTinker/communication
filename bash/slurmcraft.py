@@ -110,14 +110,8 @@ add_this("q2",   {
 
 
 add_this("t",   {
-    "language" : [
-        "task_color_shape",
-        "task_shape_color",
-        "color_task_shape",
-        "color_shape_task",
-        "shape_task_color",
-        "shape_color_task"
-    ]
+    "touch_state_size" : [28, 128],
+    "touch_scaler" : [2, 3, 4]
 }) 
 
 

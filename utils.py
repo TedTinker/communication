@@ -549,6 +549,10 @@ parser.add_argument('--time_step',                      type=float,         defa
                     help='numSubSteps in pybullet environment.')
 parser.add_argument('--steps_per_step',                 type=int,           default = 20,
                     help='numSubSteps in pybullet environment.')
+parser.add_argument('--numSolverIterations',            type=int,           default = 1,
+                    help='numSubSteps in pybullet environment.')
+parser.add_argument('--numSubSteps',                    type=int,           default = 1,
+                    help='numSubSteps in pybullet environment.')
 parser.add_argument('--min_object_separation',          type=float,         default = 3,
                     help='How far objects must start from each other.')
 parser.add_argument('--max_object_distance',            type=float,         default = 4,
@@ -630,19 +634,25 @@ parser.add_argument('--hidden_size',                    type=int,           defa
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,
                     help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
+
+parser.add_argument('--vision_encode_size',               type=int,           default = 128,
+                    help='Parameters in encoding image.')   
 parser.add_argument('--vision_state_size',                type=int,           default = 128,
-                    help='Parameters in prior and posterior inner-states.')
-parser.add_argument('--voice_state_size',               type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
 
 parser.add_argument('--char_encode_size',               type=int,           default = 8,
                     help='Parameters in encoding.')   
-parser.add_argument('--vision_encode_size',               type=int,           default = 128,
-                    help='Parameters in encoding image.')   
 parser.add_argument('--voice_encode_size',              type=int,           default = 128,
                     help='Parameters in encoding voice.')   
+parser.add_argument('--voice_state_size',               type=int,           default = 128,
+                    help='Parameters in prior and posterior inner-states.')
+
 parser.add_argument('--wheels_joints_encode_size',   type=int,           default = 8,
                     help='Parameters in encoding wheels_joints.')   
+"""parser.add_argument('--touch_encode_size',               type=int,           default = 128,
+                    help='Parameters in encoding image.')  
+parser.add_argument('--touch_state_size',                type=int,           default = 128,
+                    help='Parameters in prior and posterior inner-states.')"""
 
 parser.add_argument('--dropout',                        type=float,         default = .001,
                     help='Dropout percentage.')

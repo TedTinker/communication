@@ -30,7 +30,7 @@ def get_physics(GUI, args, w = 10, h = 10):
     p.setAdditionalSearchPath("pybullet_data")
     p.setGravity(0, 0, args.gravity, physicsClientId = physicsClient)
     p.setTimeStep(args.time_step, physicsClientId=physicsClient)  # More accurate time step
-    p.setPhysicsEngineParameter(numSolverIterations=1, numSubSteps=1, physicsClientId=physicsClient)  # Increased solver iterations for potentially better stability
+    p.setPhysicsEngineParameter(numSolverIterations=args.numSolverIterations, numSubSteps=args.numSubSteps, physicsClientId=physicsClient)  # Increased solver iterations for potentially better stability
     return(physicsClient)
     
 def get_joint_index(body_id, joint_name, physicsClient):
@@ -84,9 +84,9 @@ else:
 
 
 class Arena():
-    def __init__(self, physicsClient, args):
+    def __init__(self, GUI, args):
         self.args = args
-        self.physicsClient = physicsClient
+        self.physicsClient = get_physics(GUI = GUI, args = self.args)
         self.objects_in_play = {}
         self.durations = {"watch" : {}, "be_near": {}, "top": {}, "push" : {}, "left" : {}, "right" : {}}
                         
@@ -144,6 +144,13 @@ class Arena():
                 self.loaded[i].append((object_index, (pos[0], pos[1], object_lower_starting_pos)))
                 self.object_indexs.append(object_index)
                 
+                
+                
+    def change_physicsClient(self):
+        p.setGravity(0, 0, self.args.gravity, physicsClientId = self.physicsClient)
+        p.setTimeStep(self.args.time_step, physicsClientId=self.physicsClient)  
+        p.setPhysicsEngineParameter(numSolverIterations=self.args.numSolverIterations, numSubSteps=self.args.numSubSteps, physicsClientId=self.physicsClient)  # Increased solver iterations for potentially better stability
+            
                 
                 
     def end(self):
@@ -419,12 +426,6 @@ class Arena():
         left_wheel = linear_velocity - (angular_velocity / self.args.angular_scaler)/2
         right_wheel = linear_velocity + (angular_velocity / self.args.angular_scaler)/2
         return left_wheel, right_wheel
-    
-    def get_joint_speeds(self):
-        joint_speeds = {}
-        for key, index in self.joint_indices.items(): 
-            joint_speeds[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[1]  
-        return joint_speeds
         
         
 

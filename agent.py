@@ -195,10 +195,8 @@ class Agent:
         self.steps = 0
         self.episodes = 0 
         self.epochs = 0 
-        physicsClient_1 = get_physics(GUI = GUI, args = self.args)
-        self.arena_1 = Arena(physicsClient_1, args = self.args)
-        physicsClient_2 = get_physics(GUI = False, args = self.args)
-        self.arena_2 = Arena(physicsClient_2, args = self.args)
+        self.arena_1 = Arena(GUI = GUI, args = self.args)
+        self.arena_2 = Arena(GUI = False, args = self.args)
         self.processor_name = self.args.processor
         
     def give_actor_voice(self):
