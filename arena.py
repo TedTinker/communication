@@ -203,7 +203,8 @@ class Arena():
             for task in ["watch", "be_near", "top", "push", "left", "right"]:
                 self.durations[task][object_index] = 0
             
-        self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
+        _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
+        self.robot_start_yaw = yaw
         self.objects_start = self.get_object_positions()
         self.objects_end = self.get_object_positions()
         self.objects_touch = self.touching_any_object()
@@ -225,7 +226,8 @@ class Arena():
             
             
     def step(self, left_wheel_speed, right_wheel_speed, joint_target_positions, verbose = False, sleep_time = None, waiting = False):
-        self.robot_start_yaw = self.get_pos_yaw_spe(self.robot_index)[1]
+        _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
+        self.robot_start_yaw = yaw
         self.objects_start = self.get_object_positions()
 
         self.objects_local_pos_start = {}
@@ -321,7 +323,7 @@ class Arena():
     def get_object_positions(self):
         object_positions = {}
         for object_index in self.objects_in_play.values():
-            pos, _, _ = self.get_pos_yaw_spe(object_index)
+            pos, spe, roll, pitch, yaw = self.get_pos_spe_rpy(object_index)
             object_positions[object_index] = pos
         return(object_positions)
     
@@ -368,17 +370,17 @@ class Arena():
             
             
     # Functions for agent positions/angles
-    def get_pos_yaw_spe(self, index):
-        pos, ors = p.getBasePositionAndOrientation(index, physicsClientId = self.physicsClient)
-        yaw = p.getEulerFromQuaternion(ors, physicsClientId = self.physicsClient)[-1]
+    def get_pos_spe_rpy(self, index):
+        pos, ors = p.getBasePositionAndOrientation(index, physicsClientId=self.physicsClient)
+        roll, pitch, yaw = p.getEulerFromQuaternion(ors, physicsClientId=self.physicsClient)
         forward_dir = np.array([np.cos(yaw), np.sin(yaw)])
         (vx, vy, _), _ = p.getBaseVelocity(index, physicsClientId=self.physicsClient)
         velocity_vec = np.array([vx, vy])
         spe = float(np.dot(velocity_vec, forward_dir))
-        return(pos, yaw, spe)
-    
+        return pos, spe, roll, pitch, yaw
+
     def face_upward(self):
-        pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        pos, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
         linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_index, physicsClientId=self.physicsClient)
         linear_velocity = [linear_velocity[0], linear_velocity[1], 0]
         orientation = p.getQuaternionFromEuler([0, 0, yaw])
@@ -387,13 +389,13 @@ class Arena():
         
     def set_pos(self, pos = (0, 0)):
         pos = (pos[0], pos[1], agent_upper_starting_pos)
-        _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
         orn = p.getQuaternionFromEuler([0, 0, yaw])
         p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
         
     def set_yaw(self, yaw = 0):
         orn = p.getQuaternionFromEuler([0, 0, yaw], physicsClientId = self.physicsClient)
-        pos, _, _ = self.get_pos_yaw_spe(self.robot_index)
+        pos, _, _, _, _ = self.get_pos_spe_rpy(self.robot_index)
         p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
             
     
@@ -401,7 +403,7 @@ class Arena():
     # Functions for agent speed
     def set_wheel_speeds(self, left_wheel_speed = 0, right_wheel_speed = 0):
         linear_velocity = (left_wheel_speed + right_wheel_speed) / 2
-        _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
         x = linear_velocity * cos(yaw)
         y = linear_velocity * sin(yaw)
         angular_velocity = (right_wheel_speed - left_wheel_speed) * self.args.angular_scaler
@@ -417,7 +419,7 @@ class Arena():
         linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_index, physicsClientId=self.physicsClient)
         vx, vy, _ = linear_velocity  # Get only x, y velocities
         _, _, wz = angular_velocity  # Get yaw rotation
-        _, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
         local_vx = cos(yaw) * vx + sin(yaw) * vy  # Forward speed in local frame
         return local_vx, wz  
         
@@ -751,7 +753,7 @@ class Arena():
     
     
     def photo_from_above(self):
-        pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        pos, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
         x, y = 4 * cos(-3*pi/4), 4 * sin(-3*pi/4)
         view_matrix = p.computeViewMatrix(
             cameraEyePosition = [pos[0] + x, pos[1] + y, 10], 
@@ -767,7 +769,7 @@ class Arena():
         return(rgba)
     
     def photo_for_agent(self):
-        pos, yaw, _ = self.get_pos_yaw_spe(self.robot_index)
+        pos, spe, roll, pitch, yaw = self.get_pos_spe_rpy(self.robot_index)
         x, y = cos(yaw), sin(yaw)
         view_matrix = p.computeViewMatrix(
             cameraEyePosition = [pos[0] + x*.1, pos[1] + y*.1, 2], 
