@@ -620,6 +620,8 @@ parser.add_argument('--left_duration',                  type=int,           defa
 
 parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/12,
                     help='How close must the agent watch the object to achieve watching or pushing.')
+parser.add_argument('--pointing_at_object_for_being_near',   type=float,         default = pi/12,
+                    help='How close must the agent watch the object to achieve watching or pushing.')
 parser.add_argument('--pointing_at_object_for_left',    type=float,         default = pi/3,
                     help='How close must the agent watch the object to achieve pushing left or right.')
 

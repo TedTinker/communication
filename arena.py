@@ -110,7 +110,7 @@ class Arena():
                         
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
         p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
-        self.sensors = []
+        self.sensors = {}
         self.wheels = []
         for link_index in range(p.getNumJoints(self.robot_index, physicsClientId = self.physicsClient)):
             joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
@@ -119,7 +119,7 @@ class Arena():
             if("wheel" in link_name):
                 self.wheels.append((link_index, link_name))
             if("sensor" in link_name):
-                self.sensors.append((link_index, link_name))
+                self.sensors[link_name] = link_index
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 0, 0, 0), physicsClientId = self.physicsClient)
             elif("spoke" in link_name or "outline" in link_name):
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, 1), physicsClientId = self.physicsClient)
@@ -352,7 +352,7 @@ class Arena():
             
     def touching_object(self, object_index):
         touching = {}
-        for sensor_index, link_name in self.sensors:
+        for link_name, sensor_index in self.sensors.items():
             touching_this = bool(p.getContactPoints(
                 bodyA=self.robot_index, bodyB=object_index, linkIndexA=sensor_index, physicsClientId = self.physicsClient))
             touching[link_name] = 1 if touching_this else 0
@@ -571,9 +571,15 @@ class Arena():
             watching = watching_angle and not touching and distance <= self.args.watch_distance
             
             # Is the agent near an object?
-            being_near = watching and distance <= self.args.be_near_distance
+            being_near_angle = abs(object_angle_end) < self.args.pointing_at_object_for_being_near 
+            being_near = being_near_angle and not touching and distance <= self.args.be_near_distance
             
             # Is the object touched by the arm, while the arm-angle is high?
+            #link_index = None 
+            #for sensor_name, sensor_index in self.sensors.items():
+            #    if(sensor_name.startswith("hand_sensor_") and sensor_name.endswith("_stop")):
+            #        link_index = sensor_index
+            #hand_height = p.getLinkState(bodyUniqueId=self.robot_index, linkIndex=link_index)[0][2]
             topping = touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle            
                                     
             # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
