@@ -3,7 +3,7 @@
 # To do:
 #   Make a video showing success with all kinds of task.
 #   SOMETIMES IT LETS YOU COUNT TWO KINDS OF TASKS AT ONCE!? Check again. AND MAKE SURE YOU DON'T ACCIDENTALLY CHANGE STUFF! LIKE ANGLE REQUIREMENTS!
-#   Can we make the robot try goals described with a different grammar?
+#   To penalize no-curiosity, consider lowering extrinsic rewards.
 
 import os
 import pickle
@@ -356,6 +356,14 @@ pattern_lookup_3 = {
     5: set(get_matrix_pattern([-2, -1, 0, 1])),
     6: set(get_matrix_pattern([-1, 0, 1, 2]))}
 
+pattern_lookup_4 = {
+    1: set(get_matrix_pattern([1, 2, 3, 4, 5])),
+    2: set(get_matrix_pattern([2, 3, 4, 5, 6])),
+    3: set(get_matrix_pattern([3, 4, 5, 6, 7])),
+    4: set(get_matrix_pattern([4, 5, 6, 7, 8])),
+    5: set(get_matrix_pattern([-1, 0, 1, 2, 3])),
+    6: set(get_matrix_pattern([0, 1, 2, 3, 4]))}
+
 def get_training_combos(pattern_lookup):
     training_combos = [(a, c, s) for (a, c, s) in all_combos if 
                         a == 0 or 
@@ -372,10 +380,12 @@ def get_training_combos(pattern_lookup):
 training_combos_1 = get_training_combos(pattern_lookup_1)
 training_combos_2 = get_training_combos(pattern_lookup_2)
 training_combos_3 = get_training_combos(pattern_lookup_3)
+training_combos_4 = get_training_combos(pattern_lookup_4)
 
 testing_combos_1 = [combo for combo in all_combos if not combo in training_combos_1]
 testing_combos_2 = [combo for combo in all_combos if not combo in training_combos_2]
 testing_combos_3 = [combo for combo in all_combos if not combo in training_combos_3]
+testing_combos_4 = [combo for combo in all_combos if not combo in training_combos_4]
 
 
 
@@ -393,7 +403,7 @@ if(__name__ == "__main__"):
             for c in range(len(color_map)):
                 ax = fig.add_subplot(gs[s, c])
                 ax.axis('off')
-                if((a,c,s) in training_combos_2):
+                if((a,c,s) in training_combos_4):
                     rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
                     ax.add_patch(rect)
                 color = list(color_map.values())[c].name
@@ -485,7 +495,7 @@ parser.add_argument('--harder_left_right',              type=literal,       defa
                     help='Should pushing left/right be the more demanding version?')    
 parser.add_argument("--harder_left_right_amount",       type=float,         default = pi/24,
                     help='If using the harder_left_right, how far must the object be pushed from one side to the other?')
-parser.add_argument('--be_near_distance',               type=float,         default = 3,
+parser.add_argument('--be_near_distance',               type=float,         default = 3.25,
                     help='How close must the agent watch the object to achieve be_near.')
 
 parser.add_argument('--global_push_amount',             type=float,         default = .1,
@@ -607,13 +617,13 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 
 
-parser.add_argument('--watch_duration',                 type=int,           default = 7,
+parser.add_argument('--watch_duration',                 type=int,           default = 4,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--be_near_duration',               type=int,           default = 5,
+parser.add_argument('--be_near_duration',               type=int,           default = 4,
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--top_duration',                   type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--push_duration',                  type=int,           default = 4,
+parser.add_argument('--push_duration',                  type=int,           default = 3,
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
@@ -628,6 +638,8 @@ parser.add_argument('--pointing_at_object_for_left',    type=float,         defa
 parser.add_argument('--watch_distance',                 type=float,         default = 8,
                     help='How close must the agent watch the object to achieve watching.')
 parser.add_argument('--top_arm_min_angle',              type=float,         default = pi/12,
+                    help='How elevated the agent\'s arm must be to touch the object from above.')
+parser.add_argument('--touch_top_min_height',           type=float,         default = 3.75,
                     help='How elevated the agent\'s arm must be to touch the object from above.')
 
 

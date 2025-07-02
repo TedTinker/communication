@@ -320,6 +320,18 @@ else:
     from robot import parts
 make_robot("robot", parts)
 
+if(cluster):
+    from .robot_2 import parts
+else:
+    from robot_2 import parts
+make_robot("robot_2", parts)
+
+if(cluster):
+    from .robot_3 import parts
+else:
+    from robot_3 import parts
+make_robot("robot_3", parts)
+
 
 
 if(__name__ == "__main__"):

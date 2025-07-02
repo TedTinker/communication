@@ -11,9 +11,9 @@ from agent import Agent
 
 
 
-hyper_parameters = "ef_q2t_2"
+hyper_parameters = "ef"
 agent_num = "0002"
-epochs = "050000"
+epochs = "000000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -22,6 +22,7 @@ load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{ep
 with gzip.open(load_path, "rb") as f:
     agent = pickle.load(f) 
 
+agent.args.robot_name = "robot_3"
 agent.start_physics(GUI = True)
 
 
@@ -50,7 +51,9 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
     with gzip.open(load_path, "rb") as f:
         new_agent = pickle.load(f) 
     agent.load_state_dict(new_agent.state_dict())
-    new_agent.args.language = "color_shape_task"
+    
+    new_agent.args.be_near_distance = 3
+    
     change_args(new_agent)
 
     episodes = 0
@@ -74,7 +77,6 @@ def change_args(new_agent):
         #processor.goal.language = args.language
         
         
-    # STILL NEED TO DO GOALS AND MAYBE ARENA
     
 change_agent(hyper_parameters, agent_num, epochs)
      
@@ -111,7 +113,7 @@ win = agent.save_episodes(
     video_display = True,
     sleep_time = .5, 
     waiting = False, 
-    user_action = False, 
+    user_action = True, 
     dreaming = False)
 if(win): 
     wins += 1

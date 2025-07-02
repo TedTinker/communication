@@ -253,8 +253,8 @@ class Agent:
         self.plot_dict["accumulated_gen_reward"] = list(accumulate(self.plot_dict["gen_reward"]))
         
         for task_name in task_name_list + ["all"]:
-            self.plot_dict["rolled_wins_" + task_name] = rolling_average(self.plot_dict["wins_" + task_name])
-            self.plot_dict["rolled_gen_wins_" + task_name] = rolling_average(self.plot_dict["gen_wins_" + task_name])
+            self.plot_dict["rolled_wins_" + task_name] = rolling_average(self.plot_dict["wins_" + task_name], window_size=500)
+            self.plot_dict["rolled_gen_wins_" + task_name] = rolling_average(self.plot_dict["gen_wins_" + task_name], window_size=500/self.args.epochs_per_gen_test)
             
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():

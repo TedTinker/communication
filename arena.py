@@ -577,12 +577,13 @@ class Arena():
             being_near = being_near_angle and not touching and distance <= self.args.be_near_distance
             
             # Is the object touched by the arm, while the arm-angle is high?
-            #link_index = None 
-            #for sensor_name, sensor_index in self.sensors.items():
-            #    if(sensor_name.startswith("hand_sensor_") and sensor_name.endswith("_stop")):
-            #        link_index = sensor_index
-            #hand_height = p.getLinkState(bodyUniqueId=self.robot_index, linkIndex=link_index)[0][2]
-            topping = touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle            
+            link_index = None 
+            for sensor_name, sensor_index in self.sensors.items():
+                if(sensor_name.startswith("hand_sensor_") and sensor_name.endswith("_stop")):
+                    link_index = sensor_index
+            hand_height = p.getLinkState(bodyUniqueId=self.robot_index, linkIndex=link_index)[0][2]
+            topping = touching and not touching_body and hand_height >= self.args.touch_top_min_height      
+            #topping = touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle            
                                     
             # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
             pushing = touching and (global_movement_forward >= self.args.global_push_amount) and watching_angle
@@ -628,14 +629,21 @@ class Arena():
                     lefting = True
                 elif highest_change == "righting":
                     righting = True 
-            
-            # Clear shared tasks.
+                    
             if(being_near):
                 watching = False
-            if(pushing or lefting or righting):
-                watching = False
-                being_near = False
-                topping = False
+            
+            # Clear shared tasks.
+            if(topping):
+                pushing = False 
+                lefting = False 
+                righting = False
+                
+            # So, only one task can be performed.
+            # "Watch" and "be near" cancel each other (distance).
+            # "Watch" and "be near" cancel any other task (touching).
+            # "Push," "left," and "right" cancel each other (see above).
+            # "Top" cancels "Push," "left," and "right" (see above).  
                             
 
                         

@@ -110,10 +110,9 @@ add_this("q2",   {
 
 
 add_this("t",   {
-    "touch_state_size" : [28, 128],
-    "touch_scaler" : [2, 3, 4]
+    "watch_duration" : [5, 6],
+    "robot_name" : ["robot", "robot_2", "robot_3"]
 }) 
-
 
 add_this("t3",   {
     "num_agents" : 3,
