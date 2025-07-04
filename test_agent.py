@@ -12,8 +12,8 @@ from agent import Agent
 
 
 hyper_parameters = "ef"
-agent_num = "0002"
-epochs = "000000"
+agent_num = "0001"
+epochs = "050000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -22,8 +22,9 @@ load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{ep
 with gzip.open(load_path, "rb") as f:
     agent = pickle.load(f) 
 
-agent.args.robot_name = "robot_3"
 agent.start_physics(GUI = True)
+agent.args.min_arm_speed_for_left_right = agent.args.min_arm_speed_for_left
+agent.args.max_wheel_speed_for_left_right = agent.args.max_wheel_speed_for_left
 
 
 
@@ -38,10 +39,10 @@ print("Ready to go!")
 
 
 
-#hyper_parameters = "ef"
-#agent_num = "0001"
-#epochs = "050000"
-#saved_file = "saved_deigo"
+hyper_parameters = "ef"
+agent_num = "0001"
+epochs = "040000"
+saved_file = "saved_deigo"
 
 
 
@@ -97,7 +98,7 @@ change_agent(hyper_parameters, agent_num, epochs)
 #print("MAKING AGENT LANGUAGE:", agent.args.language)
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(6, 1)], 
+    tasks_and_weights = [(1, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
@@ -113,7 +114,7 @@ win = agent.save_episodes(
     video_display = True,
     sleep_time = .5, 
     waiting = False, 
-    user_action = True, 
+    user_action = False, 
     dreaming = False)
 if(win): 
     wins += 1

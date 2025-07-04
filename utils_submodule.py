@@ -13,7 +13,7 @@ from utils import duration, print, print_duration
 def init_weights(m):
     try:
         torch.nn.init.xavier_normal_(m.weight)
-        m.bias.data.fill_(0.01)
+        m.bias.data.fill_(0.01) # 0.0
     except: pass
 
 def episodes_steps(this):

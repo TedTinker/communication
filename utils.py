@@ -1,9 +1,13 @@
 #%% 
 
 # To do:
-#   Make a video showing success with all kinds of task.
-#   SOMETIMES IT LETS YOU COUNT TWO KINDS OF TASKS AT ONCE!? Check again. AND MAKE SURE YOU DON'T ACCIDENTALLY CHANGE STUFF! LIKE ANGLE REQUIREMENTS!
-#   To penalize no-curiosity, consider lowering extrinsic rewards.
+#   Agent might be able to do two tasks in one move by using both objects.
+#   Experiment with extrinsic rewards.
+#   ARM CAN OVEREXTEND!
+#   Consider making "watch" distance smaller.
+#   Why moving left?
+#       Maybe because of set_wheel_speeds.
+#       Maybe because of init_weights.
 
 import os
 import pickle
@@ -488,13 +492,7 @@ parser.add_argument('--language',           type=str,         default = "task_co
                     help='What is the pattern for words?')
     
 parser.add_argument('--robot_name',                     type=str,           default = "robot",
-                    help='Options: two_side_arm, one_head_arm.') 
-parser.add_argument('--prefer_top',                     type=literal,       default = False,
-                    help='Should topping overwrite pushing?')    
-parser.add_argument('--harder_left_right',              type=literal,       default = False,
-                    help='Should pushing left/right be the more demanding version?')    
-parser.add_argument("--harder_left_right_amount",       type=float,         default = pi/24,
-                    help='If using the harder_left_right, how far must the object be pushed from one side to the other?')
+                    help='Options: two_side_arm, one_head_arm.')    
 parser.add_argument('--be_near_distance',               type=float,         default = 3.25,
                     help='How close must the agent watch the object to achieve be_near.')
 
@@ -507,9 +505,9 @@ parser.add_argument('--global_left_right_amount',       type=float,         defa
 parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
                     help='Needed distance of an object for push/left/right.')
 
-parser.add_argument('--max_wheel_speed_for_left',       type=float,         default = 5,
+parser.add_argument('--max_wheel_speed_for_left_right',     type=float,         default = 5,
                     help='How close must the agent watch the object to achieve pushing left or right.')
-parser.add_argument('--min_arm_speed_for_left',          type=float,         default = .01,
+parser.add_argument('--min_arm_speed_for_left_right',          type=float,         default = .01,
                     help='Needed distance of an object for push/left/right.')
 
 parser.add_argument('--tanh_touch',          type=literal,         default = True,
