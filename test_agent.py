@@ -7,13 +7,14 @@ import tkinter as tk
 import pybullet as p
 
 from processor import Processor
+from models import Actor
 from agent import Agent 
 
 
 
 hyper_parameters = "ef"
-agent_num = "0001"
-epochs = "050000"
+agent_num = "0002"
+epochs = "000000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -23,8 +24,6 @@ with gzip.open(load_path, "rb") as f:
     agent = pickle.load(f) 
 
 agent.start_physics(GUI = True)
-agent.args.min_arm_speed_for_left_right = agent.args.min_arm_speed_for_left
-agent.args.max_wheel_speed_for_left_right = agent.args.max_wheel_speed_for_left
 
 
 
@@ -39,9 +38,9 @@ print("Ready to go!")
 
 
 
-hyper_parameters = "ef"
+hyper_parameters = "old_ef"
 agent_num = "0001"
-epochs = "040000"
+epochs = "050000"
 saved_file = "saved_deigo"
 
 
@@ -53,7 +52,7 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
         new_agent = pickle.load(f) 
     agent.load_state_dict(new_agent.state_dict())
     
-    new_agent.args.be_near_distance = 3
+    #new_agent.args.numSolverIterations = 1
     
     change_args(new_agent)
 
@@ -65,7 +64,9 @@ def change_args(new_agent):
     args = new_agent.args
     agent.args = args
     agent.arena_1.args = args
+    agent.arena_1.change_physicsClient()
     agent.arena_2.args = args
+    agent.arena_2.change_physicsClient()
     for processor_name, processor in new_agent.processors.items():
         processor.args = args 
         processor.arena_1.args = args
@@ -94,6 +95,8 @@ change_agent(hyper_parameters, agent_num, epochs)
     #4,  # Push
     #5,  # Left
     #6   # Right   
+    
+agent.actor = Actor(agent.args)
         
 #print("MAKING AGENT LANGUAGE:", agent.args.language)
 agent.processors = {0 : Processor(
@@ -111,8 +114,8 @@ win = agent.save_episodes(
     test = False, 
     verbose = False,
     display = False, 
-    video_display = True,
-    sleep_time = .5, 
+    video_display = False,
+    sleep_time = .01, 
     waiting = False, 
     user_action = False, 
     dreaming = False)

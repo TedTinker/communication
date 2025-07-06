@@ -6,4 +6,4 @@
 #SBATCH --mem=50G
 #SBATCH --ntasks=10
 module load singularity
-singularity exec maze.sif python communication/main.py --comp deigo --arg_name eqt_7 --alpha None --normal_alpha 0.05 --target_entropy -1.5 --save_agents False --save_behaviors False --save_compositions False --watch_duration 5 --reward 10  --agents $agents_per_job --previous_agents $previous_agents
+singularity exec maze.sif python communication/main.py --comp deigo --arg_name eqt_7 --alpha None --normal_alpha 0.05 --target_entropy -1.5 --save_agents False --save_behaviors False --save_compositions False --watch_duration 3 --be_near_duration 5 --robot_name robot  --agents $agents_per_job --previous_agents $previous_agents

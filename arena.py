@@ -1,7 +1,7 @@
 #%%
 import os
 import matplotlib.pyplot as plt
-from random import uniform
+from random import uniform, shuffle
 import numpy as np
 import pybullet as p
 import math
@@ -10,6 +10,7 @@ from time import sleep
 from skimage.transform import resize
 import threading
 import pkg_resources
+import statistics
 
 from utils import shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, duration, wait_for_button_press#, print
 from arena_navigator import run_tk
@@ -89,7 +90,7 @@ class Arena():
         self.physicsClient = get_physics(GUI = GUI, args = self.args)
         self.objects_in_play = {}
         self.durations = {"watch" : {}, "be_near": {}, "top": {}, "push" : {}, "left" : {}, "right" : {}}
-                        
+                                
         # Make floor and lower level.
         plane_positions = [[0, 0]]
         plane_ids = []
@@ -147,6 +148,7 @@ class Arena():
                 
                 
     def change_physicsClient(self):
+        print(self.args.time_step, self.args.numSolverIterations, self.args.numSubSteps)
         p.setGravity(0, 0, self.args.gravity, physicsClientId = self.physicsClient)
         p.setTimeStep(self.args.time_step, physicsClientId=self.physicsClient)  
         p.setPhysicsEngineParameter(numSolverIterations=self.args.numSolverIterations, numSubSteps=self.args.numSubSteps, physicsClientId=self.physicsClient)  # Increased solver iterations for potentially better stability
@@ -286,7 +288,7 @@ class Arena():
             if(sleep_time != None):
                 sleep(sleep_time / self.args.steps_per_step)
             p.stepSimulation(physicsClientId = self.physicsClient)
-            self.face_upward()
+            #self.face_upward()
                                                                                                     
             touching_now = self.touching_any_object()
             for object_index, touch_dict in touching_now.items():
@@ -321,6 +323,7 @@ class Arena():
             x = r * cos(current_angle)
             y = r * sin(current_angle)
             positions.append((x, y))
+        shuffle(positions)
         return positions
             
     def object_faces_up(self, object_index):
@@ -781,24 +784,45 @@ class Arena():
             projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
             physicsClientId = self.physicsClient)
         return(rgba)
-    
     def photo_for_agent(self):
         pos, spe, roll, pitch, yaw = self.get_pos_spe_rpy(self.robot_index)
-        x, y = cos(yaw), sin(yaw)
+
+        # 1. Convert Euler to quaternion, then to rotation matrix
+        quat = p.getQuaternionFromEuler([roll, pitch, yaw])
+        rot_matrix_flat = p.getMatrixFromQuaternion(quat)
+        rot_matrix = np.array(rot_matrix_flat).reshape(3, 3)
+
+        # 2. Define camera frame vectors
+        forward_vector = rot_matrix[:, 0]  # robot's +X axis (forward)
+        up_vector = rot_matrix[:, 2]       # robot's +Z axis (up)
+
+        # 3. Compute eye and target positions
+        cam_eye = np.array(pos) + forward_vector * 0.1
+        cam_target = np.array(pos) + forward_vector * 2.0
+
+        # 4. View matrix
         view_matrix = p.computeViewMatrix(
-            cameraEyePosition = [pos[0] + x*.1, pos[1] + y*.1, 2], 
-            cameraTargetPosition = [pos[0] + x*2, pos[1] + y*2, 2],    
-            cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
-        proj_matrix = proj_matrix = p.computeProjectionMatrix(
-            left, 
-            right, 
-            bottom, top, near, far)
+            cameraEyePosition=cam_eye.tolist(),
+            cameraTargetPosition=cam_target.tolist(),
+            cameraUpVector=up_vector.tolist(),
+            physicsClientId=self.physicsClient
+        )
+
+        # 5. Projection matrix (adjust as needed)
+        proj_matrix = p.computeProjectionMatrix(
+            left=left, right=right, bottom=bottom, top=top, nearVal=near, farVal=far
+        )
+
+        # 6. Capture image
         _, _, rgba, depth, _ = p.getCameraImage(
-            width=self.args.image_size * 2, 
+            width=self.args.image_size * 2,
             height=self.args.image_size * 2,
-            projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
-            physicsClientId = self.physicsClient)
-        
+            projectionMatrix=proj_matrix,
+            viewMatrix=view_matrix,
+            shadow=0,
+            physicsClientId=self.physicsClient
+        )
+
         if(type(rgba) == np.ndarray):
             pass
         else:
@@ -812,6 +836,7 @@ class Arena():
         vision = np.concatenate([rgb, d], axis = -1)
         vision = resize(vision, (self.args.image_size, self.args.image_size, 4))
         return(vision)
+        
         
     
     

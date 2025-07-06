@@ -110,8 +110,9 @@ add_this("q2",   {
 
 
 add_this("t",   {
-    "watch_duration" : [3, 4, 5, 6],
-    "reward" : [5, 10]
+    "watch_duration" : [3, 4, 5],
+    "be_near_duration" : [3, 4, 5],
+    "robot_name" : ["robot", "robot_2"]
 }) 
 
 add_this("t3",   {

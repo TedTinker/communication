@@ -198,7 +198,7 @@ print("DONE WITH EMPTY GOAL")
 
 
 
-def get_goal_from_one_hots(one_hots, language):
+def get_goal_from_one_hots(one_hots, language = "task_color_shape"):
     
     #print("LANGUAGE IN GET_GOAL_FROM_ONE_HOTS: \t")
         
