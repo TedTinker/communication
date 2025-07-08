@@ -921,7 +921,10 @@ class Agent:
             
             loc = torch.zeros(self.args.wheels_joints_shape, dtype=torch.float64).to(self.args.device).float()
             n = self.args.wheels_joints_shape
-            scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device).float()
+            if(self.args.trilling):
+                scale_tril = torch.tril(torch.ones(n, n)).to(self.args.device).float()
+            else:
+                scale_tril = torch.eye(n)        # instead of tril(ones)
             policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
             policy_prior_log_prrgbd = self.args.normal_alpha * policy_prior.log_prob(new_action.wheels_joints).unsqueeze(-1)
             intrinsic_entropy = torch.mean((alpha * log_pis - policy_prior_log_prrgbd)*mask).item()

@@ -1,13 +1,13 @@
 #%% 
 
 # To do:
+#   TESTING WITH DIFFERENT COLLECTIONS DOESN'T ACTUALLY WORK!
 #   Agent might be able to do two tasks in one move by using both objects.
+#   Experiment with hyperparameters for touch.
 #   Experiment with extrinsic rewards.
 #   ARM CAN OVEREXTEND!
 #   Consider making "watch" distance smaller.
-#   Why moving left?
-#       Maybe because of set_wheel_speeds.
-#       Maybe because of init_weights.
+#   Why turning counter-clockwise?
 
 import os
 import pickle
@@ -425,7 +425,7 @@ if(__name__ == "__main__"):
 
 
 def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shapes, test_train_num = 1, test = False):
-    training_combos = training_combos_1 if test_train_num == 1 else training_combos_2 if test_train_num == 2 else training_combos_3
+    training_combos = training_combos_1 if test_train_num == 1 else training_combos_2 if test_train_num == 2 else training_combos_3 if test_train_num == 3 else training_combos_4
     testing_combos = [combo for combo in all_combos if not combo in training_combos]
     if(test == None):
         these_combos = testing_combos + training_combos
@@ -514,6 +514,9 @@ parser.add_argument('--tanh_touch',          type=literal,         default = Tru
                     help='Needed distance of an object for push/left/right.')
 
 parser.add_argument('--test_train_num',          type=int,         default = 3,
+                    help='Needed distance of an object for push/left/right.')
+
+parser.add_argument('--trilling',          type=literal,         default = True,
                     help='Needed distance of an object for push/left/right.')
     
 
@@ -630,7 +633,7 @@ parser.add_argument('--pointing_at_object_for_watch',   type=float,         defa
                     help='How close must the agent watch the object to achieve watching or pushing.')
 parser.add_argument('--pointing_at_object_for_being_near',   type=float,         default = pi/12,
                     help='How close must the agent watch the object to achieve watching or pushing.')
-parser.add_argument('--pointing_at_object_for_left',    type=float,         default = pi/3,
+parser.add_argument('--pointing_at_object_for_left_right', type=float,         default = pi/3,
                     help='How close must the agent watch the object to achieve pushing left or right.')
 
 parser.add_argument('--watch_distance',                 type=float,         default = 8,
@@ -1172,7 +1175,7 @@ def load_dicts(args):
         
     complete_order = args.arg_title[3:-3].split("+")
     order = [o for o in complete_order if not o in ["empty_space", "break"]]
-        
+                
     for name in order:
         print(f"Loading dictionaries for {name}...")
         got_plot_dicts = False ; got_min_max_dicts = False

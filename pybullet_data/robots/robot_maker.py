@@ -305,6 +305,12 @@ def make_robot(robot_name, parts, face = True):
         else:
             plt.savefig('temp_plot.png', bbox_inches="tight", dpi=300)  # Save the plot as an image file
             plt.close()
+            """for _ in range(10):
+                if os.path.exists('temp_plot.png'):
+                    break
+                time.sleep(0.01)
+            else:
+                raise FileNotFoundError(f"{filename} not found after waiting.")"""
             image = Image.open('temp_plot.png')
             image_array = np.array(image)
             os.remove('temp_plot.png')  # Delete the temporary image file

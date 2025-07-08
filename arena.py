@@ -90,6 +90,7 @@ class Arena():
         self.physicsClient = get_physics(GUI = GUI, args = self.args)
         self.objects_in_play = {}
         self.durations = {"watch" : {}, "be_near": {}, "top": {}, "push" : {}, "left" : {}, "right" : {}}
+        self.history_of_actions = {"left_wheel_speed" : [], "right_wheel_speed" : [], "joint_target_velocities" : {}}
                                 
         # Make floor and lower level.
         plane_positions = [[0, 0]]
@@ -228,6 +229,23 @@ class Arena():
             
             
     def step(self, left_wheel_speed, right_wheel_speed, joint_target_velocities, verbose = False, sleep_time = None, waiting = False):
+        
+        self.history_of_actions["left_wheel_speed"].append(left_wheel_speed)
+        self.history_of_actions["right_wheel_speed"].append(right_wheel_speed)
+        for key, value in joint_target_velocities.items():
+            if not key in self.history_of_actions["joint_target_velocities"]:
+                self.history_of_actions["joint_target_velocities"][key] = []
+            self.history_of_actions["joint_target_velocities"][key].append(value.item())
+            
+        for key, value in self.history_of_actions.items():
+            if(type(value) == list):
+                if(len(value) > 2):
+                    print(f"{key}: \t mean: {round(sum(value)/len(value), 3)}, std: {round(statistics.stdev(value), 3)}")
+            else:
+                for key2, value2 in value.items():
+                    if(len(value2) > 2):
+                        print(f"{key2}: \t mean: {round(sum(value2)/len(value2), 3)}, std: {round(statistics.stdev(value2), 3)}")
+        
         _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
         self.robot_start_yaw = yaw
         self.objects_start = self.get_object_positions()
@@ -366,6 +384,8 @@ class Arena():
         cross_product = np.cross(np.append(forward_vector, 0), np.append(normalized_distance_vector, 0))
         if cross_product[2] < 0:  
             angle_radians = -angle_radians
+        # WE MIGHT NEED TO CHECK THIS! If it outputs 330 instead of -30, that would be pushing left or right difficult.
+        #(angle_radians + np.pi) % (2 * np.pi) - np.pi)?
         return(angle_radians)
             
     def touching_object(self, object_index):
@@ -425,7 +445,7 @@ class Arena():
         angular_velocity = (right_wheel_speed - left_wheel_speed) * self.args.angular_scaler
         p.resetBaseVelocity(self.robot_index, linearVelocity=[x, y, 0], angularVelocity=[0, 0, angular_velocity], physicsClientId = self.physicsClient)
         for index, name in self.wheels:
-            if(name == "left_wheel"):       # THIS MIGHT BE AN ISSUE WITH TURNING LEFT/RIGHT
+            if(name == "left_wheel"):       
                 speed = left_wheel_speed 
             else:
                 speed = right_wheel_speed
@@ -462,7 +482,6 @@ class Arena():
             if(joint_target_velocities[key] != None):
                 p.setJointMotorControl2(self.robot_index, index, controlMode=p.VELOCITY_CONTROL, 
                         targetVelocity=joint_target_velocities[key], force=self.args.force, maxVelocity=self.args.max_joint_speed)
-                
                 
     def get_joint_speeds(self):
         joint_speeds = {}
@@ -578,12 +597,12 @@ class Arena():
             
             
             # Is the agent watching an object?
-            watching_angle = abs(object_angle_end) < self.args.pointing_at_object_for_watch 
-            watching = watching_angle and not touching and distance <= self.args.watch_distance
+            good_watching_angle = abs(object_angle_end) < self.args.pointing_at_object_for_watch 
+            watching = good_watching_angle and not touching and distance <= self.args.watch_distance
             
             # Is the agent near an object?
-            being_near_angle = abs(object_angle_end) < self.args.pointing_at_object_for_being_near 
-            being_near = being_near_angle and not touching and distance <= self.args.be_near_distance
+            good_being_near_angle = abs(object_angle_end) < self.args.pointing_at_object_for_being_near 
+            being_near = good_being_near_angle and not touching and distance <= self.args.be_near_distance
             
             # Is the object touched by the arm, while the arm-angle is high?
             link_index = None 
@@ -591,21 +610,28 @@ class Arena():
                 if(sensor_name.startswith("hand_sensor_") and sensor_name.endswith("_stop")):
                     link_index = sensor_index
             hand_height = p.getLinkState(bodyUniqueId=self.robot_index, linkIndex=link_index)[0][2]
-            topping = touching and not touching_body and hand_height >= self.args.touch_top_min_height      
-            #topping = touching and not touching_body and -self.get_joint_angles()[2] >= self.args.top_arm_min_angle            
+            good_hand_height = hand_height >= self.args.touch_top_min_height    
+            topping = touching and not touching_body and good_hand_height  
                                     
             # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
-            pushing = touching and (global_movement_forward >= self.args.global_push_amount) and watching_angle
+            good_push_distance = (global_movement_forward >= self.args.global_push_amount)
+            pushing = touching and good_push_distance and good_watching_angle
                         
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
-            good_wheel_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) < self.args.max_wheel_speed_for_left_right
+            good_wheel_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) <= self.args.max_wheel_speed_for_left_right
             arm_speed = self.get_joint_speeds()[1]
             good_arm_speed = abs(arm_speed) >= self.args.min_arm_speed_for_left_right
-            lefting     = touching and (global_movement_left >= self.args.global_left_right_amount) and  (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_wheel_speed and good_arm_speed
-            righting    = touching and (global_movement_left <= -self.args.global_left_right_amount)and  (abs(object_angle_end) < self.args.pointing_at_object_for_left) and good_wheel_speed and good_arm_speed        
+            good_push_left_distance = global_movement_left >= self.args.global_left_right_amount
+            good_push_right_distance = global_movement_left <= -self.args.global_left_right_amount
+            good_left_right_angle = -self.args.pointing_at_object_for_left_right <= object_angle_end and object_angle_end <= self.args.pointing_at_object_for_left_right        
             
+            #print(f"\nobject {i}: \nTouch: {touching}, \nGood wheel speed: {good_wheel_speed},\nGood arm speed: {good_arm_speed},\nMovement Left: {global_movement_left}, \nobject_angle_end: {object_angle_end}")
             
+            lefting     = touching and good_push_left_distance and  good_left_right_angle and good_wheel_speed and good_arm_speed
+            righting    = touching and good_push_right_distance and good_left_right_angle and good_wheel_speed and good_arm_speed        
+            
+            #print(f"LEFT: {lefting}, RIGHT: {righting}")
             
             """if(verbose):
                 print(f"\nTouching: {touching}. Touching body: {touching_body}.")
@@ -627,16 +653,16 @@ class Arena():
             if lefting:
                 active_changes.append(("lefting", global_movement_left))
             if righting:
-                active_changes.append(("righting", -global_movement_left)) 
+                active_changes.append(("righting", abs(global_movement_left))) 
             if len(active_changes) > 1:
                 active_changes.sort(key=lambda x: x[1], reverse=True)
                 highest_change = active_changes[0][0]
                 pushing, lefting, righting = False, False, False
                 if highest_change == "pushing":
                     pushing = True
-                elif highest_change == "lefting":
+                if highest_change == "lefting":
                     lefting = True
-                elif highest_change == "righting":
+                if highest_change == "righting":
                     righting = True 
                     
             if(being_near):
@@ -656,14 +682,14 @@ class Arena():
                             
 
                         
-            """if(verbose):
+            if(verbose):
                 print(f"After consideration:")
                 print(f"Watching: \t{watching}")
                 print(f"Being Near: \t{being_near}")
                 print(f"Topping: \t{topping}") 
                 print(f"Pushing: \t{pushing}")
                 print(f"Lefting: \t{lefting}")
-                print(f"Righting: \t{righting}\n")"""
+                print(f"Righting: \t{righting}\n")
                 
 
             

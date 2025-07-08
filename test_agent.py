@@ -12,9 +12,9 @@ from agent import Agent
 
 
 
-hyper_parameters = "ef"
-agent_num = "0002"
-epochs = "000000"
+hyper_parameters = "ec"
+agent_num = "0001"
+epochs = "010000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -22,6 +22,8 @@ print("\n\nLoading default agent...", end = " ")
 load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pkl.gz'
 with gzip.open(load_path, "rb") as f:
     agent = pickle.load(f) 
+    
+agent.args.pointing_at_object_for_left_right = agent.args.pointing_at_object_for_left
 
 agent.start_physics(GUI = True)
 
@@ -38,9 +40,9 @@ print("Ready to go!")
 
 
 
-hyper_parameters = "old_ef"
+hyper_parameters = "ec"
 agent_num = "0001"
-epochs = "050000"
+epochs = "010000"
 saved_file = "saved_deigo"
 
 
@@ -95,9 +97,7 @@ change_agent(hyper_parameters, agent_num, epochs)
     #4,  # Push
     #5,  # Left
     #6   # Right   
-    
-agent.actor = Actor(agent.args)
-        
+            
 #print("MAKING AGENT LANGUAGE:", agent.args.language)
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
@@ -115,7 +115,7 @@ win = agent.save_episodes(
     verbose = False,
     display = False, 
     video_display = False,
-    sleep_time = .01, 
+    sleep_time = .001, 
     waiting = False, 
     user_action = False, 
     dreaming = False)

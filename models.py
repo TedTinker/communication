@@ -66,7 +66,7 @@ class Actor(nn.Module):
         x = self.lin(forward_hidden)
         
         mu, std = var(x, self.mu, self.std, self.args)
-        
+                
         sampled = sample(mu, std, self.args.device)
         if(self.args.half):
             sampled = sampled.to(dtype=torch.float16)

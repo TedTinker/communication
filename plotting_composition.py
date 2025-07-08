@@ -43,7 +43,7 @@ task_mapping_color = {
 
 task_mapping_letter = {
     'WATCH':            "W",
-    'BE NEAR':          "B",
+    'BE NEAR':          "N",
     'TOUCH THE TOP':    "T",
     'PUSH FORWARD':     "F",
     'PUSH LEFT':        "L",

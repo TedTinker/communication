@@ -110,9 +110,7 @@ class Processor:
         arena = self.get_arena(agent_1)
         if(arena == None):
             return(None, None)
-        
-        
-        
+                
         left_wheel_speed, right_wheel_speed = \
             wheels_joints[0].item(), wheels_joints[1].item()
         joint_speeds = {i-1: wheels_joints[i] for i in range(2, len(wheels_joints))}

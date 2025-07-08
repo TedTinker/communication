@@ -110,10 +110,9 @@ add_this("q2",   {
 
 
 add_this("t",   {
+    "test_train_num" : [3, 4],
     "watch_duration" : [3, 4, 5],
-    "be_near_duration" : [3, 4, 5],
-    "robot_name" : ["robot", "robot_2"]
-}) 
+    "be_near_duration" : [3, 4, 5]}) 
 
 add_this("t3",   {
     "num_agents" : 3,
