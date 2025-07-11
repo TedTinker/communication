@@ -479,7 +479,7 @@
         </collision>
     </link>
     <!-- Joint: body, joint_1 -->
-    <joint name="body_joint_1_joint" type="continuous">
+    <joint name="body_joint_1_joint" type="revolute">
         <parent link="body"/>
         <child link="joint_1"/>
         <origin xyz="0 0 0.6"
@@ -510,7 +510,7 @@
         </collision>
     </link>
     <!-- Joint: joint_1, joint_2 -->
-    <joint name="joint_1_joint_2_joint" type="continuous">
+    <joint name="joint_1_joint_2_joint" type="revolute">
         <parent link="joint_1"/>
         <child link="joint_2"/>
         <origin xyz="0 0 0.2"

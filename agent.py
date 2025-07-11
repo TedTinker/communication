@@ -428,7 +428,7 @@ class Agent:
                 if(self.args.save_behaviors):
                     if(self.args.agents_per_behavior_analysis == -1 or self.agent_num <= self.args.agents_per_behavior_analysis):  
                         if(self.episodes == 0 or self.episodes % self.args.episodes_per_behavior_analysis == 0):
-                            self.plot_dict["behavior"][self.episodes].append(get_goal_from_one_hots(to_push_1.next_obs.report_voice, self.args.language)) 
+                            self.plot_dict["behavior"][self.episodes].append(get_goal_from_one_hots(to_push_1.next_obs.report_voice)) 
                     
                 to_push_list_1.append(to_push_1)
                 to_push_list_2.append(to_push_2)
@@ -533,8 +533,6 @@ class Agent:
             for agent_id in [0, 1]:
                 for key in common_keys:
                     episode_dict[f"{key}_{agent_id}"] = []
-            #print("LANGUAGE IN SAVE_EPISODES:", self.args.language)
-            episode_dict["language"] = self.args.language
             episode_dict["reward"] = []
             episode_dict["processor"] = self.processor
             self.processor.goal.make_texts()
@@ -565,9 +563,9 @@ class Agent:
                 dream_obs_q = None
                 obs.command_voice = obs.command_voice if parenting else prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
                 if(type(obs.command_voice) != Goal):
-                    obs.command_voice = get_goal_from_one_hots(obs.command_voice, self.args.language)
+                    obs.command_voice = get_goal_from_one_hots(obs.command_voice)
                 if(type(obs.report_voice) != Goal):
-                    obs.report_voice = get_goal_from_one_hots(obs.report_voice, self.args.language)
+                    obs.report_voice = get_goal_from_one_hots(obs.report_voice)
                 
                 episode_dict[f"obs_{agent_num}"].append(obs) 
                 episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
@@ -584,11 +582,11 @@ class Agent:
                 dream_obs_q.vision = dream_obs_q.vision.squeeze(0)
                 dream_obs_q.touch = dream_obs_q.touch.squeeze(0)
                 
-                pred_obs_p.command_voice = get_goal_from_one_hots(pred_obs_p.command_voice, self.args.language)
-                pred_obs_q.command_voice = get_goal_from_one_hots(pred_obs_q.command_voice, self.args.language)
+                pred_obs_p.command_voice = get_goal_from_one_hots(pred_obs_p.command_voice)
+                pred_obs_q.command_voice = get_goal_from_one_hots(pred_obs_q.command_voice)
                 
-                pred_obs_p.report_voice = get_goal_from_one_hots(pred_obs_p.report_voice, self.args.language)
-                pred_obs_q.report_voice = get_goal_from_one_hots(pred_obs_q.report_voice, self.args.language)
+                pred_obs_p.report_voice = get_goal_from_one_hots(pred_obs_p.report_voice)
+                pred_obs_q.report_voice = get_goal_from_one_hots(pred_obs_q.report_voice)
                 
                 episode_dict[f"prior_predictions_{agent_num}"].append(pred_obs_p)
                 episode_dict[f"posterior_predictions_{agent_num}"].append(pred_obs_q)

@@ -12,9 +12,9 @@ from agent import Agent
 
 
 
-hyper_parameters = "ec"
+hyper_parameters = "ec_q2_t2"
 agent_num = "0001"
-epochs = "010000"
+epochs = "050000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -23,8 +23,6 @@ load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{ep
 with gzip.open(load_path, "rb") as f:
     agent = pickle.load(f) 
     
-agent.args.pointing_at_object_for_left_right = agent.args.pointing_at_object_for_left
-
 agent.start_physics(GUI = True)
 
 
@@ -40,9 +38,9 @@ print("Ready to go!")
 
 
 
-hyper_parameters = "ec"
-agent_num = "0001"
-epochs = "010000"
+hyper_parameters = "ef_q2_t2"
+agent_num = "0002"
+epochs = "000000"
 saved_file = "saved_deigo"
 
 
@@ -54,7 +52,7 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
         new_agent = pickle.load(f) 
     agent.load_state_dict(new_agent.state_dict())
     
-    #new_agent.args.numSolverIterations = 1
+    #new_agent.args.force = 1000000
     
     change_args(new_agent)
 
@@ -73,12 +71,10 @@ def change_args(new_agent):
         processor.args = args 
         processor.arena_1.args = args
         processor.arena_2.args = args
-        #processor.goal.language = args.language
     for processor_name, processor in new_agent.all_processors.items():
         processor.args = args 
         processor.arena_1.args = args
         processor.arena_2.args = args
-        #processor.goal.language = args.language
         
         
     
@@ -98,10 +94,9 @@ change_agent(hyper_parameters, agent_num, epochs)
     #5,  # Left
     #6   # Right   
             
-#print("MAKING AGENT LANGUAGE:", agent.args.language)
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(1, 1)], 
+    tasks_and_weights = [(6, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
@@ -114,8 +109,8 @@ win = agent.save_episodes(
     test = False, 
     verbose = False,
     display = False, 
-    video_display = False,
-    sleep_time = .001, 
+    video_display = True,
+    sleep_time = .75, 
     waiting = False, 
     user_action = False, 
     dreaming = False)

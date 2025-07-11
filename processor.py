@@ -26,8 +26,7 @@ class Processor:
         if(goal_task.name == "FREEPLAY"):
             goal_color = goal_task
             goal_shape = goal_task
-        #print("LANGUAGE IN PROCESSOR BEGIN: \t", self.args.language)
-        self.goal = Goal(goal_task, goal_color, goal_shape, self.parenting, language = self.args.language)
+        self.goal = Goal(goal_task, goal_color, goal_shape, self.parenting)
         self.arena_1.begin(self.current_objects_1, self.goal, self.parenting)
         if(not self.parenting):
             self.arena_2.begin(self.current_objects_2, self.goal, self.parenting)
@@ -43,7 +42,7 @@ class Processor:
         to_return = "\n\nSHAPE-COLORS (1):\t{}".format(["{} {}".format(color, shape) for color, shape in self.current_objects_1])
         if(not self.parenting):
             to_return += "\nSHAPE-COLORS (2):\t{}".format(["{} {}".format(color, shape) for color, shape in self.current_objects_2])
-        self.goal.make_texts(self.args.language)
+        self.goal.make_texts()
         to_return += "\nGOAL:\t{} ({})".format(self.goal.char_text, self.goal.human_text)
         return(to_return)
     

@@ -154,88 +154,49 @@ if(__name__ == "__main__"):
 
         
 class Goal:
-    def __init__(self, task, color, shape, parenting, language = "task_color_shape"):
+    def __init__(self, task, color, shape, parenting):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
-        self.language = language
         if(self.task.name == "SILENCE"):
             self.color = self.task 
             self.shape = self.task
         self.one_hots = torch.zeros((3, len(task_map) + len(color_map) + len(shape_map)))
-        #print("LANGUAGE IN GOAL INIT: \t\t", language)
         self.make_texts()
         
     def make_texts(self):
-        word_types = self.language.split("_")
-        sentence = []
-        for word_type in word_types:
-            sentence.append (self.task if word_type == "task" else self.color if word_type == "color" else self.shape)
-        #print("\nLANGUAGE IN GOAL MAKE_TEXTS \t:", language)
-        #print("WORD TYPES: \t\t", word_types)
-        #print("SENTENCE:", [word.name for word in sentence])
-        
-        #print("This seems to work, but there's still a problem in get_goal_from_one_hots.")
-        
-        word_1 = self.task if word_types[0] == "task" else self.color if word_types[0] == "color" else self.shape
-        word_2 = self.task if word_types[1] == "task" else self.color if word_types[1] == "color" else self.shape
-        word_3 = self.task if word_types[2] == "task" else self.color if word_types[2] == "color" else self.shape
-                
-        for i, char in enumerate([word_1.char, word_2.char, word_3.char]):
+
+        for i, char in enumerate([self.task.char, self.color.char, self.shape.char]):
             index = ord(char) - ord('A')
-            #print(f"in make texts: {i, char, index}")
             self.one_hots[i, index] = 1
-        #print(self.one_hots)
             
-        self.char_text = f"{word_1.char}{word_2.char}{word_3.char}"
-        self.human_text = f"{word_1.name} {word_2.name} {word_3.name}"
+        self.char_text = f"{self.task.char}{self.color.char}{self.shape.char}"
+        self.human_text = f"{self.task.name} {self.color.name} {self.shape.name}"
         
     def human_friendly_text(self, command = True):
         return(f"{'Command' if command else 'Report'}: {self.human_text}")
         
-print("EMPTY GOAL:")
 empty_goal = Goal(task_map[0], task_map[0], task_map[0], parenting = False)
-print("DONE WITH EMPTY GOAL")
 
 
 
-def get_goal_from_one_hots(one_hots, language = "task_color_shape"):
-    
-    #print("LANGUAGE IN GET_GOAL_FROM_ONE_HOTS: \t")
-        
+def get_goal_from_one_hots(one_hots):
     while(len(one_hots.shape) > 2):
         one_hots = one_hots.squeeze(0)
-        
-    # THIS WON'T WORK WITH DIFFERENT LANGUAGES! 
-    word_types = language.split("_")
-
-    word_1_len = len(task_map) if word_types[0] == "task" else len(color_map) if word_types[0] == "color" else len(shape_map)
-    word_2_len = len(task_map) if word_types[1] == "task" else len(color_map) if word_types[1] == "color" else len(shape_map)
-    word_3_len = len(task_map) if word_types[2] == "task" else len(color_map) if word_types[2] == "color" else len(shape_map)
+    task_one_hot = one_hots[0, : len(task_map)]
+    color_one_hot = one_hots[1, len(task_map) : len(task_map) + len(color_map)]
+    shape_one_hot = one_hots[2, len(task_map) + len(color_map) : len(task_map) + len(color_map) + len(shape_map)]
     
-    word_1_one_hot = one_hots[0, : word_1_len]
-    word_2_one_hot = one_hots[1, word_1_len : word_1_len + word_2_len]
-    word_3_one_hot = one_hots[2, word_1_len + word_2_len : word_1_len + word_2_len + word_3_len]
-    
-    word_1_index = torch.argmax(word_1_one_hot).item()
-    word_2_index = torch.argmax(word_2_one_hot).item()
-    word_3_index = torch.argmax(word_3_one_hot).item()
-    
-    task_index = word_1_index if word_types[0] == "task" else word_2_index if word_types[1] == "types" else word_3_index
-    color_index = word_1_index if word_types[0] == "color" else word_2_index if word_types[1] == "color" else word_3_index
-    shape_index = word_1_index if word_types[0] == "shape" else word_2_index if word_types[1] == "shape" else word_3_index
-    
-    #if(task_index == 0):
-    #    color_index = 0
-    #    shape_index = 0
+    task_index = torch.argmax(task_one_hot).item()
+    color_index = torch.argmax(color_one_hot).item()
+    shape_index = torch.argmax(shape_one_hot).item()
             
     task = task_map[task_index]
     color = color_map[color_index]
     shape = shape_map[shape_index]
     
+    goal = Goal(task, color, shape, parenting=False)
     if(task.name == "SILENCE"):
         goal = empty_goal
-    else:    
-        goal = Goal(task, color, shape, parenting=False, language = language)
     return goal
 
 
@@ -488,8 +449,6 @@ parser = argparse.ArgumentParser()
     # Stuff I'm testing right now   
 parser.add_argument('--num_agents',         type=int,         default = 0,
                     help='Needed distance of an object for push/left/right.')
-parser.add_argument('--language',           type=str,         default = "task_color_shape",
-                    help='What is the pattern for words?')
     
 parser.add_argument('--robot_name',                     type=str,           default = "robot",
                     help='Options: two_side_arm, one_head_arm.')    
@@ -516,7 +475,7 @@ parser.add_argument('--tanh_touch',          type=literal,         default = Tru
 parser.add_argument('--test_train_num',          type=int,         default = 3,
                     help='Needed distance of an object for push/left/right.')
 
-parser.add_argument('--trilling',          type=literal,         default = True,
+parser.add_argument('--trilling',          type=literal,         default = False,
                     help='Needed distance of an object for push/left/right.')
     
 
@@ -833,12 +792,7 @@ def get_num_sensors(robot_name):
     num_sensors = len(sensors)
     return(num_sensors, sensors)
 
-    
-    
-def extend_list_to_match_length(target_list, length, value):
-    while len(target_list) < length:
-        target_list.append(value)
-    return target_list
+
 
 def update_args(arg_set):
     if(arg_set.comp == "deigo"):
@@ -909,18 +863,7 @@ os.makedirs(f"{save_file}", exist_ok=True)
 os.makedirs(f"{save_file}/thesis_pics", exist_ok=True)
 os.makedirs(f"{save_file}/thesis_pics/final", exist_ok=True)
 
-def move_to_bucket(start_address):
-    file_name = start_address.split("/")[-1]
-    rest_of_address = "/".join(start_address.split("/")[:-1])
-    target_address = os.path.join("sftp://theodore-tinker@deigo.oist.jp/bucket/TaniU/Members/ted/" + rest_of_address, file_name)
-    print(file_name, rest_of_address, target_address)
-    try:
-        shutil.move(start_address, target_address)
-        print(f"File moved to {target_address} successfully.")
-    except PermissionError:
-        print("Permission denied. Could not move the file to the target folder.")
-    except Exception as e:
-        print(f"An error occurred while moving the file: {e}")
+
     
 folder = f"{save_file}/{args.arg_name}"
 if(args.arg_title[:3] != "___" and not args.arg_name in ["default", "finishing_dictionaries", "plotting", "plotting_predictions", "plotting_positions"]):

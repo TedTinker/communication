@@ -106,8 +106,8 @@ class Arena():
                 
         robot_urdf_path = f"pybullet_data/robots/{self.args.robot_name}.urdf"
         self.robot_index = p.loadURDF(robot_urdf_path, (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
-        self.joint_indices = get_joint_indices(self.robot_index, physicsClient=self.physicsClient) 
         self.wheel_accelerations = [0, 0]
+        self.joint_indices = get_joint_indices(self.robot_index, physicsClient=self.physicsClient) 
         self.joint_accelerations = {key: 0 for key in self.joint_indices.keys()}
                         
         p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
@@ -230,7 +230,7 @@ class Arena():
             
     def step(self, left_wheel_speed, right_wheel_speed, joint_target_velocities, verbose = False, sleep_time = None, waiting = False):
         
-        self.history_of_actions["left_wheel_speed"].append(left_wheel_speed)
+        """self.history_of_actions["left_wheel_speed"].append(left_wheel_speed)
         self.history_of_actions["right_wheel_speed"].append(right_wheel_speed)
         for key, value in joint_target_velocities.items():
             if not key in self.history_of_actions["joint_target_velocities"]:
@@ -244,7 +244,7 @@ class Arena():
             else:
                 for key2, value2 in value.items():
                     if(len(value2) > 2):
-                        print(f"{key2}: \t mean: {round(sum(value2)/len(value2), 3)}, std: {round(statistics.stdev(value2), 3)}")
+                        print(f"{key2}: \t mean: {round(sum(value2)/len(value2), 3)}, std: {round(statistics.stdev(value2), 3)}")"""
         
         _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
         self.robot_start_yaw = yaw
@@ -306,7 +306,6 @@ class Arena():
             if(sleep_time != None):
                 sleep(sleep_time / self.args.steps_per_step)
             p.stepSimulation(physicsClientId = self.physicsClient)
-            #self.face_upward()
                                                                                                     
             touching_now = self.touching_any_object()
             for object_index, touch_dict in touching_now.items():
@@ -414,14 +413,6 @@ class Arena():
         velocity_vec = np.array([vx, vy])
         spe = float(np.dot(velocity_vec, forward_dir))
         return pos, spe, roll, pitch, yaw
-
-    def face_upward(self):
-        pos, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
-        linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_index, physicsClientId=self.physicsClient)
-        linear_velocity = [linear_velocity[0], linear_velocity[1], 0]
-        orientation = p.getQuaternionFromEuler([0, 0, yaw])
-        p.resetBasePositionAndOrientation(self.robot_index, pos, orientation, physicsClientId=self.physicsClient)
-        p.resetBaseVelocity(self.robot_index, linearVelocity=linear_velocity, angularVelocity=angular_velocity, physicsClientId = self.physicsClient)
         
     def set_pos(self, pos = (0, 0)):
         pos = (pos[0], pos[1], agent_upper_starting_pos)
@@ -475,6 +466,12 @@ class Arena():
             if(joint_angles[key] != None):
                 p.resetJointState(self.robot_index, index, joint_angles[key], physicsClientId=self.physicsClient)
                 
+    def get_joint_angles(self):
+        joint_angles = {}
+        for key, index in self.joint_indices.items():
+            joint_angles[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[0]
+        return joint_angles
+                
     def set_joint_target_velocities(self, joint_target_velocities = None):
         if(joint_target_velocities == None):
             joint_target_velocities = {key : 0 for key in self.joint_indices}
@@ -489,12 +486,6 @@ class Arena():
             joint_speeds[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[1]  
         return joint_speeds
 
-    def get_joint_angles(self):
-        joint_angles = {}
-        for key, index in self.joint_indices.items():
-            joint_angles[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[0]
-        return joint_angles
-    
     def fix_joints(self, joint_target_velocities):
         joint_angles = self.get_joint_angles()
         joint_speeds = self.get_joint_speeds()
@@ -516,7 +507,7 @@ class Arena():
                 joint_target_velocities[key] = -max_speed
                 
         return(joint_target_velocities)
-        
+            
         
         
     def rewards(self, verbose = False):
@@ -774,8 +765,7 @@ class Arena():
                 if(lefting):    task_in_progress = task_map[5] # If pushing but also lefting/righting,
                 if(righting):   task_in_progress = task_map[6] # use lefting/righting
                 
-                #print("LANGUAGE IN ARENA REWARD: \t", self.args.language)
-                report_voice = Goal(task_in_progress, color, shape, parenting = False, language = self.args.language)
+                report_voice = Goal(task_in_progress, color, shape, parenting = False)
                 
         if(wrong_object):
             win = False 

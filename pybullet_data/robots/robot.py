@@ -130,7 +130,7 @@ parts = [
         joint_parent = "body", 
         joint_origin = (0, 0, .5 + joint_1_height / 2), 
         joint_axis = (0, 0, 1),
-        joint_type = "continuous",
+        joint_type = "revolute",
         joint_limits = [-math.pi/4, math.pi/4, 999, 999],
         inertia = [.01, 0, 0, .01, 0, .01]),
     
@@ -143,7 +143,7 @@ parts = [
         joint_parent = "joint_1", 
         joint_origin = (0, 0, joint_1_height / 2 + arm_width / 2), 
         joint_axis = (0, 1, 0),
-        joint_type = "continuous",
+        joint_type = "revolute",
         joint_limits = [-math.pi/2, 0, 999, 999],
         inertia = [.01, 0, 0, .01, 0, .01]),
     
