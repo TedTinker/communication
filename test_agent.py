@@ -12,7 +12,7 @@ from agent import Agent
 
 
 
-hyper_parameters = "ec_q2_t2"
+hyper_parameters = "ef"
 agent_num = "0001"
 epochs = "050000"
 saved_file = "saved_deigo"

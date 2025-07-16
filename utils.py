@@ -1,13 +1,15 @@
 #%% 
 
 # To do:
-#   TESTING WITH DIFFERENT COLLECTIONS DOESN'T ACTUALLY WORK!
+
+"""Case1: 3 colors X 3 shapes X 4 actions => 36 compositions. We train only 11 out of 36
+Case2: 5 colors X 4 shapes X 5 actions => 100 compositions. We train only 30 out of 100
+Case3: 6 colors X 5 shapes X 6 actions => 180 compositions. We train only 54 out of 180"""
 #   Agent might be able to do two tasks in one move by using both objects.
 #   Experiment with hyperparameters for touch.
 #   Experiment with extrinsic rewards.
 #   ARM CAN OVEREXTEND!
-#   Consider making "watch" distance smaller.
-#   Why turning counter-clockwise?
+#   SOMETIMES OBJECTS DISAPPEAR!
 
 import os
 import pickle
@@ -452,30 +454,11 @@ parser.add_argument('--num_agents',         type=int,         default = 0,
     
 parser.add_argument('--robot_name',                     type=str,           default = "robot",
                     help='Options: two_side_arm, one_head_arm.')    
-parser.add_argument('--be_near_distance',               type=float,         default = 3.25,
-                    help='How close must the agent watch the object to achieve be_near.')
-
-parser.add_argument('--global_push_amount',             type=float,         default = .1,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--local_push_limit',          type=float,         default = .3,
-                    help='Prevent bogus pushing by requiring local stillness.')
-parser.add_argument('--global_left_right_amount',       type=float,         default = .2,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
-                    help='Needed distance of an object for push/left/right.')
-
-parser.add_argument('--max_wheel_speed_for_left_right',     type=float,         default = 5,
-                    help='How close must the agent watch the object to achieve pushing left or right.')
-parser.add_argument('--min_arm_speed_for_left_right',          type=float,         default = .01,
-                    help='Needed distance of an object for push/left/right.')
 
 parser.add_argument('--tanh_touch',          type=literal,         default = True,
                     help='Needed distance of an object for push/left/right.')
 
 parser.add_argument('--test_train_num',          type=int,         default = 3,
-                    help='Needed distance of an object for push/left/right.')
-
-parser.add_argument('--trilling',          type=literal,         default = False,
                     help='Needed distance of an object for push/left/right.')
     
 
@@ -579,28 +562,44 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 parser.add_argument('--watch_duration',                 type=int,           default = 4,
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--be_near_duration',               type=int,           default = 4,
-                    help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--top_duration',                   type=int,           default = 3,   
-                    help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--push_duration',                  type=int,           default = 3,
-                    help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--left_duration',                  type=int,           default = 3,   
-                    help='How long must the agent watch the object to achieve watching.')
-
 parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/12,
                     help='How close must the agent watch the object to achieve watching or pushing.')
+parser.add_argument('--watch_distance',                 type=float,         default = 6,
+                    help='How close must the agent watch the object to achieve watching.')
+
+parser.add_argument('--be_near_duration',               type=int,           default = 4,
+                    help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--pointing_at_object_for_being_near',   type=float,         default = pi/12,
                     help='How close must the agent watch the object to achieve watching or pushing.')
-parser.add_argument('--pointing_at_object_for_left_right', type=float,         default = pi/3,
-                    help='How close must the agent watch the object to achieve pushing left or right.')
+parser.add_argument('--be_near_distance',               type=float,         default = 3.25,
+                    help='How close must the agent watch the object to achieve be_near.')
 
-parser.add_argument('--watch_distance',                 type=float,         default = 8,
-                    help='How close must the agent watch the object to achieve watching.')
-parser.add_argument('--top_arm_min_angle',              type=float,         default = pi/12,
-                    help='How elevated the agent\'s arm must be to touch the object from above.')
+parser.add_argument('--top_duration',                   type=int,           default = 3,   
+                    help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--touch_top_min_height',           type=float,         default = 3.75,
                     help='How elevated the agent\'s arm must be to touch the object from above.')
+
+parser.add_argument('--push_duration',                  type=int,           default = 3,
+                    help='How long must the agent watch the object to achieve watching.')
+parser.add_argument('--global_push_amount',             type=float,         default = .1,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--local_push_limit',          type=float,         default = .3,
+                    help='Prevent bogus pushing by requiring local stillness.')
+
+parser.add_argument('--left_duration',                  type=int,           default = 3,   
+                    help='How long must the agent watch the object to achieve watching.')
+parser.add_argument('--pointing_at_object_for_left_right', type=float,         default = pi/3,
+                    help='How close must the agent watch the object to achieve pushing left or right.')
+parser.add_argument('--global_left_right_amount',       type=float,         default = .2,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--max_wheel_speed_for_left_right',     type=float,         default = 5,
+                    help='How close must the agent watch the object to achieve pushing left or right.')
+parser.add_argument('--min_arm_speed_for_left_right',          type=float,         default = .01,
+                    help='Needed distance of an object for push/left/right.')
+
+
 
 
     # Module  
@@ -623,10 +622,10 @@ parser.add_argument('--voice_state_size',               type=int,           defa
 
 parser.add_argument('--wheels_joints_encode_size',   type=int,           default = 8,
                     help='Parameters in encoding wheels_joints.')   
-"""parser.add_argument('--touch_encode_size',               type=int,           default = 128,
+parser.add_argument('--touch_encode_size',               type=int,           default = 30,
                     help='Parameters in encoding image.')  
-parser.add_argument('--touch_state_size',                type=int,           default = 128,
-                    help='Parameters in prior and posterior inner-states.')"""
+parser.add_argument('--touch_state_size',                type=int,           default = 30,
+                    help='Parameters in prior and posterior inner-states.')
 
 parser.add_argument('--dropout',                        type=float,         default = .001,
                     help='Dropout percentage.')
@@ -802,8 +801,8 @@ def update_args(arg_set):
     arg_set.wheels_joints_shape = 4
        
     num_sensors, sensors = get_num_sensors(args.robot_name)
-    arg_set.touch_state_size = num_sensors
-    arg_set.touch_encode_size = num_sensors
+    #arg_set.touch_state_size = num_sensors
+    #arg_set.touch_encode_size = num_sensors
     arg_set.touch_shape = num_sensors
     arg_set.sensor_names = sensors
     arg_set.joint_aspects = 4

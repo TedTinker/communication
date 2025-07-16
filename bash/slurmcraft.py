@@ -110,9 +110,10 @@ add_this("q2",   {
 
 
 add_this("t",   {
-    "test_train_num" : [3, 4],
-    "robot_name" : ["robot", "robot_2"],
-    "trilling" : [True, False]}) 
+    "watch_duration" : [4, 6],
+    "touch_encode_size" : [20, 30, 40],
+    "touch_state_size" : [20, 30, 40]
+}) 
 
 
 
