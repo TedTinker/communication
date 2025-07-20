@@ -103,42 +103,41 @@ add_this("q",   {
 add_this("q2",   {
     #"save_agents" : "False",
     "save_behaviors" : "False",
-    "save_compositions" : "False"
+    "save_compositions" : "False"})
+
+
+
+
+add_this("t1",   {
+    "touch_top" : False,
+    "yellow" : False,
+    "hourglass" : False,
+    "test_train_num" : 2
+}) 
+
+add_this("t2",   { # Not working
+    "touch_top" : False,
+    "be_near" : False,
+    "magenta" : False,
+    "yellow" : False,
+    "cone" : False,
+    "hourglass" : False,
+    "test_train_num" : 1
+}) 
+
+add_this("t3", { # Not working
+    "vision_encode_size" : 64,
+    "vision_state_size" : 64
+})
+
+add_this("t4", {
+    "voice_encode_size" : 64,
+    "voice_state_size" : 64
 })
 
 
 
 
-add_this("t",   {
-    "watch_duration" : [4, 6],
-    "touch_encode_size" : [20, 30, 40],
-    "touch_state_size" : [20, 30, 40]
-}) 
-
-
-
-add_this("t2",   {
-    "trilling" : False}) 
-
-
-
-
-
-add_this("t3",   {
-    "num_agents" : 3,
-}) 
-
-add_this("t10",   {
-    "num_agents" : 10,
-}) 
-
-add_this("t30",   {
-    "num_agents" : 30,
-}) 
-
-add_this("t90",   {
-    "num_agents" : 90,
-}) 
 
 
 

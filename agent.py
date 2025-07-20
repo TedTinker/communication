@@ -86,16 +86,16 @@ class Agent:
         self.start_physics(GUI) 
         
         # HERE, make it so processors only have tasks, colors, and shapes which allowed.
-        
+                
         self.processors = {
             "all" :       Processor(
                 self.args, self.arena_1, self.arena_2, 
-                tasks_and_weights = [(0, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1)],     
-                objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0, 1, 2, 3, 4], parenting = True, full_name = "All Tasks")}
+                tasks_and_weights = [(t, 1) for t in self.args.allowed_tasks],     
+                objects = 2, colors = [c for c in self.args.allowed_colors], shapes = [s for s in self.args.allowed_shapes], parenting = True, full_name = "All Tasks")}
 
         self.all_processors = {f"{task_map[task].name}_{color_map[color].name}_{shape_map[shape].name}" : 
             Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(task, 1)], objects = 2, colors = [color], shapes = [shape], parenting = True) for task, color, shape in \
-                product([1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])}
+                product([t for t in self.args.allowed_tasks], [c for c in self.args.allowed_colors], [s for s in self.args.allowed_shapes])}
                 #product([1, 2], [1, 2], [1, 2])}
         all_processor_names = list(self.all_processors.keys())
         self.all_processor_names = all_processor_names

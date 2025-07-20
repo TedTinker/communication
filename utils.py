@@ -300,20 +300,20 @@ def get_matrix_pattern(a_values, rows=5, cols=6):
     return [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in excluded]
 
 pattern_lookup_1 = {
-    1: set(get_matrix_pattern([0, 1])),
-    2: set(get_matrix_pattern([1, 2])),
-    3: set(get_matrix_pattern([2, 3])),
-    4: set(get_matrix_pattern([3, 4])),
-    5: set(get_matrix_pattern([-2, -1])),
-    6: set(get_matrix_pattern([-1, 0]))}
+    1: set(get_matrix_pattern([0, 1], rows = 3, cols = 4)),
+    2: set(get_matrix_pattern([1, 2, 3], rows = 3, cols = 4)),
+    3: set(get_matrix_pattern([0, 2, 3], rows = 3, cols = 4)),
+    4: set(get_matrix_pattern([3, 4], rows = 3, cols = 4)),
+    5: set(get_matrix_pattern([-2, -1], rows = 3, cols = 4)),
+    6: set(get_matrix_pattern([-1, 0], rows = 3, cols = 4))}
 
 pattern_lookup_2 = {
-    1: set(get_matrix_pattern([0, 1, 2])),
-    2: set(get_matrix_pattern([1, 2, 3])),
-    3: set(get_matrix_pattern([2, 3, 4])),
-    4: set(get_matrix_pattern([3, 4, 5])),
-    5: set(get_matrix_pattern([-2, -1, 0])),
-    6: set(get_matrix_pattern([-1, 0, 1]))}
+    1: set(get_matrix_pattern([0, 1, 2], rows = 4, cols = 5)),
+    2: set(get_matrix_pattern([1, 2, 3], rows = 4, cols = 5)),
+    3: set(get_matrix_pattern([2, 3, 4], rows = 4, cols = 5)),
+    4: set(get_matrix_pattern([3, 4, 5], rows = 4, cols = 5)),
+    5: set(get_matrix_pattern([-2, -1, 0], rows = 4, cols = 5)),
+    6: set(get_matrix_pattern([-1, 0, 1], rows = 4, cols = 5))}
 
 pattern_lookup_3 = {
     1: set(get_matrix_pattern([0, 1, 2, 3])),
@@ -322,14 +322,6 @@ pattern_lookup_3 = {
     4: set(get_matrix_pattern([3, 4, 5, 6])),
     5: set(get_matrix_pattern([-2, -1, 0, 1])),
     6: set(get_matrix_pattern([-1, 0, 1, 2]))}
-
-pattern_lookup_4 = {
-    1: set(get_matrix_pattern([1, 2, 3, 4, 5])),
-    2: set(get_matrix_pattern([2, 3, 4, 5, 6])),
-    3: set(get_matrix_pattern([3, 4, 5, 6, 7])),
-    4: set(get_matrix_pattern([4, 5, 6, 7, 8])),
-    5: set(get_matrix_pattern([-1, 0, 1, 2, 3])),
-    6: set(get_matrix_pattern([0, 1, 2, 3, 4]))}
 
 def get_training_combos(pattern_lookup):
     training_combos = [(a, c, s) for (a, c, s) in all_combos if 
@@ -344,15 +336,24 @@ def get_training_combos(pattern_lookup):
 
 
 
-training_combos_1 = get_training_combos(pattern_lookup_1)
-training_combos_2 = get_training_combos(pattern_lookup_2)
+training_combos_1 = [
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 3, 0), (0, 3, 1), (0, 3, 2), 
+    (1, 2, 0), (1, 3, 0), (1, 0, 1), (1, 1, 2),
+    (4, 0, 0), (4, 0, 1), (4, 1, 1), (4, 2, 2),  
+    (5, 1, 0), (5, 2, 1), (5, 2, 2), (5, 3, 2), 
+    (6, 2, 0), (6, 3, 0), (6, 3, 1), (6, 0, 2)]
+training_combos_2 = training_combos_1 = [
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), 
+    (1, 4, 0), (1, 0, 1), (1, 4, 1), (1, 0, 2), (1, 1, 2), (1, 1, 3), (1, 2, 3),
+    (2, 0, 0), (2, 4, 0), (2, 1, 1), (2, 1, 2), (2, 2, 2), (2, 2, 3), (2, 3, 3),
+    (4, 0, 0), (4, 1, 0), (4, 1, 1), (4, 2, 1), (4, 3, 2), (4, 3, 3), (4, 4, 3),
+    (5, 1, 0), (5, 2, 0), (5, 2, 1), (5, 3, 1), (5, 3, 2), (5, 4, 2), (5, 0, 3),
+    (6, 3, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2), (6, 0, 3), (6, 1, 3)]
 training_combos_3 = get_training_combos(pattern_lookup_3)
-training_combos_4 = get_training_combos(pattern_lookup_4)
 
 testing_combos_1 = [combo for combo in all_combos if not combo in training_combos_1]
 testing_combos_2 = [combo for combo in all_combos if not combo in training_combos_2]
 testing_combos_3 = [combo for combo in all_combos if not combo in training_combos_3]
-testing_combos_4 = [combo for combo in all_combos if not combo in training_combos_4]
 
 
 
@@ -370,7 +371,7 @@ if(__name__ == "__main__"):
             for c in range(len(color_map)):
                 ax = fig.add_subplot(gs[s, c])
                 ax.axis('off')
-                if((a,c,s) in training_combos_4):
+                if((a,c,s) in training_combos_2):
                     rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
                     ax.add_patch(rect)
                 color = list(color_map.values())[c].name
@@ -387,7 +388,7 @@ if(__name__ == "__main__"):
 
 
 
-def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shapes, test_train_num = 1, test = False):
+def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shapes, test_train_num = 3, test = False):
     training_combos = training_combos_1 if test_train_num == 1 else training_combos_2 if test_train_num == 2 else training_combos_3 if test_train_num == 3 else training_combos_4
     testing_combos = [combo for combo in all_combos if not combo in training_combos]
     if(test == None):
@@ -403,7 +404,7 @@ def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shap
     color_num, shape_num = choice(these_combos)
     return(color_num, shape_num)
 
-def make_objects_and_task(num_objects, allowed_tasks_and_weights, allowed_colors, allowed_shapes, test_train_num = 1, test = False):
+def make_objects_and_task(num_objects, allowed_tasks_and_weights, allowed_colors, allowed_shapes, test_train_num = 3, test = False):
     #print(f"num_objects {num_objects}, allowed_tasks_and_weights {allowed_tasks_and_weights}, allowed_colors {allowed_colors}, allowed_shapes {allowed_shapes}, test {test}")
     tasks   = [v for v, w in allowed_tasks_and_weights]
     weights = [w for v, w in allowed_tasks_and_weights]
@@ -429,10 +430,10 @@ if(__name__ == "__main__"):
     for i in range(1):
         task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(2, [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])
         print(task.name, [(color.name, shape.name) for color, shape in colors_shapes_1], [(color.name, shape.name) for color, shape in colors_shapes_2])
-    #print("\nTest")
-    #for i in range(1):
-    #    task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(2, [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True)
-    #    print(task.name, [(color.name, shape.name) for color, shape in colors_shapes_1], [(color.name, shape.name) for color, shape in colors_shapes_2])
+    print("\nTest")
+    for i in range(1):
+        task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(2, [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True)
+        print(task.name, [(color.name, shape.name) for color, shape in colors_shapes_1], [(color.name, shape.name) for color, shape in colors_shapes_2])
         
         
         
@@ -460,6 +461,54 @@ parser.add_argument('--tanh_touch',          type=literal,         default = Tru
 
 parser.add_argument('--test_train_num',          type=int,         default = 3,
                     help='Needed distance of an object for push/left/right.')
+
+
+
+
+parser.add_argument('--watch',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--be_near',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--touch_top',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--push_forward',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--push_left',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--push_right',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+
+parser.add_argument('--red',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--green',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--blue',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--cyan',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--magenta',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--yellow',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+
+parser.add_argument('--pillar',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--pole',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--dumbbell',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--cone',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--hourglass',          type=literal,         default = True,
+                    help='Needed distance of an object for push/left/right.')
+
+
+
+
+
+
+
+
     
 
     
@@ -560,14 +609,14 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 
 
-parser.add_argument('--watch_duration',                 type=int,           default = 4,
+parser.add_argument('--watch_duration',                 type=int,           default = 6,
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/12,
                     help='How close must the agent watch the object to achieve watching or pushing.')
 parser.add_argument('--watch_distance',                 type=float,         default = 6,
                     help='How close must the agent watch the object to achieve watching.')
 
-parser.add_argument('--be_near_duration',               type=int,           default = 4,
+parser.add_argument('--be_near_duration',               type=int,           default = 5,
                     help='How long must the agent watch the object to achieve watching.')
 parser.add_argument('--pointing_at_object_for_being_near',   type=float,         default = pi/12,
                     help='How close must the agent watch the object to achieve watching or pushing.')
@@ -622,9 +671,9 @@ parser.add_argument('--voice_state_size',               type=int,           defa
 
 parser.add_argument('--wheels_joints_encode_size',   type=int,           default = 8,
                     help='Parameters in encoding wheels_joints.')   
-parser.add_argument('--touch_encode_size',               type=int,           default = 30,
+parser.add_argument('--touch_encode_size',               type=int,           default = 20,
                     help='Parameters in encoding image.')  
-parser.add_argument('--touch_state_size',                type=int,           default = 30,
+parser.add_argument('--touch_state_size',                type=int,           default = 20,
                     help='Parameters in prior and posterior inner-states.')
 
 parser.add_argument('--dropout',                        type=float,         default = .001,
@@ -816,7 +865,41 @@ def update_args(arg_set):
     arg_set.processor_list = [epochs_for_processor[1] for epochs_for_processor in arg_set.epochs_per_processor]"""
     arg_set.right_duration = arg_set.left_duration
     
+    allowed_task_dict = {
+        1 : arg_set.watch,
+        2 : arg_set.be_near,
+        3 : arg_set.touch_top,
+        4 : arg_set.push_forward,
+        5 : arg_set.push_left,
+        6 : arg_set.push_right
+    }
+        
+    arg_set.allowed_tasks = [key for key, value in allowed_task_dict.items() if value]
+    
+    allowed_color_dict = {
+        0 : arg_set.red,
+        1 : arg_set.green,
+        2 : arg_set.blue,
+        3 : arg_set.cyan,
+        4 : arg_set.magenta,
+        5 : arg_set.yellow
+    }
+    
+    arg_set.allowed_colors = [key for key, value in allowed_color_dict.items() if value]
+    
+    allowed_shape_dict = {
+        0 : arg_set.pillar,
+        1 : arg_set.pole,
+        2 : arg_set.dumbbell,
+        3 : arg_set.cone,
+        4 : arg_set.hourglass
+    }
+    
+    arg_set.allowed_shapes = [key for key, value in allowed_shape_dict.items() if value]
+
     return(arg_set)
+
+
 
 for arg_set in [default_args, args]:
     default_args = update_args(default_args) 
