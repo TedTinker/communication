@@ -115,7 +115,7 @@ add_this("t1",   {
     "test_train_num" : 2
 }) 
 
-add_this("t2",   { # Not working
+add_this("t2",   { 
     "touch_top" : False,
     "be_near" : False,
     "magenta" : False,
@@ -125,14 +125,14 @@ add_this("t2",   { # Not working
     "test_train_num" : 1
 }) 
 
-add_this("t3", { # Not working
-    "vision_encode_size" : 64,
-    "vision_state_size" : 64
+add_this("t3", { 
+    "vision_encode_size" : 256,
+    "vision_state_size" : 256
 })
 
 add_this("t4", {
-    "voice_encode_size" : 64,
-    "voice_state_size" : 64
+    "voice_encode_size" : 256,
+    "voice_state_size" : 256
 })
 
 

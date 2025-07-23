@@ -299,22 +299,6 @@ def get_matrix_pattern(a_values, rows=5, cols=6):
             excluded.add((r, c))
     return [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in excluded]
 
-pattern_lookup_1 = {
-    1: set(get_matrix_pattern([0, 1], rows = 3, cols = 4)),
-    2: set(get_matrix_pattern([1, 2, 3], rows = 3, cols = 4)),
-    3: set(get_matrix_pattern([0, 2, 3], rows = 3, cols = 4)),
-    4: set(get_matrix_pattern([3, 4], rows = 3, cols = 4)),
-    5: set(get_matrix_pattern([-2, -1], rows = 3, cols = 4)),
-    6: set(get_matrix_pattern([-1, 0], rows = 3, cols = 4))}
-
-pattern_lookup_2 = {
-    1: set(get_matrix_pattern([0, 1, 2], rows = 4, cols = 5)),
-    2: set(get_matrix_pattern([1, 2, 3], rows = 4, cols = 5)),
-    3: set(get_matrix_pattern([2, 3, 4], rows = 4, cols = 5)),
-    4: set(get_matrix_pattern([3, 4, 5], rows = 4, cols = 5)),
-    5: set(get_matrix_pattern([-2, -1, 0], rows = 4, cols = 5)),
-    6: set(get_matrix_pattern([-1, 0, 1], rows = 4, cols = 5))}
-
 pattern_lookup_3 = {
     1: set(get_matrix_pattern([0, 1, 2, 3])),
     2: set(get_matrix_pattern([1, 2, 3, 4])),
@@ -336,19 +320,33 @@ def get_training_combos(pattern_lookup):
 
 
 
-training_combos_1 = [
+# We should adjust these so every task has at least one of each color and shape.
+"""training_combos_1 = [
     (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 3, 0), (0, 3, 1), (0, 3, 2), 
     (1, 2, 0), (1, 3, 0), (1, 0, 1), (1, 1, 2),
     (4, 0, 0), (4, 0, 1), (4, 1, 1), (4, 2, 2),  
     (5, 1, 0), (5, 2, 1), (5, 2, 2), (5, 3, 2), 
-    (6, 2, 0), (6, 3, 0), (6, 3, 1), (6, 0, 2)]
-training_combos_2 = training_combos_1 = [
+    (6, 2, 0), (6, 3, 0), (6, 3, 1), (6, 0, 2)]"""
+training_combos_1 = [
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 3, 0), (0, 3, 1), (0, 3, 2), 
+    (1, 2, 0), (1, 3, 0), (1, 0, 1), (1, 1, 2),
+    (4, 0, 0), (4, 1, 1), (4, 3, 1), (4, 2, 2), 
+    (5, 1, 0), (5, 2, 1), (5, 0, 2), (5, 3, 2), 
+    (6, 1, 0), (6, 2, 0), (6, 3, 1), (6, 0, 2)]
+"""training_combos_2 = [
     (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), 
     (1, 4, 0), (1, 0, 1), (1, 4, 1), (1, 0, 2), (1, 1, 2), (1, 1, 3), (1, 2, 3),
     (2, 0, 0), (2, 4, 0), (2, 1, 1), (2, 1, 2), (2, 2, 2), (2, 2, 3), (2, 3, 3),
     (4, 0, 0), (4, 1, 0), (4, 1, 1), (4, 2, 1), (4, 3, 2), (4, 3, 3), (4, 4, 3),
     (5, 1, 0), (5, 2, 0), (5, 2, 1), (5, 3, 1), (5, 3, 2), (5, 4, 2), (5, 0, 3),
-    (6, 3, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2), (6, 0, 3), (6, 1, 3)]
+    (6, 3, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2), (6, 0, 3), (6, 1, 3)]"""
+training_combos_2 = [
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), 
+    (1, 3, 0), (1, 0, 1), (1, 4, 1), (1, 0, 2), (1, 1, 2), (1, 1, 3), (1, 2, 3),
+    (2, 0, 0), (2, 4, 0), (2, 1, 1), (2, 1, 2), (2, 2, 2), (2, 2, 3), (2, 3, 3),
+    (4, 0, 0), (4, 1, 0), (4, 1, 1), (4, 2, 1), (4, 3, 2), (4, 3, 3), (4, 4, 3),
+    (5, 1, 0), (5, 2, 0), (5, 2, 1), (5, 3, 1), (5, 3, 2), (5, 4, 2), (5, 0, 3),
+    (6, 2, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2), (6, 0, 3), (6, 1, 3)]
 training_combos_3 = get_training_combos(pattern_lookup_3)
 
 testing_combos_1 = [combo for combo in all_combos if not combo in training_combos_1]
@@ -361,27 +359,56 @@ if(__name__ == "__main__"):
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
     import matplotlib.patches as patches
-    for a, task in task_map.items():
-        fig = plt.figure(figsize=(15, 15))
-        fig.suptitle(task.name)
-        gs = gridspec.GridSpec(len(shape_map), len(color_map), width_ratios=[1, 1, 1, 1, 1, 1])
-        axs = []
-        for s in range(len(shape_map)):
-            row = []
-            for c in range(len(color_map)):
-                ax = fig.add_subplot(gs[s, c])
-                ax.axis('off')
-                if((a,c,s) in training_combos_2):
-                    rect = patches.Rectangle((0, 0), 2, 2, color='gray', alpha=0.5)
+    def plot_combined_training_grid(training_combos, title="Training Set"):
+        task_items = [(a, t) for a, t in task_map.items() if t.name != "SILENCE"]
+        num_tasks = len(task_items)
+        num_cols = 3
+        num_rows = (num_tasks + num_cols - 1) // num_cols
+
+        fig = plt.figure(figsize=(22, 12))
+        fig.suptitle(title, fontsize=28)
+        outer_grid = gridspec.GridSpec(num_rows, num_cols, wspace=0.5, hspace=0.5)
+
+        for i, (a, task) in enumerate(task_items):
+            inner_grid = gridspec.GridSpecFromSubplotSpec(
+                len(shape_map), len(color_map),
+                subplot_spec=outer_grid[i], wspace=0.0, hspace=0.0
+            )
+
+            for s in range(len(shape_map)):
+                for c in range(len(color_map)):
+                    ax = fig.add_subplot(inner_grid[s, c])
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    ax.set_xlim(0, 1)
+                    ax.set_ylim(0, 1)
+
+                    combo = (a, c, s)
+                    if combo in training_combos:
+                        rect = patches.Rectangle((0, 0), 1, 1, color='gray', alpha=0.5)
+                    else:
+                        rect = patches.Rectangle((0, 0), 1, 1, facecolor='white', edgecolor='black')
                     ax.add_patch(rect)
-                color = list(color_map.values())[c].name
-                shape = list(shape_map.values())[s].name
-                ax.text(.5, .5, f"{color}\n{shape}", va='center', ha='center', fontsize=20)
-                row.append(ax)
-            axs.append(row)
+
+                    color_name = color_map[c].name
+                    shape_name = shape_map[s].name
+                    ax.text(0.5, 0.5, f"{color_name}\n{shape_name}",
+                            va='center', ha='center', fontsize=9, wrap=True)
+
+            # Add a title centered over each task grid
+            center_col = len(color_map) // 2
+            title_ax = fig.add_subplot(inner_grid[0, center_col])
+            title_ax.set_title(task.name, fontsize=14, pad=12)
+            title_ax.axis('off')
+
         plt.show()
         plt.close()
-        
+
+    # Example usage:
+    plot_combined_training_grid(training_combos_1, title="Training Set 1 – All Tasks")
+    plot_combined_training_grid(training_combos_2, title="Training Set 2 – All Tasks")
+    plot_combined_training_grid(training_combos_3, title="Training Set 3 – All Tasks")
+            
         
         
 #%%

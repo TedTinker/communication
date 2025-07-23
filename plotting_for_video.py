@@ -121,6 +121,7 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
     table_ax.text(0, .1, s = f"Predicted Report:\n{predicted_report_task} {predicted_report_color} {predicted_report_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
             
     # Curiosity values
+    # Use or don't use these min/max values.
     all_curiosities = visual_curiosity + touch_curiosity + report_voice_curiosity
     if(all_curiosities == []):
         all_curiosities = [0]
@@ -140,14 +141,14 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
             ax.plot(data, color='black', linewidth=2)
         elif len(data) == 1:
             ax.plot([0], data, marker='o', markersize=6, color='black')
-        ax.set_ylim([min_curi, max_curi])
+        #ax.set_ylim([min_curi, max_curi])
         ax.set_xlim([0, step])
         ax.set_yticks([])
         ax.set_xticks([])
         ax.set_title(title, fontsize=10)
         ax.patch.set_alpha(0)
-        ax.text(-0.02, min_curi, f"{round(min_curi)}", va='center', ha='right', fontsize=8, transform=ax.get_yaxis_transform())
-        ax.text(-0.02, max_curi, f"{round(max_curi)}", va='center', ha='right', fontsize=8, transform=ax.get_yaxis_transform())
+        #ax.text(-0.02, min_curi, f"{round(min_curi)}", va='center', ha='right', fontsize=8, transform=ax.get_yaxis_transform())
+        #ax.text(-0.02, max_curi, f"{round(max_curi)}", va='center', ha='right', fontsize=8, transform=ax.get_yaxis_transform())
         for spine in ax.spines.values():
             spine.set_edgecolor('gray')
             spine.set_linewidth(1)
