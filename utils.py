@@ -691,9 +691,9 @@ parser.add_argument('--vision_state_size',                type=int,           de
 
 parser.add_argument('--char_encode_size',               type=int,           default = 8,
                     help='Parameters in encoding.')   
-parser.add_argument('--voice_encode_size',              type=int,           default = 128,
+parser.add_argument('--voice_encode_size',              type=int,           default = 256,
                     help='Parameters in encoding voice.')   
-parser.add_argument('--voice_state_size',               type=int,           default = 128,
+parser.add_argument('--voice_state_size',               type=int,           default = 256,
                     help='Parameters in prior and posterior inner-states.')
 
 parser.add_argument('--wheels_joints_encode_size',   type=int,           default = 8,
