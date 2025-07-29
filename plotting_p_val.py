@@ -23,7 +23,7 @@ for plot_dict in plot_dicts:
     arg_name = plot_dict["args"].arg_name
     arg_names.append(arg_name)
     values_to_plot[arg_name] = {}
-    
+        
 task_names = []
 for key in plot_dicts[0].keys():
     if(key.startswith("wins_")):
@@ -35,16 +35,16 @@ for plot_dict in plot_dicts:
 
     # Final win-rates                 
     for task_name in task_names:
-        wins = plot_dict["wins_" + task_name]
+        wins = plot_dict["rolled_wins_" + task_name]
         wins = np.array(wins)
         wins = wins[:,-1]
         values_to_plot[args.arg_name]["wins_" + task_name] = wins
         
-        gen_wins = plot_dict["gen_wins_" + task_name]
+        gen_wins = plot_dict["rolled_gen_wins_" + task_name]
         gen_wins = np.array(gen_wins)  
         gen_wins = gen_wins[:,-1]
-        values_to_plot[args.arg_name]["gen_wins_" + task_name] = wins
-        
+        values_to_plot[args.arg_name]["gen_wins_" + task_name] = gen_wins
+                
     # reward
     reward = plot_dict["reward"]
     reward = np.array(reward)
@@ -113,7 +113,6 @@ def compare_and_plot(values_1, values_2, args_name_1, args_name_2, here, data_ty
 
     
     
-
 for value_name in value_names:
     print(f"\n{value_name}")
     #fig, axes = plt.subplots(num_args, num_args, figsize = (10, 10))
