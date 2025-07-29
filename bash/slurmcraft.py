@@ -126,18 +126,12 @@ add_this("t2",   {
 }) 
 
 add_this("t3", { 
-    "touch_encode_size" : 10,
-    "touch_state_size" : 10
+    "hidden_state_eta_report_voice" : [.2, .3, .5]
 })
 
 add_this("t4", { 
-    "touch_encode_size" : 64,
-    "touch_state_size" : 64
-})
-
-add_this("t5", { 
-    "beta_touch" : [.2, .3, .4],
-    "hidden_state_eta_touch" : [2, 2.25, 2.5]
+    "hidden_state_eta_vision" : [.03, .05],
+    "hidden_state_eta_touch" : [1.5, 2]
 })
 
 
