@@ -38,9 +38,9 @@ print("Ready to go!")
 
 
 
-hyper_parameters = "ef_q2_t2"
-agent_num = "0002"
-epochs = "000000"
+hyper_parameters = "ef"
+agent_num = "0001"
+epochs = "050000"
 saved_file = "saved_deigo"
 
 

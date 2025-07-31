@@ -77,20 +77,23 @@ def add_this(name, args):
                             new_value[arg_name] = condition[1]
         slurm_dict[new_key] = new_value
 
+# Agents with entropy
 add_this("e",   {
     "alpha" : "None", 
     "normal_alpha" : .05,
-    "target_entropy" : -1.5})    # Agents with entropy
+    "target_entropy" : -1.5})    
 
-add_this("c",   {                                           # Curiosity of language only
+# Curiosity of language only
+add_this("c",   {                                           
     "curiosity" : "hidden_state",
-    "hidden_state_eta_report_voice" : .75})
+    "hidden_state_eta_report_voice" : .2})
 
+# Agents with curiosity (hidden state)
 add_this("f",   {
     "curiosity" : "hidden_state",
     "hidden_state_eta_vision" : .05,
-    "hidden_state_eta_touch" : 2.25,       # This seems way to big!
-    "hidden_state_eta_report_voice" : .75})             # Agents with curiosity (hidden state)
+    "hidden_state_eta_touch" : 2.25,      
+    "hidden_state_eta_report_voice" : .2})   # For got to change these: .03 and 1.5.     
 
 
 
@@ -126,17 +129,17 @@ add_this("t2",   {
 }) 
 
 add_this("t3", { 
-    "hidden_state_eta_report_voice" : [.2, .3, .5]
+    "hidden_state_eta_report_voice" : [.1, .2, .3]
 })
 
 add_this("t4", { 
-    "hidden_state_eta_vision" : [.03, .05],
-    "hidden_state_eta_touch" : [1.5, 2]
+    "hidden_state_eta_vision" : [.01, .03, .05],
+    "hidden_state_eta_touch" : [1, 1.5, 2]
 })
 
 
 
-
+add_this("30", {})
 
 
 
