@@ -14,7 +14,7 @@ from agent import Agent
 
 hyper_parameters = "ef"
 agent_num = "0001"
-epochs = "050000"
+epochs = "000000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -40,7 +40,7 @@ print("Ready to go!")
 
 hyper_parameters = "ef"
 agent_num = "0001"
-epochs = "050000"
+epochs = "000000"
 saved_file = "saved_deigo"
 
 
@@ -52,7 +52,20 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
         new_agent = pickle.load(f) 
     agent.load_state_dict(new_agent.state_dict())
     
-    #new_agent.args.force = 1000000
+    new_agent.args.force = 3000 # 30000
+    new_agent.args.numSolverIterations = 1
+    new_agent.args.numSubSteps = 1
+    
+    
+    
+    """parser.add_argument('--steps_per_step',                 type=int,           default = 20,
+                    help='numSubSteps in pybullet environment.')
+parser.add_argument('--numSolverIterations',            type=int,           default = 1,
+                    help='numSubSteps in pybullet environment.')
+parser.add_argument('--numSubSteps',                    type=int,           default = 1,
+                    help='numSubSteps in pybullet environment.')"""
+    
+    
     
     change_args(new_agent)
 
@@ -96,10 +109,10 @@ change_agent(hyper_parameters, agent_num, epochs)
             
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(6, 1)], 
+    tasks_and_weights = [(0, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
-    shapes = [0, 1, 2, 3, 4], 
+    shapes = [0], 
     parenting = True)}
 
 agent.processor_name = 0
@@ -110,9 +123,9 @@ win = agent.save_episodes(
     verbose = False,
     display = False, 
     video_display = True,
-    sleep_time = .75, 
+    sleep_time = .25, 
     waiting = False, 
-    user_action = False, 
+    user_action = True, 
     dreaming = False)
 if(win): 
     wins += 1

@@ -11,6 +11,7 @@ from skimage.transform import resize
 import threading
 import pkg_resources
 import statistics
+from copy import deepcopy
 
 from utils import shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, duration, wait_for_button_press#, print
 from arena_navigator import run_tk
@@ -31,7 +32,10 @@ def get_physics(GUI, args, w = 10, h = 10):
     p.setAdditionalSearchPath("pybullet_data")
     p.setGravity(0, 0, args.gravity, physicsClientId = physicsClient)
     p.setTimeStep(args.time_step, physicsClientId=physicsClient)  # More accurate time step
-    p.setPhysicsEngineParameter(numSolverIterations=args.numSolverIterations, numSubSteps=args.numSubSteps, physicsClientId=physicsClient)  # Increased solver iterations for potentially better stability
+    p.setPhysicsEngineParameter(
+        numSolverIterations=args.numSolverIterations, 
+        numSubSteps=args.numSubSteps, 
+        physicsClientId=physicsClient)  # Increased solver iterations for potentially better stability
     return(physicsClient)
     
 def get_joint_index(body_id, joint_name, physicsClient):
@@ -149,10 +153,12 @@ class Arena():
                 
                 
     def change_physicsClient(self):
-        print(self.args.time_step, self.args.numSolverIterations, self.args.numSubSteps)
         p.setGravity(0, 0, self.args.gravity, physicsClientId = self.physicsClient)
         p.setTimeStep(self.args.time_step, physicsClientId=self.physicsClient)  
-        p.setPhysicsEngineParameter(numSolverIterations=self.args.numSolverIterations, numSubSteps=self.args.numSubSteps, physicsClientId=self.physicsClient)  # Increased solver iterations for potentially better stability
+        p.setPhysicsEngineParameter(
+            numSolverIterations=self.args.numSolverIterations, 
+            numSubSteps=self.args.numSubSteps, 
+            physicsClientId=self.physicsClient)  # Increased solver iterations for potentially better stability
             
                 
                 
@@ -230,22 +236,6 @@ class Arena():
             
     def step(self, left_wheel_speed, right_wheel_speed, joint_target_velocities, verbose = False, sleep_time = None, waiting = False):
         
-        """self.history_of_actions["left_wheel_speed"].append(left_wheel_speed)
-        self.history_of_actions["right_wheel_speed"].append(right_wheel_speed)
-        for key, value in joint_target_velocities.items():
-            if not key in self.history_of_actions["joint_target_velocities"]:
-                self.history_of_actions["joint_target_velocities"][key] = []
-            self.history_of_actions["joint_target_velocities"][key].append(value.item())
-            
-        for key, value in self.history_of_actions.items():
-            if(type(value) == list):
-                if(len(value) > 2):
-                    print(f"{key}: \t mean: {round(sum(value)/len(value), 3)}, std: {round(statistics.stdev(value), 3)}")
-            else:
-                for key2, value2 in value.items():
-                    if(len(value2) > 2):
-                        print(f"{key2}: \t mean: {round(sum(value2)/len(value2), 3)}, std: {round(statistics.stdev(value2), 3)}")"""
-        
         _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
         self.robot_start_yaw = yaw
         self.objects_start = self.get_object_positions()
@@ -300,7 +290,11 @@ class Arena():
             #print(f"right_wheel_steed_step {step}: {right_wheel_step}")
             self.set_wheel_speeds(left_wheel_step, right_wheel_step) 
             
-            joint_target_velocities_step_fixed = self.fix_joints(joint_target_velocities_step[step]) # This allows joints to over-extend!
+            joint_target_velocities_step_fixed = self.fix_joints(deepcopy(joint_target_velocities_step[step])) # This allows joints to over-extend!
+            for key, value in joint_target_velocities_step_fixed.items():
+                if(joint_target_velocities_step[step][key] != value):
+                    for substep in joint_target_velocities:
+                        joint_target_velocities_step[substep][key] = value
             self.set_joint_target_velocities(joint_target_velocities_step_fixed)         
             
             if(sleep_time != None):
@@ -323,7 +317,6 @@ class Arena():
         for object_index in self.objects_in_play.values():
             self.objects_local_pos_end[object_index] = self.get_local_position_of_object(object_index, stop_agent_pos, stop_agent_orn)
             self.objects_angle_end[object_index] = self.get_object_angle(object_index)
-        
         
         
         
@@ -383,8 +376,6 @@ class Arena():
         cross_product = np.cross(np.append(forward_vector, 0), np.append(normalized_distance_vector, 0))
         if cross_product[2] < 0:  
             angle_radians = -angle_radians
-        # WE MIGHT NEED TO CHECK THIS! If it outputs 330 instead of -30, that would be pushing left or right difficult.
-        #(angle_radians + np.pi) % (2 * np.pi) - np.pi)?
         return(angle_radians)
             
     def touching_object(self, object_index):
@@ -494,17 +485,21 @@ class Arena():
             min_angle = getattr(self.args, f'min_joint_{key}_angle')
             max_speed = self.args.max_joint_speed
             
-            if(joint_angles[key] < min_angle):
-                if(joint_target_velocities[key] < 0):
-                    joint_target_velocities[key] = 0
-            if(joint_angles[key] > max_angle):
-                if(joint_target_velocities[key] > 0):      
-                    joint_target_velocities[key] = 0
-                
             if(joint_speeds[key] > max_speed):
                 joint_target_velocities[key] = max_speed
             if(joint_speeds[key] < -max_speed):
                 joint_target_velocities[key] = -max_speed
+            
+            if(joint_angles[key] < min_angle):
+                diff = min_angle - joint_angles[key]
+                new_speed = diff * max_speed
+                if(joint_target_velocities[key] < new_speed):
+                    joint_target_velocities[key] = new_speed
+            if(joint_angles[key] > max_angle):
+                diff = max_angle - joint_angles[key]
+                new_speed = diff * max_speed
+                if(joint_target_velocities[key] > new_speed):
+                    joint_target_velocities[key] = new_speed
                 
         return(joint_target_velocities)
             

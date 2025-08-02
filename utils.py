@@ -1,14 +1,11 @@
 #%% 
 
 # To do:
-
-"""Case1: 3 colors X 3 shapes X 4 actions => 36 compositions. We train only 11 out of 36
-Case2: 5 colors X 4 shapes X 5 actions => 100 compositions. We train only 30 out of 100
-Case3: 6 colors X 5 shapes X 6 actions => 180 compositions. We train only 54 out of 180"""
 #   Agent might be able to do two tasks in one move by using both objects.
-#   Experiment with hyperparameters for touch.
-#   Experiment with extrinsic rewards.
-#   ARM CAN OVEREXTEND!
+#   Experiment with hyperparameters.
+#   ARM CAN OVEREXTEND! 
+#       Reducing object weight helps, but then the arm slips through objects.
+#       Try different arm weights.
 #   SOMETIMES OBJECTS DISAPPEAR!
 
 import os
