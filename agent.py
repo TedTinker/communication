@@ -97,8 +97,7 @@ class Agent:
             Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(task, 1)], objects = 2, colors = [color], shapes = [shape], parenting = True) for task, color, shape in \
                 product([t for t in self.args.allowed_tasks], [c for c in self.args.allowed_colors], [s for s in self.args.allowed_shapes])}
                 #product([1, 2], [1, 2], [1, 2])}
-        all_processor_names = list(self.all_processors.keys())
-        self.all_processor_names = all_processor_names
+        self.all_processor_names = list(self.all_processors.keys())
         
         self.target_entropy = self.args.target_entropy
         self.alpha = 1

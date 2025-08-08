@@ -83,8 +83,8 @@ add_this("e",   {
     "normal_alpha" : .05,
     "target_entropy" : -1.5})    
 
-vision_eta = .03
-touch_eta = 1.5
+vision_eta = .1
+touch_eta = 2
 report_eta = .2
 
 # Curiosity of touch only
@@ -113,7 +113,6 @@ add_this("q",   {
 
 
 add_this("q2",   {
-    #"save_agents" : "False",
     "save_behaviors" : "False",
     "save_compositions" : "False"})
 
@@ -138,15 +137,15 @@ add_this("t2",   {
 }) 
 
 add_this("tv", { 
-    "hidden_state_eta_vision" : [.01, .03, .05]
+    "hidden_state_eta_vision" : [.03, .05, .1]
 })
 
 add_this("tt", { 
-    "hidden_state_eta_touch" : [1, 1.5, 2]
+    "hidden_state_eta_touch" : [2, 2.5, 3]
 })
 
 add_this("tr", { 
-    "hidden_state_eta_report_voice" : [.1, .15, .2]
+    "hidden_state_eta_report_voice" : [.15, .2, .25]
 })
 
 
