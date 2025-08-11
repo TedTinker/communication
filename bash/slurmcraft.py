@@ -119,6 +119,16 @@ add_this("q2",   {
 
 
 
+
+add_this("t", { 
+    "lr" : [.0001, .0003, .0005, .00075, .001]
+})
+
+
+
+
+
+
 add_this("t1",   {
     "touch_top" : False,
     "yellow" : False,
