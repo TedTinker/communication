@@ -118,13 +118,11 @@ add_this("q2",   {
 
 
 
-
-
-add_this("t", { 
-    "lr" : [.0001, .0003, .0005, .00075, .001]
-})
-
-
+add_this("t",   {
+    "pointing_at_object_for_left_right" : [pi/4, pi/3],
+    "global_left_right_amount" : [.2, .25],
+    "local_left_right_amount" : [-10, -.05, 0]
+}) 
 
 
 

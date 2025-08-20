@@ -372,23 +372,23 @@ def plots(plot_dicts, min_max_dict):
         except: pass
         alpha_dict = get_quantiles(plot_dict, "alpha_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         actor_dict = get_quantiles(plot_dict, "actor_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        crit_dicts = get_list_quantiles(plot_dict["critics_loss"], plot_dict, levels = levels)
-        crit_min_max = many_min_max([crit_min_max for crit_min_max in min_max_dict["critics_loss"]])
+        #crit_dicts = get_list_quantiles(plot_dict["critics_loss"], plot_dict, levels = levels)
+        #crit_min_max = many_min_max([crit_min_max for crit_min_max in min_max_dict["critics_loss"]])
         
         def plot_other_losses(here, min_max = False):
             handles = []
             handles.append(awesome_plot(here, actor_dict, "red", "Actor", min_max_dict["actor_loss"] if min_max else None))
             here.set_ylabel("Actor Loss")
             ax2 = here.twinx()
-            handles.append(awesome_plot(ax2, crit_dicts[0], "blue", "log Critic 1", crit_min_max if min_max else None ))
-            ax2.set_ylabel("log Critic Losses")
+            #handles.append(awesome_plot(ax2, crit_dicts[0], "blue", "log Critic 1", crit_min_max if min_max else None ))
+            #ax2.set_ylabel("log Critic Losses")
             ax3 = here.twinx()
             ax3.spines["right"].set_position(("axes", 1.08))
             handles.append(awesome_plot(ax3, alpha_dict, "black", "Alpha", min_max_dict["alpha_loss"] if min_max else None))
             ax3.set_ylabel("Alpha Loss")
             here.set_xlabel("Epochs")
             here.legend(handles = handles)
-            here.set_title(plot_dict["arg_title"] + "\nActor, Critic Losses" + (", shared min/max" if min_max else ""))
+            #here.set_title(plot_dict["arg_title"] + "\nActor, Critic Losses" + (", shared min/max" if min_max else ""))
             divide_arenas(actor_dict, here)
             
         if(not too_many_plot_dicts): 
@@ -400,10 +400,10 @@ def plots(plot_dicts, min_max_dict):
         fig2, ax2 = plt.subplots(2, 1, figsize = (20, 30))
         fig2.suptitle(plot_dict["arg_title"])  
         plot_other_losses(ax2[0])  
-        ax2[0].set_title("Actor, Critic Losses")
+        #ax2[0].set_title("Actor, Critic Losses")
         plot_other_losses(ax2[1], min_max = True)  
-        ax2[1].set_title("Actor, Critic Losses, shared min/max")
-        fig2.savefig(f"thesis_pics/other_losses/actor_critic_losses_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
+        #ax2[1].set_title("Actor, Critic Losses, shared min/max")
+        #fig2.savefig(f"thesis_pics/other_losses/actor_critic_losses_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
         print(f"\tFinished other losses.")

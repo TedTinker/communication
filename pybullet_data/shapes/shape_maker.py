@@ -11,7 +11,7 @@ from time import sleep
 
 base_radius = .6
 max_radius = .6
-base_mass = 20
+base_mass = 100
 
 base_ixx = base_iyy = (1/12) * base_mass * (3 * base_radius**2 + base_radius**2)
 base_izz = 0.5 * base_mass * base_radius**2
@@ -48,7 +48,7 @@ f"""
 
 
 
-def innards(lengths, radia, mass = 1):
+def innards(lengths, radia, mass = 100):
     text = "<!-- Definition of the shape -->\n"
     
     volumes = [pi * r**2 * l for r, l in zip(radia, lengths)]

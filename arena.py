@@ -264,6 +264,12 @@ class Arena():
         change_in_right_wheel = right_wheel_speed_end - right_wheel_speed_start
         change_in_right_wheel_per_step = change_in_right_wheel / self.args.steps_per_step   
         
+        wheel_speed_steps = {}
+        for step in range(self.args.steps_per_step):
+            wheel_speed_steps[step]= (
+                left_wheel_speed_start + change_in_left_wheel_per_step * (step + 1),
+                right_wheel_speed_start + change_in_right_wheel_per_step * (step + 1))  
+        
         joint_target_velocities_start = self.get_joint_speeds()
         joint_target_velocities_end = {}
         for key, value in joint_target_velocities.items():
@@ -284,18 +290,14 @@ class Arena():
                 joint_target_velocities_step[step][key] = joint_target_velocities_start[key] + change_in_joint_velocities_per_step[key] * (step + 1)   
             
         for step in range(self.args.steps_per_step):   
-            left_wheel_step = left_wheel_speed_start + change_in_left_wheel_per_step * (step + 1)
-            right_wheel_step = right_wheel_speed_start + change_in_right_wheel_per_step * (step + 1)
-            #print(f"\nleft_wheel_steed_step {step}: {left_wheel_step}")
-            #print(f"right_wheel_steed_step {step}: {right_wheel_step}")
-            self.set_wheel_speeds(left_wheel_step, right_wheel_step) 
-            
-            joint_target_velocities_step_fixed = self.fix_joints(deepcopy(joint_target_velocities_step[step])) # This allows joints to over-extend!
+            joint_target_velocities_step_fixed, wheel_speed_step_fixed = self.fix_joints(deepcopy(joint_target_velocities_step[step]), deepcopy(wheel_speed_steps[step])) 
             for key, value in joint_target_velocities_step_fixed.items():
                 if(joint_target_velocities_step[step][key] != value):
                     for substep in joint_target_velocities:
                         joint_target_velocities_step[substep][key] = value
-            self.set_joint_target_velocities(joint_target_velocities_step_fixed)         
+            self.set_wheel_speeds(wheel_speed_step_fixed[0], wheel_speed_step_fixed[1]) 
+            self.set_joint_target_velocities(joint_target_velocities_step_fixed)   
+                  
             
             if(sleep_time != None):
                 sleep(sleep_time / self.args.steps_per_step)
@@ -477,7 +479,7 @@ class Arena():
             joint_speeds[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[1]  
         return joint_speeds
 
-    def fix_joints(self, joint_target_velocities):
+    def fix_joints(self, joint_target_velocities, wheel_target_speeds):
         joint_angles = self.get_joint_angles()
         joint_speeds = self.get_joint_speeds()
         for key in self.joint_indices.keys():
@@ -491,17 +493,32 @@ class Arena():
                 joint_target_velocities[key] = -max_speed
             
             if(joint_angles[key] < min_angle):
+                #print("TOO FAR RIGHT" if key == 1 else "TOO FAR UP")
+                touching = [v for inner_dict in self.touching_any_object().values() for v in inner_dict.values()]
+                
+                if(key == 1 and sum(touching) > 0 and wheel_target_speeds[0] < wheel_target_speeds[1]):
+                    #print("\tstopping wheels")
+                    wheel_target_speeds = (wheel_target_speeds[0]/5, wheel_target_speeds[1]/5)
                 diff = min_angle - joint_angles[key]
+                #print(f"DIFF: {round(diff, 2)} = {round(min_angle, 2)} - {round(joint_angles[key], 2)}")
                 new_speed = diff * max_speed
                 if(joint_target_velocities[key] < new_speed):
+                    #print(f"OLD SPEED: {round(joint_speeds[key], 2)}. NEW SPEED: {round(new_speed, 2)}")
                     joint_target_velocities[key] = new_speed
             if(joint_angles[key] > max_angle):
+                #print("TOO FAR LEFT" if key == 1 else "TOO FAR DOWN")
+                touching = [v for inner_dict in self.touching_any_object().values() for v in inner_dict.values()]
+                if(key == 1 and sum(touching) > 0 and wheel_target_speeds[0] > wheel_target_speeds[1]):
+                    #print("\tstopping wheels")
+                    wheel_target_speeds = (wheel_target_speeds[0]/5, wheel_target_speeds[1]/5)
                 diff = max_angle - joint_angles[key]
+                #print(f"DIFF: {round(diff, 2)} = {round(max_angle, 2)} - {round(joint_angles[key], 2)}")
                 new_speed = diff * max_speed
                 if(joint_target_velocities[key] > new_speed):
+                    #print(f"OLD SPEED: {round(joint_speeds[key], 2)}. NEW SPEED: {round(new_speed, 2)}")
                     joint_target_velocities[key] = new_speed
                 
-        return(joint_target_velocities)
+        return(joint_target_velocities, wheel_target_speeds)
             
         
         
@@ -591,13 +608,15 @@ class Arena():
             being_near = good_being_near_angle and not touching and distance <= self.args.be_near_distance
             
             # Is the object touched by the arm, while the arm-angle is high?
+            left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
+            good_wheel_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) <= self.args.max_wheel_speed_for_touch_top
             link_index = None 
             for sensor_name, sensor_index in self.sensors.items():
                 if(sensor_name.startswith("hand_sensor_") and sensor_name.endswith("_stop")):
                     link_index = sensor_index
             hand_height = p.getLinkState(bodyUniqueId=self.robot_index, linkIndex=link_index)[0][2]
             good_hand_height = hand_height >= self.args.touch_top_min_height    
-            topping = touching and not touching_body and good_hand_height  
+            topping = touching and not touching_body and good_hand_height and good_wheel_speed
                                     
             # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
             good_push_distance = (global_movement_forward >= self.args.global_push_amount)
@@ -608,14 +627,19 @@ class Arena():
             good_wheel_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) <= self.args.max_wheel_speed_for_left_right
             arm_speed = self.get_joint_speeds()[1]
             good_arm_speed = abs(arm_speed) >= self.args.min_arm_speed_for_left_right
-            good_push_left_distance = global_movement_left >= self.args.global_left_right_amount
-            good_push_right_distance = global_movement_left <= -self.args.global_left_right_amount
+            good_push_left_distance_global = global_movement_left >= self.args.global_left_right_amount
+            good_push_right_distance_global = global_movement_left <= -self.args.global_left_right_amount
+            good_push_left_distance_local = local_movement_left >= self.args.local_left_right_amount
+            good_push_right_distance_local = local_movement_left <= -self.args.local_left_right_amount
             good_left_right_angle = -self.args.pointing_at_object_for_left_right <= object_angle_end and object_angle_end <= self.args.pointing_at_object_for_left_right        
+            
+            #print(round(-self.args.global_left_right_amount, 2), round(global_movement_left, 2), round(self.args.global_left_right_amount, 2))
+            #print(round(-self.args.local_left_right_amount, 2), round(local_movement_left, 2), round(self.args.local_left_right_amount, 2))
             
             #print(f"\nobject {i}: \nTouch: {touching}, \nGood wheel speed: {good_wheel_speed},\nGood arm speed: {good_arm_speed},\nMovement Left: {global_movement_left}, \nobject_angle_end: {object_angle_end}")
             
-            lefting     = touching and good_push_left_distance and  good_left_right_angle and good_wheel_speed and good_arm_speed
-            righting    = touching and good_push_right_distance and good_left_right_angle and good_wheel_speed and good_arm_speed        
+            lefting     = touching and good_push_left_distance_global and good_push_left_distance_local and  good_left_right_angle and good_wheel_speed and good_arm_speed
+            righting    = touching and good_push_right_distance_global and good_push_left_distance_local and good_left_right_angle and good_wheel_speed and good_arm_speed        
             
             #print(f"LEFT: {lefting}, RIGHT: {righting}")
             

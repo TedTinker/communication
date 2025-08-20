@@ -8,7 +8,8 @@ except ImportError:
 joint_1_height = .2
 
 arm_mass = 2
-arm_length = 1.75
+arm_length = 1.5
+
 arm_width = .2
 
 hand_length = 1

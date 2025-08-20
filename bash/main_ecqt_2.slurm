@@ -6,4 +6,4 @@
 #SBATCH --mem=50G
 #SBATCH --ntasks=30
 module load singularity
-singularity exec maze.sif python communication/main.py --comp deigo --arg_name ecqt_2 --alpha None --normal_alpha 0.05 --target_entropy -1.5 --curiosity hidden_state --hidden_state_eta_report_voice 0.2 --save_agents False --save_behaviors False --save_compositions False --lr 0.0003  --agents $agents_per_job --previous_agents $previous_agents
+singularity exec maze.sif python communication/main.py --comp deigo --arg_name ecqt_2 --alpha None --normal_alpha 0.05 --target_entropy -1.5 --curiosity hidden_state --hidden_state_eta_report_voice 0.2 --save_agents False --save_behaviors False --save_compositions False --pointing_at_object_for_left_right 1.0471975511965976 --global_left_right_amount 0.2 --local_left_right_amount -10  --agents $agents_per_job --previous_agents $previous_agents

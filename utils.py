@@ -1,7 +1,6 @@
 #%% 
 
 # To do:
-#   Agent might be able to do two tasks in one move by using both objects.
 #   Experiment with hyperparameters.
 #   ARM CAN OVEREXTEND! 
 #       Reducing object weight helps, but then the arm slips through objects.
@@ -480,7 +479,7 @@ parser.add_argument('--num_agents',         type=int,         default = 0,
 parser.add_argument('--robot_name',                     type=str,           default = "robot",
                     help='Options: two_side_arm, one_head_arm.')    
 
-parser.add_argument('--tanh_touch',          type=literal,         default = True,
+parser.add_argument('--tanh_touch',          type=literal,         default = False,
                     help='Needed distance of an object for push/left/right.')
 
 parser.add_argument('--test_train_num',          type=int,         default = 3,
@@ -564,7 +563,7 @@ parser.add_argument('--load_agents',                    type=literal,       defa
 
 
     # Things which have list-values.
-parser.add_argument('--epochs',                         type=int,       default = 50000,
+parser.add_argument('--epochs',                         type=int,       default = 40000,
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 parser.add_argument('--processor',                      type=str,       default = "all",
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
@@ -606,7 +605,7 @@ parser.add_argument('--angular_scaler',                 type=float,         defa
 
 parser.add_argument('--max_joint_speed',                type=float,         default = 8,
                     help='Max joint speed.')
-parser.add_argument('--max_joint_1_angle',              type=float,         default = pi/6,
+parser.add_argument('--max_joint_1_angle',              type=float,         default = pi/4,
                     help='Max yaw angle.')
 parser.add_argument('--min_joint_2_angle',              type=float,         default = -pi/2,
                     help='Max yaw angle.')
@@ -661,12 +660,14 @@ parser.add_argument('--local_push_limit',          type=float,         default =
 
 parser.add_argument('--left_duration',                  type=int,           default = 3,   
                     help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--pointing_at_object_for_left_right', type=float,         default = pi/3,
+parser.add_argument('--pointing_at_object_for_left_right', type=float,         default = pi/4,
                     help='How close must the agent watch the object to achieve pushing left or right.')
 parser.add_argument('--global_left_right_amount',       type=float,         default = .2,
                     help='Needed distance of an object for push/left/right.')
-parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
+parser.add_argument('--local_left_right_amount',        type=float,         default = .05,
                     help='Needed distance of an object for push/left/right.')
+parser.add_argument('--max_wheel_speed_for_touch_top',     type=float,         default = 9,
+                    help='How close must the agent watch the object to achieve pushing left or right.')
 parser.add_argument('--max_wheel_speed_for_left_right',     type=float,         default = 5,
                     help='How close must the agent watch the object to achieve pushing left or right.')
 parser.add_argument('--min_arm_speed_for_left_right',          type=float,         default = .01,
@@ -716,9 +717,9 @@ parser.add_argument('--batch_size',                     type=int,           defa
                     help='How many episodes are sampled for each epoch.')       
 parser.add_argument('--weight_decay',                   type=float,         default = .00001,
                     help='Weight decay for modules.')       
-parser.add_argument('--lr',                             type=float,         default = .0003,
+parser.add_argument('--lr',                             type=float,         default = .00075,
                     help='Learning rate.')
-parser.add_argument('--critics',                        type=int,           default = 2,
+parser.add_argument('--critics',                        type=int,           default = 1,
                     help='How many critics?')  
 parser.add_argument("--tau",                            type=float,         default = .1,
                     help='Rate at which target-critics approach critics.')      
@@ -885,8 +886,6 @@ def update_args(arg_set):
     arg_set.obs_encode_size = arg_set.vision_encode_size + arg_set.touch_encode_size + arg_set.voice_encode_size
     arg_set.h_w_wheels_joints_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size + arg_set.voice_encode_size
-    """arg_set.epochs = [epochs_for_processor[0] for epochs_for_processor in arg_set.epochs_per_processor]
-    arg_set.processor_list = [epochs_for_processor[1] for epochs_for_processor in arg_set.epochs_per_processor]"""
     arg_set.right_duration = arg_set.left_duration
     
     allowed_task_dict = {
