@@ -600,8 +600,9 @@ class Arena():
             topping = touching and not touching_body and good_hand_height  
                                     
             # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
+            good_pushing_angle = abs(object_angle_end) < self.args.pointing_at_object_for_push
             good_push_distance = (global_movement_forward >= self.args.global_push_amount)
-            pushing = touching and good_push_distance and good_watching_angle
+            pushing = touching and good_push_distance and good_pushing_angle
                         
             # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
             left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
@@ -610,7 +611,7 @@ class Arena():
             good_arm_speed = abs(arm_speed) >= self.args.min_arm_speed_for_left_right
             good_push_left_distance = global_movement_left >= self.args.global_left_right_amount
             good_push_right_distance = global_movement_left <= -self.args.global_left_right_amount
-            good_left_right_angle = -self.args.pointing_at_object_for_left_right <= object_angle_end and object_angle_end <= self.args.pointing_at_object_for_left_right        
+            good_left_right_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_left_right 
             
             #print(f"\nobject {i}: \nTouch: {touching}, \nGood wheel speed: {good_wheel_speed},\nGood arm speed: {good_arm_speed},\nMovement Left: {global_movement_left}, \nobject_angle_end: {object_angle_end}")
             
@@ -690,8 +691,8 @@ class Arena():
             been_near   = update_duration("be_near",    being_near, object_index, self.args.be_near_duration)
             topped      = update_duration("top",        topping,    object_index, self.args.top_duration)
             pushed      = update_duration("push",       pushing,    object_index, self.args.push_duration)
-            lefted      = update_duration("left",       lefting,    object_index, self.args.left_duration)
-            righted     = update_duration("right",      righting,   object_index, self.args.right_duration)
+            lefted      = update_duration("left",       lefting,    object_index, self.args.left_right_duration)
+            righted     = update_duration("right",      righting,   object_index, self.args.left_right_duration)
             
             
 

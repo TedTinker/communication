@@ -9,16 +9,13 @@ args.local = True
 args.show_duration = True
 args.save_compositions = False
 
-args.touch_top = False,
-args.yellow = False,
-args.hourglass = False,
-args.test_train_num = 2
+args.numSubSteps = 2
 
 def run():
     agent = Agent(
         args = args,
         i = 1, 
-        GUI = False)
+        GUI = True)
     agent.training(sleep_time = 0)
     
 run()

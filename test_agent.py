@@ -14,7 +14,7 @@ from agent import Agent
 
 hyper_parameters = "ef"
 agent_num = "0001"
-epochs = "000000"
+epochs = "060000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -24,6 +24,11 @@ with gzip.open(load_path, "rb") as f:
     agent = pickle.load(f) 
     
 agent.start_physics(GUI = True)
+
+
+
+agent.args.pointing_at_object_for_push = agent.args.pointing_at_object_for_watch
+agent.args.left_right_duration = agent.args.left_duration 
 
 
 
@@ -39,8 +44,8 @@ print("Ready to go!")
 
 
 hyper_parameters = "ef"
-agent_num = "0001"
-epochs = "000000"
+agent_num = "0002"
+epochs = "060000"
 saved_file = "saved_deigo"
 
 
@@ -52,21 +57,7 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
         new_agent = pickle.load(f) 
     agent.load_state_dict(new_agent.state_dict())
     
-    new_agent.args.force = 3000 # 30000
-    new_agent.args.numSolverIterations = 1
-    new_agent.args.numSubSteps = 1
-    
-    
-    
-    """parser.add_argument('--steps_per_step',                 type=int,           default = 20,
-                    help='numSubSteps in pybullet environment.')
-parser.add_argument('--numSolverIterations',            type=int,           default = 1,
-                    help='numSubSteps in pybullet environment.')
-parser.add_argument('--numSubSteps',                    type=int,           default = 1,
-                    help='numSubSteps in pybullet environment.')"""
-    
-    
-    
+    #new_agent.args.numSubSteps = 2
     change_args(new_agent)
 
     episodes = 0
@@ -92,6 +83,9 @@ def change_args(new_agent):
         
     
 change_agent(hyper_parameters, agent_num, epochs)
+
+agent.args.pointing_at_object_for_push = agent.args.pointing_at_object_for_watch
+agent.args.left_right_duration = agent.args.left_duration 
      
 
 
@@ -109,10 +103,10 @@ change_agent(hyper_parameters, agent_num, epochs)
             
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(0, 1)], 
+    tasks_and_weights = [(6, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
-    shapes = [0], 
+    shapes = [0, 1, 2, 3, 4], 
     parenting = True)}
 
 agent.processor_name = 0
@@ -125,7 +119,7 @@ win = agent.save_episodes(
     video_display = True,
     sleep_time = .25, 
     waiting = False, 
-    user_action = True, 
+    user_action = False, 
     dreaming = False)
 if(win): 
     wins += 1

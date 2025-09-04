@@ -83,13 +83,14 @@ add_this("e",   {
     "normal_alpha" : .05,
     "target_entropy" : -1.5})    
 
-vision_eta = .03
+vision_eta = .01
 touch_eta = 1.5
-report_eta = .2
+report_eta = .1
 
 # Curiosity of touch only
 add_this("p",   {                                           
     "curiosity" : "hidden_state",
+    "hidden_state_eta_vision" : vision_eta,
     "hidden_state_eta_touch" : touch_eta})
 
 # Curiosity of language only
@@ -116,6 +117,16 @@ add_this("q2",   {
     #"save_agents" : "False",
     "save_behaviors" : "False",
     "save_compositions" : "False"})
+
+
+
+
+add_this("t",   {
+    "critics" : [1, 2],
+    "lr" : [.0003, .00075]})
+
+
+add_this("z",   {})
 
 
 

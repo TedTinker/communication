@@ -72,12 +72,7 @@ class Agent:
         self.total_steps = 0
         self.total_episodes = 0
         self.total_epochs = 0
-        
-        self.reward_inflation = 0
-        if(self.args.reward_inflation_type == "None"):
-            self.reward_inflation = 1
-        self.hidden_state_eta_report_voice_reduction = 1
-        
+                
         if self.args.device.type == "cuda":
             print(f"\nIN AGENT: {i} DEVICE: {self.args.device} ({torch.cuda.current_device()} out of {[j for j in range(torch.cuda.device_count())]}, {torch.cuda.get_device_name(torch.cuda.current_device())})\n")
         else:
@@ -197,7 +192,7 @@ class Agent:
         self.epochs = 0 
         self.arena_1 = Arena(GUI = GUI, args = self.args)
         self.arena_2 = Arena(GUI = False, args = self.args)
-        self.processor_name = self.args.processor
+        self.processor_name = "all"
         
     def give_actor_voice(self):
         self.actor.voice_out.load_state_dict(self.forward.predict_obs.command_voice_out.state_dict())
@@ -354,9 +349,7 @@ class Agent:
             obs_2, action_2, hp_2, hq_2, values_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2 = agent_step(agent_1 = False)
 
             reward, done, win = self.processor.step(action_1.wheels_joints[0,0].clone(), None if action_2 == None else action_2.wheels_joints[0,0].clone(), sleep_time = sleep_time, verbose = verbose)
-            
-            reward *= self.reward_inflation
-            
+                        
             def next_agent_step(agent_1 = True):
                 
                 if(parenting and not agent_1):
@@ -455,24 +448,6 @@ class Agent:
                 to_push.push(self.memory)
         
         percent_done = self.epochs / self.args.epochs
-        
-        if(self.args.hidden_state_eta_report_voice_reduction_type == "linear"):
-            self.hidden_state_eta_report_voice_reduction = 1 - percent_done
-        if(self.args.hidden_state_eta_report_voice_reduction_type.startswith("exp")):
-            exp = float(self.args.hidden_state_eta_report_voice_reduction_type.split("_")[-1])
-            self.hidden_state_eta_report_voice_reduction = 1 - (percent_done ** exp)
-        if(self.args.hidden_state_eta_report_voice_reduction_type.startswith("sigmoid")):
-            k = float(self.args.hidden_state_eta_report_voice_reduction_type.split("_")[-1])
-            self.hidden_state_eta_report_voice_reduction = 1 - (1 / (1 + np.exp(-k * (self.epochs - self.args.epochs/2))))
-            
-        if(self.args.reward_inflation_type == "linear"):
-            self.reward_inflation = percent_done
-        if(self.args.reward_inflation_type.startswith("exp")):
-            exp = float(self.args.reward_inflation_type.split("_")[-1])
-            self.reward_inflation = percent_done ** exp
-        if(self.args.reward_inflation_type.startswith("sigmoid")):
-            k = float(self.args.reward_inflation_type.split("_")[-1])
-            self.reward_inflation = (1 / (1 + np.exp(-k * (self.epochs - self.args.epochs/2))))
                         
         end_time = duration()
         print_duration(start_time, end_time, "\nTraining episode", "\n")
@@ -859,7 +834,7 @@ class Agent:
         vision_hidden_state_curiosity                 = self.args.hidden_state_eta_vision               * torch.clamp(vision_complexity, min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
         touch_hidden_state_curiosity              = self.args.hidden_state_eta_touch            * torch.clamp(touch_complexity, min = 0, max = self.args.dkl_max)
         command_voice_hidden_state_curiosity         = self.args.hidden_state_eta_command_voice       * torch.clamp(command_voice_complexity, min = 0, max = self.args.dkl_max)
-        report_voice_hidden_state_curiosity     = self.args.hidden_state_eta_report_voice       * torch.clamp(report_voice_complexity, min = 0, max = self.args.dkl_max) * self.hidden_state_eta_report_voice_reduction
+        report_voice_hidden_state_curiosity     = self.args.hidden_state_eta_report_voice       * torch.clamp(report_voice_complexity, min = 0, max = self.args.dkl_max)
         hidden_state_curiosity                      = vision_hidden_state_curiosity + touch_hidden_state_curiosity + command_voice_hidden_state_curiosity + report_voice_hidden_state_curiosity
         
         if(self.args.curiosity == "prediction_error"):  curiosity = prediction_error_curiosity
