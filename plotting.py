@@ -53,13 +53,14 @@ def clean_and_interpolate_nan(arr, xs, non_nan_mask):
 
 
 
-def get_quantiles(plot_dict, name, levels=[99, 0], adjust_xs=None):
+def get_quantiles(plot_dict, name, levels=[99, 0], adjust_xs=None):    
     if 0 not in levels:
         levels.append(0)
     max_len = mode([len(agent) for agent in plot_dict[name]])
     lists = np.array([[np.nan if x in [None, "not_used"] else x for x in agent] 
                       for agent in plot_dict[name] if len(agent) == max_len], dtype=float)
         
+    lists = lists[:args.agents_for_plotting]
     non_nan_mask = ~np.isnan(lists).all(axis=0)
     xs = np.arange(lists.shape[1])
     if adjust_xs is not None:  
@@ -259,6 +260,71 @@ def plots(plot_dicts, min_max_dict):
             
         fig2.savefig(f"thesis_pics/rolling_win_rate/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
+        
+        
+        
+        
+        
+        
+        
+        # Rolling win-rate, no confidence intervals
+        try: os.mkdir("thesis_pics/rolling_win_rate_no_confidence")
+        except: pass
+    
+        task_name_list = []
+        for key in plot_dict.keys():
+            if(key.startswith("wins_")):
+                if(key[5:] != "SILENCE"):
+                    task_name_list.append(key[5:])
+                                                            
+        fig2, ax2 = plt.subplots(len(task_name_list), 1, figsize = (10, 30))
+        fig2.suptitle(plot_dict["arg_title"])  
+        fig2_row_num = 0
+                    
+        for task_name in task_name_list:     
+            
+            win_dict = get_quantiles(plot_dict, f"rolled_wins_{task_name}", levels = [0], adjust_xs = None)
+            gen_win_dict = get_quantiles(plot_dict, f"rolled_gen_wins_{task_name}", levels = [0], adjust_xs = None)
+            
+            for key, value in win_dict.items():
+                if(key != "xs"):
+                    win_dict[key] *= 100
+                    gen_win_dict[key] *= 100
+                else:
+                    gen_win_dict[key] *= args.epochs_per_gen_test
+                                
+            def plot_rolling_average_wins(here, gen = False):
+                handles = []
+                handles.append(awesome_plot(here, win_dict, "turquoise", "Learned", (0,100)))
+                handles.append(awesome_plot(here, gen_win_dict, "pink", "Not Learned", (0,100)))
+                here.set_ylabel((f"Rolling-Average Gen-Win-Rate" if gen else f"Rolling-Average Win-Rate"))
+                here.yaxis.set_major_formatter(FuncFormatter(to_percent))
+                here.set_xlabel("Epochs")
+                here.legend(handles = handles)
+                here.set_title(plot_dict["arg_title"] + (f"\nRolling-Average Gen-Win-Rate ({task_name})" if gen else f"\nRolling-Average Win-Rate ({task_name})"))
+                divide_arenas(win_dict, here)
+                
+                    
+            #if(not too_many_plot_dicts): 
+            #    plot_rolling_average_wins(ax)
+            #    ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
+            #    plot_rolling_average_wins(ax, gen = True)
+            #    ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
+            
+            plot_rolling_average_wins(ax2[fig2_row_num])  
+            ax2[fig2_row_num].set_title(f"Both ({task_name})")
+            
+            fig2_row_num += 1
+            print(f"\tFinished win-rates w/o confidence intervals ({task_name}).")
+            
+        fig2.savefig(f"thesis_pics/rolling_win_rate_no_confidence/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
+        plt.close(fig2)
+        
+        
+        
+        
+        
+        
             
                 
                 
@@ -613,7 +679,7 @@ def plots(plot_dicts, min_max_dict):
         plt.savefig("thesis_pics/plot.png", bbox_inches = "tight")
         plt.close(fig)
     
-    
+args.agents_for_plotting = 99999
 
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 plots(plot_dicts, min_max_dict)

@@ -14,7 +14,7 @@ from agent import Agent
 
 hyper_parameters = "ef"
 agent_num = "0001"
-epochs = "000000"
+epochs = "060000"
 saved_file = "saved_deigo"
 
 print("\n\nLoading default agent...", end = " ")
@@ -99,7 +99,7 @@ change_agent(hyper_parameters, agent_num, epochs)
 
 
 
-    #0,  # Free Play (can we do this?)
+    #0,  # Free Play
     #1,  # Watch
     #2,  # Be Near
     #3,  # Top
@@ -109,10 +109,10 @@ change_agent(hyper_parameters, agent_num, epochs)
             
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(0, 1)], 
+    tasks_and_weights = [(6, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
-    shapes = [0], 
+    shapes = [0, 1, 2, 3, 4], 
     parenting = True)}
 
 agent.processor_name = 0
@@ -125,7 +125,7 @@ win = agent.save_episodes(
     video_display = True,
     sleep_time = .25, 
     waiting = False, 
-    user_action = True, 
+    user_action = False, 
     dreaming = False)
 if(win): 
     wins += 1

@@ -1,9 +1,0 @@
-#!/bin/bash -l
-#SBATCH --partition=compute
-#SBATCH --nodes=1
-#SBATCH --cpus-per-task=1
-#SBATCH --time 72:00:00
-#SBATCH --mem=50G
-#SBATCH --ntasks=10
-module load singularity
-singularity exec maze.sif python communication/main.py --comp deigo --arg_name efq_t2_t3_4 --alpha None --normal_alpha 0.05 --target_entropy -1.5 --curiosity hidden_state --hidden_state_eta_vision 0.05 --hidden_state_eta_touch 2.25 --hidden_state_eta_report_voice 1 --save_agents False --save_behaviors False --save_compositions False --touch_top False --be_near False --magenta False --yellow False --cone False --hourglass False --test_train_num 1  --agents $agents_per_job --previous_agents $previous_agents

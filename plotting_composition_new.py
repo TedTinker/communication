@@ -555,7 +555,7 @@ def plot_by_attribute(ax, start_aligned_data, stop_aligned_data, fraction_of_sta
         
     
 #these_epochs = [0, 2500, 10000, 20000, 30000, 40000, 50000]
-these_epochs = [i for i in range(0, 50001, 2500)]
+these_epochs = [i for i in range(0, 60001, 2500)]
 
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 for plot_dict in plot_dicts:
@@ -568,7 +568,7 @@ for plot_dict in plot_dicts:
             component = component)
         for reducer_type in [
             "lda",
-            "pca"
+            #"pca"
             ]:
             make_all_reducers(
                 plot_dict = plot_dict, 

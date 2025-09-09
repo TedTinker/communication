@@ -53,4 +53,4 @@ def export_here(arg_name, agent_num, reducer_type, component, end_text):
     to_here = f"saved_deigo/thesis_pics/composition/{arg_name}_agent_{agent_num}_{component}_{reducer_type}{end_text}.mp4"
     images_to_video(from_here, to_here, fps = 5)
     
-export_here("e", "1", "pca", "hq", end_text = "_new")
+export_here("ef", "1", "lda", "hq", end_text = "_new")

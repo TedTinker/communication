@@ -474,64 +474,61 @@ def literal(arg_string): return(ast.literal_eval(arg_string))
 parser = argparse.ArgumentParser()
 
     # Stuff I'm testing right now   
-parser.add_argument('--num_agents',         type=int,         default = 0,
-                    help='Needed distance of an object for push/left/right.')
-    
-parser.add_argument('--robot_name',                     type=str,           default = "robot",
-                    help='Options: two_side_arm, one_head_arm.')    
+parser.add_argument('--tanh_touch',                     type=literal,       default = True,
+                    help='Do sensors measure contact with Tanh?')
 
-parser.add_argument('--tanh_touch',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--test_train_num',                 type=int,           default = 3,
+                    help='Which collects of tasks/colors/shapes are used?')
 
-parser.add_argument('--test_train_num',          type=int,         default = 3,
-                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--processor',                      type=str,       default = "all",
+                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 
+parser.add_argument("--hidden_state_eta_report_voice_reduction_type",  type=str,         default = "None",
+                    help='How should interest in report_voice chance?') 
 
-
-
-parser.add_argument('--watch',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--be_near',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--touch_top',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--push_forward',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--push_left',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--push_right',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-
-parser.add_argument('--red',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--green',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--blue',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--cyan',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--magenta',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--yellow',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-
-parser.add_argument('--pillar',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--pole',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--dumbbell',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--cone',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--hourglass',          type=literal,         default = True,
-                    help='Needed distance of an object for push/left/right.')
+parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
+                    help='How should reward increase?')   
 
 
 
 
+    # Which tasks/colors/shapes are allowed in this test_train_num?
+parser.add_argument('--watch',                          type=literal,       default = True,
+                    help='Allow watch task?')
+parser.add_argument('--be_near',                        type=literal,       default = True,
+                    help='Allow be_near task?')
+parser.add_argument('--touch_top',                      type=literal,       default = True,
+                    help='Allow touch_top task?')
+parser.add_argument('--push_forward',                   type=literal,       default = True,
+                    help='Allow push_forward task?')
+parser.add_argument('--push_left',                      type=literal,       default = True,
+                    help='Allow push_left task?')
+parser.add_argument('--push_right',                     type=literal,       default = True,
+                    help='Allow push_right task?')
 
+parser.add_argument('--red',                            type=literal,       default = True,
+                    help='Allow red color?')
+parser.add_argument('--green',                          type=literal,       default = True,
+                    help='Allow green color?')
+parser.add_argument('--blue',                           type=literal,       default = True,
+                    help='Allow blue color?')
+parser.add_argument('--cyan',                           type=literal,       default = True,
+                    help='Allow cyan color?')
+parser.add_argument('--magenta',                        type=literal,       default = True,
+                    help='Allow magenta color?')
+parser.add_argument('--yellow',                         type=literal,       default = True,
+                    help='Allow yellow color?')
 
-
+parser.add_argument('--pillar',                         type=literal,       default = True,
+                    help='Allow pillar shape?')
+parser.add_argument('--pole',                           type=literal,       default = True,
+                    help='Allow pole shape?')
+parser.add_argument('--dumbbell',                       type=literal,       default = True,
+                    help='Allow dumbbell shape?')
+parser.add_argument('--cone',                           type=literal,       default = True,
+                    help='Allow cone shape?')
+parser.add_argument('--hourglass',                      type=literal,       default = True,
+                    help='Allow hourglass shape?')
 
     
 
@@ -559,34 +556,19 @@ parser.add_argument('--local',                          type=bool,          defa
 parser.add_argument('--show_duration',                  type=bool,          default = False,
                     help='Should durations be printed?')
 parser.add_argument('--load_agents',                    type=literal,       default = False,
-                    help='Are we loading agents?')    
+                    help='Are we loading agents?')      
 
-
-
-    # Things which have list-values.
-parser.add_argument('--epochs',                         type=int,       default = 50000,
-                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--processor',                      type=str,       default = "all",
-                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
     
 
     # Simulation details
 parser.add_argument('--time_step',                      type=float,         default = .005,
-                    help='numSubSteps in pybullet environment.')
+                    help='Length of step in pybullet environment.')
 parser.add_argument('--steps_per_step',                 type=int,           default = 20,
-                    help='numSubSteps in pybullet environment.')
+                    help='Agent-steps for each action.')
 parser.add_argument('--numSolverIterations',            type=int,           default = 1,
-                    help='numSubSteps in pybullet environment.')
+                    help='Precision of steps in pybullet environment.')
 parser.add_argument('--numSubSteps',                    type=int,           default = 1,
                     help='numSubSteps in pybullet environment.')
-parser.add_argument('--min_object_separation',          type=float,         default = 3,
-                    help='How far objects must start from each other.')
-parser.add_argument('--max_object_distance',            type=float,         default = 4,
-                    help='How far objects can start from the agent.')
-parser.add_argument('--object_size',                    type=float,         default = 2,
-                    help='How large is the agent\'s body?')    
-parser.add_argument('--body_size',                      type=float,         default = 2,
-                    help='How large is the agent\'s body?')        
 parser.add_argument('--force',                          type=float,         default = 30000,
                     help='Force for moving joints.') 
 parser.add_argument('--gravity',                        type=float,         default = -9.8,
@@ -595,33 +577,38 @@ parser.add_argument('--gravity',                        type=float,         defa
 
 
     # Agent details
+parser.add_argument('--robot_name',                     type=str,           default = "robot",
+                    help='Name of the robot\'s urdf file.')  
+parser.add_argument('--body_size',                      type=float,         default = 2,
+                    help='How large is the agent\'s body?')  
 parser.add_argument('--image_size',                     type=int,           default = 16, #20,
                     help='Dimensions of the images observed.')
-parser.add_argument('--max_wheel_acceleration',         type=float,         default = 100000,
-                    help='Max wheel speed.')
 parser.add_argument('--max_wheel_speed',                type=float,         default = 10,
                     help='Max wheel speed.')
 parser.add_argument('--angular_scaler',                 type=float,         default = .4,
                     help='How to scale angular velocity vs linear velocity.')
-
 parser.add_argument('--max_joint_speed',                type=float,         default = 8,
                     help='Max joint speed.')
 parser.add_argument('--max_joint_1_angle',              type=float,         default = pi/6,
                     help='Max yaw angle.')
 parser.add_argument('--min_joint_2_angle',              type=float,         default = -pi/2,
-                    help='Max yaw angle.')
+                    help='Min pitch angle.')
 parser.add_argument('--max_joint_2_angle',              type=float,         default = 0,
-                    help='Max yaw angle.')
+                    help='Max pitch angle.')
 
 
 
     # Processor details
+parser.add_argument('--max_object_distance',            type=float,         default = 4,
+                    help='How far objects can start from the agent.')
+parser.add_argument('--object_size',                    type=float,         default = 2,
+                    help='How large are objects?')          
+
 parser.add_argument('--reward',                         type=float,         default = 10,
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--wrong_object_punishment',        type=float,         default = 0,
                     help='Negative reward for punishing doing anything to the wrong object (except watching).') 
-parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
-                    help='How should reward increase?')   
+
 parser.add_argument('--max_steps',                      type=int,           default = 30,     
                     help='How many steps the agent can make in one episode.')
 parser.add_argument('--step_lim_punishment',            type=float,         default = 0,
@@ -634,43 +621,45 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 
 parser.add_argument('--watch_duration',                 type=int,           default = 6,
-                    help='How long must the agent watch the object to achieve watching.')
+                    help='How long the agent must watch the object to achieve watching.')
 parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/12,
-                    help='How close must the agent watch the object to achieve watching or pushing.')
+                    help='How directly the agent must point to the object to achieve watching.')
 parser.add_argument('--watch_distance',                 type=float,         default = 6,
-                    help='How close must the agent watch the object to achieve watching.')
+                    help='How closely the agent must watch the object to achieve watching.')
 
 parser.add_argument('--be_near_duration',               type=int,           default = 5,
-                    help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--pointing_at_object_for_being_near',   type=float,         default = pi/12,
-                    help='How close must the agent watch the object to achieve watching or pushing.')
+                    help='How long the agent must be near the object to achieve be_near.')
+parser.add_argument('--pointing_at_object_for_being_near',  type=float,     default = pi/12,
+                    help='How directly the agent must point to the object to achieve be_near.')
 parser.add_argument('--be_near_distance',               type=float,         default = 3.25,
-                    help='How close must the agent watch the object to achieve be_near.')
+                    help='How close the agent must be near the object to achieve be_near.')
 
 parser.add_argument('--top_duration',                   type=int,           default = 3,   
-                    help='How long must the agent watch the object to achieve watching.')
+                    help='How long the agent must touch the top of the object to achieve touch_top.')
 parser.add_argument('--touch_top_min_height',           type=float,         default = 3.75,
                     help='How elevated the agent\'s arm must be to touch the object from above.')
 
 parser.add_argument('--push_duration',                  type=int,           default = 3,
-                    help='How long must the agent watch the object to achieve watching.')
+                    help='How long the agent must push the object to achieve push_forward.')
+parser.add_argument('--pointing_at_object_for_push',    type=float,         default = pi/12,
+                    help='How directly the agent must point to the object to achieve push_forward.')
 parser.add_argument('--global_push_amount',             type=float,         default = .1,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--local_push_limit',          type=float,         default = .3,
+                    help='Needed distance of an object\'s movement for push_forward')
+parser.add_argument('--local_push_limit',               type=float,         default = .3,
                     help='Prevent bogus pushing by requiring local stillness.')
 
-parser.add_argument('--left_duration',                  type=int,           default = 3,   
-                    help='How long must the agent watch the object to achieve watching.')
-parser.add_argument('--pointing_at_object_for_left_right', type=float,         default = pi/3,
-                    help='How close must the agent watch the object to achieve pushing left or right.')
+parser.add_argument('--left_right_duration',            type=int,           default = 3,   
+                    help='How long the agent must push the object to achieve push_left or push_right.')
+parser.add_argument('--pointing_at_object_for_left_right', type=float,      default = pi/3,
+                    help='How directly the agent must point to the object to achieve push_left or push_right.')
 parser.add_argument('--global_left_right_amount',       type=float,         default = .2,
-                    help='Needed distance of an object for push/left/right.')
+                    help='Needed distance of an object\'s movement for push_left or push_right.')
 parser.add_argument('--local_left_right_amount',        type=float,         default = .25,
-                    help='Needed distance of an object for push/left/right.')
-parser.add_argument('--max_wheel_speed_for_left_right',     type=float,         default = 5,
-                    help='How close must the agent watch the object to achieve pushing left or right.')
-parser.add_argument('--min_arm_speed_for_left_right',          type=float,         default = .01,
-                    help='Needed distance of an object for push/left/right.')
+                    help='Prevent bogus pushing by requiring local movement.')
+parser.add_argument('--max_wheel_speed_for_left_right', type=float,         default = 5,
+                    help='How fast the agent\'s wheels may move for push_left or push_right.')
+parser.add_argument('--min_arm_speed_for_left_right',   type=float,         default = .01,
+                    help='How fast the agent\'s arm must move for push_left or push_right.')
 
 
 
@@ -681,9 +670,9 @@ parser.add_argument('--hidden_size',                    type=int,           defa
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,
                     help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
 
-parser.add_argument('--vision_encode_size',               type=int,           default = 128,
+parser.add_argument('--vision_encode_size',             type=int,           default = 128,
                     help='Parameters in encoding image.')   
-parser.add_argument('--vision_state_size',                type=int,           default = 128,
+parser.add_argument('--vision_state_size',              type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
 
 parser.add_argument('--char_encode_size',               type=int,           default = 8,
@@ -693,11 +682,11 @@ parser.add_argument('--voice_encode_size',              type=int,           defa
 parser.add_argument('--voice_state_size',               type=int,           default = 256,
                     help='Parameters in prior and posterior inner-states.')
 
-parser.add_argument('--wheels_joints_encode_size',   type=int,           default = 8,
+parser.add_argument('--wheels_joints_encode_size',      type=int,           default = 8,
                     help='Parameters in encoding wheels_joints.')   
-parser.add_argument('--touch_encode_size',               type=int,           default = 20,
+parser.add_argument('--touch_encode_size',              type=int,           default = 20,
                     help='Parameters in encoding image.')  
-parser.add_argument('--touch_state_size',                type=int,           default = 20,
+parser.add_argument('--touch_state_size',               type=int,           default = 20,
                     help='Parameters in prior and posterior inner-states.')
 
 parser.add_argument('--dropout',                        type=float,         default = .001,
@@ -705,11 +694,13 @@ parser.add_argument('--dropout',                        type=float,         defa
 parser.add_argument('--divisions',                      type=int,           default = 2,
                     help='How many times should RBGD_Out double size to image-size?')
 parser.add_argument('--half',                           type=literal,       default = True,
-                    help='Should the models use float16 instead of float32?')      
+                    help='Should the models use float16 instead of float32?')   
 
 
 
     # Training
+parser.add_argument('--epochs',                         type=int,       default = 60000,
+                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 parser.add_argument('--capacity',                       type=int,           default = 256,
                     help='How many episodes can the memory buffer contain.')
 parser.add_argument('--batch_size',                     type=int,           default = 32, 
@@ -735,11 +726,11 @@ parser.add_argument("--normal_alpha",                   type=float,         defa
 parser.add_argument("--alpha",                          type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
 parser.add_argument("--target_entropy",                 type=float,         default = 0,
-                    help='Target for choosing alpha if alpha set to None. Recommended: negative size of wheels_joints-space.')      
+                    help='Target for choosing alpha if alpha set to None. Recommended: negative size of action-space.')      
 parser.add_argument("--alpha_text",                     type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy regarding agent voice. Set to None to use target_entropy_text.')        
 parser.add_argument("--target_entropy_text",            type=float,         default = 0,
-                    help='Target for choosing alpha_text if alpha_text set to None. Recommended: negative size of voice_out-space.')      
+                    help='Target for choosing alpha_text if alpha_text set to None. Recommended: negative size of voice_out-space.')     
 
 
 
@@ -756,25 +747,37 @@ parser.add_argument("--dkl_max",                        type=float,         defa
 
 
     # Vision
-parser.add_argument('--vision_scaler',                    type=float,         default = 5, 
+parser.add_argument('--vision_scaler',                  type=float,         default = 5, 
                     help='How much to consider vision prediction in accuracy compared to voice and touch.')   
-parser.add_argument("--beta_vision",                      type=float,         default = .03,
+parser.add_argument("--beta_vision",                    type=float,         default = .03,
                     help='Relative importance of complexity for vision.')
-parser.add_argument("--prediction_error_eta_vision",      type=float,         default = 0,
+parser.add_argument("--prediction_error_eta_vision",    type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for vision.')    
-parser.add_argument("--hidden_state_eta_vision",          type=float,         default = 0,
+parser.add_argument("--hidden_state_eta_vision",        type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for vision.') 
 
 
     # Touch
-parser.add_argument('--touch_scaler',                 type=float,         default = .3, 
+parser.add_argument('--touch_scaler',                   type=float,         default = .3, 
                     help='How much to consider touch prediction in accuracy compared to vision and voice.')   
-parser.add_argument("--beta_touch",                   type=float,         default = .3,
+parser.add_argument("--beta_touch",                     type=float,         default = .3,
                     help='Relative importance of complexity for touch.')     
-parser.add_argument("--prediction_error_eta_touch",   type=float,         default = 0,
+parser.add_argument("--prediction_error_eta_touch",     type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for touch.')   
-parser.add_argument("--hidden_state_eta_touch",       type=float,         default = 0,
+parser.add_argument("--hidden_state_eta_touch",         type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for touch.') 
+
+
+
+    # Proprioception (Not yet used)
+parser.add_argument('--proprioception_scaler',          type=float,         default = .3, 
+                    help='How much to consider proprioception prediction in accuracy compared to vision and voice.')   
+parser.add_argument("--beta_proprioception",            type=float,         default = .3,
+                    help='Relative importance of complexity for proprioception.')     
+parser.add_argument("--prediction_error_eta_proprioception",   type=float,  default = 0,
+                    help='Nonnegative value, how much to consider prediction_error curiosity for proprioception.')   
+parser.add_argument("--hidden_state_eta_proprioception",       type=float,  default = 0,
+                    help='Nonnegative values, how much to consider hidden_state curiosity for proprioception.') 
 
 
 
@@ -799,8 +802,6 @@ parser.add_argument("--prediction_error_eta_report_voice", type=float,      defa
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
 parser.add_argument("--hidden_state_eta_report_voice",  type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
-parser.add_argument("--hidden_state_eta_report_voice_reduction_type",  type=str,         default = "None",
-                    help='How should interest in report_voice chance?') 
 
 
 
@@ -809,6 +810,8 @@ parser.add_argument('--keep_data',                      type=int,           defa
                     help='How many epochs should pass before keep data.')
 parser.add_argument('--temp',                           type=literal,       default = False,
                     help='Should this use data saved temporarily?')      
+parser.add_argument('--agents_for_plotting',            type=int,           default = 9999,
+                    help='How many agents should be used in plotting?')      
 
 parser.add_argument('--epochs_per_gen_test',            type=int,           default = 50,
                     help='How many epochs should pass before trying generalization test.')
@@ -820,18 +823,18 @@ parser.add_argument('--epochs_per_agent_save',          type=int,           defa
 parser.add_argument('--agents_per_agent_save',          type=int,           default = 2,
                     help='How many epochs should pass before saving agent model.')
 
-parser.add_argument('--save_behaviors',                  type=literal,       default = True,
+parser.add_argument('--save_behaviors',                 type=literal,       default = True,
                     help='How many agents to save episodes.')
 parser.add_argument('--episodes_per_behavior_analysis', type=int,           default = 10,
                     help='How many agents to save episodes.')
 parser.add_argument('--agents_per_behavior_analysis',   type=int,           default = 1,
                     help='How many agents to save episodes.')
 
-parser.add_argument('--save_compositions',                type=literal,       default = True,
+parser.add_argument('--save_compositions',              type=literal,       default = True,
                     help='How many agents to save episodes.')
-parser.add_argument('--epochs_per_composition_data',      type=int,           default = 2500,
+parser.add_argument('--epochs_per_composition_data',    type=int,           default = 2500,
                     help='How many epochs should pass before saving an episode.')
-parser.add_argument('--agents_per_composition_data',      type=int,           default = 2,
+parser.add_argument('--agents_per_composition_data',    type=int,           default = 2,
                     help='How many agents to save episodes.')
 
 
@@ -874,8 +877,6 @@ def update_args(arg_set):
     arg_set.wheels_joints_shape = 4
        
     num_sensors, sensors = get_num_sensors(args.robot_name)
-    #arg_set.touch_state_size = num_sensors
-    #arg_set.touch_encode_size = num_sensors
     arg_set.touch_shape = num_sensors
     arg_set.sensor_names = sensors
     arg_set.joint_aspects = 4
@@ -887,7 +888,6 @@ def update_args(arg_set):
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size + arg_set.voice_encode_size
     """arg_set.epochs = [epochs_for_processor[0] for epochs_for_processor in arg_set.epochs_per_processor]
     arg_set.processor_list = [epochs_for_processor[1] for epochs_for_processor in arg_set.epochs_per_processor]"""
-    arg_set.right_duration = arg_set.left_duration
     
     allowed_task_dict = {
         1 : arg_set.watch,
@@ -929,7 +929,11 @@ for arg_set in [default_args, args]:
     default_args = update_args(default_args) 
     args = update_args(args)
         
-args_not_in_title = ["arg_title", "id", "agents", "previous_agents", "init_seed", "keep_data", "epochs_per_pred_list", "episodes_in_pred_list", "agents_per_pred_list", "epochs_per_pos_list", "episodes_in_pos_list", "agents_per_pos_list"]
+args_not_in_title = [
+    "arg_title", "id", "agents", "previous_agents", "init_seed", "keep_data", "epochs_per_pred_list", 
+    "episodes_in_pred_list", "agents_per_pred_list", "epochs_per_pos_list", "episodes_in_pos_list", "agents_per_pos_list",
+    "watch", "be_near", "touch_top", "push_forward", "push_left", "push_right", "red", "green", "blue", "cyan", "magenta", "yellow", "pillar", "pole", "dumbbell", "cone", "hourglass"]
+
 def get_args_title(default_args, args):
     if(args.arg_title[:3] == "___"): return(args.arg_title)
     name = "" ; first = True

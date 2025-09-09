@@ -690,8 +690,8 @@ class Arena():
             been_near   = update_duration("be_near",    being_near, object_index, self.args.be_near_duration)
             topped      = update_duration("top",        topping,    object_index, self.args.top_duration)
             pushed      = update_duration("push",       pushing,    object_index, self.args.push_duration)
-            lefted      = update_duration("left",       lefting,    object_index, self.args.left_duration)
-            righted     = update_duration("right",      righting,   object_index, self.args.right_duration)
+            lefted      = update_duration("left",       lefting,    object_index, self.args.left_right_duration)
+            righted     = update_duration("right",      righting,   object_index, self.args.left_right_duration)
             
             
 
@@ -795,6 +795,9 @@ class Arena():
             projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
             physicsClientId = self.physicsClient)
         return(rgba)
+    
+    
+    
     def photo_for_agent(self):
         pos, spe, roll, pitch, yaw = self.get_pos_spe_rpy(self.robot_index)
 

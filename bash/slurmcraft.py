@@ -83,19 +83,15 @@ add_this("e",   {
     "normal_alpha" : .05,
     "target_entropy" : -1.5})    
 
-vision_eta = .03
+vision_eta = .01 # I think the bast combo is .05, 1, .2
 touch_eta = 1.5
-report_eta = .2
+report_eta = .1
 
 # Curiosity of touch only
 add_this("p",   {                                           
     "curiosity" : "hidden_state",
+    "hidden_state_eta_vision" : vision_eta,
     "hidden_state_eta_touch" : touch_eta})
-
-# Curiosity of language only
-add_this("c",   {                                           
-    "curiosity" : "hidden_state",
-    "hidden_state_eta_report_voice" : report_eta})
 
 # Agents with curiosity (hidden state)
 add_this("f",   {
