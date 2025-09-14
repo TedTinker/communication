@@ -83,21 +83,24 @@ add_this("e",   {
     "normal_alpha" : .05,
     "target_entropy" : -1.5})    
 
-vision_eta = .01 # I think the bast combo is .05, 1, .2
-touch_eta = 1.5
-report_eta = .1
+vision_eta = .05 # I think the bast combo is .05, 1, .2
+touch_eta = 1
+prop_eta = .1
+report_eta = .2
 
-# Curiosity of touch only
+# Curiosity of senses only
 add_this("p",   {                                           
     "curiosity" : "hidden_state",
     "hidden_state_eta_vision" : vision_eta,
-    "hidden_state_eta_touch" : touch_eta})
+    "hidden_state_eta_touch" : touch_eta,
+    "hidden_state_eta_prop" : prop_eta})
 
 # Agents with curiosity (hidden state)
 add_this("f",   {
     "curiosity" : "hidden_state",
     "hidden_state_eta_vision" : vision_eta,
-    "hidden_state_eta_touch" : touch_eta,      
+    "hidden_state_eta_touch" : touch_eta, 
+    "hidden_state_eta_prop" : prop_eta,     
     "hidden_state_eta_report_voice" : report_eta})   
 
 
@@ -119,6 +122,7 @@ add_this("q2",   {
 add_this("t1",   {
     "touch_top" : False,
     "yellow" : False,
+    "cone" : False,
     "hourglass" : False,
     "test_train_num" : 2
 }) 
@@ -133,18 +137,13 @@ add_this("t2",   {
     "test_train_num" : 1
 }) 
 
-add_this("tv", { 
-    "hidden_state_eta_vision" : [.01, .03, .05]
+add_this("t", { 
+    "prop_scaler" : [.01, .03, .05],
+    "beta_prop" : [.03, .3],
 })
 
-add_this("tt", { 
-    "hidden_state_eta_touch" : [1, 1.5, 2]
-})
-
-add_this("tr", { 
-    "hidden_state_eta_report_voice" : [.1, .15, .2]
-})
-
+add_this("tc", { 
+    "hidden_state_eta_prop" : [.01, .1, 1]})
 
 
 add_this("30", {})

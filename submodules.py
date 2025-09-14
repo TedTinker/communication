@@ -158,9 +158,9 @@ class Touch_IN(nn.Module):
         
         self.a = nn.Sequential(
             nn.Linear(
-                in_features = self.args.touch_shape + self.args.joint_aspects,
-                out_features = self.args.touch_encode_size + self.args.joint_aspects),
-            nn.BatchNorm1d(self.args.touch_encode_size + self.args.joint_aspects),  # Tested, use this
+                in_features = self.args.touch_shape,
+                out_features = self.args.touch_encode_size),
+            nn.BatchNorm1d(self.args.touch_encode_size),  # Tested, use this
             nn.PReLU())
         
         self.apply(init_weights)
@@ -190,7 +190,7 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(touch_in, 
-                                (episodes, steps, args.touch_shape + args.joint_aspects)))
+                                (episodes, steps, args.touch_shape)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     
@@ -210,7 +210,7 @@ class Touch_OUT(nn.Module):
             #nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
             nn.Linear(
                 in_features = self.args.h_w_wheels_joints_size,
-                out_features = self.args.touch_shape + self.args.joint_aspects),
+                out_features = self.args.touch_shape),
             nn.Tanh())
         
         self.apply(init_weights)
@@ -241,6 +241,107 @@ if __name__ == "__main__":
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
             print(torch_summary(touch_out, 
+                                (episodes, steps, args.h_w_wheels_joints_size)))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+    
+    
+    
+    
+#%%
+
+
+    
+class Prop_IN(nn.Module):
+    
+    def __init__(self, args):
+        super(Prop_IN, self).__init__()
+        
+        self.args = args 
+        
+        self.a = nn.Sequential(
+            nn.Linear(
+                in_features = self.args.joint_aspects,
+                out_features = self.args.prop_encode_size),
+            nn.BatchNorm1d(self.args.prop_encode_size),  # Tested, use this
+            nn.PReLU())
+        
+        self.apply(init_weights)
+        self.to(self.args.device)
+        if(self.args.half):
+            self = self.half()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
+        
+    def forward(self, prop):
+        start_time, episodes, steps, [prop] = model_start([(prop, "lin")], self.args.device, self.args.half)
+        encoding = self.a(prop)
+        [encoding] = model_end(start_time, episodes, steps, [(encoding, "lin")], "\tProp_IN")
+        return(encoding)
+
+    
+    
+if __name__ == "__main__":
+    
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
+    
+    prop_in = Prop_IN(args = args)
+    
+    print("\n\n")
+    print(prop_in)
+    print()
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(prop_in, 
+                                (episodes, steps, args.joint_aspects)))
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+    
+    
+
+#%%
+
+
+
+class Prop_OUT(nn.Module):
+
+    def __init__(self, args):
+        super(Prop_OUT, self).__init__()  
+        
+        self.args = args 
+
+        self.a = nn.Sequential(
+            #nn.BatchNorm1d(self.args.h_w_wheels_joints_size), # Tested, don't use
+            nn.Linear(
+                in_features = self.args.h_w_wheels_joints_size,
+                out_features = self.args.joint_aspects),
+            nn.Tanh())
+        
+        self.apply(init_weights)
+        self.to(self.args.device)
+        if(self.args.half):
+            self = self.half()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
+        
+    def forward(self, h_w_wheels_joints):
+        start_time, episodes, steps, [h_w_wheels_joints] = model_start([(h_w_wheels_joints, "lin")], self.args.device, self.args.half)
+        prop = self.a(h_w_wheels_joints)
+        prop = (prop + 1) / 2
+        [prop] = model_end(start_time, episodes, steps, [(prop, "lin")], "\tProp_OUT")
+        return(prop)    
+    
+    
+if __name__ == "__main__":
+    
+    from utils import args
+    episodes = args.batch_size ; steps = args.max_steps
+    
+    prop_out = Prop_OUT(args = args)
+    
+    print("\n\n")
+    print(prop_out)
+    print()
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            print(torch_summary(prop_out, 
                                 (episodes, steps, args.h_w_wheels_joints_size)))
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
 
@@ -438,6 +539,7 @@ class Obs_OUT(nn.Module):
         self.args = args 
         self.vision_out = Vision_OUT(self.args)
         self.touch_out = Touch_OUT(self.args)
+        self.prop_out = Prop_OUT(self.args)
         self.command_voice_out = Voice_OUT(actor = False, args = self.args)
         self.report_voice_out = Voice_OUT(actor = False, args = self.args)
         
@@ -450,9 +552,10 @@ class Obs_OUT(nn.Module):
     def forward(self, h_w_wheels_joints):
         vision_pred = self.vision_out(h_w_wheels_joints)
         touch_pred = self.touch_out(h_w_wheels_joints)
+        prop_pred = self.prop_out(h_w_wheels_joints)
         command_voice_pred = self.command_voice_out(h_w_wheels_joints)
         report_voice_pred = self.report_voice_out(h_w_wheels_joints)
-        return(vision_pred, touch_pred, command_voice_pred, report_voice_pred)
+        return(vision_pred, touch_pred, prop_pred, command_voice_pred, report_voice_pred)
     
     
     
@@ -488,7 +591,7 @@ class Wheels_Joints_IN(nn.Module):
         self.a = nn.Sequential(
             nn.Linear(
                 in_features = self.args.wheels_joints_shape, 
-                out_features = self.args.wheels_joints_encode_size),
+                out_features = self.args.wheels_joints_encode_size),8 * 8
             nn.PReLU())
         
         self.apply(init_weights)

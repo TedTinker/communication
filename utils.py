@@ -1,11 +1,8 @@
 #%% 
 
 # To do:
-#   Agent might be able to do two tasks in one move by using both objects.
-#   Experiment with hyperparameters.
-#   ARM CAN OVEREXTEND! 
-#       Reducing object weight helps, but then the arm slips through objects.
-#       Try different arm weights.
+#   Try fewer vocabulary in the middle one.
+#   I'm plotting the legend in the gen-tests too much.
 #   SOMETIMES OBJECTS DISAPPEAR!
 
 import os
@@ -30,8 +27,8 @@ print(f"\n\nWorking in: {os.getcwd()}\n\n")
 
 torch.set_printoptions(precision=3, sci_mode=False)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#device = "cpu"
+#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
 
 # Adjusting printing for computer-cluster.
 def print(*args, **kwargs):
@@ -201,7 +198,7 @@ def get_goal_from_one_hots(one_hots):
 
         
 class Obs:
-    def __init__(self, vision, touch, command_voice, report_voice):
+    def __init__(self, vision, touch, prop, command_voice, report_voice):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
 class Action:
@@ -216,6 +213,7 @@ class To_Push:
         memory.push(
             self.obs.vision.to("cpu"),
             self.obs.touch.to("cpu"),
+            self.obs.prop.to("cpu"),
             self.obs.command_voice.to("cpu"),
             self.obs.report_voice.to("cpu"),
             self.action.wheels_joints.to("cpu"), 
@@ -223,6 +221,7 @@ class To_Push:
             self.reward, 
             self.next_obs.vision.to("cpu"),
             self.next_obs.touch.to("cpu"),
+            self.next_obs.prop.to("cpu"),
             self.next_obs.command_voice.to("cpu"), 
             self.next_obs.report_voice.to("cpu"), 
             self.done)
@@ -317,33 +316,19 @@ def get_training_combos(pattern_lookup):
 
 
 
-# We should adjust these so every task has at least one of each color and shape.
-"""training_combos_1 = [
-    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 3, 0), (0, 3, 1), (0, 3, 2), 
-    (1, 2, 0), (1, 3, 0), (1, 0, 1), (1, 1, 2),
-    (4, 0, 0), (4, 0, 1), (4, 1, 1), (4, 2, 2),  
-    (5, 1, 0), (5, 2, 1), (5, 2, 2), (5, 3, 2), 
-    (6, 2, 0), (6, 3, 0), (6, 3, 1), (6, 0, 2)]"""
 training_combos_1 = [
     (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 3, 0), (0, 3, 1), (0, 3, 2), 
     (1, 2, 0), (1, 3, 0), (1, 0, 1), (1, 1, 2),
     (4, 0, 0), (4, 1, 1), (4, 3, 1), (4, 2, 2), 
     (5, 1, 0), (5, 2, 1), (5, 0, 2), (5, 3, 2), 
     (6, 1, 0), (6, 2, 0), (6, 3, 1), (6, 0, 2)]
-"""training_combos_2 = [
-    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), 
-    (1, 4, 0), (1, 0, 1), (1, 4, 1), (1, 0, 2), (1, 1, 2), (1, 1, 3), (1, 2, 3),
-    (2, 0, 0), (2, 4, 0), (2, 1, 1), (2, 1, 2), (2, 2, 2), (2, 2, 3), (2, 3, 3),
-    (4, 0, 0), (4, 1, 0), (4, 1, 1), (4, 2, 1), (4, 3, 2), (4, 3, 3), (4, 4, 3),
-    (5, 1, 0), (5, 2, 0), (5, 2, 1), (5, 3, 1), (5, 3, 2), (5, 4, 2), (5, 0, 3),
-    (6, 3, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2), (6, 0, 3), (6, 1, 3)]"""
 training_combos_2 = [
     (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), 
-    (1, 3, 0), (1, 0, 1), (1, 4, 1), (1, 0, 2), (1, 1, 2), (1, 1, 3), (1, 2, 3),
-    (2, 0, 0), (2, 4, 0), (2, 1, 1), (2, 1, 2), (2, 2, 2), (2, 2, 3), (2, 3, 3),
-    (4, 0, 0), (4, 1, 0), (4, 1, 1), (4, 2, 1), (4, 3, 2), (4, 3, 3), (4, 4, 3),
-    (5, 1, 0), (5, 2, 0), (5, 2, 1), (5, 3, 1), (5, 3, 2), (5, 4, 2), (5, 0, 3),
-    (6, 2, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2), (6, 0, 3), (6, 1, 3)]
+    (1, 3, 0), (1, 0, 1), (1, 4, 1), (1, 0, 2), (1, 1, 2), 
+    (2, 0, 0), (2, 4, 0), (2, 1, 1), (2, 1, 2), (2, 2, 2), 
+    (4, 0, 0), (4, 1, 0), (4, 1, 1), (4, 2, 1), (4, 3, 2), 
+    (5, 1, 0), (5, 2, 0), (5, 2, 1), (5, 3, 1), (5, 3, 2), (5, 4, 2),
+    (6, 2, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2)]
 training_combos_3 = get_training_combos(pattern_lookup_3)
 
 testing_combos_1 = [combo for combo in all_combos if not combo in training_combos_1]
@@ -402,9 +387,9 @@ if(__name__ == "__main__"):
         plt.close()
 
     # Example usage:
-    plot_combined_training_grid(training_combos_1, title="Training Set 1 – All Tasks")
+    #plot_combined_training_grid(training_combos_1, title="Training Set 1 – All Tasks")
     plot_combined_training_grid(training_combos_2, title="Training Set 2 – All Tasks")
-    plot_combined_training_grid(training_combos_3, title="Training Set 3 – All Tasks")
+    #plot_combined_training_grid(training_combos_3, title="Training Set 3 – All Tasks")
             
         
         
@@ -529,8 +514,6 @@ parser.add_argument('--cone',                           type=literal,       defa
                     help='Allow cone shape?')
 parser.add_argument('--hourglass',                      type=literal,       default = True,
                     help='Allow hourglass shape?')
-
-    
 
     
 
@@ -663,12 +646,11 @@ parser.add_argument('--min_arm_speed_for_left_right',   type=float,         defa
 
 
 
-
     # Module  
 parser.add_argument('--hidden_size',                    type=int,           default = 64,
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,
-                    help='Parameters in hidden layers 0f PVRNN\'s mtrnn.')   
+                    help='Parameters in hidden layers of PVRNN\'s mtrnn.')   
 
 parser.add_argument('--vision_encode_size',             type=int,           default = 128,
                     help='Parameters in encoding image.')   
@@ -687,6 +669,11 @@ parser.add_argument('--wheels_joints_encode_size',      type=int,           defa
 parser.add_argument('--touch_encode_size',              type=int,           default = 20,
                     help='Parameters in encoding image.')  
 parser.add_argument('--touch_state_size',               type=int,           default = 20,
+                    help='Parameters in prior and posterior inner-states.')
+
+parser.add_argument('--prop_encode_size',              type=int,           default = 4,
+                    help='Parameters in encoding image.')  
+parser.add_argument('--prop_state_size',               type=int,           default = 4,
                     help='Parameters in prior and posterior inner-states.')
 
 parser.add_argument('--dropout',                        type=float,         default = .001,
@@ -769,14 +756,14 @@ parser.add_argument("--hidden_state_eta_touch",         type=float,         defa
 
 
 
-    # Proprioception (Not yet used)
-parser.add_argument('--proprioception_scaler',          type=float,         default = .3, 
+    # Proprioception
+parser.add_argument('--prop_scaler',                   type=float,         default = .3, 
                     help='How much to consider proprioception prediction in accuracy compared to vision and voice.')   
-parser.add_argument("--beta_proprioception",            type=float,         default = .3,
+parser.add_argument("--beta_prop",                     type=float,         default = .3,
                     help='Relative importance of complexity for proprioception.')     
-parser.add_argument("--prediction_error_eta_proprioception",   type=float,  default = 0,
+parser.add_argument("--prediction_error_eta_prop",     type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for proprioception.')   
-parser.add_argument("--hidden_state_eta_proprioception",       type=float,  default = 0,
+parser.add_argument("--hidden_state_eta_prop",         type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for proprioception.') 
 
 

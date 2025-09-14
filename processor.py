@@ -73,6 +73,13 @@ class Processor:
             for i, (link_name, value) in enumerate(object_dict.items()):
                 touched[i] += value
                 
+        touch = torch.tensor([touched]).float()
+        
+        if(self.args.tanh_touch):
+            tanh_touch = torch.tanh((touch - .5) * 10)
+            tanh_touch = (tanh_touch + 1) / 2
+            touch = tanh_touch
+                
         joint_angles = arena.get_joint_angles()
         joint_angles_regularized = []
         for key, angle in joint_angles.items():
@@ -91,17 +98,12 @@ class Processor:
                 self.args.max_joint_speed)
             joint_speeds_regularized.append((1 + joint_speed)/2)
                 
-        touched += joint_angles_regularized + joint_speeds_regularized
-        touch = torch.tensor([touched]).float()
-        
-        if(self.args.tanh_touch):
-            tanh_touch = torch.tanh((touch - .5) * 10)
-            tanh_touch = (tanh_touch + 1) / 2
-            touch = tanh_touch
+        prop = joint_angles_regularized + joint_speeds_regularized
+        prop = torch.tensor([prop]).float()
         
         report_voice = self.report_voice_1 if agent_1 else self.report_voice_2
                         
-        return(Obs(vision, touch, self.goal, report_voice))
+        return(Obs(vision, touch, prop, self.goal, report_voice))
     
     
             

@@ -266,7 +266,7 @@ def plots(plot_dicts, min_max_dict):
         
         
         
-        
+        """
         # Rolling win-rate, no confidence intervals
         try: os.mkdir("thesis_pics/rolling_win_rate_no_confidence")
         except: pass
@@ -319,6 +319,7 @@ def plots(plot_dicts, min_max_dict):
             
         fig2.savefig(f"thesis_pics/rolling_win_rate_no_confidence/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
+        """
         
         
         

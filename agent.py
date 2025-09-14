@@ -154,6 +154,7 @@ class Agent:
             "complexity_loss" : [],
             "vision_loss" : [], 
             "touch_loss" : [], 
+            "prop_loss" : [], 
             "command_voice_loss" : [], 
             "report_voice_loss" : [], 
             
@@ -173,12 +174,14 @@ class Agent:
             
             "vision_prediction_error_curiosity" : [], 
             "touch_prediction_error_curiosity" : [], 
+            "prop_prediction_error_curiosity" : [], 
             "command_voice_prediction_error_curiosity" : [], 
             "report_voice_prediction_error_curiosity" : [], 
             "prediction_error_curiosity" : [], 
             
             "vision_hidden_state_curiosity" : [],
             "touch_hidden_state_curiosity" : [],
+            "prop_hidden_state_curiosity" : [],
             "command_voice_hidden_state_curiosity" : [],
             "report_voice_hidden_state_curiosity" : [],
             "hidden_state_curiosity" : [],
@@ -320,7 +323,7 @@ class Agent:
             def agent_step(agent_1 = True):
                 
                 if(parenting and not agent_1):
-                    return(None, None, hq_2, hq_2, None, None, None, None, None)
+                    return(None, None, hq_2, hq_2, None, None, None, None, None, None)
                                 
                 prev_action = prev_action_1 if agent_1 else prev_action_2
                 partner_prev_voice_out = prev_action_2.voice_out if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape)) if agent_1 else prev_action_1.voice_out
@@ -332,7 +335,7 @@ class Agent:
                 if(type(obs.report_voice) == Goal):
                     obs.report_voice = obs.report_voice.one_hots
                 
-                hp, hq, vision_is, touch_is, command_voice_is, report_voice_is = self.forward.bottom_to_top_step(
+                hp, hq, vision_is, touch_is, prop_is, command_voice_is, report_voice_is = self.forward.bottom_to_top_step(
                     hq_1, self.forward.obs_in(obs), self.forward.action_in(prev_action))
 
                 action, _, _ = self.actor(hq.detach(), parenting) 
@@ -346,12 +349,12 @@ class Agent:
                     value = self.critics[i](action, hq.detach()) 
                     values.append(round(value.item(), 3))
                 
-                return(obs, action, hp, hq, values, vision_is, touch_is, command_voice_is, report_voice_is)
+                return(obs, action, hp, hq, values, vision_is, touch_is, prop_is, command_voice_is, report_voice_is)
             
             
             
-            obs_1, action_1, hp_1, hq_1, values_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1 = agent_step()
-            obs_2, action_2, hp_2, hq_2, values_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2 = agent_step(agent_1 = False)
+            obs_1, action_1, hp_1, hq_1, values_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, report_voice_is_1 = agent_step()
+            obs_2, action_2, hp_2, hq_2, values_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, report_voice_is_2 = agent_step(agent_1 = False)
 
             reward, done, win = self.processor.step(action_1.wheels_joints[0,0].clone(), None if action_2 == None else action_2.wheels_joints[0,0].clone(), sleep_time = sleep_time, verbose = verbose)
             
@@ -378,8 +381,8 @@ class Agent:
             
         torch.cuda.empty_cache()
         
-        return(action_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1,
-               action_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1), vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2,
+        return(action_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, report_voice_is_1,
+               action_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1), vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, report_voice_is_2,
                reward, done, win, to_push_1, to_push_2)
             
            
@@ -419,8 +422,8 @@ class Agent:
                 steps += 1
                 obs_1 = self.get_agent_obs()
                 obs_2 = self.get_agent_obs(agent_1 = False)
-                prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, \
-                    prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2, \
+                prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, report_voice_is_1, \
+                    prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, report_voice_is_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_action_1, hq_1, obs_1,
                             prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
@@ -493,8 +496,8 @@ class Agent:
                 if(not done):
                     obs_1 = self.get_agent_obs()
                     obs_2 = self.get_agent_obs(agent_1 = False)
-                    prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, \
-                        prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2, \
+                    prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, report_voice_is_1, \
+                        prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, report_voice_is_2, \
                             reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                 prev_action_1, hq_1, obs_1,
                                 prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
@@ -528,7 +531,7 @@ class Agent:
             common_keys = [
                 "obs", "action", 
                 "birds_eye", "reward", "critic_predictions", "prior_predictions", "posterior_predictions", 
-                "vision_dkl", "touch_dkl", "command_voice_dkl", "report_voice_dkl"]
+                "vision_dkl", "touch_dkl", "prop_dkl", "command_voice_dkl", "report_voice_dkl"]
             episode_dict = {}
             for agent_id in [0, 1]:
                 for key in common_keys:
@@ -581,6 +584,7 @@ class Agent:
                 dream_obs_q = deepcopy(pred_obs_q)
                 dream_obs_q.vision = dream_obs_q.vision.squeeze(0)
                 dream_obs_q.touch = dream_obs_q.touch.squeeze(0)
+                ream_obs_q.prop = dream_obs_q.prop.squeeze(0)
                 
                 pred_obs_p.command_voice = get_goal_from_one_hots(pred_obs_p.command_voice)
                 pred_obs_q.command_voice = get_goal_from_one_hots(pred_obs_q.command_voice)
@@ -640,8 +644,8 @@ class Agent:
                 video_display_step(step, dreaming = dreaming)
                 
                 # Then, perform action.
-                prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, \
-                    prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2, \
+                prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, report_voice_is_1, \
+                    prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, report_voice_is_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                             prev_action_1, hq_1, obs_1,
                             prev_action_2, hq_2, obs_2, verbose = verbose, sleep_time = sleep_time, user_action = user_action) 
@@ -656,14 +660,15 @@ class Agent:
                     episode_dict[f"action_{index}"].append(prev_action)
                     episode_dict[f"vision_dkl_{index}"].append(vision_is.dkl.sum().item())
                     episode_dict[f"touch_dkl_{index}"].append(touch_is.dkl.sum().item())
+                    episode_dict[f"prop_dkl_{index}"].append(prop_is.dkl.sum().item())
                     episode_dict[f"command_voice_dkl_{index}"].append(command_voice_is.dkl.sum().item())
                     episode_dict[f"report_voice_dkl_{index}"].append(report_voice_is.dkl.sum().item())
                     episode_dict[f"critic_predictions_{index}"].append(values)
                     episode_dict[f"reward_{index}"].append(str(round(reward, 3)))
 
-                update_episode_dict(1, prev_action_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, values_1, reward)
+                update_episode_dict(1, prev_action_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, report_voice_is_1, values_1, reward)
                 if not self.processor.parenting:
-                    update_episode_dict(2, prev_action_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2, values_2, reward_2)
+                    update_episode_dict(2, prev_action_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, report_voice_is_2, values_2, reward_2)
                 
                 if(done):
                     real_obs_1 = self.get_agent_obs()
@@ -702,8 +707,8 @@ class Agent:
                     if(not done):
                         obs_1 = self.get_agent_obs()
                         obs_2 = self.get_agent_obs(agent_1 = False)
-                        prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, command_voice_is_1, report_voice_is_1, \
-                            prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, command_voice_is_2, report_voice_is_2, \
+                        prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, report_voice_is_1, \
+                            prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, report_voice_is_2, \
                                 reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
                                     prev_action_1, hq_1, obs_1,
                                     prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
@@ -723,24 +728,25 @@ class Agent:
                     to_push.push(temp_memory)
                 
         batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
-        vision, touch, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
+        vision, touch, prop, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
                 
-        hps, hqs, vision_is, touch_is, command_voice_is, report_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
+        hps, hqs, vision_is, touch_is, prop_is, command_voice_is, report_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            Obs(vision, touch, command_voice, report_voice), Action(wheels_joints, voice_out))
+            Obs(vision, touch, prop, command_voice, report_voice), Action(wheels_joints, voice_out))
         
         labels = labels.detach().cpu().numpy()
         all_mask = all_mask.detach().cpu().numpy()  
 
         vision_zq = vision_is.zq.detach().cpu().numpy()
         touch_zq = touch_is.zq.detach().cpu().numpy()
+        prop_zq = prop_is.zq.detach().cpu().numpy()
         command_voice_zq = command_voice_is.zq.detach().cpu().numpy()
         report_voice_zq = report_voice_is.zq.detach().cpu().numpy()
         hq = hqs.detach().cpu().numpy()
                         
         self.plot_dict["composition_data"][self.epochs] = {
             "labels" : labels, "all_mask" : all_mask, "hq" : hq,
-            "vision_zq" : vision_zq, "touch_zq" : touch_zq, "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq}
+            "vision_zq" : vision_zq, "touch_zq" : touch_zq, "prop_zq" : prop_zq,  "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq}
         
         
         
@@ -748,9 +754,10 @@ class Agent:
         batch = memory.sample(batch_size, random_sample = random_sample)
         if(batch == False): return(False)
         
-        vision, touch, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask = batch
+        vision, touch, prop, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask = batch
         vision = torch.from_numpy(vision).to(self.args.device)
         touch = torch.from_numpy(touch).to(self.args.device)
+        prop = torch.from_numpy(prop).to(self.args.device)
         command_voice = torch.from_numpy(command_voice).to(self.args.device)
         report_voice = torch.from_numpy(report_voice).to(self.args.device)
         wheels_joints = torch.from_numpy(wheels_joints)
@@ -766,8 +773,8 @@ class Agent:
         steps = reward.shape[1]
         
         if(self.args.half):
-            vision, touch, command_voice, wheels_joints, voice_out, reward, done, mask, all_mask, mask = \
-                vision.to(dtype=torch.float16), touch.to(dtype=torch.float16), command_voice.to(dtype=torch.float16), wheels_joints.to(dtype=torch.float16), \
+            vision, touch, prop, command_voice, wheels_joints, voice_out, reward, done, mask, all_mask, mask = \
+                vision.to(dtype=torch.float16), touch.to(dtype=torch.float16), prop.to(dtype=torch.float16), command_voice.to(dtype=torch.float16), wheels_joints.to(dtype=torch.float16), \
                 voice_out.to(dtype=torch.float16), reward.to(dtype=torch.float16), done.to(dtype=torch.float16), \
                 mask.to(dtype=torch.float16), wheels_joints.to(dtype=torch.float16), voice_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
         
@@ -776,7 +783,7 @@ class Agent:
         #    self.agent_num, self.epochs, vision.shape, voice_in.shape, wheels_joints.shape, voice_out.shape, reward.shape, done.shape, mask.shape))
         #print("\n\n")
         
-        return(vision, touch, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps)
+        return(vision, touch, prop, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps)
         
     
     
@@ -791,14 +798,14 @@ class Agent:
         if(batch == False):
             return(False)
         
-        vision, touch, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
-        obs = Obs(vision, touch, command_voice, report_voice)
+        vision, touch, prop, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
+        obs = Obs(vision, touch, prop, command_voice, report_voice)
         actions = Action(wheels_joints, voice_out)
         
         
                 
         # Train forward
-        hps, hqs, vision_is, touch_is, command_voice_is, report_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
+        hps, hqs, vision_is, touch_is, prop_is, command_voice_is, report_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
             obs, actions)
                                 
@@ -806,6 +813,9 @@ class Agent:
                         
         touch_loss = F.mse_loss(pred_obs_q.touch, touch[:,1:], reduction = "none")
         touch_loss = touch_loss.mean(-1).unsqueeze(-1) * mask * self.args.touch_scaler
+        
+        prop_loss = F.mse_loss(pred_obs_q.prop, prop[:,1:], reduction = "none")
+        prop_loss = prop_loss.mean(-1).unsqueeze(-1) * mask * self.args.prop_scaler
         
         def compute_individual_voice_loss(real_voice, pred_voice, voice_scaler):
             real_voice = real_voice[:, 1:].reshape((episodes * steps, self.args.max_voice_len, self.args.voice_shape))
@@ -823,16 +833,18 @@ class Agent:
         report_voice_loss, pred_report_voice = compute_individual_voice_loss(
             report_voice, pred_obs_q.report_voice, self.args.report_voice_scaler)
         
-        accuracy = (vision_loss + touch_loss + command_voice_loss + report_voice_loss).mean()
+        accuracy = (vision_loss + touch_loss + prop_loss + command_voice_loss + report_voice_loss).mean()
         
         vision_complexity = vision_is.dkl.mean(-1).unsqueeze(-1) * all_mask
         touch_complexity = touch_is.dkl.mean(-1).unsqueeze(-1) * all_mask
+        prop_complexity = prop_is.dkl.mean(-1).unsqueeze(-1) * all_mask
         command_voice_complexity = command_voice_is.dkl.mean(-1).unsqueeze(-1) * all_mask
         report_voice_complexity = report_voice_is.dkl.mean(-1).unsqueeze(-1) * all_mask
                 
         complexity = sum([
             self.args.beta_vision * vision_complexity.mean(),
             self.args.beta_touch * touch_complexity.mean(),
+            self.args.beta_prop * prop_complexity.mean(),
             self.args.beta_command_voice * command_voice_complexity.mean(),
             self.args.beta_report_voice * report_voice_complexity.mean()])       
                                 
@@ -844,6 +856,7 @@ class Agent:
         
         vision_complexity = vision_complexity[:,1:]
         touch_complexity = touch_complexity[:,1:]
+        prop_complexity = prop_complexity[:,1:]
         command_voice_complexity = command_voice_complexity[:,1:]
         report_voice_complexity = report_voice_complexity[:,1:]
                                     
@@ -852,15 +865,17 @@ class Agent:
         # Get curiosity                 
         vision_prediction_error_curiosity             = self.args.prediction_error_eta_vision           * vision_loss
         touch_prediction_error_curiosity          = self.args.prediction_error_eta_touch        * touch_loss
+        prop_prediction_error_curiosity          = self.args.prediction_error_eta_prop        * prop_loss
         command_voice_prediction_error_curiosity     = self.args.prediction_error_eta_command_voice   * command_voice_loss
         report_voice_prediction_error_curiosity = self.args.prediction_error_eta_report_voice   * report_voice_loss
         prediction_error_curiosity                  = vision_prediction_error_curiosity + touch_prediction_error_curiosity + command_voice_prediction_error_curiosity + report_voice_prediction_error_curiosity
         
         vision_hidden_state_curiosity                 = self.args.hidden_state_eta_vision               * torch.clamp(vision_complexity, min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
         touch_hidden_state_curiosity              = self.args.hidden_state_eta_touch            * torch.clamp(touch_complexity, min = 0, max = self.args.dkl_max)
+        prop_hidden_state_curiosity              = self.args.hidden_state_eta_prop            * torch.clamp(prop_complexity, min = 0, max = self.args.dkl_max)
         command_voice_hidden_state_curiosity         = self.args.hidden_state_eta_command_voice       * torch.clamp(command_voice_complexity, min = 0, max = self.args.dkl_max)
         report_voice_hidden_state_curiosity     = self.args.hidden_state_eta_report_voice       * torch.clamp(report_voice_complexity, min = 0, max = self.args.dkl_max) * self.hidden_state_eta_report_voice_reduction
-        hidden_state_curiosity                      = vision_hidden_state_curiosity + touch_hidden_state_curiosity + command_voice_hidden_state_curiosity + report_voice_hidden_state_curiosity
+        hidden_state_curiosity                      = vision_hidden_state_curiosity + touch_hidden_state_curiosity + prop_hidden_state_curiosity + command_voice_hidden_state_curiosity + report_voice_hidden_state_curiosity
         
         if(self.args.curiosity == "prediction_error"):  curiosity = prediction_error_curiosity
         elif(self.args.curiosity == "hidden_state"):    curiosity = hidden_state_curiosity
@@ -976,7 +991,8 @@ class Agent:
         if(accuracy != None):               accuracy = accuracy.item()
         if(vision_loss != None):              vision_loss = vision_loss.mean().item()
         if(touch_loss != None):           touch_loss = touch_loss.mean().item()
-        if(command_voice_loss != None):      command_voice_loss = command_voice_loss.mean().item()
+        if(prop_loss != None):           prop_loss = prop_loss.mean().item()
+        if(command_voice_loss != None):     command_voice_loss = command_voice_loss.mean().item()
         if(report_voice_loss != None):      report_voice_loss = report_voice_loss.mean().item()
         if(complexity != None):             complexity = complexity.item()
         if(alpha_loss != None):             alpha_loss = alpha_loss.item()
@@ -990,11 +1006,13 @@ class Agent:
                 
         vision_prediction_error_curiosity = vision_prediction_error_curiosity.mean().item()
         touch_prediction_error_curiosity = touch_prediction_error_curiosity.mean().item()
+        prop_prediction_error_curiosity = prop_prediction_error_curiosity.mean().item()
         command_voice_prediction_error_curiosity = command_voice_prediction_error_curiosity.mean().item()
         report_voice_prediction_error_curiosity = report_voice_prediction_error_curiosity.mean().item()
         
         vision_hidden_state_curiosity = vision_hidden_state_curiosity.mean().item()
         touch_hidden_state_curiosity = touch_hidden_state_curiosity.mean().item()
+        prop_hidden_state_curiosity = prop_hidden_state_curiosity.mean().item()
         command_voice_hidden_state_curiosity = command_voice_hidden_state_curiosity.mean().item()
         report_voice_hidden_state_curiosity = report_voice_hidden_state_curiosity.mean().item()
         
@@ -1007,6 +1025,7 @@ class Agent:
             self.plot_dict["accuracy_loss"].append(accuracy)
             self.plot_dict["vision_loss"].append(vision_loss)
             self.plot_dict["touch_loss"].append(touch_loss)
+            self.plot_dict["prop_loss"].append(prop_loss)
             self.plot_dict["command_voice_loss"].append(command_voice_loss)
             self.plot_dict["report_voice_loss"].append(report_voice_loss)
             self.plot_dict["complexity_loss"].append(complexity)                                                                             
@@ -1022,11 +1041,13 @@ class Agent:
             self.plot_dict["intrinsic_entropy"].append(intrinsic_entropy)
             self.plot_dict["vision_prediction_error_curiosity"].append(vision_prediction_error_curiosity)
             self.plot_dict["touch_prediction_error_curiosity"].append(touch_prediction_error_curiosity)
+            self.plot_dict["prop_prediction_error_curiosity"].append(prop_prediction_error_curiosity)
             self.plot_dict["command_voice_prediction_error_curiosity"].append(command_voice_prediction_error_curiosity)
             self.plot_dict["report_voice_prediction_error_curiosity"].append(report_voice_prediction_error_curiosity)
             self.plot_dict["prediction_error_curiosity"].append(prediction_error_curiosity)
             self.plot_dict["vision_hidden_state_curiosity"].append(vision_hidden_state_curiosity)    
             self.plot_dict["touch_hidden_state_curiosity"].append(touch_hidden_state_curiosity)  
+            self.plot_dict["prop_hidden_state_curiosity"].append(prop_hidden_state_curiosity)  
             self.plot_dict["command_voice_hidden_state_curiosity"].append(command_voice_hidden_state_curiosity)  
             self.plot_dict["report_voice_hidden_state_curiosity"].append(report_voice_hidden_state_curiosity)    
             self.plot_dict["hidden_state_curiosity"].append(hidden_state_curiosity)    
