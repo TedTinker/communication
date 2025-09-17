@@ -12,7 +12,7 @@ from agent import Agent
 
 
 
-hyper_parameters = "ef_old"
+hyper_parameters = "ef"
 agent_num = "0001"
 epochs = "060000"
 saved_file = "saved_deigo"
@@ -109,7 +109,7 @@ change_agent(hyper_parameters, agent_num, epochs)
             
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(1, 1)], 
+    tasks_and_weights = [(6, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
@@ -126,7 +126,7 @@ win = agent.save_episodes(
     sleep_time = .25, 
     waiting = False, 
     user_action = False, 
-    dreaming = False)
+    dreaming = True)
 if(win): 
     wins += 1
 #print(f"\tWIN RATE: {round(100 * (wins / episodes), 2)}% \t ({wins} wins out of {episodes} episodes)")

@@ -385,7 +385,9 @@ class Voice_IN(nn.Module):
                 nn.PReLU(),
                 nn.Linear(
                     in_features = self.args.hidden_size, 
-                    out_features = self.args.voice_encode_size))
+                    out_features = self.args.voice_encode_size),
+                #nn.PReLU()
+        )
                 
         self.apply(init_weights)
         self.to(self.args.device)
@@ -591,7 +593,7 @@ class Wheels_Joints_IN(nn.Module):
         self.a = nn.Sequential(
             nn.Linear(
                 in_features = self.args.wheels_joints_shape, 
-                out_features = self.args.wheels_joints_encode_size),8 * 8
+                out_features = self.args.wheels_joints_encode_size),
             nn.PReLU())
         
         self.apply(init_weights)

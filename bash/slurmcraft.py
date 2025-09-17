@@ -137,18 +137,12 @@ add_this("t2",   {
     "test_train_num" : 1
 }) 
 
-add_this("t", { 
-    "prop_scaler" : [.01, .03, .05],
-    "beta_prop" : [.03, .3],
-})
-
-add_this("tc", { 
-    "hidden_state_eta_prop" : [.01, .1, 1]})
-
 
 add_this("30", {})
 
+add_this("60", {})
 
+add_this("90", {})
 
 
 """add_this("testing_new_compositions",   {

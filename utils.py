@@ -652,18 +652,6 @@ parser.add_argument('--hidden_size',                    type=int,           defa
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,
                     help='Parameters in hidden layers of PVRNN\'s mtrnn.')   
 
-parser.add_argument('--vision_encode_size',             type=int,           default = 128,
-                    help='Parameters in encoding image.')   
-parser.add_argument('--vision_state_size',              type=int,           default = 128,
-                    help='Parameters in prior and posterior inner-states.')
-
-parser.add_argument('--char_encode_size',               type=int,           default = 8,
-                    help='Parameters in encoding.')   
-parser.add_argument('--voice_encode_size',              type=int,           default = 256,
-                    help='Parameters in encoding voice.')   
-parser.add_argument('--voice_state_size',               type=int,           default = 256,
-                    help='Parameters in prior and posterior inner-states.')
-
 parser.add_argument('--wheels_joints_encode_size',      type=int,           default = 8,
                     help='Parameters in encoding wheels_joints.')   
 parser.add_argument('--touch_encode_size',              type=int,           default = 20,
@@ -671,9 +659,21 @@ parser.add_argument('--touch_encode_size',              type=int,           defa
 parser.add_argument('--touch_state_size',               type=int,           default = 20,
                     help='Parameters in prior and posterior inner-states.')
 
+parser.add_argument('--vision_encode_size',             type=int,           default = 128,
+                    help='Parameters in encoding image.')   
+parser.add_argument('--vision_state_size',              type=int,           default = 128,
+                    help='Parameters in prior and posterior inner-states.')
+
 parser.add_argument('--prop_encode_size',              type=int,           default = 4,
                     help='Parameters in encoding image.')  
 parser.add_argument('--prop_state_size',               type=int,           default = 4,
+                    help='Parameters in prior and posterior inner-states.')
+
+parser.add_argument('--char_encode_size',               type=int,           default = 8,
+                    help='Parameters in encoding.')   
+parser.add_argument('--voice_encode_size',              type=int,           default = 256,
+                    help='Parameters in encoding voice.')   
+parser.add_argument('--voice_state_size',               type=int,           default = 256,
                     help='Parameters in prior and posterior inner-states.')
 
 parser.add_argument('--dropout',                        type=float,         default = .001,
@@ -757,7 +757,7 @@ parser.add_argument("--hidden_state_eta_touch",         type=float,         defa
 
 
     # Proprioception
-parser.add_argument('--prop_scaler',                   type=float,         default = .3, 
+parser.add_argument('--prop_scaler',                   type=float,         default = .01, 
                     help='How much to consider proprioception prediction in accuracy compared to vision and voice.')   
 parser.add_argument("--beta_prop",                     type=float,         default = .3,
                     help='Relative importance of complexity for proprioception.')     

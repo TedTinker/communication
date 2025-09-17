@@ -58,6 +58,8 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
     visual_curiosity        = [0] + [c * args.hidden_state_eta_vision for c in visual_curiosity]
     touch_curiosity         = episode_dict[f"touch_dkl_{agent_num}"][:step]         
     touch_curiosity         = [0] + [c * args.hidden_state_eta_touch for c in touch_curiosity]
+    prop_curiosity         = episode_dict[f"prop_dkl_{agent_num}"][:step]         
+    prop_curiosity         = [0] + [c * args.hidden_state_eta_prop for c in prop_curiosity]
     report_voice_curiosity  = episode_dict[f"report_voice_dkl_{agent_num}"][:step] 
     report_voice_curiosity  = [0] + [c * args.hidden_state_eta_report_voice for c in report_voice_curiosity]
 
@@ -122,7 +124,7 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
             
     # Curiosity values
     # Use or don't use these min/max values.
-    all_curiosities = visual_curiosity + touch_curiosity + report_voice_curiosity
+    all_curiosities = visual_curiosity + touch_curiosity + prop_curiosity + report_voice_curiosity
     if(all_curiosities == []):
         all_curiosities = [0]
     min_curi = min(all_curiosities) * .9
@@ -131,8 +133,8 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
     plot_height = 0.07
     base_bottom = -0.30  
     
-    curiosity_titles = ["Vision Curiosity", "Touch Curiosity", "Report Voice Curiosity"]
-    curiosity_data = [visual_curiosity, touch_curiosity, report_voice_curiosity]
+    curiosity_titles = ["Vision Curiosity", "Touch Curiosity", "Proprioception Curiosity", "Report Voice Curiosity"]
+    curiosity_data = [visual_curiosity, touch_curiosity, prop_curiosity, report_voice_curiosity]
 
     for idx, (title, data) in enumerate(zip(curiosity_titles, curiosity_data)):
         bottom_pos = base_bottom - idx * (plot_height + 0.03)

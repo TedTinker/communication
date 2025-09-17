@@ -529,7 +529,7 @@ class Agent:
             parenting = self.processor.parenting
 
             common_keys = [
-                "obs", "action", 
+                "obs", "action", "dream_obs",
                 "birds_eye", "reward", "critic_predictions", "prior_predictions", "posterior_predictions", 
                 "vision_dkl", "touch_dkl", "prop_dkl", "command_voice_dkl", "report_voice_dkl"]
             episode_dict = {}
@@ -560,7 +560,7 @@ class Agent:
             
             
                             
-            def save_step(obs, agent_1 = True):
+            def save_step(step, obs, agent_1 = True):
                 agent_num = 1 if agent_1 else 2
                 birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
                 dream_obs_q = None
@@ -584,7 +584,7 @@ class Agent:
                 dream_obs_q = deepcopy(pred_obs_q)
                 dream_obs_q.vision = dream_obs_q.vision.squeeze(0)
                 dream_obs_q.touch = dream_obs_q.touch.squeeze(0)
-                ream_obs_q.prop = dream_obs_q.prop.squeeze(0)
+                dream_obs_q.prop = dream_obs_q.prop.squeeze(0)
                 
                 pred_obs_p.command_voice = get_goal_from_one_hots(pred_obs_p.command_voice)
                 pred_obs_q.command_voice = get_goal_from_one_hots(pred_obs_q.command_voice)
@@ -636,9 +636,9 @@ class Agent:
                     obs_1 = deepcopy(real_obs_1)
                     obs_2 = deepcopy(real_obs_2)
                 
-                save_step(real_obs_1)    
+                save_step(step, real_obs_1)    
                 if(not parenting):
-                    save_step(real_obs_1, agent_1 = False)  
+                    save_step(step, real_obs_1, agent_1 = False)  
                     
                 display_step(step, dreaming = dreaming)
                 video_display_step(step, dreaming = dreaming)
@@ -656,7 +656,7 @@ class Agent:
                         
                 episode_dict["reward"].append(str(round(reward, 3)))
                 
-                def update_episode_dict(index, prev_action, vision_is, touch_is, command_voice_is, report_voice_is, values, reward):
+                def update_episode_dict(index, prev_action, vision_is, touch_is, prop_is, command_voice_is, report_voice_is, values, reward):
                     episode_dict[f"action_{index}"].append(prev_action)
                     episode_dict[f"vision_dkl_{index}"].append(vision_is.dkl.sum().item())
                     episode_dict[f"touch_dkl_{index}"].append(touch_is.dkl.sum().item())
@@ -673,9 +673,9 @@ class Agent:
                 if(done):
                     real_obs_1 = self.get_agent_obs()
                     real_obs_2 = self.get_agent_obs(agent_1 = False)
-                    save_step(real_obs_1, agent_1 = True)    
+                    save_step(step, real_obs_1, agent_1 = True)    
                     if(not self.processor.parenting):
-                        save_step(real_obs_2, agent_1 = False) 
+                        save_step(step, real_obs_2, agent_1 = False) 
                     display_step(step + 1, done = True, dreaming = dreaming)
                     video_display_step(step + 1, done = True, dreaming = dreaming)
                     self.processor.done()

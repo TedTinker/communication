@@ -83,7 +83,7 @@ class PVRNN_LAYER(nn.Module):
         
         self.prop_z = ZP_ZQ(
             zp_in_features = self.args.h_w_action_size,
-            zq_in_features = self.args.h_w_action_size + self.args.prop_state_size, 
+            zq_in_features = self.args.h_w_action_size + self.args.prop_encode_size, 
             out_features = self.args.prop_state_size, args = self.args)
         
         self.command_voice_z = ZP_ZQ(
@@ -189,7 +189,6 @@ class PVRNN(nn.Module):
         self.touch_in = Touch_IN(self.args)
         self.prop_in = Prop_IN(self.args)
         self.command_voice_in = Voice_IN(self.args) 
-        self.report_voice_in = Voice_IN(self.args) 
         self.self_voice_in = Voice_IN(self.args) 
         self.wheels_joints_in = Wheels_Joints_IN(self.args)
 
@@ -222,7 +221,7 @@ class PVRNN(nn.Module):
     
     
             
-    # I think voice_out should be here too.
+    # If agent is generating voice, voice_out should be here too.
     def predict(self, h, wheels_joints):
         h_w_wheels_joints = torch.cat([h, wheels_joints], dim = -1)
         pred_vision, pred_touch, pred_prop, pred_command_voice, pred_report_voice = self.predict_obs(h_w_wheels_joints)
