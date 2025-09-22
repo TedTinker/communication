@@ -12,7 +12,7 @@ from agent import Agent
 
 
 
-hyper_parameters = "ef"
+hyper_parameters = "ef_q2t_12"
 agent_num = "0001"
 epochs = "060000"
 saved_file = "saved_deigo"
@@ -22,6 +22,9 @@ print("\n\nLoading default agent...", end = " ")
 load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pkl.gz'
 with gzip.open(load_path, "rb") as f:
     agent = pickle.load(f) 
+    
+agent.robot_name = "robot_3"
+agent.args.object_size = 2.5
     
 agent.start_physics(GUI = True)
 
@@ -38,9 +41,9 @@ print("Ready to go!")
 
 
 
-hyper_parameters = "ef_old"
+hyper_parameters = "old_ef"
 agent_num = "0001"
-epochs = "000000"
+epochs = "060000"
 saved_file = "saved_deigo"
 
 
@@ -52,9 +55,8 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
         new_agent = pickle.load(f) 
     agent.load_state_dict(new_agent.state_dict())
     
-    new_agent.args.force = 3000 # 30000
-    new_agent.args.numSolverIterations = 1
-    new_agent.args.numSubSteps = 1
+    new_agent.args.max_object_distance = 6
+    new_agent.args.be_near_distance = 5
     
     
     
@@ -109,7 +111,7 @@ change_agent(hyper_parameters, agent_num, epochs)
             
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(6, 1)], 
+    tasks_and_weights = [(3, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
@@ -119,14 +121,14 @@ agent.processor_name = 0
 
 episodes += 1
 win = agent.save_episodes(
-    test = False, 
+    test = None, 
     verbose = False,
     display = False, 
     video_display = True,
     sleep_time = .25, 
     waiting = False, 
-    user_action = False, 
-    dreaming = True)
+    user_action = True, 
+    dreaming = False)
 if(win): 
     wins += 1
 #print(f"\tWIN RATE: {round(100 * (wins / episodes), 2)}% \t ({wins} wins out of {episodes} episodes)")

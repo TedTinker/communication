@@ -198,14 +198,14 @@ def plots(plot_dicts, min_max_dict):
             if(type(xs) == dict): xs = xs["xs"]
             length_xs = len(xs)
             mapped_values = []
-            for epoch, linestyle, full_name in epochs:
-                position = (epoch / epochs[-1][0]) * (length_xs - 1)
-                index = round(position)
-                x_val = xs[index]
-                #print(f"\n{epoch}, {linestyle}, {full_name}, {x_val}")
-                here.axvline(x=x_val, color = (0,0,0,.2), linestyle = linestyle)
-                here.text(x_val, here.get_ylim()[1] * 0.95, full_name,                  # This name works great, but consider revising.
-                  rotation=90, verticalalignment='top', fontsize=10, color='black')
+            #for epoch, linestyle, full_name in epochs:
+            #    position = (epoch / epochs[-1][0]) * (length_xs - 1)
+            #    index = round(position)
+            #    x_val = xs[index]
+            #    #print(f"\n{epoch}, {linestyle}, {full_name}, {x_val}")
+            #    here.axvline(x=x_val, color = (0,0,0,.2), linestyle = linestyle)
+            #    here.text(x_val, here.get_ylim()[1] * 0.95, full_name,                  # This name works great, but consider revising.
+            #      rotation=90, verticalalignment='top', fontsize=10, color='black')
                 
                 
                 

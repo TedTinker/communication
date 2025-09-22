@@ -83,7 +83,7 @@ add_this("e",   {
     "normal_alpha" : .05,
     "target_entropy" : -1.5})    
 
-vision_eta = .05 # I think the bast combo is .05, 1, .2
+vision_eta = .05 
 touch_eta = 1
 prop_eta = .1
 report_eta = .2
@@ -105,10 +105,10 @@ add_this("f",   {
 
 
 
-add_this("q",   {
+"""add_this("q",   {
     "save_agents" : "False",
     "save_behaviors" : "False",
-    "save_compositions" : "False"})
+    "save_compositions" : "False"})"""
 
 
 add_this("q2",   {
@@ -119,7 +119,17 @@ add_this("q2",   {
 
 
 
-add_this("t1",   {
+add_this("t", {
+    "max_object_distance" : [6, 7],
+    "object_size" : 2.5,
+    "robot_name" : ["robot", "robot_2", "robot_3"],
+    "be_near_distance" : [4, 5]
+})
+
+
+
+
+"""add_this("t1",   {
     "touch_top" : False,
     "yellow" : False,
     "cone" : False,
@@ -135,14 +145,9 @@ add_this("t2",   {
     "cone" : False,
     "hourglass" : False,
     "test_train_num" : 1
-}) 
+}) """
 
 
-add_this("30", {})
-
-add_this("60", {})
-
-add_this("90", {})
 
 
 """add_this("testing_new_compositions",   {
