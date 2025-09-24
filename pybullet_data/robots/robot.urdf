@@ -210,6 +210,130 @@
     </joint>
 
 
+    <!-- camera_1 -->
+    <link name="camera_1">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.2" length="0.05"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.2" length="0.05"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: body, camera_1 -->
+    <joint name="body_camera_1_joint" type="fixed">
+        <parent link="body"/>
+        <child link="camera_1"/>
+        <origin xyz="0.5 0 0"
+                rpy="0 1.5708 0"/>
+        <axis xyz="0 0 1"/>
+        
+    </joint>
+
+
+    <!-- camera_2 -->
+    <link name="camera_2">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.175" length="0.05"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.175" length="0.05"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: body, camera_2 -->
+    <joint name="body_camera_2_joint" type="fixed">
+        <parent link="body"/>
+        <child link="camera_2"/>
+        <origin xyz="0.501 0 0"
+                rpy="0 1.5708 0"/>
+        <axis xyz="0 0 1"/>
+        
+    </joint>
+
+
+    <!-- camera_3 -->
+    <link name="camera_3">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.1" length="0.05"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.1" length="0.05"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: body, camera_3 -->
+    <joint name="body_camera_3_joint" type="fixed">
+        <parent link="body"/>
+        <child link="camera_3"/>
+        <origin xyz="0.502 0 0"
+                rpy="0 1.5708 0"/>
+        <axis xyz="0 0 1"/>
+        
+    </joint>
+
+
+    <!-- camera_4 -->
+    <link name="camera_4">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.025" length="0.05"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.025" length="0.05"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: body, camera_4 -->
+    <joint name="body_camera_4_joint" type="fixed">
+        <parent link="body"/>
+        <child link="camera_4"/>
+        <origin xyz="0.503 0 0"
+                rpy="0 1.5708 0"/>
+        <axis xyz="0 0 1"/>
+        
+    </joint>
+
+
     <!-- left_wheel -->
     <link name="left_wheel">
         <inertial>
@@ -1725,285 +1849,6 @@
         <origin xyz="-0.5025 -0.30250000000000005 0"
                 rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
-        
-    </joint>
-
-
-    <!-- body_face_front_0 -->
-    <link name="body_face_front_0">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0.05" ixy="0.05" ixz="0.05" iyy="0.05" iyz="0.05" izz="0.05"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: body, body_face_front_0 -->
-    <joint name="body_body_face_front_0_joint" type="fixed">
-        <parent link="body"/>
-        <child link="body_face_front_0"/>
-        <origin xyz="0.501 -0.33333333333333337 0.11111111111111116"
-                rpy="0 0 0"/>
-        <axis xyz="0 0 1"/>
-        
-    </joint>
-
-
-    <!-- body_face_front_1 -->
-    <link name="body_face_front_1">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0.05" ixy="0.05" ixz="0.05" iyy="0.05" iyz="0.05" izz="0.05"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: body, body_face_front_1 -->
-    <joint name="body_body_face_front_1_joint" type="fixed">
-        <parent link="body"/>
-        <child link="body_face_front_1"/>
-        <origin xyz="0.501 -0.2222222222222222 0.2222222222222222"
-                rpy="0 0 0"/>
-        <axis xyz="0 0 1"/>
-        
-    </joint>
-
-
-    <!-- body_face_front_2 -->
-    <link name="body_face_front_2">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0.05" ixy="0.05" ixz="0.05" iyy="0.05" iyz="0.05" izz="0.05"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: body, body_face_front_2 -->
-    <joint name="body_body_face_front_2_joint" type="fixed">
-        <parent link="body"/>
-        <child link="body_face_front_2"/>
-        <origin xyz="0.501 -0.1111111111111111 0.11111111111111116"
-                rpy="0 0 0"/>
-        <axis xyz="0 0 1"/>
-        
-    </joint>
-
-
-    <!-- body_face_front_3 -->
-    <link name="body_face_front_3">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0.05" ixy="0.05" ixz="0.05" iyy="0.05" iyz="0.05" izz="0.05"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: body, body_face_front_3 -->
-    <joint name="body_body_face_front_3_joint" type="fixed">
-        <parent link="body"/>
-        <child link="body_face_front_3"/>
-        <origin xyz="0.501 -0.1111111111111111 -0.2222222222222222"
-                rpy="0 0 0"/>
-        <axis xyz="0 0 1"/>
-        
-    </joint>
-
-
-    <!-- body_face_front_4 -->
-    <link name="body_face_front_4">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0.05" ixy="0.05" ixz="0.05" iyy="0.05" iyz="0.05" izz="0.05"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: body, body_face_front_4 -->
-    <joint name="body_body_face_front_4_joint" type="fixed">
-        <parent link="body"/>
-        <child link="body_face_front_4"/>
-        <origin xyz="0.501 0.0 -0.2222222222222222"
-                rpy="0 0 0"/>
-        <axis xyz="0 0 1"/>
-        
-    </joint>
-
-
-    <!-- body_face_front_5 -->
-    <link name="body_face_front_5">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0.05" ixy="0.05" ixz="0.05" iyy="0.05" iyz="0.05" izz="0.05"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: body, body_face_front_5 -->
-    <joint name="body_body_face_front_5_joint" type="fixed">
-        <parent link="body"/>
-        <child link="body_face_front_5"/>
-        <origin xyz="0.501 0.11111111111111116 0.11111111111111116"
-                rpy="0 0 0"/>
-        <axis xyz="0 0 1"/>
-        
-    </joint>
-
-
-    <!-- body_face_front_6 -->
-    <link name="body_face_front_6">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0.05" ixy="0.05" ixz="0.05" iyy="0.05" iyz="0.05" izz="0.05"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: body, body_face_front_6 -->
-    <joint name="body_body_face_front_6_joint" type="fixed">
-        <parent link="body"/>
-        <child link="body_face_front_6"/>
-        <origin xyz="0.501 0.11111111111111116 -0.2222222222222222"
-                rpy="0 0 0"/>
-        <axis xyz="0 0 1"/>
-        
-    </joint>
-
-
-    <!-- body_face_front_7 -->
-    <link name="body_face_front_7">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0.05" ixy="0.05" ixz="0.05" iyy="0.05" iyz="0.05" izz="0.05"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: body, body_face_front_7 -->
-    <joint name="body_body_face_front_7_joint" type="fixed">
-        <parent link="body"/>
-        <child link="body_face_front_7"/>
-        <origin xyz="0.501 0.2222222222222222 0.2222222222222222"
-                rpy="0 0 0"/>
-        <axis xyz="0 0 1"/>
-        
-    </joint>
-
-
-    <!-- body_face_front_8 -->
-    <link name="body_face_front_8">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="0"/>
-            <inertia ixx="0.05" ixy="0.05" ixz="0.05" iyy="0.05" iyz="0.05" izz="0.05"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <geometry>
-                <box size="0.002 0.1111111111111111 0.1111111111111111"/>
-            </geometry>
-        </collision>
-    </link>
-    <!-- Joint: body, body_face_front_8 -->
-    <joint name="body_body_face_front_8_joint" type="fixed">
-        <parent link="body"/>
-        <child link="body_face_front_8"/>
-        <origin xyz="0.501 0.33333333333333337 0.11111111111111116"
-                rpy="0 0 0"/>
-        <axis xyz="0 0 1"/>
         
     </joint>
 

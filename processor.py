@@ -18,18 +18,21 @@ class Processor:
         
         
                 
-    def begin(self, test = False, verbose = False):
+    def begin(self, test = False, verbose = False, set_positions = None, set_goal = None):
         self.steps = 0            
-        goal_task, self.current_objects_1, self.current_objects_2 = make_objects_and_task(
-            num_objects = self.objects, allowed_tasks_and_weights = self.tasks_and_weights, allowed_colors = self.colors, allowed_shapes = self.shapes, test_train_num = self.args.test_train_num, test = test)
+        if(set_goal == None):
+            goal_task, self.current_objects_1, self.current_objects_2 = make_objects_and_task(
+                num_objects = self.objects, allowed_tasks_and_weights = self.tasks_and_weights, allowed_colors = self.colors, allowed_shapes = self.shapes, test_train_num = self.args.test_train_num, test = test)
+        else:
+            goal_task, self.current_objects_1, self.current_objects_2 = set_goal[0], set_goal[1], set_goal[2]
         goal_color, goal_shape = self.current_objects_1[0]
         if(goal_task.name == "FREEPLAY"):
             goal_color = goal_task
             goal_shape = goal_task
         self.goal = Goal(goal_task, goal_color, goal_shape, self.parenting)
-        self.arena_1.begin(self.current_objects_1, self.goal, self.parenting)
+        self.arena_1.begin(self.current_objects_1, self.goal, self.parenting, set_positions = set_positions)
         if(not self.parenting):
-            self.arena_2.begin(self.current_objects_2, self.goal, self.parenting)
+            self.arena_2.begin(self.current_objects_2, self.goal, self.parenting, set_positions = set_positions)
         self.report_voice_1 = empty_goal
         self.report_voice_2 = empty_goal
                                 

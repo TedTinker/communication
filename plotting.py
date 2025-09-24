@@ -179,7 +179,7 @@ def many_min_max(min_max_list):
 
 def plots(plot_dicts, min_max_dict):
     too_many_plot_dicts = len(plot_dicts) > 16
-    levels = [90, 99]
+    levels = [99]
     if(not too_many_plot_dicts):
         fig, axs = plt.subplots(36, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
                 
@@ -237,7 +237,7 @@ def plots(plot_dicts, min_max_dict):
                                 
             def plot_rolling_average_wins(here, gen = False):
                 this_win_dict = gen_win_dict if gen else win_dict
-                awesome_plot(here, this_win_dict, "pink" if gen else "turquoise", "WinRate", (0,100))
+                awesome_plot(here, this_win_dict, "black" if gen else "black", "WinRate", (0,100))
                 here.set_ylabel((f"Rolling-Average Gen-Win-Rate" if gen else f"Rolling-Average Win-Rate"))
                 here.yaxis.set_major_formatter(FuncFormatter(to_percent))
                 here.set_xlabel("Epochs")
@@ -295,8 +295,8 @@ def plots(plot_dicts, min_max_dict):
                                 
             def plot_rolling_average_wins(here, gen = False):
                 handles = []
-                handles.append(awesome_plot(here, win_dict, "turquoise", "Learned", (0,100)))
-                handles.append(awesome_plot(here, gen_win_dict, "pink", "Not Learned", (0,100)))
+                handles.append(awesome_plot(here, win_dict, "black", "Learned", (0,100)))
+                handles.append(awesome_plot(here, gen_win_dict, "black", "Not Learned", (0,100)))
                 here.set_ylabel((f"Rolling-Average Gen-Win-Rate" if gen else f"Rolling-Average Win-Rate"))
                 here.yaxis.set_major_formatter(FuncFormatter(to_percent))
                 here.set_xlabel("Epochs")
@@ -336,7 +336,7 @@ def plots(plot_dicts, min_max_dict):
         gen_rew_dict = get_quantiles(plot_dict, "accumulated_gen_reward", levels = levels, adjust_xs = plot_dict["args"].epochs_per_gen_test)
         
         def plot_cumulative_reward(here, gen = False, min_max = None):
-            awesome_plot(here, gen_rew_dict if gen else rew_dict, "pink" if gen else "turquoise", "Reward", min_max)
+            awesome_plot(here, gen_rew_dict if gen else rew_dict, "black" if gen else "black", "Reward", min_max)
             here.axhline(y = 0, color = 'black', linestyle = '--', alpha = .2)
             here.set_ylabel("Cumulative Reward")
             here.set_xlabel("Epochs")

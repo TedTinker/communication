@@ -3,16 +3,20 @@ import os
 import pickle
 import gzip
 from math import pi
+
 import tkinter as tk
 import pybullet as p
 
+from utils import make_objects_and_task
 from processor import Processor
 from models import Actor
 from agent import Agent 
 
+set_goal = None
 
 
-hyper_parameters = "ef_q2t_12"
+
+hyper_parameters = "ef_q2t_1"
 agent_num = "0001"
 epochs = "060000"
 saved_file = "saved_deigo"
@@ -23,9 +27,7 @@ load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{ep
 with gzip.open(load_path, "rb") as f:
     agent = pickle.load(f) 
     
-agent.robot_name = "robot_3"
 agent.args.object_size = 2.5
-    
 agent.start_physics(GUI = True)
 
 
@@ -41,7 +43,7 @@ print("Ready to go!")
 
 
 
-hyper_parameters = "old_ef"
+hyper_parameters = "ef_q2t_1"
 agent_num = "0001"
 epochs = "060000"
 saved_file = "saved_deigo"
@@ -55,8 +57,11 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = "saved_deigo"
         new_agent = pickle.load(f) 
     agent.load_state_dict(new_agent.state_dict())
     
-    new_agent.args.max_object_distance = 6
-    new_agent.args.be_near_distance = 5
+    new_agent.args.min_object_distance = 8
+    new_agent.args.max_object_distance = 8
+    new_agent.args.pointing_at_object_for_touch_top = 2*pi
+    #new_agent.args.be_near_distance = 7
+    #new_agent.args.watch_distance = 99
     
     
     
@@ -97,6 +102,19 @@ change_agent(hyper_parameters, agent_num, epochs)
      
 
 
+#%% 
+
+
+
+set_goal = make_objects_and_task(
+                num_objects = agent.processors["all"].objects, 
+                allowed_tasks_and_weights = agent.processors["all"].tasks_and_weights, 
+                allowed_colors = agent.processors["all"].colors, 
+                allowed_shapes = agent.processors["all"].shapes, 
+                test_train_num = agent.processors["all"].args.test_train_num, test = None)
+
+
+
 #%%
 
 
@@ -111,7 +129,7 @@ change_agent(hyper_parameters, agent_num, epochs)
             
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(3, 1)], 
+    tasks_and_weights = [(6, 1)], 
     objects = 2, 
     colors = [0, 1, 2, 3, 4, 5], 
     shapes = [0, 1, 2, 3, 4], 
@@ -127,8 +145,10 @@ win = agent.save_episodes(
     video_display = True,
     sleep_time = .25, 
     waiting = False, 
-    user_action = True, 
-    dreaming = False)
+    user_action = False, 
+    dreaming = False,
+    set_positions = None,
+    set_goal = set_goal)
 if(win): 
     wins += 1
 #print(f"\tWIN RATE: {round(100 * (wins / episodes), 2)}% \t ({wins} wins out of {episodes} episodes)")

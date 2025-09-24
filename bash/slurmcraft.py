@@ -105,14 +105,15 @@ add_this("f",   {
 
 
 
-"""add_this("q",   {
+add_this("q",   {
     "save_agents" : "False",
     "save_behaviors" : "False",
-    "save_compositions" : "False"})"""
+    "save_compositions" : "False"})
 
 
 add_this("q2",   {
     #"save_agents" : "False",
+    "epochs_per_agent_save" : 60000,
     "save_behaviors" : "False",
     "save_compositions" : "False"})
 
@@ -120,10 +121,12 @@ add_this("q2",   {
 
 
 add_this("t", {
-    "max_object_distance" : [6, 7],
     "object_size" : 2.5,
-    "robot_name" : ["robot", "robot_2", "robot_3"],
-    "be_near_distance" : [4, 5]
+    "robot_name" : ["robot", "robot_2"],
+    "watch_distance" : 99,
+    "min_object_distance" : [5, 6],   
+    "max_object_distance" : [8, 9],         
+    "be_near_distance" : [6, 7]         
 })
 
 

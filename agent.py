@@ -522,10 +522,10 @@ class Agent:
         
         
         
-    def save_episodes(self, test = False, verbose = False, display = True, video_display = True, sleep_time = None, waiting = False, user_action = False, dreaming = False):        
+    def save_episodes(self, test = False, verbose = False, display = True, video_display = True, sleep_time = None, waiting = False, user_action = False, dreaming = False, set_positions = None, set_goal = None):        
         with torch.no_grad():
             self.processor = self.processors[self.processor_name]
-            self.processor.begin(test = test)       
+            self.processor.begin(test = test, set_positions = set_positions, set_goal = set_goal)       
             parenting = self.processor.parenting
 
             common_keys = [

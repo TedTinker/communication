@@ -110,7 +110,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
     def plot_touch(ax, touch_data):
         ax.text(0.1, 0.9, "", fontsize=12, verticalalignment='center', transform=ax.transAxes)
         touch_image = sensor_plotter(touch_data)
-        touch_image = touch_image[80:-70, 125:-100]
+        touch_image = touch_image[80:-70, 10:-10]
         ax.imshow(touch_image)
         ax.axis('off')
         

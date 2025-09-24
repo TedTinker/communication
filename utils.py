@@ -1,9 +1,10 @@
 #%% 
 
 # To do:
-#   Try fewer vocabulary in the middle one.
-#   I'm plotting the legend in the gen-tests too much.
-#   SOMETIMES OBJECTS DISAPPEAR!
+#   Maybe objects should have non-opposite angles?
+#   Watch-distance too large. I recomment 10.
+#   Be-Near angle too small. I recommend pi/6.
+#   Try touch-top angle. I recommend pi/6.
 
 import os
 import pickle
@@ -564,7 +565,7 @@ parser.add_argument('--robot_name',                     type=str,           defa
                     help='Name of the robot\'s urdf file.')  
 parser.add_argument('--body_size',                      type=float,         default = 2,
                     help='How large is the agent\'s body?')  
-parser.add_argument('--image_size',                     type=int,           default = 16, #20,
+parser.add_argument('--image_size',                     type=int,           default = 16, 
                     help='Dimensions of the images observed.')
 parser.add_argument('--max_wheel_speed',                type=float,         default = 10,
                     help='Max wheel speed.')
@@ -582,8 +583,12 @@ parser.add_argument('--max_joint_2_angle',              type=float,         defa
 
 
     # Processor details
+parser.add_argument('--min_object_distance',            type=float,         default = 4,
+                    help='How far objects can start from the agent.')
 parser.add_argument('--max_object_distance',            type=float,         default = 4,
                     help='How far objects can start from the agent.')
+parser.add_argument('--min_object_angle',               type=float,         default = pi/2,
+                    help='How far objects must be from one another.')
 parser.add_argument('--object_size',                    type=float,         default = 2,
                     help='How large are objects?')          
 
@@ -619,6 +624,8 @@ parser.add_argument('--be_near_distance',               type=float,         defa
 
 parser.add_argument('--top_duration',                   type=int,           default = 3,   
                     help='How long the agent must touch the top of the object to achieve touch_top.')
+parser.add_argument('--pointing_at_object_for_touch_top',  type=float,     default = 10*pi,
+                    help='How directly the agent must point to the object to achieve touch top.')
 parser.add_argument('--touch_top_min_height',           type=float,         default = 3.75,
                     help='How elevated the agent\'s arm must be to touch the object from above.')
 

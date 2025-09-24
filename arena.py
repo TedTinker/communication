@@ -129,6 +129,10 @@ class Arena():
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 0, 0, 0), physicsClientId = self.physicsClient)
             elif("spoke" in link_name or "outline" in link_name):
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, 1), physicsClientId = self.physicsClient)
+            elif("camera_2" in link_name):
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, .3), physicsClientId = self.physicsClient)
+            elif("camera_3" in link_name):
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, .1), physicsClientId = self.physicsClient)
             else:
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
                         
@@ -187,7 +191,7 @@ class Arena():
         self.durations = {"watch" : {}, "be_near" : {}, "top" : {}, "push" : {}, "left" : {}, "right" : {}}
         already_in_play = {key : 0 for key in shape_map.keys()}
         if(set_positions == None):
-            set_positions = self.generate_positions(len(objects), self.args.max_object_distance)
+            set_positions = self.generate_positions(len(objects))
         for i, (color, shape) in enumerate(objects):
             color_index = find_key_by_value(color_map, color)
             shape_index = find_key_by_value(shape_map, shape)
@@ -321,17 +325,18 @@ class Arena():
         
         
     # Functions for objects
-    def generate_positions(self, n, distance):
+    def generate_positions(self, n):
+        distance = uniform(self.args.min_object_distance, self.args.max_object_distance)
         base_angle = uniform(0, 2 * pi)
         x1 = distance * cos(base_angle)
         y1 = distance * sin(base_angle)
-        r = distance 
         angle_step = (2 * pi) / n
         positions = [(x1, y1)]
         for i in range(1, n):
+            distance = uniform(self.args.min_object_distance, self.args.max_object_distance)
             current_angle = base_angle + (i * angle_step)
-            x = r * cos(current_angle)
-            y = r * sin(current_angle)
+            x = distance * cos(current_angle)
+            y = distance * sin(current_angle)
             positions.append((x, y))
         shuffle(positions)
         return positions
@@ -529,12 +534,7 @@ class Arena():
             topped = False
             pushed = False 
             lefted = False 
-            righted = False
-            
-            
-            
-            ### WARNING: MAY BE ALLOWING MULTIPLE TASKS AT ONCE
-            
+            righted = False            
             
             
             # Is the agent touching the object?
@@ -579,18 +579,17 @@ class Arena():
                 print(f"Movement forward: \t{round(global_movement_forward, 2)} global, \t{round(local_movement_forward, 2)} local")
                 print(f"Movement left: \t\t{round(global_movement_left, 2)} global, \t{round(local_movement_left, 2)} local")
                 print(f"Angle of movement: {round(v_rx, 2), round(v_ry, 2)}")"""
-            
-            
-            
+                        
             # Is the agent watching an object?
-            good_watching_angle = abs(object_angle_end) < self.args.pointing_at_object_for_watch 
+            good_watching_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_watch 
             watching = good_watching_angle and not touching and distance <= self.args.watch_distance
             
             # Is the agent near an object?
-            good_being_near_angle = abs(object_angle_end) < self.args.pointing_at_object_for_being_near 
+            good_being_near_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_being_near 
             being_near = good_being_near_angle and not touching and distance <= self.args.be_near_distance
             
             # Is the object touched by the arm, while the arm-angle is high?
+            good_touch_top_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_touch_top
             link_index = None 
             for sensor_name, sensor_index in self.sensors.items():
                 if(sensor_name.startswith("hand_sensor_") and sensor_name.endswith("_stop")):
@@ -610,7 +609,7 @@ class Arena():
             good_arm_speed = abs(arm_speed) >= self.args.min_arm_speed_for_left_right
             good_push_left_distance = global_movement_left >= self.args.global_left_right_amount
             good_push_right_distance = global_movement_left <= -self.args.global_left_right_amount
-            good_left_right_angle = -self.args.pointing_at_object_for_left_right <= object_angle_end and object_angle_end <= self.args.pointing_at_object_for_left_right        
+            good_left_right_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_left_right        
             
             #print(f"\nobject {i}: \nTouch: {touching}, \nGood wheel speed: {good_wheel_speed},\nGood arm speed: {good_arm_speed},\nMovement Left: {global_movement_left}, \nobject_angle_end: {object_angle_end}")
             
@@ -629,7 +628,9 @@ class Arena():
                 print(f"Pushing \t({pushing}): \t\t{self.durations['push'][object_index]} steps")
                 print(f"Lefting \t({lefting}): \t\t{self.durations['left'][object_index]} steps")
                 print(f"Righting \t({righting}): \t\t{self.durations['right'][object_index]} steps\n")"""
-                
+                              
+            print(self.args.be_near_distance, distance, self.args.pointing_at_object_for_being_near, object_angle_end)
+  
                 
             
             # If pushing forward and/or pushing left or right, choose one.
@@ -780,7 +781,7 @@ class Arena():
     
     
     
-    def photo_from_above(self):
+    """def photo_from_above(self):
         pos, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
         x, y = 4 * cos(-3*pi/4), 4 * sin(-3*pi/4)
         view_matrix = p.computeViewMatrix(
@@ -794,6 +795,37 @@ class Arena():
             width=256, height=256,
             projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
             physicsClientId = self.physicsClient)
+        return(rgba)"""
+    
+    
+    
+    def photo_from_above(self):
+        pos, spe, roll, pitch, yaw = self.get_pos_spe_rpy(self.robot_index)
+        quat = p.getQuaternionFromEuler([roll, pitch, yaw])
+        rot_matrix_flat = p.getMatrixFromQuaternion(quat)
+        rot_matrix = np.array(rot_matrix_flat).reshape(3, 3)
+        forward_vector = rot_matrix[:, 0]  # robot's +X axis (forward)
+        left_vector = rot_matrix[:, 1]  # robot's +Y axis (left)
+        up_vector = rot_matrix[:, 2]       # robot's +Z axis (up)
+                
+        cam_eye_pos = [pos[0], pos[1], pos[2] + 5]
+        cam_eye = np.array(cam_eye_pos) + forward_vector * -3.0 + left_vector * -2.0 
+        cam_target = np.array(pos) + forward_vector * 4.0
+        
+        view_matrix = p.computeViewMatrix(
+            cameraEyePosition=cam_eye.tolist(),
+            cameraTargetPosition=cam_target.tolist(),
+            cameraUpVector=up_vector.tolist(),
+            physicsClientId=self.physicsClient)
+        proj_matrix = p.computeProjectionMatrix(
+            left=left, right=right, bottom=bottom, top=top, nearVal=near, farVal=25)
+        _, _, rgba, depth, _ = p.getCameraImage(
+            width=256,
+            height=256,
+            projectionMatrix=proj_matrix,
+            viewMatrix=view_matrix,
+            shadow=0,
+            physicsClientId=self.physicsClient)
         return(rgba)
     
     
