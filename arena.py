@@ -596,7 +596,7 @@ class Arena():
                     link_index = sensor_index
             hand_height = p.getLinkState(bodyUniqueId=self.robot_index, linkIndex=link_index)[0][2]
             good_hand_height = hand_height >= self.args.touch_top_min_height    
-            topping = touching and not touching_body and good_hand_height  
+            topping = touching and not touching_body and good_hand_height and good_touch_top_angle
                                     
             # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
             good_push_distance = (global_movement_forward >= self.args.global_push_amount)
@@ -628,9 +628,7 @@ class Arena():
                 print(f"Pushing \t({pushing}): \t\t{self.durations['push'][object_index]} steps")
                 print(f"Lefting \t({lefting}): \t\t{self.durations['left'][object_index]} steps")
                 print(f"Righting \t({righting}): \t\t{self.durations['right'][object_index]} steps\n")"""
-                              
-            print(self.args.be_near_distance, distance, self.args.pointing_at_object_for_being_near, object_angle_end)
-  
+                                
                 
             
             # If pushing forward and/or pushing left or right, choose one.
@@ -881,6 +879,7 @@ class Arena():
         else: d = (d - d.min())/(d.max()-d.min())
         vision = np.concatenate([rgb, d], axis = -1)
         vision = resize(vision, (self.args.image_size, self.args.image_size, 4))
+        
         return(vision)
         
         

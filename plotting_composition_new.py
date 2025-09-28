@@ -561,14 +561,14 @@ plot_dicts, min_max_dict, complete_order = load_dicts(args)
 for plot_dict in plot_dicts:
     for component in [
         "hq", 
-        #"command_voice_zq"
+        "command_voice_zq"
         ]:
         get_all_data(
             plot_dict = plot_dict, 
             component = component)
         for reducer_type in [
             "lda",
-            #"pca"
+            "pca"
             ]:
             make_all_reducers(
                 plot_dict = plot_dict, 
@@ -588,6 +588,6 @@ for plot_dict in plot_dicts:
                 component = component, 
                 reducer_type = reducer_type, 
                 anchor_epochs = these_epochs[-1], 
-                smooth_frames = 15)
+                smooth_frames = 3)
 print(f"\nDuration: {duration()}. Done!")
 # %%

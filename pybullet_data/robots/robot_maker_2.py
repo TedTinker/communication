@@ -88,6 +88,9 @@ def make_robot(robot_name, parts):
     wheel_positions = [] 
     wheel_dimensions = []
     wheel_angles = []
+    camera_positions = []
+    camera_dimensions = []
+    camera_angles = []
     for part in parts:
         sensor_positions.extend(part.sensor_positions)
         sensor_dimensions.extend(part.sensor_dimensions)
@@ -96,6 +99,10 @@ def make_robot(robot_name, parts):
             wheel_positions.append(part.joint_origin)
             wheel_dimensions.append(part.size)
             wheel_angles.append(part.joint_axis)
+        if("camera" in part.name):
+            camera_positions.append(part.joint_origin)
+            camera_dimensions.append(part.size)
+            camera_angles.append(part.joint_axis)
     sensor_values = [0] * len(sensor_positions)  # Adjust values for testing
 
     def apply_rotation(vertices, position, angle):
@@ -113,7 +120,8 @@ def make_robot(robot_name, parts):
         sensor_angles = sensor_angles, 
         show = False,
         figsize = None,
-        save_path = None):
+        save_path = None,
+        spread = 1):
         
         if(figsize == None):
             fig = plt.figure()
@@ -123,6 +131,9 @@ def make_robot(robot_name, parts):
 
         def draw_sensor(ax, position, dimension, angle, value):
             x, y, z = position
+            x *= spread
+            y *= spread 
+            z *= spread
             dx, dy, dz = dimension
 
             # Create vertices for the sensor box
@@ -148,7 +159,7 @@ def make_robot(robot_name, parts):
                 [vertices[4], vertices[7], vertices[3], vertices[0]]
             ]
 
-            poly3d = Poly3DCollection(faces, facecolors=(1, 0, 0, value), linewidths=0.5, edgecolors=(0, 0, 0, .1))
+            poly3d = Poly3DCollection(faces, facecolors=(1, 0, 0, value), linewidths=0.75, edgecolors=(0, 0, 0, .5))
             ax.add_collection3d(poly3d)
 
         for i, (value, position, dimension, angle) in enumerate(zip(sensor_values, sensor_positions, sensor_dimensions, sensor_angles)):
@@ -158,23 +169,17 @@ def make_robot(robot_name, parts):
             
         def draw_wheel(ax, position, dimension, angle):
             x, y, z = position
+            x *= spread 
+            y *= spread 
+            z += spread
             radius, _, _ = dimension
-            z += 1  # optional z-offset
-
-            # Circle in XZ plane (flat, like a wheel standing upright)
             num_sides = 60
             theta = np.linspace(0, 2 * np.pi, num_sides)
             circle = np.array([[radius * np.cos(t), 0, radius * np.sin(t)] for t in theta])
-
-            # Rotate and translate
             circle = apply_rotation(circle, np.array([0, 0, 0]), np.array(angle))
             circle += np.array([x, y, z])
-
-            # Make segments between points
             segments = [[circle[i], circle[(i + 1) % num_sides]] for i in range(num_sides)]
-
-            # Draw as wireframe circle
-            ring = Line3DCollection(segments, colors=(0, 0, 0, 0.2), linewidths=1)
+            ring = Line3DCollection(segments, colors=(0, 0, 0, 0.75), linewidths=1)
             ax.add_collection3d(ring)
             
         for i, (position, dimension, angle) in enumerate(zip(wheel_positions, wheel_dimensions, wheel_angles)):
@@ -182,13 +187,34 @@ def make_robot(robot_name, parts):
             draw_wheel(ax, position, dimension, angle)
             
             
+            
+        def draw_camera(ax, position, dimension, angle):
+            x, y, z = position
+            x *= spread 
+            y *= spread 
+            z += spread
+            radius, _, _ = dimension
+            num_sides = 60
+            theta = np.linspace(0, 2 * np.pi, num_sides)
+            circle = np.array([[0, radius * np.cos(t), radius * np.sin(t)] for t in theta])
+            circle = apply_rotation(circle, np.array([0, 0, 0]), np.array(angle))
+            circle += np.array([x, y, z])
+            segments = [[circle[i], circle[(i + 1) % num_sides]] for i in range(num_sides)]
+            ring = Line3DCollection(segments, colors=(0, 0, 0, 0.75), linewidths=1)
+            ax.add_collection3d(ring)
+            
+        for i, (position, dimension, angle) in enumerate(zip(camera_positions, camera_dimensions, camera_angles)):
+            angle = (0, 0, 0)
+            draw_camera(ax, position, dimension, angle)
+            
+            
 
         # Set axis limits based on sensor positions
         sensor_positions = np.array(sensor_positions)
         if len(sensor_positions) > 0:
-            x_limits = [np.min(sensor_positions[:, 0]), np.max(sensor_positions[:, 0])]
-            y_limits = [np.min(sensor_positions[:, 1]), np.max(sensor_positions[:, 1])]
-            z_limits = [np.min(sensor_positions[:, 2]), np.max(sensor_positions[:, 2])]
+            x_limits = [np.min(sensor_positions[:, 0] * spread), np.max(sensor_positions[:, 0] * spread)]
+            y_limits = [np.min(sensor_positions[:, 1] * spread), np.max(sensor_positions[:, 1] * spread)]
+            z_limits = [np.min(sensor_positions[:, 2] * spread), np.max(sensor_positions[:, 2] * spread)]
             ax.set_xlim(x_limits)
             ax.set_ylim(y_limits)
             ax.set_zlim(z_limits)
@@ -285,7 +311,12 @@ if(__name__ == "__main__"):
         initial_position = (-5, 0, 0)  # Replace with the actual starting position
         initial_orientation = p.getQuaternionFromEuler([0, 0, pi/2])  # Replace with the actual starting orientation
         
-        sensor_plotter(sensor_values, show = True, figsize = (10, 10), save_path = f"sensor_plots/{robot_name}_{str(0).zfill(3)}.png")
+        sensor_plotter(
+            sensor_values, 
+            show = True, 
+            figsize = (10, 10), 
+            save_path = f"sensor_plots/{robot_name}_{str(0).zfill(3)}.png", 
+            spread = 2)
         #for i in range(len(sensor_values)):
         #    sensor_values[i] = 1
         #    sensor_plotter(sensor_values, show = True, figsize = (10, 10), save_path = f"sensor_plots/{robot_name}_{str(i+1).zfill(3)}.png")

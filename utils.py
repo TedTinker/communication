@@ -2,7 +2,6 @@
 
 # To do:
 #   Maybe objects should have non-opposite angles?
-#   Watch-distance too large. I recomment 10.
 #   Be-Near angle too small. I recommend pi/6.
 #   Try touch-top angle. I recommend pi/6.
 
@@ -583,13 +582,13 @@ parser.add_argument('--max_joint_2_angle',              type=float,         defa
 
 
     # Processor details
-parser.add_argument('--min_object_distance',            type=float,         default = 4,
+parser.add_argument('--min_object_distance',            type=float,         default = 6,
                     help='How far objects can start from the agent.')
-parser.add_argument('--max_object_distance',            type=float,         default = 4,
+parser.add_argument('--max_object_distance',            type=float,         default = 10,
                     help='How far objects can start from the agent.')
 parser.add_argument('--min_object_angle',               type=float,         default = pi/2,
                     help='How far objects must be from one another.')
-parser.add_argument('--object_size',                    type=float,         default = 2,
+parser.add_argument('--object_size',                    type=float,         default = 2.5,
                     help='How large are objects?')          
 
 parser.add_argument('--reward',                         type=float,         default = 10,
@@ -612,19 +611,19 @@ parser.add_argument('--watch_duration',                 type=int,           defa
                     help='How long the agent must watch the object to achieve watching.')
 parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/12,
                     help='How directly the agent must point to the object to achieve watching.')
-parser.add_argument('--watch_distance',                 type=float,         default = 6,
+parser.add_argument('--watch_distance',                 type=float,         default = 12,
                     help='How closely the agent must watch the object to achieve watching.')
 
 parser.add_argument('--be_near_duration',               type=int,           default = 5,
                     help='How long the agent must be near the object to achieve be_near.')
-parser.add_argument('--pointing_at_object_for_being_near',  type=float,     default = pi/12,
+parser.add_argument('--pointing_at_object_for_being_near',  type=float,     default = pi/6,
                     help='How directly the agent must point to the object to achieve be_near.')
-parser.add_argument('--be_near_distance',               type=float,         default = 3.25,
+parser.add_argument('--be_near_distance',               type=float,         default = 7,
                     help='How close the agent must be near the object to achieve be_near.')
 
 parser.add_argument('--top_duration',                   type=int,           default = 3,   
                     help='How long the agent must touch the top of the object to achieve touch_top.')
-parser.add_argument('--pointing_at_object_for_touch_top',  type=float,     default = 10*pi,
+parser.add_argument('--pointing_at_object_for_touch_top',  type=float,     default = pi/3,
                     help='How directly the agent must point to the object to achieve touch top.')
 parser.add_argument('--touch_top_min_height',           type=float,         default = 3.75,
                     help='How elevated the agent\'s arm must be to touch the object from above.')

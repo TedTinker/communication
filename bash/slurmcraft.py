@@ -112,8 +112,12 @@ add_this("q",   {
 
 
 add_this("q2",   {
-    #"save_agents" : "False",
-    "epochs_per_agent_save" : 60000,
+    "agents_per_agent_save" : 1,
+    "epochs_per_agent_save" : 30000,
+    "save_behaviors" : "False",
+    "save_compositions" : "False"})
+
+add_this("q3",   {
     "save_behaviors" : "False",
     "save_compositions" : "False"})
 
@@ -123,16 +127,17 @@ add_this("q2",   {
 add_this("t", {
     "object_size" : 2.5,
     "robot_name" : ["robot", "robot_2"],
-    "watch_distance" : 99,
-    "min_object_distance" : [5, 6],   
-    "max_object_distance" : [8, 9],         
-    "be_near_distance" : [6, 7]         
+    "min_object_distance" : 6,   
+    "max_object_distance" : 10,         
+    "be_near_distance" : 7,  
+    "pointing_at_object_for_being_near" : [pi/4, pi/6],
+    "pointing_at_object_for_touch_top" : pi/3  
 })
 
 
 
 
-"""add_this("t1",   {
+add_this("t1",   {
     "touch_top" : False,
     "yellow" : False,
     "cone" : False,
@@ -148,7 +153,7 @@ add_this("t2",   {
     "cone" : False,
     "hourglass" : False,
     "test_train_num" : 1
-}) """
+})
 
 
 

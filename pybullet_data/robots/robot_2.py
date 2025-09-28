@@ -34,6 +34,54 @@ parts = [
         inertia = [15, 0, 0, 15, 0, 15]),
     
     Part(
+        name = "camera_1", 
+        mass = 0, 
+        shape = "cylinder",
+        size = (.2, .05, .05), 
+        joint_parent = "body", 
+        joint_origin = (.5, 0, 0), 
+        joint_axis = (0, 0, 1),
+        joint_rpy=(0, 1.5708, 0),
+        joint_type = "fixed",
+        inertia = [0, 0, 0, 0, 0, 0]),
+
+    Part(
+        name = "camera_2", 
+        mass = 0, 
+        shape = "cylinder",
+        size = (.175, .05, .05), 
+        joint_parent = "body", 
+        joint_origin = (.501, 0, 0), 
+        joint_axis = (0, 0, 1),
+        joint_rpy=(0, 1.5708, 0),
+        joint_type = "fixed",
+        inertia = [0, 0, 0, 0, 0, 0]),
+    
+    Part(
+        name = "camera_3", 
+        mass = 0, 
+        shape = "cylinder",
+        size = (.1, .05, .05), 
+        joint_parent = "body", 
+        joint_origin = (.502, 0, 0), 
+        joint_axis = (0, 0, 1),
+        joint_rpy=(0, 1.5708, 0),
+        joint_type = "fixed",
+        inertia = [0, 0, 0, 0, 0, 0]),
+    
+    Part(
+        name = "camera_4", 
+        mass = 0, 
+        shape = "cylinder",
+        size = (.025, .05, .05), 
+        joint_parent = "body", 
+        joint_origin = (.503, 0, 0), 
+        joint_axis = (0, 0, 1),
+        joint_rpy=(0, 1.5708, 0),
+        joint_type = "fixed",
+        inertia = [0, 0, 0, 0, 0, 0]),
+    
+    Part(
         name = "left_wheel", 
         mass = .1, 
         shape = "cylinder",

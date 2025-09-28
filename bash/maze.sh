@@ -71,19 +71,3 @@ else
     echo
     echo "$dict_jid : finishing dictionaries"
 fi
-
-jid_list=()
-jid=$(sbatch --dependency=afterok:$dict_jid communication/bash/plotting.slurm | awk '{print $4}')
-echo "$jid : plotting"
-jid_list+=($jid)
-
-jid=$(sbatch --dependency=afterok:$dict_jid communication/bash/plotting_p_values.slurm | awk '{print $4}')
-echo "$jid : plotting p-values"
-
-jid=$(sbatch --dependency=afterok:$dict_jid communication/bash/plotting_behavior.slurm | awk '{print $4}')
-echo "$jid : plotting behaviors"
-
-job_ids=$(echo ${jid_list[@]} | tr ' ' ':')  
-jid=$(sbatch --dependency=afterok:${job_ids} communication/bash/combine_plots.slurm | awk '{print $4}')
-echo "$jid : combining plots"
-echo

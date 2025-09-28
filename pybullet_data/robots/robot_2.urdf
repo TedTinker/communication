@@ -210,6 +210,130 @@
     </joint>
 
 
+    <!-- camera_1 -->
+    <link name="camera_1">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.2" length="0.05"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.2" length="0.05"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: body, camera_1 -->
+    <joint name="body_camera_1_joint" type="fixed">
+        <parent link="body"/>
+        <child link="camera_1"/>
+        <origin xyz="0.5 0 0"
+                rpy="0 1.5708 0"/>
+        <axis xyz="0 0 1"/>
+        
+    </joint>
+
+
+    <!-- camera_2 -->
+    <link name="camera_2">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.175" length="0.05"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.175" length="0.05"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: body, camera_2 -->
+    <joint name="body_camera_2_joint" type="fixed">
+        <parent link="body"/>
+        <child link="camera_2"/>
+        <origin xyz="0.501 0 0"
+                rpy="0 1.5708 0"/>
+        <axis xyz="0 0 1"/>
+        
+    </joint>
+
+
+    <!-- camera_3 -->
+    <link name="camera_3">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.1" length="0.05"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.1" length="0.05"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: body, camera_3 -->
+    <joint name="body_camera_3_joint" type="fixed">
+        <parent link="body"/>
+        <child link="camera_3"/>
+        <origin xyz="0.502 0 0"
+                rpy="0 1.5708 0"/>
+        <axis xyz="0 0 1"/>
+        
+    </joint>
+
+
+    <!-- camera_4 -->
+    <link name="camera_4">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.025" length="0.05"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.025" length="0.05"/>
+            </geometry>
+        </collision>
+    </link>
+    <!-- Joint: body, camera_4 -->
+    <joint name="body_camera_4_joint" type="fixed">
+        <parent link="body"/>
+        <child link="camera_4"/>
+        <origin xyz="0.503 0 0"
+                rpy="0 1.5708 0"/>
+        <axis xyz="0 0 1"/>
+        
+    </joint>
+
+
     <!-- left_wheel -->
     <link name="left_wheel">
         <inertial>
