@@ -8,6 +8,8 @@ from utils_submodule import episodes_steps, init_weights
 
 
 
+# One cell in an (MTRNN) Multiple Timescall Recurrent Neural Network.
+# This is also a GRU (Gated Recurrent Unit).
 class MTRNNCell(nn.Module):
     def __init__(self, input_size, hidden_size, time_constant, args):
         super(MTRNNCell, self).__init__()
@@ -54,8 +56,6 @@ class MTRNNCell(nn.Module):
     def forward(self, x, h):
         r = torch.sigmoid(self.r_x(x) + self.r_h(h))
         z = torch.sigmoid(self.z_x(x) + self.z_h(h))
-        #r = (torch.tanh(self.r_x(x) + self.r_h(h)) + 1) / 2
-        #z = (torch.tanh(self.z_x(x) + self.z_h(h)) + 2) / 2
         new_h = torch.tanh(self.n_x(x) + r * self.n_h(h))
         new_h = new_h * (1 - z)  + h * z
         new_h = new_h * self.new + h * self.old
@@ -90,6 +90,7 @@ if __name__ == "__main__":
     
     
 
+# An MTRNN, applying the cell. 
 class MTRNN(nn.Module):
     def __init__(self, input_size, hidden_size, time_constant, args):
         super(MTRNN, self).__init__()

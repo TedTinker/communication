@@ -1,9 +1,8 @@
 #%% 
 
-# To do:
-#   Maybe objects should have non-opposite angles?
-#   Be-Near angle too small. I recommend pi/6.
-#   Try touch-top angle. I recommend pi/6.
+# TO MAKE READABLE:
+    # agent
+    # Processor
 
 import os
 import pickle
@@ -12,6 +11,9 @@ from time import sleep
 import builtins
 import datetime 
 import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import matplotlib.patches as patches
 import argparse, ast
 from math import exp, log, pi
 from random import choice, choices
@@ -19,29 +21,33 @@ import torch
 import psutil
 from itertools import product
 import tkinter as tk
-import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
-if(os.getcwd().split("/")[-1] != "communication"): os.chdir("communication")
-print(f"\n\nWorking in: {os.getcwd()}\n\n")
-
-torch.set_printoptions(precision=3, sci_mode=False)
-
+# Find torch device.
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = torch.device("cpu")
 
-# Adjusting printing for computer-cluster.
-def print(*args, **kwargs):
-    kwargs["flush"] = True
-    builtins.print(*args, **kwargs)
+# Choose correct folder.
+if(os.getcwd().split("/")[-1] != "communication"): 
+    os.chdir("communication")
+print(f"\n\nWorking in: {os.getcwd()}\n\n")
 
-# Adjusting PLT.
+# Adjusting font in PLT.
 font = {'family' : 'sans-serif',
         #'weight' : 'bold',
         'size'   : 22}
 matplotlib.rc('font', **font)
 
-# Duration functions.
+# Adjusting printing for computer-cluster.
+def print(*args, **kwargs):
+    kwargs["flush"] = True
+    builtins.print(*args, **kwargs)
+    
+# For readable printing options.
+torch.set_printoptions(precision=3, sci_mode=False)
+
+# Functions to view durations.
 start_time = datetime.datetime.now()
 
 def duration(start_time = start_time):
@@ -63,7 +69,7 @@ def estimate_total_duration(proportion_completed, start_time=start_time):
     else: estimated_total = "?:??:??"
     return(estimated_total)
 
-# Memory functions. 
+# Options to view memory. 
 def cpu_memory_usage():
     process = psutil.Process(os.getpid())
     mem_usage_bytes = process.memory_info().rss  # rss is the Resident Set Size
@@ -76,6 +82,7 @@ def cpu_memory_usage():
 
 
 
+# Class describing task.
 class Task:
     def __init__(self, char, name):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
@@ -83,6 +90,7 @@ class Task:
     def __str__(self):
         return(f"{self.char}, {self.name}")
     
+# Mapping tasks to digits.
 task_map = {
     0:  Task("A", "SILENCE"),
     1:  Task("B", "WATCH"),
@@ -96,6 +104,7 @@ task_name_list = [task.name for task in task_map.values()]
 
 
         
+# Mapping describing color.
 class Color:
     def __init__(self, char, name, rgba):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
@@ -103,6 +112,7 @@ class Color:
     def __str__(self):
         return(f"{self.char}, {self.name}")
     
+# Mapping colors to digits.
 color_map = {
     0: Color("H", "RED",        (1,0,0,1)), 
     1: Color("I", "GREEN",      (0,1,0,1)),
@@ -115,6 +125,7 @@ color_name_list = [c.name for c in color_map.values()]
 
 
         
+# Class describing shapes.
 class Shape:
     def __init__(self, char, file_name):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
@@ -123,6 +134,7 @@ class Shape:
     def __str__(self):
         return(f"{self.char}, {self.name}")
     
+# Mapping describing shapes.
 shape_files = [f.name for f in os.scandir("pybullet_data/shapes") if f.name.endswith("urdf")] 
 shape_files.sort()
 shape_letter_file = [[f.split("_")[0], f] for f in shape_files]
@@ -132,6 +144,7 @@ shape_name_list = [s.name for s in shape_map.values()]
 
 
 
+# In __main__, view all tasks/colors/shapes.
 if(__name__ == "__main__"):
     print("Tasks:")
     for key, value in task_map.items():
@@ -149,16 +162,20 @@ if(__name__ == "__main__"):
 
 
         
+# Class combining tasks, colors, and shaped. 
+# "Parenting" refers to the command voice. If we were using two agents in cooperation, parenting is false. 
 class Goal:
     def __init__(self, task, color, shape, parenting):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
+        # If the voice is silent, make sure all parts of the voice are silent.
         if(self.task.name == "SILENCE"):
             self.color = self.task 
             self.shape = self.task
         self.one_hots = torch.zeros((3, len(task_map) + len(color_map) + len(shape_map)))
         self.make_texts()
-        
+    
+    # Make text representing the goal.    
     def make_texts(self):
 
         for i, char in enumerate([self.task.char, self.color.char, self.shape.char]):
@@ -168,13 +185,16 @@ class Goal:
         self.char_text = f"{self.task.char}{self.color.char}{self.shape.char}"
         self.human_text = f"{self.task.name} {self.color.name} {self.shape.name}"
         
+    # Make text easier for humans to read.
     def human_friendly_text(self, command = True):
         return(f"{'Command' if command else 'Report'}: {self.human_text}")
         
+# Goal representing silence.
 empty_goal = Goal(task_map[0], task_map[0], task_map[0], parenting = False)
 
 
 
+# Given a one-hot vector, make a goal.
 def get_goal_from_one_hots(one_hots):
     while(len(one_hots.shape) > 2):
         one_hots = one_hots.squeeze(0)
@@ -197,14 +217,17 @@ def get_goal_from_one_hots(one_hots):
 
 
         
+# Class describing sensory observations. "prop" is proprioception.
 class Obs:
     def __init__(self, vision, touch, prop, command_voice, report_voice):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
+# Class describing motor commands.
 class Action:
     def __init__(self, wheels_joints, voice_out):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
+# Class describing transitions to be pushed into the recurrent replay buffer.
 class To_Push:
     def __init__(self, obs, action, reward, next_obs, done):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
@@ -226,19 +249,19 @@ class To_Push:
             self.next_obs.report_voice.to("cpu"), 
             self.done)
 
+# Class describing prior, estimated posterior, and the kullback leibler divergence comparing them.
 class Inner_States:
     def __init__(self, zp, zq, dkl):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
 
 
 
+# Mapping indexes and characters representing tasks, colors, and shapes.
 used_chars = list(
                  [t.char for t in task_map.values()] +
                  [c.char for c in color_map.values()] +
                  [s.char for s in shape_map.values()])
 used_chars.sort()
-
-
 
 voice_map = {k: v for k, v in {
     0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G',
@@ -247,12 +270,11 @@ voice_map = {k: v for k, v in {
     21: 'V', 22: 'W', 23: 'X', 24: 'Y', 25: 'Z'
 }.items() if v in used_chars}
 
-
-
 char_to_index = {v: k for k, v in voice_map.items()}
 
 
 
+# In __main__, view the one-hot version, character version, and human-friendly version of some example goals.
 if(__name__ == "__main__"):
     print("\n\nEmpty Goal:")
     example = empty_goal
@@ -283,9 +305,11 @@ if(__name__ == "__main__"):
 
 
 
+# Here we generate valid combinations in training versus testing generalization.
+
+
+
 all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
-
-
 
 def get_matrix_pattern(a_values, rows=5, cols=6):
     excluded = set()
@@ -316,12 +340,16 @@ def get_training_combos(pattern_lookup):
 
 
 
+# 4 tasks, 4 colors, 3 shapes. 48 goals, 16 for training, 32 for testing.
 training_combos_1 = [
     (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 3, 0), (0, 3, 1), (0, 3, 2), 
     (1, 2, 0), (1, 3, 0), (1, 0, 1), (1, 1, 2),
     (4, 0, 0), (4, 1, 1), (4, 3, 1), (4, 2, 2), 
     (5, 1, 0), (5, 2, 1), (5, 0, 2), (5, 3, 2), 
     (6, 1, 0), (6, 2, 0), (6, 3, 1), (6, 0, 2)]
+testing_combos_1 = [combo for combo in all_combos if not combo in training_combos_1]
+
+# 5 tasks, 5 colors, 3 shapes. 75 goals, 25 for training, 50 for testing.
 training_combos_2 = [
     (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), 
     (1, 3, 0), (1, 0, 1), (1, 4, 1), (1, 0, 2), (1, 1, 2), 
@@ -329,18 +357,16 @@ training_combos_2 = [
     (4, 0, 0), (4, 1, 0), (4, 1, 1), (4, 2, 1), (4, 3, 2), 
     (5, 1, 0), (5, 2, 0), (5, 2, 1), (5, 3, 1), (5, 3, 2), (5, 4, 2),
     (6, 2, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2)]
-training_combos_3 = get_training_combos(pattern_lookup_3)
-
-testing_combos_1 = [combo for combo in all_combos if not combo in training_combos_1]
 testing_combos_2 = [combo for combo in all_combos if not combo in training_combos_2]
+
+# 6 tasks, 6 colors, 5 shapes. 180 goals, 60 for training, 120 for testing..
+training_combos_3 = get_training_combos(pattern_lookup_3)
 testing_combos_3 = [combo for combo in all_combos if not combo in training_combos_3]
 
 
 
+# In __main__, view plots showing training and testing combinations.
 if(__name__ == "__main__"):
-    import matplotlib.pyplot as plt
-    import matplotlib.gridspec as gridspec
-    import matplotlib.patches as patches
     def plot_combined_training_grid(training_combos, title="Training Set"):
         task_items = [(a, t) for a, t in task_map.items() if t.name != "SILENCE"]
         num_tasks = len(task_items)
@@ -354,8 +380,7 @@ if(__name__ == "__main__"):
         for i, (a, task) in enumerate(task_items):
             inner_grid = gridspec.GridSpecFromSubplotSpec(
                 len(shape_map), len(color_map),
-                subplot_spec=outer_grid[i], wspace=0.0, hspace=0.0
-            )
+                subplot_spec=outer_grid[i], wspace=0.0, hspace=0.0)
 
             for s in range(len(shape_map)):
                 for c in range(len(color_map)):
@@ -377,7 +402,6 @@ if(__name__ == "__main__"):
                     ax.text(0.5, 0.5, f"{color_name}\n{shape_name}",
                             va='center', ha='center', fontsize=9, wrap=True)
 
-            # Add a title centered over each task grid
             center_col = len(color_map) // 2
             title_ax = fig.add_subplot(inner_grid[0, center_col])
             title_ax.set_title(task.name, fontsize=14, pad=12)
@@ -386,10 +410,9 @@ if(__name__ == "__main__"):
         plt.show()
         plt.close()
 
-    # Example usage:
-    #plot_combined_training_grid(training_combos_1, title="Training Set 1 – All Tasks")
+    plot_combined_training_grid(training_combos_1, title="Training Set 1 – All Tasks")
     plot_combined_training_grid(training_combos_2, title="Training Set 2 – All Tasks")
-    #plot_combined_training_grid(training_combos_3, title="Training Set 3 – All Tasks")
+    plot_combined_training_grid(training_combos_3, title="Training Set 3 – All Tasks")
             
         
         
@@ -397,6 +420,11 @@ if(__name__ == "__main__"):
 
 
 
+# These functions can make goals given which tasks, colors, and shapes are allowed.
+
+
+
+# Choose color and shape, given tasks/colors/shapes in use.
 def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shapes, test_train_num = 3, test = False):
     training_combos = training_combos_1 if test_train_num == 1 else training_combos_2 if test_train_num == 2 else training_combos_3 if test_train_num == 3 else training_combos_4
     testing_combos = [combo for combo in all_combos if not combo in training_combos]
@@ -413,8 +441,9 @@ def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shap
     color_num, shape_num = choice(these_combos)
     return(color_num, shape_num)
 
+# Return goals, given allowed tasks, colors, and shapes. 
+# This returns two sets of colors and shapes. If using two robots in cooperation, the second set is for the second robot.
 def make_objects_and_task(num_objects, allowed_tasks_and_weights, allowed_colors, allowed_shapes, test_train_num = 3, test = False):
-    #print(f"num_objects {num_objects}, allowed_tasks_and_weights {allowed_tasks_and_weights}, allowed_colors {allowed_colors}, allowed_shapes {allowed_shapes}, test {test}")
     tasks   = [v for v, w in allowed_tasks_and_weights]
     weights = [w for v, w in allowed_tasks_and_weights]
     task_num = choices(tasks, weights=weights, k=1)[0]
@@ -434,6 +463,7 @@ def make_objects_and_task(num_objects, allowed_tasks_and_weights, allowed_colors
 
 
         
+# In __main__, view some example goals.
 if(__name__ == "__main__"):
     print("Train")
     for i in range(1):
@@ -451,71 +481,13 @@ if(__name__ == "__main__"):
 
 
 
+# Type for booleons in arguments.
+def literal(arg_string): 
+    return(ast.literal_eval(arg_string))
+
+
 # Arguments to parse. 
-def literal(arg_string): return(ast.literal_eval(arg_string))
-
-
-
 parser = argparse.ArgumentParser()
-
-    # Stuff I'm testing right now   
-parser.add_argument('--tanh_touch',                     type=literal,       default = True,
-                    help='Do sensors measure contact with Tanh?')
-
-parser.add_argument('--test_train_num',                 type=int,           default = 3,
-                    help='Which collects of tasks/colors/shapes are used?')
-
-parser.add_argument('--processor',                      type=str,       default = "all",
-                    help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-
-parser.add_argument("--hidden_state_eta_report_voice_reduction_type",  type=str,         default = "None",
-                    help='How should interest in report_voice chance?') 
-
-parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
-                    help='How should reward increase?')   
-
-
-
-
-    # Which tasks/colors/shapes are allowed in this test_train_num?
-parser.add_argument('--watch',                          type=literal,       default = True,
-                    help='Allow watch task?')
-parser.add_argument('--be_near',                        type=literal,       default = True,
-                    help='Allow be_near task?')
-parser.add_argument('--touch_top',                      type=literal,       default = True,
-                    help='Allow touch_top task?')
-parser.add_argument('--push_forward',                   type=literal,       default = True,
-                    help='Allow push_forward task?')
-parser.add_argument('--push_left',                      type=literal,       default = True,
-                    help='Allow push_left task?')
-parser.add_argument('--push_right',                     type=literal,       default = True,
-                    help='Allow push_right task?')
-
-parser.add_argument('--red',                            type=literal,       default = True,
-                    help='Allow red color?')
-parser.add_argument('--green',                          type=literal,       default = True,
-                    help='Allow green color?')
-parser.add_argument('--blue',                           type=literal,       default = True,
-                    help='Allow blue color?')
-parser.add_argument('--cyan',                           type=literal,       default = True,
-                    help='Allow cyan color?')
-parser.add_argument('--magenta',                        type=literal,       default = True,
-                    help='Allow magenta color?')
-parser.add_argument('--yellow',                         type=literal,       default = True,
-                    help='Allow yellow color?')
-
-parser.add_argument('--pillar',                         type=literal,       default = True,
-                    help='Allow pillar shape?')
-parser.add_argument('--pole',                           type=literal,       default = True,
-                    help='Allow pole shape?')
-parser.add_argument('--dumbbell',                       type=literal,       default = True,
-                    help='Allow dumbbell shape?')
-parser.add_argument('--cone',                           type=literal,       default = True,
-                    help='Allow cone shape?')
-parser.add_argument('--hourglass',                      type=literal,       default = True,
-                    help='Allow hourglass shape?')
-
-    
 
     # Meta 
 parser.add_argument("--arg_title",                      type=str,           default = "default",
@@ -559,6 +531,46 @@ parser.add_argument('--gravity',                        type=float,         defa
 
 
 
+    # Which tasks/colors/shapes are allowed in this test_train_num?
+parser.add_argument('--watch',                          type=literal,       default = True,
+                    help='Allow watch task?')
+parser.add_argument('--be_near',                        type=literal,       default = True,
+                    help='Allow be_near task?')
+parser.add_argument('--touch_top',                      type=literal,       default = True,
+                    help='Allow touch_top task?')
+parser.add_argument('--push_forward',                   type=literal,       default = True,
+                    help='Allow push_forward task?')
+parser.add_argument('--push_left',                      type=literal,       default = True,
+                    help='Allow push_left task?')
+parser.add_argument('--push_right',                     type=literal,       default = True,
+                    help='Allow push_right task?')
+
+parser.add_argument('--red',                            type=literal,       default = True,
+                    help='Allow red color?')
+parser.add_argument('--green',                          type=literal,       default = True,
+                    help='Allow green color?')
+parser.add_argument('--blue',                           type=literal,       default = True,
+                    help='Allow blue color?')
+parser.add_argument('--cyan',                           type=literal,       default = True,
+                    help='Allow cyan color?')
+parser.add_argument('--magenta',                        type=literal,       default = True,
+                    help='Allow magenta color?')
+parser.add_argument('--yellow',                         type=literal,       default = True,
+                    help='Allow yellow color?')
+
+parser.add_argument('--pillar',                         type=literal,       default = True,
+                    help='Allow pillar shape?')
+parser.add_argument('--pole',                           type=literal,       default = True,
+                    help='Allow pole shape?')
+parser.add_argument('--dumbbell',                       type=literal,       default = True,
+                    help='Allow dumbbell shape?')
+parser.add_argument('--cone',                           type=literal,       default = True,
+                    help='Allow cone shape?')
+parser.add_argument('--hourglass',                      type=literal,       default = True,
+                    help='Allow hourglass shape?')
+
+
+
     # Agent details
 parser.add_argument('--robot_name',                     type=str,           default = "robot",
                     help='Name of the robot\'s urdf file.')  
@@ -581,7 +593,9 @@ parser.add_argument('--max_joint_2_angle',              type=float,         defa
 
 
 
-    # Processor details
+    # Arena/Processor details
+parser.add_argument('--processor',                      type=str,       default = "all",
+                help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 parser.add_argument('--min_object_distance',            type=float,         default = 6,
                     help='How far objects can start from the agent.')
 parser.add_argument('--max_object_distance',            type=float,         default = 10,
@@ -595,6 +609,12 @@ parser.add_argument('--reward',                         type=float,         defa
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--wrong_object_punishment',        type=float,         default = 0,
                     help='Negative reward for punishing doing anything to the wrong object (except watching).') 
+parser.add_argument("--hidden_state_eta_report_voice_reduction_type",  type=str,         default = "None",
+                    help='How should interest in report_voice chance?') 
+parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
+                    help='How should reward increase?')   
+parser.add_argument('--tanh_touch',                     type=literal,       default = True,
+                    help='Do sensors measure contact with Tanh?')
 
 parser.add_argument('--max_steps',                      type=int,           default = 30,     
                     help='How many steps the agent can make in one episode.')
@@ -607,6 +627,7 @@ parser.add_argument('--max_voice_len',                  type=int,           defa
 
 
 
+    # Task details.
 parser.add_argument('--watch_duration',                 type=int,           default = 6,
                     help='How long the agent must watch the object to achieve watching.')
 parser.add_argument('--pointing_at_object_for_watch',   type=float,         default = pi/12,
@@ -652,7 +673,7 @@ parser.add_argument('--min_arm_speed_for_left_right',   type=float,         defa
 
 
 
-    # Module  
+    # Modul architecture
 parser.add_argument('--hidden_size',                    type=int,           default = 64,
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,
@@ -670,9 +691,9 @@ parser.add_argument('--vision_encode_size',             type=int,           defa
 parser.add_argument('--vision_state_size',              type=int,           default = 128,
                     help='Parameters in prior and posterior inner-states.')
 
-parser.add_argument('--prop_encode_size',              type=int,           default = 4,
+parser.add_argument('--prop_encode_size',               type=int,           default = 4,
                     help='Parameters in encoding image.')  
-parser.add_argument('--prop_state_size',               type=int,           default = 4,
+parser.add_argument('--prop_state_size',                type=int,           default = 4,
                     help='Parameters in prior and posterior inner-states.')
 
 parser.add_argument('--char_encode_size',               type=int,           default = 8,
@@ -694,6 +715,8 @@ parser.add_argument('--half',                           type=literal,       defa
     # Training
 parser.add_argument('--epochs',                         type=int,       default = 60000,
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
+parser.add_argument('--test_train_num',                 type=int,           default = 3,
+                    help='Which collects of tasks/colors/shapes are used?')
 parser.add_argument('--capacity',                       type=int,           default = 256,
                     help='How many episodes can the memory buffer contain.')
 parser.add_argument('--batch_size',                     type=int,           default = 32, 
@@ -748,6 +771,7 @@ parser.add_argument("--prediction_error_eta_vision",    type=float,         defa
                     help='Nonnegative value, how much to consider prediction_error curiosity for vision.')    
 parser.add_argument("--hidden_state_eta_vision",        type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for vision.') 
+
 
 
     # Touch
@@ -832,6 +856,7 @@ parser.add_argument('--agents_per_composition_data',    type=int,           defa
 
 
 
+# Make arguments.
 try:
     default_args = parser.parse_args([])
     try:    args    = parser.parse_args()
@@ -862,6 +887,7 @@ def get_num_sensors(robot_name):
 
 
 
+# Based on arguments, adjust other arguments.
 def update_args(arg_set):
     if(arg_set.comp == "deigo"):
         arg_set.half = False
@@ -879,8 +905,6 @@ def update_args(arg_set):
     arg_set.obs_encode_size = arg_set.vision_encode_size + arg_set.touch_encode_size + arg_set.voice_encode_size
     arg_set.h_w_wheels_joints_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size
     arg_set.h_w_action_size = arg_set.pvrnn_mtrnn_size + arg_set.wheels_joints_encode_size + arg_set.voice_encode_size
-    """arg_set.epochs = [epochs_for_processor[0] for epochs_for_processor in arg_set.epochs_per_processor]
-    arg_set.processor_list = [epochs_for_processor[1] for epochs_for_processor in arg_set.epochs_per_processor]"""
     
     allowed_task_dict = {
         1 : arg_set.watch,
@@ -888,9 +912,7 @@ def update_args(arg_set):
         3 : arg_set.touch_top,
         4 : arg_set.push_forward,
         5 : arg_set.push_left,
-        6 : arg_set.push_right
-    }
-        
+        6 : arg_set.push_right}
     arg_set.allowed_tasks = [key for key, value in allowed_task_dict.items() if value]
     
     allowed_color_dict = {
@@ -899,9 +921,7 @@ def update_args(arg_set):
         2 : arg_set.blue,
         3 : arg_set.cyan,
         4 : arg_set.magenta,
-        5 : arg_set.yellow
-    }
-    
+        5 : arg_set.yellow}
     arg_set.allowed_colors = [key for key, value in allowed_color_dict.items() if value]
     
     allowed_shape_dict = {
@@ -909,19 +929,16 @@ def update_args(arg_set):
         1 : arg_set.pole,
         2 : arg_set.dumbbell,
         3 : arg_set.cone,
-        4 : arg_set.hourglass
-    }
-    
+        4 : arg_set.hourglass}
     arg_set.allowed_shapes = [key for key, value in allowed_shape_dict.items() if value]
 
     return(arg_set)
-
-
 
 for arg_set in [default_args, args]:
     default_args = update_args(default_args) 
     args = update_args(args)
         
+# Make a title for these arguments based on comparing it to the default arguments, without including these parameters.
 args_not_in_title = [
     "arg_title", "id", "agents", "previous_agents", "init_seed", "keep_data", "epochs_per_pred_list", 
     "episodes_in_pred_list", "agents_per_pred_list", "epochs_per_pos_list", "episodes_in_pos_list", "agents_per_pos_list",
@@ -961,14 +978,13 @@ def get_args_title(default_args, args):
 
 args.arg_title = get_args_title(default_args, args)
 
+# Generate some folders for saving agents and plots.
 save_file = f"saved_{args.comp}"
 os.makedirs(f"{save_file}", exist_ok=True)
 os.makedirs(f"{save_file}/thesis_pics", exist_ok=True)
 os.makedirs(f"{save_file}/thesis_pics/final", exist_ok=True)
-
-
-    
 folder = f"{save_file}/{args.arg_name}"
+
 if(args.arg_title[:3] != "___" and not args.arg_name in ["default", "finishing_dictionaries", "plotting", "plotting_predictions", "plotting_positions"]):
     os.makedirs(f"{folder}", exist_ok=True)
     os.makedirs(f"{folder}/agents", exist_ok=True)
@@ -979,7 +995,9 @@ if(default_args.alpha == "None"):
 if(args.alpha == "None"):         
     args.alpha = None
 
-if(args == default_args): print("Using default arguments.")
+# Print information about arguments.
+if(args == default_args): 
+    print("Using default arguments.")
 else:
     for arg in vars(default_args):
         default = getattr(default_args, arg)
@@ -994,6 +1012,7 @@ else:
             
             
             
+# If we are not showing durations, remove influence of this function.
 if(not args.show_duration):
     def print_duration(start_time, end_time, text = None, end_text = ""):
         pass
@@ -1004,130 +1023,75 @@ if(not args.show_duration):
 
 
 
+# Buttons are used in some tkinter GUIs.
 def wait_for_button_press(button_label="Continue"):
-    """
-    Displays a tkinter button and waits for the user to click it.
-
-    Parameters:
-    button_label (str): The label for the button.
-
-    Returns:
-    None
-    """
     def on_button_click():
         nonlocal continue_simulation
         continue_simulation = True
         root.destroy()
 
-    # Create the tkinter window
     root = tk.Tk()
     root.title("Wait for Input")
     root.geometry("200x100")
-
-    # Add the button
     button = tk.Button(root, text=button_label, command=on_button_click)
     button.pack(expand=True)
-
     continue_simulation = False
-
-    # Run the tkinter main loop
     root.mainloop()
     
     
-    
-import tkinter as tk
-import torch
-import numpy as np
 
+# GUI for users to input custom motor commands.
 def adjust_action(action_tensor):
-    """
-    Creates a user interface for adjusting values in 'action_tensor' within [-1, 1].
-    Users can see real-time slider values, reset to original values, reset to zero,
-    and confirm their final selection.
-    """
     root = tk.Tk()
     root.title("Adjust Actions")
-    
-    # Flatten the tensor and convert to a NumPy array
     shape = action_tensor.shape
     flat_action = action_tensor.view(-1).detach().numpy()
     num_elements = flat_action.size
-    
-    # Keep track of scales and labels so we can reset/update them
     scales = []
     value_labels = []
-
-    # Store original values so we can reset if needed
     original_values = flat_action.copy()
 
     def update_value_label(val, label):
-        """Update the text of the label to display current slider value."""
         label.config(text=f"{float(val):.2f}")
 
     def confirm():
-        """Close the GUI and allow the function to return the new tensor."""
         root.quit()
 
     def reset_to_original():
-        """Reset all sliders to their original values."""
         for i, scale in enumerate(scales):
             scale.set(original_values[i])
             
     def reset_to_zero():
-        """Reset all sliders to zero."""
         for scale in scales:
             scale.set(0.0)
 
-    # Create rows of slider + current value label
     for i in range(num_elements):
         frame = tk.Frame(root, padx=5, pady=5)
         frame.pack(fill=tk.X)
-        
-        # Label for the slider name
         label = tk.Label(frame, text=f"Action[{i}]")
         label.pack(side=tk.LEFT)
-        
-        # Current value label on the right
         current_val_label = tk.Label(frame, width=5, anchor='e')
         current_val_label.pack(side=tk.RIGHT)
-        
-        # Create the scale itself (longer length for easier fine-tuning)
         scale = tk.Scale(
             frame, from_=-1.0, to=1.0, resolution=0.01, orient=tk.HORIZONTAL, length=300,
-            command=lambda val, lbl=current_val_label: update_value_label(val, lbl)
-        )
+            command=lambda val, lbl=current_val_label: update_value_label(val, lbl))
         scale.set(flat_action[i])
         scale.pack(side=tk.RIGHT, padx=10)
-        
-        # Initialize the label to the current slider value
         current_val_label.config(text=f"{scale.get():.2f}")
-        
         scales.append(scale)
         value_labels.append(current_val_label)
 
-    # Button frame
     btn_frame = tk.Frame(root, pady=10)
     btn_frame.pack()
-
-    # Reset buttons
     reset_orig_btn = tk.Button(btn_frame, text="Reset to Original", command=reset_to_original)
     reset_orig_btn.pack(side=tk.LEFT, padx=5)
-
     reset_zero_btn = tk.Button(btn_frame, text="Reset to Zero", command=reset_to_zero)
     reset_zero_btn.pack(side=tk.LEFT, padx=5)
-
-    # Confirm button
     confirm_btn = tk.Button(btn_frame, text="Confirm", command=confirm)
     confirm_btn.pack(side=tk.LEFT, padx=5)
-
-    # Start the Tkinter main loop
     root.mainloop()
-
-    # Once the user clicks "Confirm," gather updated values
     updated_values = [scale.get() for scale in scales]
     root.destroy()
-
-    # Convert updated values back to a PyTorch tensor
     return torch.tensor(updated_values).view(shape)
 
 
@@ -1136,6 +1100,7 @@ def adjust_action(action_tensor):
 
 
 
+# Make human-readable text describing robot's wheels and joints.
 def wheels_joints_to_string(wheels_joints):
     while(len(wheels_joints.shape) > 1):
         wheels_joints = wheels_joints.squeeze(0)
@@ -1149,6 +1114,7 @@ def wheels_joints_to_string(wheels_joints):
 
 
 
+# Make human-readable plot of robot motor commands.
 def plot_number_bars(numbers):
     numbers = [n for n in numbers if n != None]
     fontsize = 7
@@ -1158,7 +1124,7 @@ def plot_number_bars(numbers):
     plt.axhline(0, color='black', linewidth=1)
     plt.xlabel("Index", fontsize = fontsize)
     plt.ylabel("Value", fontsize = fontsize)
-    plt.title("Bar Plot of Actions", fontsize = fontsize)
+    plt.title("Bar Plot of Motor Commands", fontsize = fontsize)
     plt.ylim(-1, 1) 
     xticks = ["left wheel", "right wheel"]
     i = 1
@@ -1171,17 +1137,20 @@ def plot_number_bars(numbers):
 
 
 
+# Given minimum and maximum, find proportional value of "this" in [-1, 1].
 def relative_to(this, min, max):
     this = min + ((this + 1)/2) * (max - min)
     this = [min, max, this]
     this.sort()
     return(this[1])
 
+# Do the reverse.
 def opposite_relative_to(this, min, max):
     return ((this - min) / (max - min)) * 2 - 1
 
 
     
+# Calculate Kullback-Leibler divergence.
 def calculate_dkl(mu_1, std_1, mu_2, std_2):
     std_1 = std_1**2
     std_2 = std_2**2
@@ -1194,8 +1163,9 @@ def calculate_dkl(mu_1, std_1, mu_2, std_2):
 
 
 
+# Find rolling average.
 def rolling_average(lst, window_size=500):
-    print(f"\nSOMETHING MIGHT BE GOING WRONG HERE! IN ROLLING AVERAGE :{lst}\n")
+    # print(f"\nSometimes this may result in error. In rolling average :{lst}\n")
     try:
         new_list = [0 if lst[0] is None else float(lst[0])]
         for i in range(1, len(lst)):
@@ -1211,10 +1181,11 @@ def rolling_average(lst, window_size=500):
                 new_list.append(new_value)
         return new_list
     except:
-        print("\n\nYeah, it messed up.\n\n")
+        print("\n\nRolling average failed.\n\n")
 
 
 
+# Load dictionaries for plotting robot data.
 def load_dicts(args):
     if(os.getcwd().split("/")[-1] != save_file): os.chdir(save_file)
     plot_dicts = [] ; min_max_dicts = []
@@ -1226,12 +1197,8 @@ def load_dicts(args):
         print(f"Loading dictionaries for {name}...")
         got_plot_dicts = False ; got_min_max_dicts = False
         while(not got_plot_dicts):
-            try:
-                with open(name + "/" + "plot_dict.pickle", "rb") as handle: 
-                    plot_dicts.append(pickle.load(handle)) ; got_plot_dicts = True
-            except Exception as e:
-                print(e) 
-                print("Stuck trying to get {}'s plot_dicts...".format(name)) ; sleep(1)
+            with open(name + "/" + "plot_dict.pickle", "rb") as handle: 
+                plot_dicts.append(pickle.load(handle)) ; got_plot_dicts = True
         while(not got_min_max_dicts):
             try:
                 with open(name + "/" + "min_max_dict.pickle", "rb") as handle: 

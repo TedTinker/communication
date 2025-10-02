@@ -126,11 +126,10 @@ add_this("q3",   {
 
 add_this("t", {
     "object_size" : 2.5,
-    "robot_name" : ["robot", "robot_2"],
-    "min_object_distance" : 6,   
-    "max_object_distance" : 10,         
-    "be_near_distance" : 7,  
-    "pointing_at_object_for_being_near" : [pi/4, pi/6],
+    "min_object_distance" : [4, 5, 6],   
+    "max_object_distance" : [7, 8, 9],         
+    "be_near_distance" : [6, 7],  
+    "pointing_at_object_for_being_near" : pi/6,
     "pointing_at_object_for_touch_top" : pi/3  
 })
 

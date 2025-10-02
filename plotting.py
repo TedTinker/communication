@@ -18,6 +18,8 @@ from collections import Counter
 
 from utils import args, duration, load_dicts, print
 
+# This file makes collections of plots gathered during robot training.
+
 print("name:\n{}\n".format(args.arg_name),)
 
 dpi = 50
@@ -30,6 +32,7 @@ def to_percent(y, position):
 
 custom_ls = (0, (3, 5, 1, 5))
 
+# If necessary, plot values to make legend.
 def use_letter_path(xs, ys, letter, here, color, label):
     x_dense = np.linspace(min(xs), max(xs), 30)
     y_dense = np.interp(x_dense, xs, ys)
@@ -38,7 +41,7 @@ def use_letter_path(xs, ys, letter, here, color, label):
 
 
 
-
+# If there are NAN values, interpolate between them.
 def clean_and_interpolate_nan(arr, xs, non_nan_mask):
     arr = np.array(arr, dtype=np.float64)
     if np.isnan(arr[0]):
@@ -53,6 +56,7 @@ def clean_and_interpolate_nan(arr, xs, non_nan_mask):
 
 
 
+# Find values for xx% confidence intervals.
 def get_quantiles(plot_dict, name, levels=[99, 0], adjust_xs=None):    
     if 0 not in levels:
         levels.append(0)
@@ -86,6 +90,7 @@ def get_quantiles(plot_dict, name, levels=[99, 0], adjust_xs=None):
 
 
 
+# Find values for xx% confidence intervals, given a list of lists (for example, multiple critics).
 def get_list_quantiles(list_of_lists, plot_dict, levels = [99, 0]):
     if 0 not in levels:
         levels.append(0)
@@ -118,6 +123,7 @@ def get_list_quantiles(list_of_lists, plot_dict, levels = [99, 0]):
 
 
 
+# Find log-values when necessary.
 def get_logs(quantile_dict):
     log_quantile_dict = {"xs" : quantile_dict["xs"]}
     for key in quantile_dict.keys():
@@ -126,7 +132,8 @@ def get_logs(quantile_dict):
 
     
 
-
+# Pair values regarding xx% confidence intervals. 
+# For example, pair lower value in 95% confidence interval with higher value.
 def pair_list(nums):
     nums.sort()
     pairs = []
@@ -148,6 +155,7 @@ def pair_list(nums):
 
 
 
+# Funciton for plotting confidence intervals.
 def awesome_plot(here, quantile_dict, color, label, min_max = None, line_transparency = .9, fill_transparency = .1, linestyle = "solid", letter = None):
     xs = quantile_dict["xs"]
     keys = list(quantile_dict.keys())[1:]
@@ -170,6 +178,7 @@ def awesome_plot(here, quantile_dict, color, label, min_max = None, line_transpa
     
     
     
+# If there are multiple minimum/maximum values, list them.
 def many_min_max(min_max_list):
     mins = [min_max[0] for min_max in min_max_list if min_max[0] != None]
     maxs = [min_max[1] for min_max in min_max_list if min_max[1] != None]
@@ -177,12 +186,15 @@ def many_min_max(min_max_list):
 
 
 
+# Create plots!
 def plots(plot_dicts, min_max_dict):
     too_many_plot_dicts = len(plot_dicts) > 16
-    levels = [99]
+    levels = [99] # We use just a 99% confidence interval.
+    #If we are plotting few agents, make a conjoined plot with all of them.
     if(not too_many_plot_dicts):
-        fig, axs = plt.subplots(36, len(plot_dicts), figsize = (20*len(plot_dicts), 300))                
+        fig, axs = plt.subplots(36, len(plot_dicts), figsize = (20*len(plot_dicts), 305))                
                 
+    # Iterate over agents.
     for i, plot_dict in enumerate(plot_dicts):
         row_num = 0
         if(not too_many_plot_dicts):
@@ -193,7 +205,7 @@ def plots(plot_dicts, min_max_dict):
         epochs = plot_dict["division_epochs"][0]
         
         
-        
+        # If we were using multiple phases of training, we can divide the plot with verticle liens.
         def divide_arenas(xs, here):
             if(type(xs) == dict): xs = xs["xs"]
             length_xs = len(xs)
@@ -261,72 +273,6 @@ def plots(plot_dicts, min_max_dict):
         fig2.savefig(f"thesis_pics/rolling_win_rate/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
         plt.close(fig2)
         
-        
-        
-        
-        
-        
-        """
-        # Rolling win-rate, no confidence intervals
-        try: os.mkdir("thesis_pics/rolling_win_rate_no_confidence")
-        except: pass
-    
-        task_name_list = []
-        for key in plot_dict.keys():
-            if(key.startswith("wins_")):
-                if(key[5:] != "SILENCE"):
-                    task_name_list.append(key[5:])
-                                                            
-        fig2, ax2 = plt.subplots(len(task_name_list), 1, figsize = (10, 30))
-        fig2.suptitle(plot_dict["arg_title"])  
-        fig2_row_num = 0
-                    
-        for task_name in task_name_list:     
-            
-            win_dict = get_quantiles(plot_dict, f"rolled_wins_{task_name}", levels = [0], adjust_xs = None)
-            gen_win_dict = get_quantiles(plot_dict, f"rolled_gen_wins_{task_name}", levels = [0], adjust_xs = None)
-            
-            for key, value in win_dict.items():
-                if(key != "xs"):
-                    win_dict[key] *= 100
-                    gen_win_dict[key] *= 100
-                else:
-                    gen_win_dict[key] *= args.epochs_per_gen_test
-                                
-            def plot_rolling_average_wins(here, gen = False):
-                handles = []
-                handles.append(awesome_plot(here, win_dict, "black", "Learned", (0,100)))
-                handles.append(awesome_plot(here, gen_win_dict, "black", "Not Learned", (0,100)))
-                here.set_ylabel((f"Rolling-Average Gen-Win-Rate" if gen else f"Rolling-Average Win-Rate"))
-                here.yaxis.set_major_formatter(FuncFormatter(to_percent))
-                here.set_xlabel("Epochs")
-                here.legend(handles = handles)
-                here.set_title(plot_dict["arg_title"] + (f"\nRolling-Average Gen-Win-Rate ({task_name})" if gen else f"\nRolling-Average Win-Rate ({task_name})"))
-                divide_arenas(win_dict, here)
-                
-                    
-            #if(not too_many_plot_dicts): 
-            #    plot_rolling_average_wins(ax)
-            #    ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            #    plot_rolling_average_wins(ax, gen = True)
-            #    ax = axs[row_num,i] if len(plot_dicts) > 1 else axs[row_num] ; row_num += 1
-            
-            plot_rolling_average_wins(ax2[fig2_row_num])  
-            ax2[fig2_row_num].set_title(f"Both ({task_name})")
-            
-            fig2_row_num += 1
-            print(f"\tFinished win-rates w/o confidence intervals ({task_name}).")
-            
-        fig2.savefig(f"thesis_pics/rolling_win_rate_no_confidence/win_rates_{plot_dict['arg_name']}.png", bbox_inches = "tight", dpi=dpi) 
-        plt.close(fig2)
-        """
-        
-        
-        
-        
-        
-        
-            
                 
                 
         # Cumulative reward
@@ -379,7 +325,12 @@ def plots(plot_dicts, min_max_dict):
         report_voice_dict = get_quantiles(plot_dict, "report_voice_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         accuracy_dict = get_quantiles(plot_dict, "accuracy_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         comp_dict = get_quantiles(plot_dict, "complexity_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        forward_losses_min_max = many_min_max([min_max_dict["vision_loss"], min_max_dict["touch_loss"], min_max_dict["command_voice_loss"], min_max_dict["accuracy_loss"], min_max_dict["report_voice_loss"]])
+        #forward_losses_min_max = many_min_max([min_max_dict["vision_loss"], min_max_dict["touch_loss"], min_max_dict["command_voice_loss"], min_max_dict["accuracy_loss"], min_max_dict["report_voice_loss"]])
+        all_values = np.concatenate([v for k, v in comp_dict.items() if k != 'xs'])
+        min_val = np.min(all_values)
+        max_val = np.max(all_values)
+        forward_losses_min_max = (min_val, max_val)
+
         
         log_vision_dict = get_logs(vision_dict)
         log_touch_dict = get_logs(touch_dict)
@@ -395,11 +346,12 @@ def plots(plot_dicts, min_max_dict):
             
         def plot_forward_losses(here, log = False, min_max = None):
             handles = []
-            handles.append(awesome_plot(here, log_vision_dict if log else vision_dict, "blue", "Vision-Loss", min_max))
-            handles.append(awesome_plot(here, log_touch_dict if log else touch_dict, "orange", "Touch-Loss", min_max))
-            handles.append(awesome_plot(here, log_command_voice_dict if log else command_voice_dict, "red", "Command voice-Loss", min_max))
-            handles.append(awesome_plot(here, log_report_voice_dict if log else report_voice_dict, "red", "Report voice-Loss", min_max))
-            handles.append(awesome_plot(here, log_accuracy_dict if log else accuracy_dict, "purple", "Accuracy", min_max))
+            # At the moment, we plot only complexity.
+            #handles.append(awesome_plot(here, log_vision_dict if log else vision_dict, "blue", "Vision-Loss", min_max))
+            #handles.append(awesome_plot(here, log_touch_dict if log else touch_dict, "orange", "Touch-Loss", min_max))
+            #handles.append(awesome_plot(here, log_command_voice_dict if log else command_voice_dict, "red", "Command voice-Loss", min_max))
+            #handles.append(awesome_plot(here, log_report_voice_dict if log else report_voice_dict, "red", "Report voice-Loss", min_max))
+            #handles.append(awesome_plot(here, log_accuracy_dict if log else accuracy_dict, "purple", "Accuracy", min_max))
             handles.append(awesome_plot(here, log_comp_dict if log else comp_dict, "green",  "Complexity", min_max))
             here.set_ylabel("Loss")
             here.set_xlabel("Epochs")

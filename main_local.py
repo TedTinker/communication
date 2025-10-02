@@ -9,6 +9,7 @@ args.local = True
 args.show_duration = True
 args.save_compositions = False
 
+# This is helpful for testing new arguments. 
 def run():
     agent = Agent(
         args = args,

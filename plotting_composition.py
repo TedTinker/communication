@@ -1,7 +1,5 @@
 #%%
 
-# I think this isn't using the right values for epoch 0.None
-
 import os
 import random
 import numpy as np
@@ -26,6 +24,9 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
 from utils import args, duration, load_dicts, print, task_map, color_map, shape_map
 from utils_submodule import  init_weights
+
+# This file makes a series of PCA or LDA compositions, showing how an agent considered the relationships between tasks and colors over time.
+
 
 
 print("name:\n{}\n".format(args.arg_name),)
@@ -98,8 +99,11 @@ color_size = 120
 shape_size = .4
 fontsize = 10
 
+max_agent_num = 1
+
     
     
+# Given a shape, apply a color.
 def colorize_marker_image(marker_img, hex_color, alpha = .3):
     hex_color = hex_color.lstrip('#')
     target_rgb = np.array([
@@ -123,6 +127,7 @@ for shape_name, shape_marker in shape_mapping_marker.items():
 
 
 
+# Iteratively print keys and values in nested dictionaries.
 def print_dict_keys(d, indent=0):
     for key, value in d.items():
         if isinstance(value, dict):
@@ -144,13 +149,15 @@ def get_all_data(plot_dict, component):
     
     # Iterate over agents.
     for agent_num, values_for_composition in enumerate(plot_dict["composition_data"]):
-        if(values_for_composition == {}):
+        if(values_for_composition == {} or agent_num > max_agent_num):
             break
         print(f"\tAgent {agent_num}...")
         meta_data_dict[(args.arg_name, agent_num, component)] = {}
         
         # Iterate over epochs.
         for epochs, comp_dict in values_for_composition.items():
+            #if(epochs > 300):
+            #    break
             print(f"\t\tEpoch {epochs}...")
             all_mask = comp_dict["all_mask"].astype(bool)                
             max_episode_len = all_mask.shape[1]
@@ -168,10 +175,9 @@ def get_all_data(plot_dict, component):
 
             data_dict = {"labels" : process_component("labels"), "component" : process_component(component)}
             meta_data_dict[(args.arg_name, agent_num, component)][epochs] = data_dict
-    print(f"Got all {component} data for {args.arg_name}")
-    """print("\nKeys in meta_data_dict!")
+    print("\nKeys in meta_data_dict!")
     print_dict_keys(meta_data_dict)
-    print("\n")"""
+    print("\n")
             
             
             
@@ -184,7 +190,7 @@ def make_all_reducers(plot_dict, component, reducer_type, these_epochs):
     
     # Iterate over agents.
     for agent_num, values_for_composition in enumerate(plot_dict["composition_data"]):
-        if(values_for_composition == {}):
+        if(values_for_composition == {} or agent_num > max_agent_num):
             break
         print(f"\tAgent {agent_num}...")
         meta_reducer_dict[(args.arg_name, agent_num, component, reducer_type)] = {}
@@ -222,10 +228,12 @@ def make_reducer(data_dict, reducer_type):
         labels = data_dict["labels"]
         data_scaled = scaler.fit_transform(data_dict["component"])
         
+        # If PCA, apply reducer.
         if(reducer_type == "pca"):
             reducer = PCA(n_components=2, random_state=42) 
             reducer.fit(data_scaled)
             
+        # If LDA, apply reducer to combinations of labels.
         if(reducer_type == "lda"):
             i = 0
             these_labels = np.zeros_like(labels)
@@ -257,28 +265,29 @@ def make_all_reduced_data(plot_dict, component, reducer_type):
     
     # Iterate over agents.
     for agent_num, values_for_composition in enumerate(plot_dict["composition_data"]):
-        if(values_for_composition == {}):
+        if(values_for_composition == {} or agent_num > max_agent_num):
             break
         print(f"\tAgent {agent_num}...")
         meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)] = {}
         
         # Iterate over epochs.
         for data_epochs in meta_data_dict[(args.arg_name, agent_num, component)].keys():
-            for reducer_epochs in meta_reducer_dict[(args.arg_name, agent_num, component, reducer_type)].keys():
-                print(f"\t\tData epochs {data_epochs}, Reducer epochs {reducer_epochs}...")
-                data_dict = meta_data_dict[(args.arg_name, agent_num, component)][data_epochs]
-                reducer_dict = meta_reducer_dict[(args.arg_name, agent_num, component, reducer_type)][reducer_epochs]
-                meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)][data_epochs] = use_reducer(data_dict, reducer_dict)
+            print(f"\t\tData epochs {data_epochs}, Reducer epochs {data_epochs}...")
+            data_dict = meta_data_dict[(args.arg_name, agent_num, component)][data_epochs]
+            reducer_dict = meta_reducer_dict[(args.arg_name, agent_num, component, reducer_type)][data_epochs]
+            meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)][data_epochs, data_epochs] = use_reducer(data_dict, reducer_dict)
     print(f"Reduced {component} data with {reducer_type} for {args.arg_name}.")
     """print("\nKeys in meta_reduced_data_dict!")
     print_dict_keys(meta_reduced_data_dict)
     print("\n")"""
     
     
-    
+
+# Apply reducer.
 def use_reducer(data_dict, reducer_dict):
     reduced_data_dict = {}
     labels = data_dict["labels"]
+    reduced_data_dict["labels"] = labels
     reduced_data_dict["tasks"] = labels[:, 0]
     reduced_data_dict["colors"] = labels[:, 1]
     reduced_data_dict["shapes"] = labels[:, 2]
@@ -291,58 +300,100 @@ def use_reducer(data_dict, reducer_dict):
         reduced_data_dict[classes] = reduced
     return(reduced_data_dict)
 
+
+
+meta_aligned_data_dict = {}
+
+# For all analysed epochs, find compositionality of all data combinations.
+def make_all_aligned_data(plot_dict, component, reducer_type):
+    args = plot_dict["args"]
+    print(f"Aligning {args.arg_name}'s {component} data with {reducer_type}...")
+    
+    # Iterate over agents.
+    for agent_num, values_for_composition in enumerate(plot_dict["composition_data"]):
+        if(values_for_composition == {} or agent_num > max_agent_num):
+            break
+        print(f"\tAgent {agent_num}...")
+        meta_aligned_data_dict[(args.arg_name, agent_num, component, reducer_type)] = {}
+        
+        anchor_key = (0, 0) 
+        for data_epochs, reducer_epochs in meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)].keys():
+            if data_epochs > anchor_key[0] or reducer_epochs > anchor_key[1]:
+                anchor_key = (data_epochs, reducer_epochs)
+                
+        print(f"\n\nanchor key: {anchor_key}\n\n")
+        
+        anchor_dict = meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)][anchor_key[0], anchor_key[1]]
+        
+        # Iterate over epochs.
+        for data_epochs, reducer_epochs in meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)].keys():
+            print(f"\t\tData epochs {data_epochs}, Reducer epochs {reducer_epochs}...")
+            reduced_data_dict = meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)][data_epochs, reducer_epochs]
+            meta_aligned_data_dict[(args.arg_name, agent_num, component, reducer_type)][data_epochs, reducer_epochs] = align_data(reduced_data_dict, anchor_dict)
+    print(f"Aligned {component} data with {reducer_type} for {args.arg_name}.")
+    print("\nKeys in meta_aligned_data_dict!")
+    print_dict_keys(meta_aligned_data_dict)
+    print("\n")
     
     
-def smooth_plots(plot_dict, component, reducer_type, reducer_epochs, smooth_frames):
+
+# Apply procrustes, finding similarity between datasets.
+def align_data(reduced_data_dict_1, reduced_data_dict_2):
+    aligned_data_dict = {}
+    labels = reduced_data_dict_1["labels"]
+    aligned_data_dict["labels"] = labels
+    aligned_data_dict["tasks"] = labels[:, 0]
+    aligned_data_dict["colors"] = labels[:, 1]
+    aligned_data_dict["shapes"] = labels[:, 2]
+    aligned_data_dict["unique_tasks"] = np.unique(aligned_data_dict["tasks"])
+    aligned_data_dict["unique_colors"] = np.unique(aligned_data_dict["colors"])
+    aligned_data_dict["unique_shapes"] = np.unique(aligned_data_dict["shapes"])
+    for classes in [("task", "color"), ("task", "shape"), ("color", "shape")]:  
+        aligned_data, _, _ = procrustes(reduced_data_dict_1[classes], reduced_data_dict_2[classes])
+        aligned_data_dict[classes] = aligned_data
+    return(aligned_data_dict)
+
+
+    
+# Make frames between two recorded epochs, to make a smooth video.
+def smooth_plots(plot_dict, component, reducer_type, anchor_epochs, smooth_frames):
     args = plot_dict["args"]
     print(f"Plotting {args.arg_name}'s {component} data with {reducer_type}...")
     
     for agent_num, values_for_composition in enumerate(plot_dict["composition_data"]):
-        if(values_for_composition == {}):
+        if(values_for_composition == {} or agent_num > max_agent_num):
             break
         print(f"\tAgent {agent_num}...")
-        reduced_data_dict = meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)][reducer_epochs]
+        reduced_data_dict = meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)][0, 0]
+        final_reduced_data_dict = meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)][anchor_epochs, anchor_epochs]
         stopping_epochs = list(meta_data_dict[(args.arg_name, agent_num, component)].keys())
         starting_epochs = [None] + stopping_epochs[:-1]
         for start_epochs, stop_epochs in zip(starting_epochs, stopping_epochs):
             print(f"\t\tEpochs {start_epochs} to {stop_epochs}...")
             if(start_epochs == None):
-                plot(
-                    start_reduced_data_dict = reduced_data_dict, 
-                    stop_reduced_data_dict = None, 
-                    fraction_of_start = 1, 
-                    component = component, 
-                    reducer_type = reducer_type, 
-                    data_epochs = stop_epochs, 
-                    smooth_frame = None, 
-                    agent_num = agent_num, 
-                    reducer_epochs = reducer_epochs, 
-                    arg_name = args.arg_name)
+                pass
             else:
-                start_reduced_data_dict = meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)][start_epochs]
-                stop_reduced_data_dict  = meta_reduced_data_dict[(args.arg_name, agent_num, component, reducer_type)][stop_epochs]
+                start_aligned_data = meta_aligned_data_dict[(args.arg_name, agent_num, component, reducer_type)][start_epochs, start_epochs]
+                stop_aligned_data = meta_aligned_data_dict[(args.arg_name, agent_num, component, reducer_type)][stop_epochs, stop_epochs]
                 for i in range(smooth_frames):
                     fraction_of_start = (smooth_frames - (i+1)) / smooth_frames
                     plot(
-                        start_reduced_data_dict = start_reduced_data_dict, 
-                        stop_reduced_data_dict = stop_reduced_data_dict, 
+                        start_aligned_data = start_aligned_data, 
+                        stop_aligned_data = stop_aligned_data, 
                         fraction_of_start = fraction_of_start, 
                         component = component, 
                         reducer_type = reducer_type, 
                         data_epochs = stop_epochs, 
                         smooth_frame = i+1, 
                         agent_num = agent_num, 
-                        reducer_epochs = reducer_epochs, 
+                        anchor_epochs = anchor_epochs, 
                         arg_name = args.arg_name)
 
     
-    
-def plot(start_reduced_data_dict, stop_reduced_data_dict, fraction_of_start, component, reducer_type, data_epochs, smooth_frame, agent_num, reducer_epochs, arg_name):
+
+# Plot the components of all pairs of tasks/colors/shapes, with legend.
+def plot(start_aligned_data, stop_aligned_data, fraction_of_start, component, reducer_type, data_epochs, smooth_frame, agent_num, anchor_epochs, arg_name):
     print(f"\t\t\tPlot {data_epochs}.{smooth_frame} of component {component} reducer_type {reducer_type} for agent {agent_num}...")
-    
-    """print("\nKeys in reduced_data_dict!")
-    print_dict_keys(reduced_data_dict)
-    print("\n")"""
     
     fig, axes = plt.subplots(
         1, 4, 
@@ -352,12 +403,12 @@ def plot(start_reduced_data_dict, stop_reduced_data_dict, fraction_of_start, com
         sharey=False, 
         constrained_layout=True,
         gridspec_kw={"width_ratios": [1, 1, 1, 0.4]})
+        
+    plt.suptitle(f"Tests for Compositionality with {arg_name}\nAgent {agent_num} data from {data_epochs} epochs, frame {smooth_frame}. {reducer_type} with {component}.", fontsize=16)
     
-    plt.suptitle(f"Tests for Compositionality with {arg_name}\nAgent {agent_num} data from {data_epochs} epochs, frame {smooth_frame}. {reducer_type} from {reducer_epochs} epochs, with {component}.", fontsize=16)
-    
-    plot_by_attribute(axes[0], start_reduced_data_dict, stop_reduced_data_dict, fraction_of_start, ("task", "color"),  "Task and Color")
-    plot_by_attribute(axes[1], start_reduced_data_dict, stop_reduced_data_dict, fraction_of_start, ("task", "shape"),  "Task and Shape")
-    plot_by_attribute(axes[2], start_reduced_data_dict, stop_reduced_data_dict, fraction_of_start, ("color", "shape"), "Color and Shape")
+    plot_by_attribute(axes[0], start_aligned_data, stop_aligned_data, fraction_of_start, ("task", "color"),  "Task and Color")
+    plot_by_attribute(axes[1], start_aligned_data, stop_aligned_data, fraction_of_start, ("task", "shape"),  "Task and Shape")
+    plot_by_attribute(axes[2], start_aligned_data, stop_aligned_data, fraction_of_start, ("color", "shape"), "Color and Shape")
 
     ax = axes[3]
 
@@ -389,47 +440,51 @@ def plot(start_reduced_data_dict, stop_reduced_data_dict, fraction_of_start, com
     ax.set_yticklabels([]) # remove y-axis tick labels
     ax.set_xlim([0, .8])
     ax.set_ylim([1, 10.5])
-                
+        
     os.makedirs(f"thesis_pics/composition/{arg_name}/agent_{agent_num}/{component}/{reducer_type}", exist_ok = True)
     plt.savefig(f"thesis_pics/composition/{arg_name}/agent_{agent_num}/{component}/{reducer_type}/data_{str(data_epochs).zfill(6)}.{str(smooth_frame).zfill(3)}.png", bbox_inches="tight")
     plt.close()
         
         
         
-def plot_by_attribute(ax, start_reduced_data_dict, stop_reduced_data_dict, fraction_of_start, classes, title): 
+# Plot those values with corresponding mapping.
+def plot_by_attribute(ax, start_aligned_data, stop_aligned_data, fraction_of_start, classes, title): 
     print(f"\t\t\t\t{title}...") 
     
     fraction_of_stop = 1 - fraction_of_start
     
-    if(stop_reduced_data_dict == None):
-        stop_reduced_data_dict = start_reduced_data_dict
+    if(stop_aligned_data == None):
+        stop_aligned_data = start_aligned_data
+
+    interpolated_coords = fraction_of_start * start_aligned_data[classes] + fraction_of_stop * stop_aligned_data[classes]
+            
+    tasks = start_aligned_data["tasks"]
+    colors = start_aligned_data["colors"]
+    shapes = start_aligned_data["shapes"]
         
     xs_for_min_max = []
     ys_for_min_max = []
     
-    def make_groups(reduced_data_dict):
-        grouped_points = defaultdict(list)
-        grouped_letters = {}
-        for task, color, shape, (x, y) in zip(reduced_data_dict["tasks"], reduced_data_dict["colors"], reduced_data_dict["shapes"], reduced_data_dict[classes]):
-            if(not "task" in classes):
-                task = None
-            if(not "color" in classes):
-                color = None
-            if(not "shape" in classes):
-                shape = None
-            key = (task, color, shape)
-            grouped_points[key].append((x, y))
-            if key not in grouped_letters and task != None:
-                grouped_letters[key] = task_mapping_letter[task_map[task].name]
-        return(grouped_points, grouped_letters)
-    
-    start_grouped_points, start_grouped_letters = make_groups(start_reduced_data_dict)
-    stop_grouped_points, stop_grouped_letters = make_groups(stop_reduced_data_dict)
-    
-    for ((task, color, shape), start_coords), ((_, _, _), stop_coords) in zip(start_grouped_points.items(), stop_grouped_points.items()):
+    grouped_points = defaultdict(list)
+    grouped_letters = {}
+
+    for task, color, shape, (x, y) in zip(tasks, colors, shapes, interpolated_coords):
+        if "task" not in classes:
+            task = None
+        if "color" not in classes:
+            color = None
+        if "shape" not in classes:
+            shape = None
+
+        key = (task, color, shape)
+        grouped_points[key].append((x, y))
+        if key not in grouped_letters and task is not None:
+            grouped_letters[key] = task_mapping_letter[task_map[task].name]
+            
+    for ((task, color, shape), coords) in grouped_points.items():
         if("task" in classes):
             task_name = task_map[task].name
-            letter = start_grouped_letters[(task, color, shape)]
+            letter = grouped_letters[(task, color, shape)]
         if("color" in classes):
             color_name = color_map[color].name
             color_val = color_mapping_color[color_name]
@@ -447,18 +502,9 @@ def plot_by_attribute(ax, start_reduced_data_dict, stop_reduced_data_dict, fract
         else:
             marker = "." # Might need to make this into a circle from image
         
-        start_xs, start_ys = zip(*start_coords)  
-        start_x = sum(start_xs) / len(start_xs) # Maybe median would be better?
-        start_y = sum(start_ys) / len(start_ys)
-        
-        stop_xs, stop_ys = zip(*stop_coords)  
-        stop_x = sum(stop_xs) / len(stop_xs) # Maybe median would be better?
-        stop_y = sum(stop_ys) / len(stop_ys)
-        #x = np.median(xs)
-        #y = np.median(ys)
-        
-        x = fraction_of_start * start_x + fraction_of_stop * stop_x
-        y = fraction_of_start * start_y + fraction_of_stop * stop_y
+        xs, ys = zip(*coords)  
+        x = sum(xs) / len(xs)
+        y = sum(ys) / len(ys)
         xs_for_min_max.append(x)
         ys_for_min_max.append(y)
 
@@ -498,30 +544,32 @@ def plot_by_attribute(ax, start_reduced_data_dict, stop_reduced_data_dict, fract
         
         
     
-#these_epochs = [0, 2500, 10000, 20000, 30000, 40000, 50000]
-these_epochs = [i for i in range(0, 50001, 2500)]
-
-
+# Iterate over components, reducer_types, etc.
+these_epochs = [i for i in range(0, 60001, 2500)]
 
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 for plot_dict in plot_dicts:
     for component in [
         "hq", 
-        #"command_voice_zq"
+        "command_voice_zq"
         ]:
         get_all_data(
             plot_dict = plot_dict, 
             component = component)
         for reducer_type in [
-            "lda", 
+            "lda",
             "pca"
             ]:
             make_all_reducers(
                 plot_dict = plot_dict, 
                 component = component, 
                 reducer_type = reducer_type, 
-                these_epochs = [these_epochs[-1]])
+                these_epochs = these_epochs)
             make_all_reduced_data(
+                plot_dict = plot_dict, 
+                component = component, 
+                reducer_type = reducer_type)
+            make_all_aligned_data(
                 plot_dict = plot_dict, 
                 component = component, 
                 reducer_type = reducer_type)
@@ -529,7 +577,7 @@ for plot_dict in plot_dicts:
                 plot_dict = plot_dict, 
                 component = component, 
                 reducer_type = reducer_type, 
-                reducer_epochs = these_epochs[-1], 
-                smooth_frames = 15)
+                anchor_epochs = these_epochs[-1], 
+                smooth_frames = 3)
 print(f"\nDuration: {duration()}. Done!")
 # %%

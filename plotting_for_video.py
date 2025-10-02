@@ -14,8 +14,12 @@ import threading
 import time
 
 from utils import print, args, duration, load_dicts, wheels_joints_to_string, plot_number_bars, empty_goal
-#from plotting_for_video_window import window
 from pybullet_data.robots.robot_maker import robot_dict
+
+
+
+# This file makes a concise depiction of the agent's observations
+# and the DKL values of its predictions.
 
 
     
@@ -114,8 +118,6 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
     # Command, report, and predicted report text
     table_ax = fig.add_axes([0.05, -0.18, 0.9, 0.25])  # position: [left, bottom, width, height]
     table_ax.set_axis_off()
-
-
 
     fontsize = 12
     table_ax.text(0, .8, s = f"Command:\n{command_task} {command_color} {command_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)

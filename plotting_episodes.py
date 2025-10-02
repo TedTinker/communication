@@ -13,11 +13,19 @@ from pybullet_data.robots.robot_maker import robot_dict
 
 
 
+# This file plots a comprehensive collection about the agent's perception of the environment.
+# This includes actual observations and predicts using h^p or h^q,
+# and the DKL values of predictions. 
+
+
+
+# Make voices into something humans can easily read.
 def human_friendly_text(goal):
     return(f"{goal.human_text} ({goal.char_text})")
 
 
-    
+
+# Plot the information for one step.
 def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = True, dreaming = False, args = args):
     sensor_plotter, sensor_values = robot_dict[args.robot_name]
 
@@ -53,7 +61,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         data.append(["", ["Real (not seen in dream; \nagent sees posterior)" + "" if dreaming and step != 0 else ""], ["Prior"], ["Posterior"], .1])
     
 
-    
+    # If the first step, the agent has made no predictions yet.
     if(step == 0):
         data.append([f"Vision ({agent_num})", [vision, "image"], 1])
         data.append([f"Touch ({agent_num})", [touch, "touch"], 1])
@@ -96,10 +104,12 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         
 
 
+    # Plot text as plt.text.
     def plot_text(ax, value):
         ax.text(0.1, 0.5, f"{value}", fontsize=12, verticalalignment='center', transform=ax.transAxes)
         ax.axis('off')
 
+    # Plot images as plt.imshow.
     def plot_image(ax, image):
         ax.text(0.1, 0.9, "", fontsize=12, verticalalignment='center', transform=ax.transAxes)
         ax.imshow(image, cmap='gray')
@@ -107,6 +117,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         ax.set_yticklabels([])
         ax.tick_params(axis='both', which='both', length=0)
 
+    # Plot touch using the image-generator in the robot_maker.py file.
     def plot_touch(ax, touch_data):
         ax.text(0.1, 0.9, "", fontsize=12, verticalalignment='center', transform=ax.transAxes)
         touch_image = sensor_plotter(touch_data)
@@ -114,6 +125,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         ax.imshow(touch_image)
         ax.axis('off')
         
+    # Plot the motor commands as bars.
     def plot_bar_plot(ax, plot_data):
         numbers = plot_data.flatten().tolist()
         fontsize = 12
@@ -135,13 +147,15 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         #ax.set_yticks(fontsize = fontsize)
         #ax.axis('on')
 
+    # Plot DKL values as lines from beginning of episode to current moment.
     def plot_line_plot(ax, plot_data):
         ax.text(0.1, 0.9, "", fontsize=12, verticalalignment='center', transform=ax.transAxes)
         ax.plot(plot_data)
         ax.axis('on')
         
         
-        
+    
+    # Iteratively plot all data listed.
     def plot_sublist(fig, gs, sublist, row):
         ax = fig.add_subplot(gs[row, 0])
         plot_text(ax, sublist[0] + (":" if sublist[0] != "" else ""))
@@ -166,6 +180,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         
         
 
+    # Plot.
     fig = plt.figure(figsize=(20, 25))
     height_ratios = [sublist[-1] for sublist in data]
     gs = gridspec.GridSpec(len(data), max_sublist_len, figure=fig, height_ratios=height_ratios)
@@ -177,7 +192,46 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
     else:
         plt.show()
     plt.close()
-            
+    
+    
+
+# Alternative function, making it easier to make the mental planning sequences.
+"""def plot_step(step, episode_dict, agent_1=True, last_step=False, saving=True, dreaming=False, args=args):
+    agent_num = 1 if agent_1 else 2
+
+    # --- fetch images
+    obs = episode_dict[f"obs_{agent_num}"][step]
+    birds_eye = episode_dict[f"birds_eye_{agent_num}"][step]
+    real_img  = obs.vision[0, :, :, :-1]  # keep same channel slicing as your original code
+
+    images = [("Bird's-eye view", birds_eye),
+              ("Real (vision)", real_img)]
+
+    # Posterior is defined starting from step 1
+    if step != 0:
+        posterior = episode_dict[f"posterior_predictions_{agent_num}"][step-1].vision[0, 0, :, :, :-1]
+        images.append(("Posterior (vision)", posterior))
+
+    # --- plot in one column
+    n_rows = len(images)
+    fig, axes = plt.subplots(n_rows, 1, figsize=(6, 4 * n_rows))
+    if n_rows == 1:  # normalize axes to an iterable
+        axes = [axes]
+
+    for ax, (title, img) in zip(axes, images):
+        ax.imshow(img)                     # cmap unused for RGB, fine for grayscale too
+        ax.set_title(title, fontsize=12)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for s in ax.spines.values():
+            s.set_visible(False)
+
+    plt.tight_layout()
+    if saving:
+        plt.savefig(f"Step {step} Agent {agent_num}.png", dpi=150, bbox_inches='tight')
+    else:
+        plt.show()
+    plt.close()"""
     
 
 if __name__ == "__main__":

@@ -7,6 +7,8 @@ from scipy import stats
 
 from utils import args, duration, load_dicts
 
+# This file plots statistical relationships between robot performances.
+
 print("name:\n{}".format(args.arg_name))
 
 os.chdir(f"saved_{args.comp}")
@@ -17,6 +19,7 @@ plot_dicts, min_max_dict, complete_order = load_dicts(args)
 
 
 
+# Collection names of arguments.
 arg_names = []
 values_to_plot = {}
 for plot_dict in plot_dicts:
@@ -24,12 +27,14 @@ for plot_dict in plot_dicts:
     arg_names.append(arg_name)
     values_to_plot[arg_name] = {}
         
+# Collect task names.
 task_names = []
 for key in plot_dicts[0].keys():
     if(key.startswith("wins_")):
         if(key[5:] != "free_play"):
             task_names.append(key[5:])
             
+# Find success-rates and cumulative rewards.
 for plot_dict in plot_dicts:
     args = plot_dict["args"]
 
@@ -58,6 +63,7 @@ for plot_dict in plot_dicts:
 
 
 
+# Collect all the values we plan to compare (success-rates, cumulative rewards).
 num_args = len(values_to_plot.keys())
 value_names = []
 for value_name in list(values_to_plot.values())[0].keys():
@@ -65,6 +71,7 @@ for value_name in list(values_to_plot.values())[0].keys():
     
     
 
+# Compare values of different robots for testing p-values.
 def compare_and_plot(values_1, values_2, args_name_1, args_name_2, here, data_type='boolean', confidence=0.9):
     n1, n2 = len(values_1), len(values_2)
     alpha = 1 - confidence
@@ -86,6 +93,7 @@ def compare_and_plot(values_1, values_2, args_name_1, args_name_2, here, data_ty
         ci_2 = t_value * se_2
         stat, p_value = stats.ttest_ind(values_1, values_2)
 
+    # Color the plot based on comparison. White means no significant different. Green/Red means better/worse.
     if p_value < alpha:  # Significant difference
         if mean_1 > mean_2:
             color_1, color_2 = 'green', 'red'  # values_1 is better
@@ -113,9 +121,9 @@ def compare_and_plot(values_1, values_2, args_name_1, args_name_2, here, data_ty
 
     
     
+# Iterate over values.
 for value_name in value_names:
     print(f"\n{value_name}")
-    #fig, axes = plt.subplots(num_args, num_args, figsize = (10, 10))
     fig, axes = plt.subplots(num_args-1, num_args-1, figsize = (10, 10))
     fig.suptitle(f'{value_name}')
     for (row, args_name_1), (column, args_name_2) in product(enumerate(values_to_plot.keys()), enumerate(values_to_plot.keys())):

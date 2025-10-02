@@ -10,17 +10,20 @@ from utils import duration, print, print_duration
 
 
 
+# Initiate a neural network.
 def init_weights(m):
     try:
         torch.nn.init.xavier_normal_(m.weight)
         m.bias.data.fill_(0.0)
     except: pass
 
+# Get number of episodes and number of steps in a batch.
 def episodes_steps(this):
     return(this.shape[0], this.shape[1])
 
 
 
+# Pad a batch with zeros.
 def pad_zeros(value, length):
     rows_to_add = length - value.size(-2)
     if(rows_to_add == 0):
@@ -38,15 +41,18 @@ def pad_zeros(value, length):
 
 
 
+# Make a mean and standard deviation based on functions.
 def var(x, mu_func, std_func, args):
     mu = mu_func(x)
     std = torch.clamp(std_func(x), min = args.std_min, max = args.std_max)
     return(mu, std)
 
+# Given mean and standard deviation, sample.
 def sample(mu, std, device):
     e = Normal(0, 1).sample(std.shape).to(device)
     return(mu + e * std)
 
+# Apply a CNN to a sequence.
 def rnn_cnn(do_this, to_this):
     episodes, steps = episodes_steps(to_this)
     this = to_this.view((episodes * steps, to_this.shape[2], to_this.shape[3], to_this.shape[4]))
@@ -56,6 +62,7 @@ def rnn_cnn(do_this, to_this):
 
 
 
+# Start a batch by reshaping and returning information.
 def model_start(model_input_list, device = "cpu", half = False, recurrent = False):
     start_time = duration()
     new_model_inputs = []
@@ -82,6 +89,7 @@ def model_start(model_input_list, device = "cpu", half = False, recurrent = Fals
 
 
 
+# End a batch by reshaping and maybe printing duration.
 def model_end(start_time, episodes, steps, model_output_list, duration_text = None):
     new_model_outputs = []
     for model_output, layer_type in model_output_list:

@@ -9,8 +9,12 @@ from utils_submodule import init_weights, episodes_steps, var, sample, model_sta
 from mtrnn import MTRNN
 from submodules import Vision_IN, Touch_IN, Prop_IN, Voice_IN, Obs_OUT, Wheels_Joints_IN
     
-    
+# This model is NOT a PVRNN (Predictive-Coding-Inspired Variational RNN Model). 
+# However, its architecture is inspired by and similar to one.
 
+
+
+# A module for every prior/estimated posterior inner state.
 class ZP_ZQ(nn.Module):
     
     def __init__(self, zp_in_features, zq_in_features, out_features, args):
@@ -62,6 +66,7 @@ class ZP_ZQ(nn.Module):
 
 
 
+# Making prior and posterior inner states for each portion of the sensation.
 class PVRNN_LAYER(nn.Module):
     
     def __init__(self, args, time_scale = 1):
@@ -69,8 +74,8 @@ class PVRNN_LAYER(nn.Module):
         
         self.args = args 
             
-        # Prior: Previous hidden state and wheels_joints.  
-        # Posterior: Include observation.
+        # This model was originally made to allow multilayer MTRNN. 
+        # In that case, higher layers would be using lower layers, not observations.
         self.vision_z = ZP_ZQ(
             zp_in_features = self.args.h_w_action_size,
             zq_in_features = self.args.h_w_action_size + self.args.vision_encode_size, 
@@ -178,6 +183,7 @@ if __name__ == "__main__":
     
     
     
+# Combining the above modules to make a model in the style of a PVRNN.
 class PVRNN(nn.Module):
     
     def __init__(self, args):
@@ -229,7 +235,7 @@ class PVRNN(nn.Module):
     
     
     
-        
+    # This was originally made to utilize multiple layers, which is not currently implemented.
     def bottom_to_top_step(self, prev_hidden_states, obs, prev_action):
         start_time = duration()
         prev_time = duration()
@@ -321,7 +327,7 @@ if __name__ == "__main__":
         
     pvrnn = PVRNN(args = args)
     
-    print("\n\nPVRNN: ONE LAYER")
+    print("\n\nPVRNN")
     print(pvrnn)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:

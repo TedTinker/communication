@@ -10,9 +10,14 @@ from collections import defaultdict
 from natsort import natsorted
 import shutil  # Added import
 
-files_to_create = [i for i in range(1, 10)]
-#files_to_create = [31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+# This file is only for viewing data for robots with various arguments mid-trianing.
 
+# It may be important to observe only a few robot's data, in order to converse memory.
+files_to_create = [i for i in range(1, 10)]
+
+
+
+# Collect argument-names.
 def parse_slurm_files():
     arg_name_to_slurm_files = defaultdict(list)
     slurm_files = [f for f in os.listdir('.') if f.startswith('slurm-') and f.endswith('.out')]
@@ -36,6 +41,7 @@ def parse_slurm_files():
             arg_name_to_slurm_files[arg_name].append(slurm_file)
     return arg_name_to_slurm_files
 
+# Update slurm files.
 class ArgNameData:
     def __init__(self, arg_name):
         self.arg_name = arg_name
@@ -48,8 +54,8 @@ class ArgNameData:
     def update_slurm_files(self, slurm_files):
         self.slurm_files = slurm_files
         self.files_to_create = files_to_create
-        # Do not reset files_created and singularity_run here
 
+# If necessary, make a folder. 
 def create_files_for_arg_name(arg_name_data):
     arg_name = arg_name_data.arg_name
     dir_path = os.path.join('communication', 'saved_deigo', arg_name)
@@ -60,6 +66,7 @@ def create_files_for_arg_name(arg_name_data):
     arg_name_data.files_created = True
     arg_name_data.singularity_run = False
 
+# See if a file contained the arg-name.
 def check_files_for_arg_name(arg_name_data):
     if not arg_name_data.files_created:
         return
@@ -71,6 +78,7 @@ def check_files_for_arg_name(arg_name_data):
     if not existing_files:
         run_python_command(arg_name_data)
 
+# After all agents have deposited dictionaries, merge those dictionaries.
 def run_python_command(arg_data):
     def run_command():
         arg_name = arg_data.arg_name
@@ -82,27 +90,25 @@ def run_python_command(arg_data):
             '--temp', 'True'
         ]
         subprocess.run(cmd)
-        # No need to set singularity_run here
-    arg_data.singularity_run = True  # Set before starting the thread
+    arg_data.singularity_run = True  
     threading.Thread(target=run_command).start()
 
+# Create a graphic-user-interface showing all argument names and offering creating or deleting files.
 class GUIApp:
     def __init__(self, root):
         self.root = root
         self.root.title('Arg Name Monitor')
-        # Set full-screen; you can toggle full-screen off later if needed
-        #self.root.attributes("-fullscreen", True)
         self.arg_name_data_dict = {}
         self.arg_name_frames = {}
-        self.max_columns = 9  # Maximum columns per row in the grid layout
+        self.max_columns = 9  
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
-        self.update_interval = 2000  # milliseconds
+        self.update_interval = 2000 
         self.build_ui()
         self.update_data()
 
+    # Create the UI.
     def build_ui(self):
-        # Create a canvas with a vertical scrollbar
         self.canvas = tk.Canvas(self.main_frame)
         self.scrollbar = tk.Scrollbar(self.main_frame, orient="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
@@ -130,14 +136,17 @@ class GUIApp:
         delete_all_button = tk.Button(all_buttons_frame, text="Delete Files for All", command=self.delete_files_for_all)
         delete_all_button.pack(side="left", padx=5)
 
+    # Button to make a type of robot output files.
     def create_files_for_all(self):
         for arg_data in self.arg_name_data_dict.values():
             self.create_files(arg_data)
 
+    # Button to delete all files in one robot's folder..
     def delete_files_for_all(self):
         for arg_data in self.arg_name_data_dict.values():
             self.delete_files(arg_data)
 
+    # Check folders and show all filenames.
     def update_data(self):
         arg_name_to_slurm_files = parse_slurm_files()
         # Update arg_name_data_dict
@@ -163,6 +172,7 @@ class GUIApp:
         # Schedule the next update
         self.root.after(self.update_interval, self.update_data)
 
+    # Move positions of argument titles.
     def reposition_arg_frames(self):
         sorted_keys = natsorted(self.arg_name_data_dict.keys())
         for idx, arg_name in enumerate(sorted_keys):
@@ -171,6 +181,7 @@ class GUIApp:
             col = idx % self.max_columns
             frame.grid_configure(row=row, column=col, padx=5, pady=5, sticky="n")
 
+    # Make position for argument title.
     def add_arg_name_frame(self, arg_data):
         frame = tk.Frame(self.scrollable_frame, bd=2, relief=tk.GROOVE)
         label = tk.Label(frame, text=f'arg_name: {arg_data.arg_name}')
@@ -194,11 +205,13 @@ class GUIApp:
         frame.grid(row=0, column=0, padx=5, pady=5, sticky="n")
         self.arg_name_frames[arg_data.arg_name] = frame
 
+    # Delete arument title.
     def remove_arg_name_frame(self, arg_name):
         frame = self.arg_name_frames.pop(arg_name)
         frame.destroy()
         self.arg_name_data_dict.pop(arg_name)
 
+    # Update one argument's frame.
     def update_arg_name_frame(self, arg_data):
         # Update the files listbox
         dir_path = os.path.join('communication', 'saved_deigo', arg_data.arg_name)
@@ -216,9 +229,11 @@ class GUIApp:
         # Check if need to run the finish_dicts.py script
         check_files_for_arg_name(arg_data)
 
+    # Make a robot output files.
     def create_files(self, arg_data):
         create_files_for_arg_name(arg_data)
 
+    # Delete a robot's files.
     def delete_files(self, arg_data):
         dir_path = os.path.join('communication', 'saved_deigo', arg_data.arg_name)
         if os.path.exists(dir_path):

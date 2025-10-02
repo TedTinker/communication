@@ -1,19 +1,22 @@
 import tkinter as tk
 import pybullet as p
 
+# This program allows more precise navigation in PyBullet.
+
+# Put camrea in specified position.
 def update_camera(physicsClient):
+    # UI mode: override camera using the slider values.
     if ui_toggle.get():
-        # UI mode: override camera using the slider values.
         distance = distance_slider.get()
         yaw = yaw_slider.get()
         pitch = pitch_slider.get()
         target = (target_x_slider.get(), target_y_slider.get(), target_z_slider.get())
         p.resetDebugVisualizerCamera(distance, yaw, pitch, target, physicsClientId=physicsClient)
+    
+    # PyBullet's default navigation: update the UI sliders to reflect the current camera view.
     else:
-        # Default navigation: update the UI sliders to reflect the current camera view.
+        
         cam_data = p.getDebugVisualizerCamera(physicsClientId=physicsClient)
-        # According to PyBullet documentation, the returned tuple indices are:
-        # index 10: distance, index 8: yaw, index 9: pitch, index 11: target tuple.
         distance_slider.set(cam_data[10])
         yaw_slider.set(cam_data[8])
         pitch_slider.set(cam_data[9])
@@ -26,6 +29,7 @@ def update_camera(physicsClient):
     # Schedule the next update.
     root.after(100, update_camera, physicsClient)
 
+# Adjust sliders to match canvas.
 def on_target_canvas_event(event):
     canvas_width = target_canvas.winfo_width()
     canvas_height = target_canvas.winfo_height()
@@ -36,6 +40,7 @@ def on_target_canvas_event(event):
     target_y_slider.set(round(y, 2))
     update_target_canvas()
 
+# Adjust canvas to match sliders.
 def update_target_canvas():
     target_canvas.delete("all")
     canvas_width = target_canvas.winfo_width()
@@ -46,6 +51,7 @@ def update_target_canvas():
     r = 5
     target_canvas.create_oval(x - r, y - r, x + r, y + r, fill="red")
 
+# Adjust sliders to match canvas.
 def on_orientation_canvas_event(event):
     canvas_width = orientation_canvas.winfo_width()
     canvas_height = orientation_canvas.winfo_height()
@@ -58,6 +64,7 @@ def on_orientation_canvas_event(event):
     pitch_slider.set(round(pitch, 2))
     update_orientation_canvas()
 
+# Adjust canvas to match sliders.
 def update_orientation_canvas():
     orientation_canvas.delete("all")
     canvas_width = orientation_canvas.winfo_width()
@@ -68,6 +75,7 @@ def update_orientation_canvas():
     r = 5
     orientation_canvas.create_oval(x - r, y - r, x + r, y + r, fill="blue")
 
+# Initialize. 
 def preset_selected(preset):
     presets = {
         "Front":      (5,   0,  -10, (0, 0, 0)),
@@ -88,8 +96,8 @@ def preset_selected(preset):
         update_target_canvas()
         update_orientation_canvas()
 
+# When switching to UI view, update the slider values based on the current camera state.
 def on_toggle():
-    # When switching to UI view, update the slider values based on the current camera state.
     if ui_toggle.get():
         cam_data = p.getDebugVisualizerCamera(physicsClientId=physicsClient)
         distance_slider.set(cam_data[10])
@@ -101,6 +109,7 @@ def on_toggle():
         update_target_canvas()
         update_orientation_canvas()
 
+# Open UI, connect to PyBullet.
 def run_tk(physicsClient, start_cam):
     global root, distance_slider, yaw_slider, pitch_slider
     global target_x_slider, target_y_slider, target_z_slider, target_canvas

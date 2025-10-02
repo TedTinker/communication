@@ -20,7 +20,6 @@ complete_order = args.arg_title[3:-3].split("+")
 folders = [o for o in complete_order if o not in ["empty_space", "break"]]
 
 def truncate_lists_in_dict(d):
-    # ... (same as your original function)
     for key, value in d.items():
         if isinstance(value, list) and all(isinstance(item, list) for item in value):
             if value:  # Ensure the outer list is not empty
@@ -36,6 +35,7 @@ def truncate_lists_in_dict(d):
                 pass
     return d
 
+# Iterate over folders with robots' saved dictionaries of data.
 for folder in folders:
     plot_dict = {}
     min_max_dict = {}
@@ -43,14 +43,14 @@ for folder in folders:
     files.sort()
     print("{} files in folder {}.".format(len(files), folder))
 
-    # Only process files matching the expected patterns
+    # Only process files full of information regarding plotting.
     filtered_files = [file for file in files if plot_dict_pattern.match(file) or min_max_dict_pattern.match(file)]
     
     if len(filtered_files) == 0:
         print(f"No matching files in {folder}, skipping.")
         continue
 
-    # Process each file and populate the dictionaries
+    # Process each file and populate the combined dictionaries.
     for file in filtered_files:
         print(file)
         if file.startswith("plot"):
@@ -58,10 +58,11 @@ for folder in folders:
         elif file.startswith("min"):
             d = min_max_dict
         else:
-            continue  # Skip files that don't match expected patterns
+            continue 
         with open(os.path.join(folder, file), "rb") as handle:
             #print(os.path.join(folder, file))
             saved_d = pickle.load(handle)
+        # Add necessary keys to combined dictionaries.
         for key in saved_d.keys():
             if key not in d:
                 d[key] = []
@@ -81,8 +82,9 @@ for folder in folders:
         agent_lists.update(d_item)
     plot_dict["agent_lists"] = agent_lists
 
-    # Compute min and max for 'min_max_dict'
+    # Compute min and max for 'min_max_dict.'
     for key in min_max_dict.keys():
+        # Skip values which don't actually have a minimum or maximum.
         if key not in ["args", "arg_title", "arg_name", "all_processor_names", "composition_data", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "behavior"]:
             minimum = None
             maximum = None
@@ -96,11 +98,11 @@ for folder in folders:
                         maximum = min_max[1]
             min_max_dict[key] = (minimum, maximum)
 
-    # Truncate lists in dictionaries
+    # Truncate lists in dictionaries.
     plot_dict = truncate_lists_in_dict(plot_dict)
     min_max_dict = truncate_lists_in_dict(min_max_dict)
 
-    # Write the new output files (overwrite if they exist)
+    # Write the new output files (overwrite if they already exist).
     with open(os.path.join(folder, "min_max_dict.pickle"), "wb") as handle:
         pickle.dump(min_max_dict, handle)
 

@@ -6,6 +6,7 @@ from utils_submodule import pad_zeros
 
 
 
+# Functions for individual variables in the buffer.
 class VariableBuffer:
     def __init__(self, args, shape = (1,), before_and_after = False):
         self.args = args
@@ -24,6 +25,7 @@ class VariableBuffer:
 
 
 
+# A recurrent replay buffer for robots in this experiment.
 class RecurrentReplayBuffer:
     def __init__(self, args):
         self.args = args
@@ -64,6 +66,7 @@ class RecurrentReplayBuffer:
         self.episode_ptr = 0
         self.time_ptr = 0
 
+    # Pushing transitions into the buffer.
     def push(
             self, 
             vision,
@@ -120,6 +123,7 @@ class RecurrentReplayBuffer:
             self.time_ptr = 0
             self.num_episodes = min(self.num_episodes + 1, self.capacity)
 
+    # Sampling a batch of data from the buffer.
     def sample(self, batch_size, random_sample = True):
         if(self.num_episodes == 0): return(False)
         if(random_sample):

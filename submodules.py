@@ -16,6 +16,7 @@ from mtrnn import MTRNN
 
     
 
+# Module for encoding RGBD images.
 class Vision_IN(nn.Module):
 
     def __init__(self, args):
@@ -80,6 +81,7 @@ if __name__ == "__main__":
     
     
 
+# Module for decoding RGBD images.
 class Vision_OUT(nn.Module):
 
     def __init__(self, args):
@@ -149,6 +151,7 @@ if __name__ == "__main__":
 
 
     
+# Module for encoding tactile sensations.
 class Touch_IN(nn.Module):
     
     def __init__(self, args):
@@ -199,6 +202,7 @@ if __name__ == "__main__":
 
 
 
+# Module for decoding tactile sensations.
 class Touch_OUT(nn.Module):
 
     def __init__(self, args):
@@ -251,6 +255,7 @@ if __name__ == "__main__":
 
 
     
+# Module for encoding proprioception.
 class Prop_IN(nn.Module):
     
     def __init__(self, args):
@@ -301,6 +306,7 @@ if __name__ == "__main__":
 
 
 
+# Module for decoding proprioception.
 class Prop_OUT(nn.Module):
 
     def __init__(self, args):
@@ -351,6 +357,7 @@ if __name__ == "__main__":
 
 
 
+# Module for encoding voices (same model for command and feedback).
 class Voice_IN(nn.Module):
 
     def __init__(self, args):
@@ -369,7 +376,6 @@ class Voice_IN(nn.Module):
                     out_features = self.args.hidden_size))
         
         self.ab = nn.Sequential(
-            # nn.BatchNorm1d(self.args.hidden_size), # Tested, don't use
             nn.PReLU())
 
         self.b = nn.GRU(
@@ -386,7 +392,6 @@ class Voice_IN(nn.Module):
                 nn.Linear(
                     in_features = self.args.hidden_size, 
                     out_features = self.args.voice_encode_size),
-                #nn.PReLU()
         )
                 
         self.apply(init_weights)
@@ -440,6 +445,7 @@ if __name__ == "__main__":
 
 
 
+# Module for decoding voices (two separate modules for command and feedback).
 class Voice_OUT(nn.Module):
 
     def __init__(self, args, actor = False):
@@ -533,6 +539,7 @@ if __name__ == "__main__":
     
     
     
+# Module for decoding all parts of the sensory observation.
 class Obs_OUT(nn.Module):
     
     def __init__(self, args):
@@ -583,6 +590,7 @@ if __name__ == "__main__":
     
     
     
+# Module for encoding motor commands.
 class Wheels_Joints_IN(nn.Module):
     
     def __init__(self, args):

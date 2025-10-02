@@ -11,6 +11,9 @@ from itertools import product
 
 from utils import args, duration, load_dicts, task_map, color_map, shape_map
 
+# This file makes a plot showing agent behavior from beginning of training to end.
+# IE, which actions is the agent performing?
+
 print("name:\n{}".format(args.arg_name))
 
 try:
@@ -22,6 +25,7 @@ except: pass
 
 
 
+# Separate agent behavior by task, color, and shape.
 def dict_to_ordered_list(d):
     return [d[key] for key in sorted(d.keys())]
 
@@ -29,6 +33,7 @@ tasks = dict_to_ordered_list(task_map)
 colors = dict_to_ordered_list(color_map)
 shapes = dict_to_ordered_list(shape_map)
 
+# Random example.
 def generate_random_string():
     return random.choice([t.char for t in tasks[:2]]) + random.choice([c.char for c in colors[:2]]) + random.choice([s.char for s in shapes[:2]])
 
@@ -38,6 +43,7 @@ example_behaviors = [
 
 
 
+# Find percentages of behaviors.
 def behaviors_to_data(behaviors, start_epoch, finish_epoch):
     all_strings = ['AAA'] + [''.join((t.char, c.char, s.char)) for (t, c, s) in product(tasks, colors, shapes)]
     range_keys = range(start_epoch, finish_epoch)  
@@ -55,6 +61,7 @@ def behaviors_to_data(behaviors, start_epoch, finish_epoch):
 
 
 
+# Split data into ranges of epochs.
 def create_ranges(start, end, step):
     ranges = []
     for i in range(start, end, step):
@@ -63,6 +70,7 @@ def create_ranges(start, end, step):
 
 
 
+# Combine above functions to plot behaviors.
 def plot_behaviors(plot_dict):
     all_behaviors = plot_dict["behavior"][0]
         

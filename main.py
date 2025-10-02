@@ -15,6 +15,7 @@ print("\nagents: {}. previous_agents: {}.".format(args.agents, args.previous_age
 
 
 
+# Initiate training of one agent.
 def train(q, i):
     seed = args.init_seed + i
     np.random.seed(seed) 
@@ -45,15 +46,18 @@ def train(q, i):
 
 
 if __name__ == '__main__':
+    # Begin multiprocessing.
     set_start_method('spawn')
     queue = Queue()
-    
     processes = []
     for worker_id in range(1 + args.previous_agents, 1 + args.agents + args.previous_agents):
         process = Process(target=train, args=(queue, worker_id))
         processes.append(process)
         process.start()
     
+    # If multiple jobs are called for agents with the same arguments (in order to train many agents at once),
+    # consider which index numbers have already been used.
+    # These dictionaries track percentage of progress in an agent's training.
     progress_dict      = {i : "0"  for i in range(1 + args.previous_agents, 1 + args.agents + args.previous_agents)}
     prev_progress_dict = {i : None for i in range(1 + args.previous_agents, 1 + args.agents + args.previous_agents)}
     
@@ -62,6 +66,7 @@ if __name__ == '__main__':
             worker_id, progress_percentage = queue.get()
             progress_dict[worker_id] = progress_percentage
     
+        # If the agents have progressed, print a line describing their progress.
         if any(progress_dict[key] != prev_progress_dict[key] for key in progress_dict.keys()):
             prev_progress_dict = progress_dict.copy()
             string = "" 

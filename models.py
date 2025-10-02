@@ -15,12 +15,13 @@ from submodules import Wheels_Joints_IN, Voice_IN, Voice_OUT
 
 
 if __name__ == "__main__":
-    
     args = default_args
-    episodes = args.batch_size ; steps = args.max_steps
+    episodes = args.batch_size 
+    steps = args.max_steps
         
     
 
+# Actor or policy, generating motor commands and, if neccessary, the robot's voice.
 class Actor(nn.Module):
 
     def __init__(self, args = default_args):
@@ -80,6 +81,7 @@ class Actor(nn.Module):
         concatenated = torch.cat([forward_hidden, encoded_wheels_joints], dim = -1)
         voice_out, voice_log_prob = self.voice_out(concatenated)
 
+        # If not making a voice, erase it.
         if(parenting):
             voice_out = torch.zeros_like(voice_out)
             voice_log_prob = torch.zeros_like(voice_log_prob)
@@ -111,6 +113,7 @@ if __name__ == "__main__":
 
     
     
+# Critic or Q-network for predicting Q-value.
 class Critic(nn.Module): 
     
     def __init__(self, args = default_args):
