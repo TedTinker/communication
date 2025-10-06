@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.text import TextPath
 from matplotlib.patches import PathPatch
 from matplotlib.transforms import Affine2D
+from matplotlib.ticker import MultipleLocator
 import matplotlib.lines as mlines
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE" # Without this, pyplot crashes the kernal
 from matplotlib.ticker import FuncFormatter
@@ -252,6 +253,7 @@ def plots(plot_dicts, min_max_dict):
                 awesome_plot(here, this_win_dict, "black" if gen else "black", "WinRate", (0,100))
                 here.set_ylabel((f"Rolling-Average Gen-Win-Rate" if gen else f"Rolling-Average Win-Rate"))
                 here.yaxis.set_major_formatter(FuncFormatter(to_percent))
+                here.yaxis.set_minor_locator(MultipleLocator(5))
                 here.set_xlabel("Epochs")
                 here.set_title(plot_dict["arg_title"] + (f"\nRolling-Average Gen-Win-Rate ({task_name})" if gen else f"\nRolling-Average Win-Rate ({task_name})"))
                 divide_arenas(this_win_dict, here)

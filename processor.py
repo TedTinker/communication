@@ -11,28 +11,37 @@ from arena import Arena, get_physics
 
 
 
+# A processor connects agents and arenas (robots and environments).
 class Processor:
     
+    # To initiate: give access to arenas and specify which talks, colors, and shapes are allowed.
+    # If two agents are used, use two arenas.
     def __init__(self, args, arena_1, arena_2, tasks_and_weights = [(0, 1)], objects = 1, colors = [0], shapes = [0], parenting = True, linestyle = '-', full_name = ""):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
         
-                
+             
+    # Start a goal.   
     def begin(self, test = False, verbose = False, set_positions = None, set_goal = None):
         self.steps = 0            
+        # For experimentation, the user can specify a goal.
         if(set_goal == None):
             goal_task, self.current_objects_1, self.current_objects_2 = make_objects_and_task(
                 num_objects = self.objects, allowed_tasks_and_weights = self.tasks_and_weights, allowed_colors = self.colors, allowed_shapes = self.shapes, test_train_num = self.args.test_train_num, test = test)
+         # Otherwise, make a new goal.
         else:
             goal_task, self.current_objects_1, self.current_objects_2 = set_goal[0], set_goal[1], set_goal[2]
         goal_color, goal_shape = self.current_objects_1[0]
+        # If there is no talk, ignore color and shape.
         if(goal_task.name == "FREEPLAY"):
             goal_color = goal_task
             goal_shape = goal_task
         self.goal = Goal(goal_task, goal_color, goal_shape, self.parenting)
+        # Restart arena. If there are two agents, restard two arenas.
         self.arena_1.begin(self.current_objects_1, self.goal, self.parenting, set_positions = set_positions)
         if(not self.parenting):
             self.arena_2.begin(self.current_objects_2, self.goal, self.parenting, set_positions = set_positions)
+        # Before beginning, the feedback voice is silent.
         self.report_voice_1 = empty_goal
         self.report_voice_2 = empty_goal
                                 
@@ -41,6 +50,7 @@ class Processor:
             
             
     
+    # Printed, a processor shows the available goals and current goal.
     def __str__(self):
         to_return = "\n\nSHAPE-COLORS (1):\t{}".format(["{} {}".format(color, shape) for color, shape in self.current_objects_1])
         if(not self.parenting):
@@ -51,6 +61,7 @@ class Processor:
     
     
     
+    # Get the arena related to this agent.
     def get_arena(self, agent_1 = True):
         if(agent_1): 
             arena = self.arena_1
@@ -63,8 +74,10 @@ class Processor:
     
     
         
+    # Get sensory observation: vision, proprioception, tactile sensation, and voices.
     def obs(self, agent_1 = True):
         arena = self.get_arena(agent_1)
+        # If only one agent is used, ignore a second agent.
         if(arena == None):
             return(Obs(torch.zeros((1, self.args.image_size, self.args.image_size, 4)), None, None, None))
                 
@@ -109,7 +122,8 @@ class Processor:
         return(Obs(vision, touch, prop, self.goal, report_voice))
     
     
-            
+          
+    # Given motor command, apply them in the arena and receive the feedback voice.  
     def act(self, wheels_joints, agent_1 = True, verbose = False, sleep_time = None):
         arena = self.get_arena(agent_1)
         if(arena == None):
@@ -135,6 +149,7 @@ class Processor:
     
     
         
+    # In one step, apply the agents actions and return rewards.
     def step(self, wheels_joints_1, wheels_joints_2 = None, verbose = False, sleep_time = None):
         self.steps += 1
         done = False
@@ -148,7 +163,8 @@ class Processor:
         if(reward > 0): 
             reward *= self.args.step_cost ** (self.steps-1)
         end = self.steps >= self.args.max_steps
-                                
+                    
+        # Find "done" value: has the agent won, or run out of steps?            
         if(end and not win): 
             done = True
             goal_task = self.arena_1.goal.task
@@ -168,6 +184,7 @@ class Processor:
     
     
     
+    # To end an episode, end arenas and replace voices.
     def done(self):
         self.arena_1.end()
         if(not self.parenting):
@@ -178,14 +195,14 @@ class Processor:
     
     
     
+# Example of a processor.
 if __name__ == "__main__":        
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
     
     from utils import args
     
-    physicsClient = get_physics(GUI = True, args = args)
-    arena_1 = Arena(args, physicsClient)
+    arena_1 = Arena(GUI = True, args = args)
     arena_2 = None
     processor = Processor(args, arena_1, arena_2, tasks_and_weights = [(0, 1)], objects = 2, colors = [0, 1, 2, 3, 4, 5], shapes = [0], parenting = True)
     
@@ -240,4 +257,3 @@ if __name__ == "__main__":
         print("Win:", win)
         example_images(get_images())
         processor.done()
-# %%

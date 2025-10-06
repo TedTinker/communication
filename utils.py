@@ -1,9 +1,5 @@
 #%% 
 
-# TO MAKE READABLE:
-    # agent
-    # Processor
-
 import os
 import pickle
 import pybullet as p

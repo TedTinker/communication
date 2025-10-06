@@ -32,6 +32,7 @@ from plotting_for_video import plot_video_step
 
 
 
+# If concerned about computer-usage, print cpu usage.
 def print_cpu_usage(string, num):
     pid = os.getpid()
     process = psutil.Process(pid)
@@ -40,6 +41,16 @@ def print_cpu_usage(string, num):
     current_cpu = psutil.cpu_percent(interval=1, percpu=True)
     print(f"{string}: {num} Current CPU usage per core: {current_cpu}")
     
+# If printing memory usage, use human terms. 
+def sizeof_fmt(num, suffix="B"):
+    """Convert bytes to human-readable KB, MB, GB, etc."""
+    for unit in ["", "K", "M", "G", "T", "P"]:
+        if abs(num) < 1024.0:
+            return f"{num:.2f} {unit}{suffix}"
+        num /= 1024.0
+    return f"{num:.2f} P{suffix}"
+    
+# Functions for using task-weights, not in use.
 def get_uniform_weight(first_weight, num_weights):
     remaining_sum = 100 - first_weight
     uniform_weight = remaining_sum / (num_weights - 1)
@@ -49,30 +60,25 @@ def make_tasks_and_weights(first_weight):
     u = get_uniform_weight(first_weight, 6)
     return([(0, first_weight)] + [(v, u) for v in [1, 2, 3, 4, 5]])
 
-def sizeof_fmt(num, suffix="B"):
-    """Convert bytes to human-readable KB, MB, GB, etc."""
-    for unit in ["", "K", "M", "G", "T", "P"]:
-        if abs(num) < 1024.0:
-            return f"{num:.2f} {unit}{suffix}"
-        num /= 1024.0
-    return f"{num:.2f} P{suffix}"
-
 fwpulr_tasks_and_weights = make_tasks_and_weights(50)
 
 
 
+# An agent, the neural networks controlling the robot.
 class Agent:
     
     def __init__(self, args, i = -1, GUI = False):
         
-        self.agent_num = i
         self.args = args
+        self.agent_num = i
         self.agent_name = f"{self.args.arg_name}_{self.agent_num}"
         
+        # Track process.
         self.total_steps = 0
         self.total_episodes = 0
         self.total_epochs = 0
         
+        # Different ways to track reward and hidden state etas. These are not in use. 
         self.reward_inflation = 0
         if(self.args.reward_inflation_type == "None"):
             self.reward_inflation = 1
@@ -85,8 +91,7 @@ class Agent:
             
         self.start_physics(GUI) 
         
-        # HERE, make it so processors only have tasks, colors, and shapes which allowed.
-                
+        # Which processors are in use?  
         self.processors = {
             "all" :       Processor(
                 self.args, self.arena_1, self.arena_2, 
@@ -100,13 +105,15 @@ class Agent:
         all_processor_names = list(self.all_processors.keys())
         self.all_processor_names = all_processor_names
         
+        # One-element network, for alpha-value.
         self.target_entropy = self.args.target_entropy
         self.alpha = 1
         self.log_alpha = torch.tensor([0.0], requires_grad=True)
         self.alpha_opt = optim.Adam(params=[self.log_alpha], lr=self.args.lr, weight_decay = self.args.weight_decay) 
         if(self.args.half):
             self.log_alpha = self.log_alpha.to(dtype=torch.float16)
-        
+            
+        # If the agent is producing its own test, another alpha-value.
         self.target_entropy_text = self.args.target_entropy_text
         self.alpha_text = 1
         self.log_alpha_text = torch.tensor([0.0], requires_grad=True)
@@ -114,12 +121,15 @@ class Agent:
         if(self.args.half):
             self.log_alpha_text = self.log_alpha_text.to(dtype=torch.float16)
 
+        # Forward model.
         self.forward = PVRNN(self.args)
         self.forward_opt = optim.Adam(self.forward.parameters(), lr=self.args.lr, weight_decay = self.args.weight_decay)
                            
+        # Actor.   
         self.actor = Actor(self.args)
         self.actor_opt = optim.Adam(self.actor.parameters(), lr=self.args.lr, weight_decay = self.args.weight_decay) 
         
+        # Critics.
         self.critics = []
         self.critic_targets = []
         self.critic_opts = []
@@ -135,8 +145,10 @@ class Agent:
             all_params += list(critic.parameters())
         self.complete_opt = optim.Adam(all_params, lr=self.args.lr, weight_decay=self.args.weight_decay)       
         
+        # Start memory buffer.
         self.memory = RecurrentReplayBuffer(self.args)
         
+        # Dictionary for collecting data used in plotting.
         self.plot_dict = {
             "args" : self.args,
             "arg_title" : self.args.arg_title,
@@ -194,6 +206,7 @@ class Agent:
             
             
             
+    # Start arena. (If using two agents, two arenas.)
     def start_physics(self, GUI = False):
         self.steps = 0
         self.episodes = 0 
@@ -207,6 +220,7 @@ class Agent:
         
         
         
+    # Save agent parameters, collect compositions, test generalization.
     def regular_checks(self, force = False, swapping = False, sleep_time = None):
         if(self.args.save_agents): # Most problematic, roughly in order: behavior, compositions, memory, forward, forward_opt.
             if(
@@ -221,10 +235,12 @@ class Agent:
         
         
         
+    # Begin training and track progression.
     def training(self, q = None, sleep_time = None):      
-        self.regular_checks(force = True, sleep_time = sleep_time)
+        self.regular_checks(sleep_time = sleep_time)
         while(True):                
             self.training_episode(sleep_time = sleep_time)
+            # If using GUI for early data-analysis, check for alert file and replace with dictionary.
             if(self.check_ping()):
                 self.save_dicts()
             percent_done = str(self.epochs / self.args.epochs)
@@ -240,7 +256,8 @@ class Agent:
         self.save_dicts(final = True)
         
         
-        
+
+    # If using GUI for early data-analysis, check for alert file and replace with dictionary.
     def check_ping(self):
         file_path = os.path.join(folder, self.agent_name)
         if(os.path.isfile(file_path)):
@@ -250,6 +267,7 @@ class Agent:
         
         
         
+    # Save dictionaries of plotting data.
     def save_dicts(self, final = False):
         
         self.plot_dict["accumulated_reward"] = list(accumulate(self.plot_dict["reward"]))
@@ -259,7 +277,7 @@ class Agent:
             self.plot_dict["rolled_wins_" + task_name] = rolling_average(self.plot_dict["wins_" + task_name], window_size=500)
             self.plot_dict["rolled_gen_wins_" + task_name] = rolling_average(self.plot_dict["gen_wins_" + task_name], window_size=500)
             
-            
+        # Make a dictionary for minimums and maximums of data as well.
         self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
         for key in self.min_max_dict.keys():
             if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "composition_data", "episode_dicts", "agent_lists", "spot_names", "steps", "behavior"]):
@@ -289,16 +307,18 @@ class Agent:
                     self.min_max_dict[key] = (minimum, maximum)
                     
         file_end = str(self.agent_num).zfill(3)
+        # If using GUI for early analysis, add "temp" to dictionary file.
         if(not final):
             file_end = f"temp_{file_end}"
                 
+        # Save.
         with open(f"{folder}/plot_dict_{file_end}.pickle", "wb") as handle:
             pickle.dump(self.plot_dict, handle)
         with open(f"{folder}/min_max_dict_{file_end}.pickle", "wb") as handle:
             pickle.dump(self.min_max_dict, handle)
                 
     
-    
+    # Get observations from current processor.
     def get_agent_obs(self, agent_1 = True):
         parenting = self.processor.parenting
         if(parenting and not agent_1):
@@ -309,7 +329,8 @@ class Agent:
         return(obs)
                 
                 
-    
+
+    # One step in an episode.
     def step_in_episode(self, 
                         prev_action_1, hq_1, obs_1,
                         prev_action_2, hq_2, obs_2, verbose = False, sleep_time = None, user_action = False):
@@ -317,9 +338,8 @@ class Agent:
         with torch.no_grad():
             self.eval()
             parenting = self.processor.parenting
-                        
-                        
-                        
+                              
+            # Find agent's action in this step, and track transition information.     
             def agent_step(agent_1 = True):
                 
                 if(parenting and not agent_1):
@@ -356,10 +376,12 @@ class Agent:
             obs_1, action_1, hp_1, hq_1, values_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, report_voice_is_1 = agent_step()
             obs_2, action_2, hp_2, hq_2, values_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, report_voice_is_2 = agent_step(agent_1 = False)
 
+            # Run the step and receive rewards.
             reward, done, win = self.processor.step(action_1.wheels_joints[0,0].clone(), None if action_2 == None else action_2.wheels_joints[0,0].clone(), sleep_time = sleep_time, verbose = verbose)
-            
+            # If using irregular reward-tracking, adjust reward.
             reward *= self.reward_inflation
             
+            # Find the next observations for transition.
             def next_agent_step(agent_1 = True):
                 
                 if(parenting and not agent_1):
@@ -373,6 +395,7 @@ class Agent:
                 next_obs.command_voice = next_obs.command_voice.one_hots.unsqueeze(0).unsqueeze(0)
                 next_obs.report_voice = next_obs.report_voice.one_hots.unsqueeze(0).unsqueeze(0)
 
+                # Transition to push.
                 to_push = To_Push(obs, action, reward, next_obs, done)     
                 return(next_obs, to_push)
             
@@ -381,17 +404,20 @@ class Agent:
             
         torch.cuda.empty_cache()
         
+        # Return everything necessary.
         return(action_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, report_voice_is_1,
                action_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1), vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, report_voice_is_2,
                reward, done, win, to_push_1, to_push_2)
             
            
            
+    # Begin an episode.
     def start_episode(self):
         done = False
         complete_reward = 0
         steps = 0
         
+        # Store initial action, hidden state.
         def start_agent(agent_1 = True):
             to_push_list = []
             prev_action = Action(torch.zeros((1, 1, self.args.wheels_joints_shape)), torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape)))
@@ -402,24 +428,31 @@ class Agent:
            
            
     
-    def training_episode(self, sleep_time = None):        
+    # An episode for training the agent. 
+    def training_episode(self, sleep_time = None):    
+        # Initiate agents.            
         done, complete_reward, steps, \
             (to_push_list_1, prev_action_1, hq_1), \
             (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
                     
+        # Track duration and progerss.
         start_time = duration()
-                    
         self.episodes += 1 
         self.total_episodes += 1
+        # If tracking behavior, consider goals acheived.
         self.plot_dict["behavior"][self.episodes] = []
+        
+        # Select a processor and begin.
         self.processor = self.processors[self.processor_name]
         self.processor.begin()    
                         
+        # One step.
         for step in range(self.args.max_steps):
             self.steps += 1                           
             self.total_steps += 1                                                                  
             if(not done):
                 steps += 1
+                # Get observations and use in "step_in_episode."
                 obs_1 = self.get_agent_obs()
                 obs_2 = self.get_agent_obs(agent_1 = False)
                 prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, report_voice_is_1, \
@@ -428,20 +461,24 @@ class Agent:
                             prev_action_1, hq_1, obs_1,
                             prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
                         
+                # If tracking behavior, save feedback voices.
                 if(self.args.save_behaviors):
                     if(self.args.agents_per_behavior_analysis == -1 or self.agent_num <= self.args.agents_per_behavior_analysis):  
                         if(self.episodes == 0 or self.episodes % self.args.episodes_per_behavior_analysis == 0):
                             self.plot_dict["behavior"][self.episodes].append(get_goal_from_one_hots(to_push_1.next_obs.report_voice)) 
                     
+                # Transitions to push.
                 to_push_list_1.append(to_push_1)
                 to_push_list_2.append(to_push_2)
                 complete_reward += reward
             if(self.steps % self.args.steps_per_epoch == 0):
                 self.epoch(self.args.batch_size)
-                                                    
+                            
+        # Finish.                             
         self.processor.done()
         self.plot_dict["steps"].append(steps)
         self.plot_dict["reward"].append(complete_reward)
+        # Track win-rates for each task.
         goal_task = self.processor.goal.task.name
         self.plot_dict["wins_all"].append(win)
         for task_name in task_name_list:
@@ -450,6 +487,7 @@ class Agent:
             else:                
                 self.plot_dict["wins_" + task_name].append(None)
                              
+        # Push transitions.
         for to_push in to_push_list_1:
             to_push.push(self.memory)
             
@@ -457,8 +495,10 @@ class Agent:
             if(to_push != None):
                 to_push.push(self.memory)
         
+        # Track progress.
         percent_done = self.epochs / self.args.epochs
         
+        # Not in use. If irregularly tracking curiosity, apply functions.
         if(self.args.hidden_state_eta_report_voice_reduction_type == "linear"):
             self.hidden_state_eta_report_voice_reduction = 1 - percent_done
         if(self.args.hidden_state_eta_report_voice_reduction_type.startswith("exp")):
@@ -468,6 +508,7 @@ class Agent:
             k = float(self.args.hidden_state_eta_report_voice_reduction_type.split("_")[-1])
             self.hidden_state_eta_report_voice_reduction = 1 - (1 / (1 + np.exp(-k * (self.epochs - self.args.epochs/2))))
             
+        # Not in use. If irregularly tracking rewards, apply functions.
         if(self.args.reward_inflation_type == "linear"):
             self.reward_inflation = percent_done
         if(self.args.reward_inflation_type.startswith("exp")):
@@ -477,6 +518,7 @@ class Agent:
             k = float(self.args.reward_inflation_type.split("_")[-1])
             self.reward_inflation = (1 / (1 + np.exp(-k * (self.epochs - self.args.epochs/2))))
                         
+                        
         end_time = duration()
         print_duration(start_time, end_time, "\nTraining episode", "\n")
                         
@@ -484,6 +526,8 @@ class Agent:
         
         
         
+    # Episode for testing generalization. 
+    # This is the same as a training episode, but without pushing transitions and different information-tracking.
     def gen_test(self, sleep_time = None):
         done, complete_reward, steps, \
             (to_push_list_1, prev_action_1, hq_1), \
@@ -522,12 +566,14 @@ class Agent:
         
         
         
+    # For user-experiments, with options for using specific goals and what information to display.
     def save_episodes(self, test = False, verbose = False, display = True, video_display = True, sleep_time = None, waiting = False, user_action = False, dreaming = False, set_positions = None, set_goal = None):        
         with torch.no_grad():
             self.processor = self.processors[self.processor_name]
             self.processor.begin(test = test, set_positions = set_positions, set_goal = set_goal)       
             parenting = self.processor.parenting
 
+            # Track keys for display.
             common_keys = [
                 "obs", "action", "dream_obs",
                 "birds_eye", "reward", "critic_predictions", "prior_predictions", "posterior_predictions", 
@@ -541,8 +587,7 @@ class Agent:
             self.processor.goal.make_texts()
             episode_dict["goal"] = self.processor.goal
             
-            done = False
-            
+            # Begin for episode.
             done, complete_reward, steps, \
                 (to_push_list_1, prev_action_1, hq_1), \
                 (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
@@ -552,7 +597,8 @@ class Agent:
             
             
             
-            # In dream-time, this should be the observation.
+            # In mental planning, this should be the observation.
+            # I use the phrase "dream" to represent this mental planning.
             previous_dream_obs_q_1 = None
             previous_dream_obs_q_2 = None
             current_dream_obs_q_1 = None
@@ -560,6 +606,7 @@ class Agent:
             
             
                             
+            # Save observations of one step.    
             def save_step(step, obs, agent_1 = True):
                 agent_num = 1 if agent_1 else 2
                 birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
@@ -575,6 +622,7 @@ class Agent:
                 
                 
                 
+            # Save predictions for one step.
             def next_prediction(hp, hq, obs, wheels_joints, agent_1 = True):
                 agent_num = 1 if agent_1 else 2
                 
@@ -598,7 +646,8 @@ class Agent:
                 return(dream_obs_q)
                     
                     
-                                    
+                     
+            # If displaying all information, plot.                
             def display_step(step, agent_1 = True, done = False, stopping = False, dreaming = False):
                 if(not display):
                     return
@@ -610,6 +659,7 @@ class Agent:
                 if(waiting):
                     WAITING = wait_for_button_press()
                     
+            # If displaying all information, plot. 
             def video_display_step(step, agent_1 = True, done = False, stopping = False, dreaming = False):
                 if(not video_display):
                     return
@@ -622,7 +672,7 @@ class Agent:
                     WAITING = wait_for_button_press()
                     
                     
-            
+            # Iterate over episode.
             for step in range(self.args.max_steps + 1):
                 
                 # First, save step.
@@ -656,6 +706,7 @@ class Agent:
                         
                 episode_dict["reward"].append(str(round(reward, 3)))
                 
+                # Throughout, save information.
                 def update_episode_dict(index, prev_action, vision_is, touch_is, prop_is, command_voice_is, report_voice_is, values, reward):
                     episode_dict[f"action_{index}"].append(prev_action)
                     episode_dict[f"vision_dkl_{index}"].append(vision_is.dkl.sum().item())
@@ -670,6 +721,7 @@ class Agent:
                 if not self.processor.parenting:
                     update_episode_dict(2, prev_action_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, report_voice_is_2, values_2, reward_2)
                 
+                # End episode is finished.
                 if(done):
                     real_obs_1 = self.get_agent_obs()
                     real_obs_2 = self.get_agent_obs(agent_1 = False)
@@ -684,24 +736,28 @@ class Agent:
             return(win)
                     
                     
-                    
+
+    # For tracking composition, collect agent interpretations of all possible goals.      
     def get_composition_data(self, sleep_time = None):
         if(self.args.agents_per_composition_data != -1 and self.agent_num > self.args.agents_per_composition_data): 
             return
         adjusted_args = deepcopy(self.args)
         adjusted_args.capacity = len(self.all_processors)
+        # Store information in a new, temporary memory buffer.
         temp_memory = RecurrentReplayBuffer(adjusted_args)
         processor_lens = []
         for processor_name in self.all_processor_names:
             #print(processor_name)
             self.processor = self.all_processors[processor_name]
             total_steps = 0 
+            # Iterate over an episode.
             while(total_steps < 30):
                 self.processor.begin(test = None)    
                 done, complete_reward, steps, \
                     (to_push_list_1, prev_action_1, hq_1), \
                     (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
                         
+                # In each step, track transitions.
                 for step in range(self.args.max_steps):
                     #print("Step", step)
                     if(not done):
@@ -727,16 +783,20 @@ class Agent:
                         break
                     to_push.push(temp_memory)
                 
+        # Collect all saved transitions.
         batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
         vision, touch, prop, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
                 
+        # Collect all inner-state prior-posterior understandings.
         hps, hqs, vision_is, touch_is, prop_is, command_voice_is, report_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
             Obs(vision, touch, prop, command_voice, report_voice), Action(wheels_joints, voice_out))
         
+        # Save labels (task/color/shape) for comparisons.
         labels = labels.detach().cpu().numpy()
         all_mask = all_mask.detach().cpu().numpy()  
 
+        # Save posterior inner-states.
         vision_zq = vision_is.zq.detach().cpu().numpy()
         touch_zq = touch_is.zq.detach().cpu().numpy()
         prop_zq = prop_is.zq.detach().cpu().numpy()
@@ -744,12 +804,13 @@ class Agent:
         report_voice_zq = report_voice_is.zq.detach().cpu().numpy()
         hq = hqs.detach().cpu().numpy()
                         
+        # Add information to the dictionary for plotting information.    
         self.plot_dict["composition_data"][self.epochs] = {
             "labels" : labels, "all_mask" : all_mask, "hq" : hq,
             "vision_zq" : vision_zq, "touch_zq" : touch_zq, "prop_zq" : prop_zq,  "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq}
         
         
-        
+    # Get a batch of information from a memory buffer.
     def get_batch(self, memory, batch_size, random_sample = True):
         batch = memory.sample(batch_size, random_sample = random_sample)
         if(batch == False): return(False)
@@ -787,17 +848,18 @@ class Agent:
         
     
     
+    # One epoch, training the forward model, actor, critics, and alpha values.
     def epoch(self, batch_size):
         start_time = duration()
         self.epochs += 1
         self.total_epochs += 1
         self.train()
         parenting = self.processor.parenting
-                                
+                   
+        # Collect information.               
         batch = self.get_batch(self.memory, batch_size)
         if(batch == False):
             return(False)
-        
         vision, touch, prop, command_voice, report_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
         obs = Obs(vision, touch, prop, command_voice, report_voice)
         actions = Action(wheels_joints, voice_out)
@@ -961,7 +1023,7 @@ class Agent:
         
             
             
-        # Train alpha
+        # Train alpha values.
         if self.args.alpha == None:
             _, log_pis, _ = self.actor(hqs[:,:-1].detach(), parenting)
             alpha_loss = -(self.log_alpha.to(self.args.device) * (log_pis + self.target_entropy))*mask
@@ -988,6 +1050,7 @@ class Agent:
                                 
                                 
                                 
+        # Save information.
         if(accuracy != None):               accuracy = accuracy.item()
         if(vision_loss != None):              vision_loss = vision_loss.mean().item()
         if(touch_loss != None):           touch_loss = touch_loss.mean().item()
@@ -1057,14 +1120,15 @@ class Agent:
         
     
     
+    # Update target critics based on critics.
     def soft_update(self, local_model, target_model, tau):
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
     
         
+    # Print true deep sizes of self.plot_dict and other large self attributes.
     def sizeof_plot_dict(self):
-        """Print true deep sizes of self.plot_dict and other large self attributes."""
 
         total_bytes = 0
         
@@ -1109,6 +1173,7 @@ class Agent:
         
         
     
+    # Save everything about this agent to a file.
     def save_agent(self):
         if not self.args.local:
             self.sizeof_plot_dict()
@@ -1121,12 +1186,14 @@ class Agent:
                 pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
             self.plot_dict = plot_dict_backup
             self.memory = memory_backup
-                
+          
+    # Load this agent from a file.      
     def load_agent(self, load_path):
         with gzip.open(load_path, "rb") as f:
             state_dict = torch.load(f)
         self.load_state_dict(state_dict)
                 
+    # Save parameters of neural networks.
     def state_dict(self):
         to_return = [self.forward.state_dict(), self.actor.state_dict()]
         for i in range(self.args.critics):
@@ -1134,6 +1201,7 @@ class Agent:
             to_return.append(self.critic_targets[i].state_dict())
         return(to_return)
 
+    # Load parameters of neural networks.
     def load_state_dict(self, state_dict):
         self.forward.load_state_dict(state_dict = state_dict[0])
         self.actor.load_state_dict(state_dict = state_dict[1])
@@ -1142,6 +1210,7 @@ class Agent:
             self.critic_targets[i].load_state_dict(state_dict = state_dict[3+2*i])
         self.memory = RecurrentReplayBuffer(self.args)
 
+    # Switch all neural networks to evaluation.
     def eval(self):
         self.forward.eval()
         self.actor.eval()
@@ -1149,6 +1218,7 @@ class Agent:
             self.critics[i].eval()
             self.critic_targets[i].eval()
 
+    # Switch all neural networks to training.
     def train(self):
         self.forward.train()
         self.actor.train()

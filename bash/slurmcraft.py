@@ -9,6 +9,8 @@ parser.add_argument("--arg_list",     type=str,  default = [])
 try:    args = parser.parse_args()
 except: args, _ = parser.parse_known_args()
 
+# This file works with maze.sh to operate many attempts with different parameters.
+
 if(type(args.arg_list) != list): args.arg_list = json.loads(args.arg_list)
 combined = "___{}___".format("+".join(args.arg_list))    
 
@@ -47,11 +49,6 @@ def expand_args(name, args):
 def convert_list(input_list):
     converted = ['\\[' + ','.join(map(str, sub_list)) + '\\]' for sub_list in input_list]
     return(converted)
-
-#def convert_list(input_list):
-#    converted = ['\[' + ','.join(map(str, sub_list)) + '\]' for sub_list in input_list]
-#    return(converted)
-
 
 
 
