@@ -17,8 +17,9 @@ from agent import Agent
 set_goal = None
 
 
+
 # Change these to the agent you would like to test.
-hyper_parameters = "ef_old"
+hyper_parameters = "eft_4"
 agent_num = "0001"
 epochs = "060000"
 saved_file = "saved_deigo"
@@ -160,9 +161,9 @@ win = agent.save_episodes(
     video_display = False,                      # Should a simple view of the robot's observations be plotted?
     sleep_time = .25,                           # How slow should the episode be?
     waiting = False,                            # Should the episode wait every step?
-    user_action = False,                        # Should the user be able to choose the robot's actions?
+    user_action = True,                        # Should the user be able to choose the robot's actions?
     dreaming = True,                            # Should the robot be "dreaming" or "hallucinating," only seeing its own predictions?
-    set_positions = ([4, -2], [4, 2]),                       # Should the objects be in specific positions?
+    set_positions = None, #([4, -2], [4, 2]),                       # Should the objects be in specific positions?
     set_goal = set_goal)                        # Should a specific goal be used?
 if(win): 
     wins += 1

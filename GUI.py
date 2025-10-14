@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk
 from collections import defaultdict
 from natsort import natsorted
-import shutil  # Added import
+import shutil  
 
 # This file is only for viewing data for robots with various arguments mid-trianing.
 

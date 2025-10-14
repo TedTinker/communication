@@ -122,6 +122,7 @@ class Arena():
         p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
         self.sensors = {}
         self.wheels = []
+        
         for link_index in range(p.getNumJoints(self.robot_index, physicsClientId = self.physicsClient)):
             joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
             link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
@@ -139,6 +140,44 @@ class Arena():
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, .1), physicsClientId = self.physicsClient)
             else:
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
+           
+        """     
+        wheel_texture = p.loadTexture("pybullet_data/robots/wheel_texture.png")
+        spoke_texture = p.loadTexture("pybullet_data/robots/spoke_texture.png")
+        body_texture = p.loadTexture("pybullet_data/robots/body_texture.png")
+        joint_texture = p.loadTexture("pybullet_data/robots/joint_texture.png")
+        arm_texture = p.loadTexture("pybullet_data/robots/arm_texture.png")
+        hand_texture = p.loadTexture("pybullet_data/robots/hand_texture.png")
+        for link_index in range(p.getNumJoints(self.robot_index, physicsClientId = self.physicsClient)):
+            joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
+            link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
+            p.changeDynamics(self.robot_index, link_index, maxJointVelocity = 10000)
+            if("wheel" in link_name):
+                self.wheels.append((link_index, link_name))
+                p.changeVisualShape(self.robot_index, link_index, textureUniqueId=wheel_texture)
+            elif("sensor" in link_name):
+                self.sensors[link_name] = link_index
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 0), physicsClientId = self.physicsClient)
+            elif("spoke" in link_name):
+                p.changeVisualShape(self.robot_index, link_index, textureUniqueId=spoke_texture)
+                #p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 0), physicsClientId = self.physicsClient)
+            elif("outline" in link_name):
+                #p.changeVisualShape(self.robot_index, link_index, textureUniqueId=spoke_texture)
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 0), physicsClientId = self.physicsClient)
+            elif("camera_2" in link_name):
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, .3), physicsClientId = self.physicsClient)
+            elif("camera_3" in link_name):
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, .1), physicsClientId = self.physicsClient)
+            elif("joint" in link_name):
+                p.changeVisualShape(self.robot_index, link_index, textureUniqueId=joint_texture)
+            elif("arm" in link_name):
+                p.changeVisualShape(self.robot_index, link_index, textureUniqueId=arm_texture)
+            elif("hand" in link_name):
+                p.changeVisualShape(self.robot_index, link_index, textureUniqueId=hand_texture)
+            elif(not "body" in link_name):
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
+            
+        p.changeVisualShape(self.robot_index, -1, textureUniqueId=body_texture)"""
                         
         # Place objects on lower level for future use.
         linearDamping = 1

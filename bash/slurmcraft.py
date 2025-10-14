@@ -9,7 +9,7 @@ parser.add_argument("--arg_list",     type=str,  default = [])
 try:    args = parser.parse_args()
 except: args, _ = parser.parse_known_args()
 
-# This file works with maze.sh to operate many attempts with different parameters.
+# This file works with communication.sh to operate many attempts with different parameters.
 
 if(type(args.arg_list) != list): args.arg_list = json.loads(args.arg_list)
 combined = "___{}___".format("+".join(args.arg_list))    
@@ -84,6 +84,11 @@ vision_eta = .05
 touch_eta = 1
 prop_eta = .1
 report_eta = .2
+
+# Curiosity of senses only
+add_this("c",   {                                           
+    "curiosity" : "hidden_state",     
+    "hidden_state_eta_report_voice" : report_eta})
 
 # Curiosity of senses only
 add_this("p",   {                                           
@@ -236,7 +241,7 @@ f"""
 {partition}
 #SBATCH --ntasks={max_cpus}
 {module}
-singularity exec{nv} maze.sif python communication/main.py --comp {args.comp} --arg_name {name} {get_args(name)} --agents $agents_per_job --previous_agents $previous_agents
+singularity exec{nv} communication.sif python communication/main.py --comp {args.comp} --arg_name {name} {get_args(name)} --agents $agents_per_job --previous_agents $previous_agents
 """[2:])
             
 
@@ -246,7 +251,7 @@ singularity exec{nv} maze.sif python communication/main.py --comp {args.comp} --
 f"""
 {partition}
 {module}
-singularity exec{nv} maze.sif python communication/finish_dicts.py --comp {args.comp} --arg_title {combined} --arg_name finishing_dictionaries
+singularity exec{nv} communication.sif python communication/finish_dicts.py --comp {args.comp} --arg_title {combined} --arg_name finishing_dictionaries
 """[2:])
         
     with open("plotting.slurm", "w") as f:
@@ -254,7 +259,7 @@ singularity exec{nv} maze.sif python communication/finish_dicts.py --comp {args.
 f"""
 {partition}
 {module}
-singularity exec{nv} maze.sif python communication/plotting.py --comp {args.comp} --arg_title {combined} --arg_name plotting
+singularity exec{nv} communication.sif python communication/plotting.py --comp {args.comp} --arg_title {combined} --arg_name plotting
 """[2:])
         
     with open("plotting_composition.slurm", "w") as f:
@@ -262,7 +267,7 @@ singularity exec{nv} maze.sif python communication/plotting.py --comp {args.comp
 f"""
 {partition}
 {module}
-singularity exec{nv} maze.sif python communication/plotting_composition.py --comp {args.comp} --arg_title {combined} --arg_name plotting_composition
+singularity exec{nv} communication.sif python communication/plotting_composition.py --comp {args.comp} --arg_title {combined} --arg_name plotting_composition
 """[2:])
         
     with open("plotting_episodes.slurm", "w") as f:
@@ -270,7 +275,7 @@ singularity exec{nv} maze.sif python communication/plotting_composition.py --com
 f"""
 {partition}
 {module}
-singularity exec{nv} maze.sif python communication/plotting_episodes.py --comp {args.comp} --arg_title {combined} --arg_name plotting_episodes
+singularity exec{nv} communication.sif python communication/plotting_episodes.py --comp {args.comp} --arg_title {combined} --arg_name plotting_episodes
 """[2:])
         
     with open("plotting_p_values.slurm", "w") as f:
@@ -278,7 +283,7 @@ singularity exec{nv} maze.sif python communication/plotting_episodes.py --comp {
 f"""
 {partition}
 {module}
-singularity exec{nv} maze.sif python communication/plotting_p_val.py --comp {args.comp} --arg_title {combined} --arg_name plotting_p_values
+singularity exec{nv} communication.sif python communication/plotting_p_val.py --comp {args.comp} --arg_title {combined} --arg_name plotting_p_values
 """[2:])
         
     with open("plotting_behavior.slurm", "w") as f:
@@ -286,7 +291,7 @@ singularity exec{nv} maze.sif python communication/plotting_p_val.py --comp {arg
 f"""
 {partition}
 {module}
-singularity exec{nv} maze.sif python communication/plotting_behavior.py --comp {args.comp} --arg_title {combined} --arg_name plotting_behavior
+singularity exec{nv} communication.sif python communication/plotting_behavior.py --comp {args.comp} --arg_title {combined} --arg_name plotting_behavior
 """[2:])
         
     with open("combine_plots.slurm", "w") as f:
@@ -294,7 +299,7 @@ singularity exec{nv} maze.sif python communication/plotting_behavior.py --comp {
 f"""
 {partition}
 {module}
-singularity exec{nv} maze.sif python communication/combine_plots.py --comp {args.comp} --arg_title {combined} --arg_name combining_plots
+singularity exec{nv} communication.sif python communication/combine_plots.py --comp {args.comp} --arg_title {combined} --arg_name combining_plots
 """[2:])
 # %%
 
