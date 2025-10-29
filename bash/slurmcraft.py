@@ -127,15 +127,11 @@ add_this("q3",   {
 
 
 add_this("t", {
-    "object_size" : 2.5,
-    "min_object_distance" : [4, 5, 6],   
-    "max_object_distance" : [7, 8, 9],         
-    "be_near_distance" : [6, 7],  
-    "pointing_at_object_for_being_near" : pi/6,
-    "pointing_at_object_for_touch_top" : pi/3  
+    "exceptions" : [1, 2],
+    "max_wheel_speed_for_exception" : [2, 3],
+    "max_arm_speed_for_exception" : .1,
+    "exception_distance" : [6, 8, 10]
 })
-
-
 
 
 add_this("t1",   {
@@ -157,16 +153,6 @@ add_this("t2",   {
 })
 
 
-
-
-"""add_this("testing_new_compositions",   {
-    "save_agents" : "False",
-    "save_behaviors" : "False",
-    "epochs_per_composition_data" : 10,
-    "agents_per_composition_data" : 1,
-    "epochs" : 30,
-    "keep_data" : 100
-    })"""
 
 
 

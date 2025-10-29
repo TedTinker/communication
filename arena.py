@@ -13,7 +13,7 @@ import pkg_resources
 import statistics
 from copy import deepcopy
 
-from utils import shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, duration, wait_for_button_press#, print
+from utils import shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, duration, wait_for_button_press, exceptions_0, exceptions_1, exceptions_2, print
 from arena_navigator import run_tk
 
 
@@ -96,7 +96,7 @@ class Arena():
         # Objects in use.
         self.objects_in_play = {}
         # Continuous duration of robot performing tasks.
-        self.durations = {"watch" : {}, "be_near": {}, "top": {}, "push" : {}, "left" : {}, "right" : {}}
+        self.durations = {"watch" : {}, "be_near": {}, "top": {}, "push" : {}, "left" : {}, "right" : {}, "except" : {}}
         # History of robot motor commands.
         self.history_of_actions = {"left_wheel_speed" : [], "right_wheel_speed" : [], "joint_target_velocities" : {}}
                                 
@@ -140,45 +140,7 @@ class Arena():
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, .1), physicsClientId = self.physicsClient)
             else:
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
-           
-        """     
-        wheel_texture = p.loadTexture("pybullet_data/robots/wheel_texture.png")
-        spoke_texture = p.loadTexture("pybullet_data/robots/spoke_texture.png")
-        body_texture = p.loadTexture("pybullet_data/robots/body_texture.png")
-        joint_texture = p.loadTexture("pybullet_data/robots/joint_texture.png")
-        arm_texture = p.loadTexture("pybullet_data/robots/arm_texture.png")
-        hand_texture = p.loadTexture("pybullet_data/robots/hand_texture.png")
-        for link_index in range(p.getNumJoints(self.robot_index, physicsClientId = self.physicsClient)):
-            joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
-            link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
-            p.changeDynamics(self.robot_index, link_index, maxJointVelocity = 10000)
-            if("wheel" in link_name):
-                self.wheels.append((link_index, link_name))
-                p.changeVisualShape(self.robot_index, link_index, textureUniqueId=wheel_texture)
-            elif("sensor" in link_name):
-                self.sensors[link_name] = link_index
-                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 0), physicsClientId = self.physicsClient)
-            elif("spoke" in link_name):
-                p.changeVisualShape(self.robot_index, link_index, textureUniqueId=spoke_texture)
-                #p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 0), physicsClientId = self.physicsClient)
-            elif("outline" in link_name):
-                #p.changeVisualShape(self.robot_index, link_index, textureUniqueId=spoke_texture)
-                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 0), physicsClientId = self.physicsClient)
-            elif("camera_2" in link_name):
-                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, .3), physicsClientId = self.physicsClient)
-            elif("camera_3" in link_name):
-                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, .1), physicsClientId = self.physicsClient)
-            elif("joint" in link_name):
-                p.changeVisualShape(self.robot_index, link_index, textureUniqueId=joint_texture)
-            elif("arm" in link_name):
-                p.changeVisualShape(self.robot_index, link_index, textureUniqueId=arm_texture)
-            elif("hand" in link_name):
-                p.changeVisualShape(self.robot_index, link_index, textureUniqueId=hand_texture)
-            elif(not "body" in link_name):
-                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
-            
-        p.changeVisualShape(self.robot_index, -1, textureUniqueId=body_texture)"""
-                        
+
         # Place objects on lower level for future use.
         linearDamping = 1
         angularDamping = 100
@@ -196,8 +158,6 @@ class Arena():
                     p.changeDynamics(object_index, link_index, maxJointVelocity = 10000, linearDamping=linearDamping, angularDamping=angularDamping)
                 self.loaded[i].append((object_index, (pos[0], pos[1], object_lower_starting_pos)))
                 self.object_indexs.append(object_index)
-                
-                
                 
     # If changing physicsClient.
     def change_physicsClient(self):
@@ -234,7 +194,7 @@ class Arena():
         self.goal = goal
         self.parenting = parenting
         self.objects_in_play = {}
-        self.durations = {"watch" : {}, "be_near" : {}, "top" : {}, "push" : {}, "left" : {}, "right" : {}}
+        self.durations = {"watch" : {}, "be_near" : {}, "top" : {}, "push" : {}, "left" : {}, "right" : {}, "except" : {}}
         already_in_play = {key : 0 for key in shape_map.keys()}
         # If custom positions not set, generate positions.
         if(set_positions == None):
@@ -262,7 +222,7 @@ class Arena():
                         
             # Track objects in play, and how long the agent has performed actions on them.
             self.objects_in_play[(color_index, shape_index, idle_pos)] = object_index
-            for task in ["watch", "be_near", "top", "push", "left", "right"]:
+            for task in ["watch", "be_near", "top", "push", "left", "right", "except"]:
                 self.durations[task][object_index] = 0
             
         # Position robot.
@@ -591,6 +551,21 @@ class Arena():
         v_rx = cos(self.robot_start_yaw)
         v_ry = sin(self.robot_start_yaw)
         
+        supposed_to_be_exception = False
+        if(self.args.exceptions == 0):
+            exception_list = exceptions_0
+        elif(self.args.exceptions == 1):
+            exception_list = exceptions_1
+        elif(self.args.exceptions == 2):
+            exception_list = exceptions_2
+            
+        if(self.goal.digits in exception_list):
+            supposed_to_be_exception = True
+            
+        #print("")
+        #print(self.goal.digits, exception_list, supposed_to_be_exception)
+        #print("")
+        
         
         
         if(verbose):
@@ -609,7 +584,8 @@ class Arena():
             topped = False
             pushed = False 
             lefted = False 
-            righted = False            
+            righted = False    
+            excepted = False        
             
             # Is the agent touching the object?
             objects_touch = self.objects_touch[object_index]
@@ -683,13 +659,26 @@ class Arena():
             good_wheel_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) <= self.args.max_wheel_speed_for_left_right
             arm_speed = self.get_joint_speeds()[1]
             good_arm_speed = abs(arm_speed) >= self.args.min_arm_speed_for_left_right
+            #good_arm_speed_left = arm_speed >= self.args.min_arm_speed_for_left_right
+            #good_arm_speed_right = arm_speed <= -self.args.min_arm_speed_for_left_right
             good_push_left_distance = global_movement_left >= self.args.global_left_right_amount
             good_push_right_distance = global_movement_left <= -self.args.global_left_right_amount
             good_left_right_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_left_right        
             lefting     = touching and good_push_left_distance and  good_left_right_angle and good_wheel_speed and good_arm_speed
-            righting    = touching and good_push_right_distance and good_left_right_angle and good_wheel_speed and good_arm_speed        
-                        
-                        
+            righting    = touching and good_push_right_distance and good_left_right_angle and good_wheel_speed and good_arm_speed
+            
+            # Is the agent staying still enough to fulfill exceptions?
+            if(supposed_to_be_exception):
+                left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
+                good_wheel_speed_exception = max([abs(left_wheel_speed), abs(right_wheel_speed)]) <= self.args.max_wheel_speed_for_exception
+                arm_speed = self.get_joint_speeds()[1]
+                good_arm_speed_exception = abs(arm_speed) <= self.args.max_arm_speed_for_exception
+                excepting = good_wheel_speed_exception and good_arm_speed_exception and not touching and not watching and not being_near \
+                    and distance > self.args.exception_distance
+            else:
+                excepting = False
+             
+             
                         
             if(verbose):
                 print(f"\nTouching: {touching}. Touching body: {touching_body}.")
@@ -700,7 +689,8 @@ class Arena():
                 print(f"Topping \t({topping}): \t\t{self.durations['top'][object_index]} steps")
                 print(f"Pushing \t({pushing}): \t\t{self.durations['push'][object_index]} steps")
                 print(f"Lefting \t({lefting}): \t\t{self.durations['left'][object_index]} steps")
-                print(f"Righting \t({righting}): \t\t{self.durations['right'][object_index]} steps\n")
+                print(f"Righting \t({righting}): \t\t{self.durations['right'][object_index]} steps")
+                print(f"Excepting \t({excepting}): \t\t{self.durations['except'][object_index]} steps\n")
                                 
                 
             
@@ -731,6 +721,14 @@ class Arena():
                 lefting = False 
                 righting = False
                 
+            if(excepting):
+                watching = False 
+                being_near = False
+                topping = False 
+                pushing = False 
+                lefting = False 
+                righting = False
+                
                 
 
             if(verbose):
@@ -740,7 +738,8 @@ class Arena():
                 print(f"Topping: \t{topping}") 
                 print(f"Pushing: \t{pushing}")
                 print(f"Lefting: \t{lefting}")
-                print(f"Righting: \t{righting}\n")
+                print(f"Righting: \t{righting}")
+                print(f"Excepting: \t{excepting}\n")
                 
 
             
@@ -758,9 +757,10 @@ class Arena():
             pushed      = update_duration("push",       pushing,    object_index, self.args.push_duration)
             lefted      = update_duration("left",       lefting,    object_index, self.args.left_right_duration)
             righted     = update_duration("right",      righting,   object_index, self.args.left_right_duration)
+            excepted    = update_duration("except",     excepting,  object_index, self.args.exceptions_duration)
             
             key = (color_map[color_index], shape_map[shape_index])
-            new_value = [watched, been_near, topped, pushed, lefted, righted, watching, being_near, topping, pushing, lefting, righting]
+            new_value = [watched, been_near, topped, pushed, lefted, righted, excepted, watching, being_near, topping, pushing, lefting, righting, excepting]
             
             # If there are multiple of the same object, consider them all.
             if key in objects_goals:
@@ -769,7 +769,7 @@ class Arena():
                 objects_goals[key] = new_value
 
             if(verbose):
-                ings = sum([watching, being_near, topping, pushing, lefting, righting])
+                ings = sum([watching, being_near, topping, pushing, lefting, righting, excepting])
                 print(f"Finished:")
                 print(f"INGs: {ings}")
                 if(ings > 1): 
@@ -779,18 +779,21 @@ class Arena():
                 print(f"Topping: \t{topping} \tTopped: \t{topped} \t {self.durations['top'][object_index]} steps")
                 print(f"Pushing: \t{pushing} \tPushed: \t{pushed} \t {self.durations['push'][object_index]} steps")
                 print(f"Lefting: \t{lefting} \tLefted: \t{lefted} \t {self.durations['left'][object_index]} steps")
-                print(f"Righting: \t{righting} \tRighted: \t{righted} \t {self.durations['right'][object_index]} steps\n")
+                print(f"Righting: \t{righting} \tRighted: \t{righted} \t {self.durations['right'][object_index]} steps")
+                print(f"Excepting: \t{excepting} \tExcepted: \t{excepted} \t {self.durations['except'][object_index]} steps\n")
                 
                 
                 
         # Now we check what feedback voice should be returned.                              
         report_voice = empty_goal
         wrong_object = False
-        task_performed = None
+        task_performed = None        
+        
+        
                 
-        for (color, shape), (watched, been_near, topped, pushed, lefted, righted, watching, being_near, topping, pushing, lefting, righting) in objects_goals.items():
+        for (color, shape), (watched, been_near, topped, pushed, lefted, righted, excepted, watching, being_near, topping, pushing, lefting, righting, excepting) in objects_goals.items():
             # If any one task is accomplished, find the task/color/shape.
-            if(sum([watched, been_near, topped, pushed, lefted, righted]) == 1):
+            if(sum([watched, been_near, topped, pushed, lefted, righted]) == 1): 
                 # If the correct object, check the task.
                 if(watched):
                     task_performed = "watched"  
@@ -808,7 +811,7 @@ class Arena():
                         reward = self.args.reward
                 # If a task is occuring with a wrong object, no reward.
                 else:
-                    wrong_object = True
+                    wrong_object = True                
                     
             # Feedback voice reflects ongoing processes.
             task_in_progress = None
@@ -821,6 +824,27 @@ class Arena():
                 if(righting):   task_in_progress = task_map[6]
                 
                 report_voice = Goal(task_in_progress, color, shape, parenting = False)
+                
+                # If it's supposed to be an exception, and 
+                # the agent is performing the named goal instead of treating it as an exception,
+                # report nothing.
+                if(supposed_to_be_exception):
+                    #print("Should be excepting!")
+                    #print(report_voice, self.goal)
+                    #print(report_voice.task.char)
+                    if(report_voice.task.char == self.goal.task.char and report_voice.color.char == self.goal.color.char and report_voice.shape.char == self.goal.shape.char):
+                        #print("Report like goal!")
+                        win = False 
+                        reward = 0
+                        report_voice = empty_goal
+
+                
+        if(excepting):
+            report_voice = self.goal
+            
+        if(excepted):
+            win = True
+            reward = self.args.reward
                 
         if(wrong_object):
             win = False 

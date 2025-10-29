@@ -20,6 +20,8 @@ import tkinter as tk
 import numpy as np
 import torch
 
+# TRY ADDING exceptions!
+
 # Find torch device.
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = torch.device("cpu")
@@ -169,6 +171,7 @@ class Goal:
             self.color = self.task 
             self.shape = self.task
         self.one_hots = torch.zeros((3, len(task_map) + len(color_map) + len(shape_map)))
+        self.digits = ()
         self.make_texts()
     
     # Make text representing the goal.    
@@ -177,6 +180,12 @@ class Goal:
         for i, char in enumerate([self.task.char, self.color.char, self.shape.char]):
             index = ord(char) - ord('A')
             self.one_hots[i, index] = 1
+            
+        self.digits = ()
+        task_index = ord(self.task.char) - ord('A')
+        color_index = ord(self.color.char) - ord('A') - len(task_map)
+        shape_index = ord(self.shape.char) - ord('A') - len(task_map) - len(color_map)
+        self.digits = (task_index, color_index, shape_index)
             
         self.char_text = f"{self.task.char}{self.color.char}{self.shape.char}"
         self.human_text = f"{self.task.name} {self.color.name} {self.shape.name}"
@@ -355,9 +364,20 @@ training_combos_2 = [
     (6, 2, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2)]
 testing_combos_2 = [combo for combo in all_combos if not combo in training_combos_2]
 
-# 6 tasks, 6 colors, 5 shapes. 180 goals, 60 for training, 120 for testing..
+# 6 tasks, 6 colors, 5 shapes. 180 goals, 60 for training, 120 for testing.
 training_combos_3 = get_training_combos(pattern_lookup_3)
 testing_combos_3 = [combo for combo in all_combos if not combo in training_combos_3]
+
+
+
+# Jun's new request!
+# Exceptions replace one goal with a completely different goal.
+# His suggestions: 
+#   Watch Magenta Pillar -> Push Blue Pole (or maybe just the other object)
+#   Be Near Green Pole -> Touch the Top of the Red Dumbbell (or maybe just the other object)
+exceptions_0 = []
+exceptions_1 = [(3, 2, 2), (4, 5, 3)]
+exceptions_2 = [(1, 4, 0), (2, 1, 1), (3, 2, 2), (4, 5, 3), (5, 0, 4), (6, 3, 0)]
 
 
 
@@ -391,6 +411,9 @@ if(__name__ == "__main__"):
                         rect = patches.Rectangle((0, 0), 1, 1, color='gray', alpha=0.5)
                     else:
                         rect = patches.Rectangle((0, 0), 1, 1, facecolor='white', edgecolor='black')
+                    ax.add_patch(rect)
+                    if combo in exceptions_1:
+                        rect = patches.Rectangle((.375, .375), .25, .25, facecolor='red', edgecolor='red')
                     ax.add_patch(rect)
 
                     color_name = color_map[c].name
@@ -592,9 +615,9 @@ parser.add_argument('--max_joint_2_angle',              type=float,         defa
     # Arena/Processor details
 parser.add_argument('--processor',                      type=str,       default = "all",
                 help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
-parser.add_argument('--min_object_distance',            type=float,         default = 6,
+parser.add_argument('--min_object_distance',            type=float,         default = 4,
                     help='How far objects can start from the agent.')
-parser.add_argument('--max_object_distance',            type=float,         default = 10,
+parser.add_argument('--max_object_distance',            type=float,         default = 8,
                     help='How far objects can start from the agent.')
 parser.add_argument('--min_object_angle',               type=float,         default = pi/2,
                     help='How far objects must be from one another.')
@@ -635,12 +658,12 @@ parser.add_argument('--be_near_duration',               type=int,           defa
                     help='How long the agent must be near the object to achieve be_near.')
 parser.add_argument('--pointing_at_object_for_being_near',  type=float,     default = pi/6,
                     help='How directly the agent must point to the object to achieve be_near.')
-parser.add_argument('--be_near_distance',               type=float,         default = 7,
+parser.add_argument('--be_near_distance',               type=float,         default = 6,
                     help='How close the agent must be near the object to achieve be_near.')
 
 parser.add_argument('--top_duration',                   type=int,           default = 3,   
                     help='How long the agent must touch the top of the object to achieve touch_top.')
-parser.add_argument('--pointing_at_object_for_touch_top',  type=float,     default = pi/3,
+parser.add_argument('--pointing_at_object_for_touch_top',  type=float,      default = pi/3,
                     help='How directly the agent must point to the object to achieve touch top.')
 parser.add_argument('--touch_top_min_height',           type=float,         default = 3.75,
                     help='How elevated the agent\'s arm must be to touch the object from above.')
@@ -667,9 +690,19 @@ parser.add_argument('--max_wheel_speed_for_left_right', type=float,         defa
 parser.add_argument('--min_arm_speed_for_left_right',   type=float,         default = .01,
                     help='How fast the agent\'s arm must move for push_left or push_right.')
 
+parser.add_argument('--exceptions',                     type=literal,       default = 0,
+                    help='Add exceptions to goals?')
+parser.add_argument('--exceptions_duration',            type=int,           default = 3,   
+                    help='How long the agent must stay still to acheive exceptions.')
+parser.add_argument('--max_wheel_speed_for_exception',  type=float,         default = 3,
+                    help='How fast the agent\'s wheels may move for exceptions.')
+parser.add_argument('--max_arm_speed_for_exception',    type=float,         default = .1,
+                    help='How fast the agent\'s arm may move for exceptions.')
+parser.add_argument('--exception_distance',             type=float,         default = 8,
+                    help='How far the agent must be from the object to achieve exceptions.')
 
 
-    # Modul architecture
+    # Model architecture
 parser.add_argument('--hidden_size',                    type=int,           default = 64,
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,
@@ -709,7 +742,7 @@ parser.add_argument('--half',                           type=literal,       defa
 
 
     # Training
-parser.add_argument('--epochs',                         type=int,       default = 60000,
+parser.add_argument('--epochs',                         type=int,           default = 60000,
                     help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 parser.add_argument('--test_train_num',                 type=int,           default = 3,
                     help='Which collects of tasks/colors/shapes are used?')
@@ -783,13 +816,13 @@ parser.add_argument("--hidden_state_eta_touch",         type=float,         defa
 
 
     # Proprioception
-parser.add_argument('--prop_scaler',                   type=float,         default = .01, 
+parser.add_argument('--prop_scaler',                    type=float,         default = .01, 
                     help='How much to consider proprioception prediction in accuracy compared to vision and voice.')   
-parser.add_argument("--beta_prop",                     type=float,         default = .3,
+parser.add_argument("--beta_prop",                      type=float,         default = .3,
                     help='Relative importance of complexity for proprioception.')     
-parser.add_argument("--prediction_error_eta_prop",     type=float,         default = 0,
+parser.add_argument("--prediction_error_eta_prop",      type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for proprioception.')   
-parser.add_argument("--hidden_state_eta_prop",         type=float,         default = 0,
+parser.add_argument("--hidden_state_eta_prop",          type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for proprioception.') 
 
 

@@ -231,7 +231,10 @@ def plots(plot_dicts, min_max_dict):
             if(key.startswith("wins_")):
                 if(key[5:] != "SILENCE"):
                     task_name_list.append(key[5:])
-                                                            
+
+        if(plot_dict["args"].exceptions == 0):
+            task_name_list = task_name_list[:-1]
+                       
         fig2, ax2 = plt.subplots(len(task_name_list), 2, figsize = (20, 30))
         fig2.suptitle(plot_dict["arg_title"])  
         fig2_row_num = 0
@@ -239,17 +242,28 @@ def plots(plot_dicts, min_max_dict):
         for task_name in task_name_list:     
             
             win_dict = get_quantiles(plot_dict, f"rolled_wins_{task_name}", levels = levels, adjust_xs = None)
-            gen_win_dict = get_quantiles(plot_dict, f"rolled_gen_wins_{task_name}", levels = levels, adjust_xs = None)
+            if(task_name == "exception"):
+                gen_win_dict = None
+            else:
+                gen_win_dict = get_quantiles(plot_dict, f"rolled_gen_wins_{task_name}", levels = levels, adjust_xs = None)
             
             for key, value in win_dict.items():
                 if(key != "xs"):
                     win_dict[key] *= 100
-                    gen_win_dict[key] *= 100
+                    if(task_name == "exception"):
+                        pass 
+                    else:
+                        gen_win_dict[key] *= 100
                 else:
-                    gen_win_dict[key] *= args.epochs_per_gen_test
+                    if(task_name == "exception"):
+                        pass 
+                    else:
+                        gen_win_dict[key] *= args.epochs_per_gen_test
                                 
             def plot_rolling_average_wins(here, gen = False):
                 this_win_dict = gen_win_dict if gen else win_dict
+                if(this_win_dict == None):
+                    return
                 awesome_plot(here, this_win_dict, "black" if gen else "black", "WinRate", (0,100))
                 here.set_ylabel((f"Rolling-Average Gen-Win-Rate" if gen else f"Rolling-Average Win-Rate"))
                 here.yaxis.set_major_formatter(FuncFormatter(to_percent))
