@@ -19,7 +19,7 @@ set_goal = None
 
 
 # Change these to the agent you would like to test.
-hyper_parameters = "ef_q2t_18"
+hyper_parameters = "ef_q2t_3"
 agent_num = "0001"
 epochs = "000000"
 saved_file = "saved_deigo"
@@ -46,7 +46,7 @@ print("Ready to go!")
 
 # This step allows customising the agent's arguments.
 
-hyper_parameters = "ef_q2t_18"
+hyper_parameters = "ef_q2t_3"
 agent_num = "0001"
 epochs = "000000"
 saved_file = "saved_deigo"
@@ -145,9 +145,9 @@ print(set_goal[1][1][1].name)
             
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(6, 1)], 
+    tasks_and_weights = [(1, 1)], 
     objects = 2, 
-    colors = [1], 
+    colors = [4], 
     shapes = [0], 
     parenting = True)}
 

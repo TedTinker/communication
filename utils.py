@@ -1,5 +1,8 @@
 #%% 
 
+# PROBLEM: ARENA STILL GIVES EXCEPTION GOAL WHEN DOING EXCEPTION GOAL INSTEAD OF SILENCE.
+# AND, ONLY SAYS CORRECT GOAL ON LAST STEP.
+
 import os
 import pickle
 import pybullet as p
@@ -10,6 +13,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
+from matplotlib.patches import FancyArrowPatch
+from matplotlib.patches import ConnectionPatch
 import argparse, ast
 from math import exp, log, pi
 from random import choice, choices
@@ -19,8 +24,6 @@ from itertools import product
 import tkinter as tk
 import numpy as np
 import torch
-
-# TRY ADDING exceptions!
 
 # Find torch device.
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -221,6 +224,17 @@ def get_goal_from_one_hots(one_hots):
     return goal
 
 
+
+# Given (x, y, z) digits, make a goal.
+def get_goal_from_digits(digits):
+    x, y, z = digits
+    one_hots = torch.zeros((3, len(task_map) + len(color_map) + len(shape_map)))
+    one_hots[0, x] = 1
+    one_hots[1, len(task_map) + y] = 1
+    one_hots[2, len(task_map) + len(color_map) + z] = 1
+    return(get_goal_from_one_hots(one_hots))
+
+
         
 # Class describing sensory observations. "prop" is proprioception.
 class Obs:
@@ -375,15 +389,83 @@ testing_combos_3 = [combo for combo in all_combos if not combo in training_combo
 # His suggestions: 
 #   Watch Magenta Pillar -> Push Blue Pole (or maybe just the other object)
 #   Be Near Green Pole -> Touch the Top of the Red Dumbbell (or maybe just the other object)
-exceptions_0 = []
-exceptions_1 = [(3, 2, 2), (4, 5, 3)]
-exceptions_2 = [(1, 4, 0), (2, 1, 1), (3, 2, 2), (4, 5, 3), (5, 0, 4), (6, 3, 0)]
+
+# WE SHOULD ALSO HAVE "EXCEPTIONS" LEAD BACK TO THEMSELVES, SO SHOW A LACK OF U-SHAPE!
+
+exceptions_dict = {
+    
+    0 : ([], []),
+    
+    1 : (
+        [(1, 4, 0)],                # Bad
+        [(4, 2, 1)]),
+    
+    2 : (
+        [(1, 4, 0)],                # Bad (too good)
+        [(1, 1, 2)]),
+    
+    3 : (
+        [(1, 4, 0)],                # Bad (too good)
+        [(1, 5, 0)]),
+    
+    4 : (
+        [(1, 4, 0)],                # Bad
+        [(5, 4, 0)]),
+    
+    5 : (                           # Okay
+        [(5, 0, 4)],            
+        [(1, 4, 0)]),
+
+    # Jun Tani's suggestion
+    6 : (                           # Good
+        [(1, 4, 0), (2, 1, 1)], 
+        [(4, 2, 1), (3, 3, 2)]),
+    
+    7 : (
+        [(1, 4, 0), (2, 1, 1)],     # Good
+        [(2, 1, 1), (1, 4, 0)]),
+    
+    8 : (
+        [(1, 5, 0), (2, 5, 0)],     # Good
+        [(2, 5, 0), (1, 5, 0)]),
+    
+    9 : (
+        [(1, 4, 0), (2, 1, 1)],     # Bad
+        [(5, 0, 4), (6, 3, 0)]),
+    
+    10 : (
+        [(1, 4, 0), (2, 1, 1), (3, 2, 2), (4, 5, 3), (5, 0, 4), (6, 3, 0)],         # Good
+        [(4, 5, 3), (3, 2, 2), (2, 1, 1), (1, 4, 0), (6, 3, 0), (5, 0, 4)]),
+    
+    # GPT's suggestions
+    
+    11: (
+        [(1, 4, 0)],                # Bad
+        [(6, 4, 0)]    
+    ),
+    
+    12: (
+        [(3, 2, 1)],                # Bad (too good)
+        [(3, 2, 2)]    
+    ),
+    
+    13: (
+        [(4, 3, 2), (4, 4, 3)],     # Not tested (accident)
+        [(3, 3, 2), (3, 4, 3)]    
+    ),
+
+    14: (
+        [(1, 4, 0), (4, 2, 1), (3, 3, 2)], # Good (ish)
+        [(4, 2, 1), (3, 3, 2), (1, 4, 0)]
+    )
+    
+}
 
 
 
 # In __main__, view plots showing training and testing combinations.
 if(__name__ == "__main__"):
-    def plot_combined_training_grid(training_combos, title="Training Set"):
+    def plot_combined_training_grid(training_combos, exception_num = 11, title="Training Set"):
         task_items = [(a, t) for a, t in task_map.items() if t.name != "SILENCE"]
         num_tasks = len(task_items)
         num_cols = 3
@@ -393,10 +475,14 @@ if(__name__ == "__main__"):
         fig.suptitle(title, fontsize=28)
         outer_grid = gridspec.GridSpec(num_rows, num_cols, wspace=0.5, hspace=0.5)
 
+        # Map each (a, c, s) combo to its Axes so we can connect across subplots later
+        ax_map = {}
+
         for i, (a, task) in enumerate(task_items):
             inner_grid = gridspec.GridSpecFromSubplotSpec(
                 len(shape_map), len(color_map),
-                subplot_spec=outer_grid[i], wspace=0.0, hspace=0.0)
+                subplot_spec=outer_grid[i], wspace=0.0, hspace=0.0
+            )
 
             for s in range(len(shape_map)):
                 for c in range(len(color_map)):
@@ -407,30 +493,65 @@ if(__name__ == "__main__"):
                     ax.set_ylim(0, 1)
 
                     combo = (a, c, s)
-                    if combo in training_combos:
-                        rect = patches.Rectangle((0, 0), 1, 1, color='gray', alpha=0.5)
-                    else:
-                        rect = patches.Rectangle((0, 0), 1, 1, facecolor='white', edgecolor='black')
-                    ax.add_patch(rect)
-                    if combo in exceptions_1:
-                        rect = patches.Rectangle((.375, .375), .25, .25, facecolor='red', edgecolor='red')
-                    ax.add_patch(rect)
+                    ax_map[combo] = ax  # remember where this combo lives
 
-                    color_name = color_map[c].name
-                    shape_name = shape_map[s].name
-                    ax.text(0.5, 0.5, f"{color_name}\n{shape_name}",
+                    # Base cell
+                    if combo in training_combos:
+                        ax.add_patch(patches.Rectangle((0, 0), 1, 1, color='gray', alpha=0.5))
+                    else:
+                        ax.add_patch(patches.Rectangle((0, 0), 1, 1, facecolor='white', edgecolor='black'))
+
+                    # Red exception (centered at (0.5, 0.5))
+                    if combo in exceptions_dict[exception_num][0]:
+                        ax.add_patch(patches.Rectangle((.25, .25), .5, .5, facecolor='red', alpha = .5, edgecolor='red'))
+
+                    # Blue exception (also centered at (0.5, 0.5))
+                    if combo in exceptions_dict[exception_num][1]:
+                        ax.add_patch(patches.Rectangle((.375, .375), .25, .25, facecolor='blue', alpha = .3, edgecolor='blue'))
+
+                    # Label
+                    ax.text(0.5, 0.5, f"{color_map[c].name}\n{shape_map[s].name}",
                             va='center', ha='center', fontsize=9, wrap=True)
 
+            # Task title in the middle column
             center_col = len(color_map) // 2
             title_ax = fig.add_subplot(inner_grid[0, center_col])
             title_ax.set_title(task.name, fontsize=14, pad=12)
             title_ax.axis('off')
 
+        # Make sure layout is finalized before drawing connectors
+        fig.canvas.draw()
+
+        # Draw arrows: from each red combo to the blue combo at the same index
+        for start_combo, end_combo in zip(exceptions_dict[exception_num][0], exceptions_dict[exception_num][1]):
+            start_ax = ax_map.get(start_combo)
+            end_ax   = ax_map.get(end_combo)
+            if start_ax is None or end_ax is None:
+                continue
+
+            # Both colored squares are centered at (0.5, 0.5) in their own axes
+            con = ConnectionPatch(
+                xyA=(0.5, 0.5), 
+                coordsA=start_ax.transData,   # start (red)
+                xyB=(0.5, 0.5), 
+                coordsB=end_ax.transData,     # end (blue)
+                arrowstyle="-|>", 
+                ls = ":",
+                mutation_scale=25, 
+                lw=1.8, 
+                color="black",
+                shrinkA=10, 
+                shrinkB=10  # keep arrowheads off the colored squares
+            )
+            con.set_zorder(1000)
+            con.set_clip_on(False)  # don't let axes clip the arrow
+            fig.add_artist(con)
+
         plt.show()
         plt.close()
-
-    plot_combined_training_grid(training_combos_1, title="Training Set 1 – All Tasks")
-    plot_combined_training_grid(training_combos_2, title="Training Set 2 – All Tasks")
+    
+    #plot_combined_training_grid(training_combos_1, title="Training Set 1 – All Tasks")
+    #plot_combined_training_grid(training_combos_2, title="Training Set 2 – All Tasks")
     plot_combined_training_grid(training_combos_3, title="Training Set 3 – All Tasks")
             
         
@@ -692,14 +813,7 @@ parser.add_argument('--min_arm_speed_for_left_right',   type=float,         defa
 
 parser.add_argument('--exceptions',                     type=literal,       default = 0,
                     help='Add exceptions to goals?')
-parser.add_argument('--exceptions_duration',            type=int,           default = 3,   
-                    help='How long the agent must stay still to acheive exceptions.')
-parser.add_argument('--max_wheel_speed_for_exception',  type=float,         default = 3,
-                    help='How fast the agent\'s wheels may move for exceptions.')
-parser.add_argument('--max_arm_speed_for_exception',    type=float,         default = .1,
-                    help='How fast the agent\'s arm may move for exceptions.')
-parser.add_argument('--exception_distance',             type=float,         default = 8,
-                    help='How far the agent must be from the object to achieve exceptions.')
+
 
 
     # Model architecture

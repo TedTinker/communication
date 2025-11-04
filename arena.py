@@ -13,7 +13,7 @@ import pkg_resources
 import statistics
 from copy import deepcopy
 
-from utils import shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, duration, wait_for_button_press, exceptions_0, exceptions_1, exceptions_2, print
+from utils import shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, duration, wait_for_button_press, get_goal_from_digits, exceptions_dict, print
 from arena_navigator import run_tk
 
 
@@ -192,6 +192,22 @@ class Arena():
         self.set_joint_target_velocities()
         self.joint_accelerations = {key: 0 for key in self.joint_indices.keys()}
         self.goal = goal
+        
+        
+        
+        self.real_goal = goal
+        self.supposed_to_be_exception = False
+        
+        exception_list_a, exception_list_b = exceptions_dict[self.args.exceptions]
+            
+        if(self.goal.digits in exception_list_a):
+            self.supposed_to_be_exception = True 
+            goal_index = exception_list_a.index(self.goal.digits)
+            self.real_goal = get_goal_from_digits(exception_list_b[goal_index])
+            objects[0] = (self.real_goal.color, self.real_goal.shape)
+            
+        
+        
         self.parenting = parenting
         self.objects_in_play = {}
         self.durations = {"watch" : {}, "be_near" : {}, "top" : {}, "push" : {}, "left" : {}, "right" : {}, "except" : {}}
@@ -551,21 +567,6 @@ class Arena():
         v_rx = cos(self.robot_start_yaw)
         v_ry = sin(self.robot_start_yaw)
         
-        supposed_to_be_exception = False
-        if(self.args.exceptions == 0):
-            exception_list = exceptions_0
-        elif(self.args.exceptions == 1):
-            exception_list = exceptions_1
-        elif(self.args.exceptions == 2):
-            exception_list = exceptions_2
-            
-        if(self.goal.digits in exception_list):
-            supposed_to_be_exception = True
-            
-        #print("")
-        #print(self.goal.digits, exception_list, supposed_to_be_exception)
-        #print("")
-        
         
         
         if(verbose):
@@ -667,17 +668,6 @@ class Arena():
             lefting     = touching and good_push_left_distance and  good_left_right_angle and good_wheel_speed and good_arm_speed
             righting    = touching and good_push_right_distance and good_left_right_angle and good_wheel_speed and good_arm_speed
             
-            # Is the agent staying still enough to fulfill exceptions?
-            if(supposed_to_be_exception):
-                left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
-                good_wheel_speed_exception = max([abs(left_wheel_speed), abs(right_wheel_speed)]) <= self.args.max_wheel_speed_for_exception
-                arm_speed = self.get_joint_speeds()[1]
-                good_arm_speed_exception = abs(arm_speed) <= self.args.max_arm_speed_for_exception
-                excepting = good_wheel_speed_exception and good_arm_speed_exception and not touching and not watching and not being_near \
-                    and distance > self.args.exception_distance
-            else:
-                excepting = False
-             
              
                         
             if(verbose):
@@ -689,8 +679,7 @@ class Arena():
                 print(f"Topping \t({topping}): \t\t{self.durations['top'][object_index]} steps")
                 print(f"Pushing \t({pushing}): \t\t{self.durations['push'][object_index]} steps")
                 print(f"Lefting \t({lefting}): \t\t{self.durations['left'][object_index]} steps")
-                print(f"Righting \t({righting}): \t\t{self.durations['right'][object_index]} steps")
-                print(f"Excepting \t({excepting}): \t\t{self.durations['except'][object_index]} steps\n")
+                print(f"Righting \t({righting}): \t\t{self.durations['right'][object_index]} steps\n")
                                 
                 
             
@@ -721,14 +710,6 @@ class Arena():
                 lefting = False 
                 righting = False
                 
-            if(excepting):
-                watching = False 
-                being_near = False
-                topping = False 
-                pushing = False 
-                lefting = False 
-                righting = False
-                
                 
 
             if(verbose):
@@ -738,8 +719,7 @@ class Arena():
                 print(f"Topping: \t{topping}") 
                 print(f"Pushing: \t{pushing}")
                 print(f"Lefting: \t{lefting}")
-                print(f"Righting: \t{righting}")
-                print(f"Excepting: \t{excepting}\n")
+                print(f"Righting: \t{righting}\n")
                 
 
             
@@ -757,10 +737,9 @@ class Arena():
             pushed      = update_duration("push",       pushing,    object_index, self.args.push_duration)
             lefted      = update_duration("left",       lefting,    object_index, self.args.left_right_duration)
             righted     = update_duration("right",      righting,   object_index, self.args.left_right_duration)
-            excepted    = update_duration("except",     excepting,  object_index, self.args.exceptions_duration)
             
             key = (color_map[color_index], shape_map[shape_index])
-            new_value = [watched, been_near, topped, pushed, lefted, righted, excepted, watching, being_near, topping, pushing, lefting, righting, excepting]
+            new_value = [watched, been_near, topped, pushed, lefted, righted, watching, being_near, topping, pushing, lefting, righting]
             
             # If there are multiple of the same object, consider them all.
             if key in objects_goals:
@@ -779,8 +758,7 @@ class Arena():
                 print(f"Topping: \t{topping} \tTopped: \t{topped} \t {self.durations['top'][object_index]} steps")
                 print(f"Pushing: \t{pushing} \tPushed: \t{pushed} \t {self.durations['push'][object_index]} steps")
                 print(f"Lefting: \t{lefting} \tLefted: \t{lefted} \t {self.durations['left'][object_index]} steps")
-                print(f"Righting: \t{righting} \tRighted: \t{righted} \t {self.durations['right'][object_index]} steps")
-                print(f"Excepting: \t{excepting} \tExcepted: \t{excepted} \t {self.durations['except'][object_index]} steps\n")
+                print(f"Righting: \t{righting} \tRighted: \t{righted} \t {self.durations['right'][object_index]} steps\n")
                 
                 
                 
@@ -791,7 +769,7 @@ class Arena():
         
         
                 
-        for (color, shape), (watched, been_near, topped, pushed, lefted, righted, excepted, watching, being_near, topping, pushing, lefting, righting, excepting) in objects_goals.items():
+        for (color, shape), (watched, been_near, topped, pushed, lefted, righted, watching, being_near, topping, pushing, lefting, righting) in objects_goals.items():
             # If any one task is accomplished, find the task/color/shape.
             if(sum([watched, been_near, topped, pushed, lefted, righted]) == 1): 
                 # If the correct object, check the task.
@@ -799,14 +777,14 @@ class Arena():
                     task_performed = "watched"  
                 else:
                     task_performed = "other"
-                if(color == self.goal.color and shape == self.goal.shape):
+                if(color == self.real_goal.color and shape == self.real_goal.shape):
                     if(
-                        (self.goal.task.name == "WATCH"         and watched     and not (               being_near or   topping or  pushing or  lefting or  righting)) or 
-                        (self.goal.task.name == "BE NEAR"       and been_near   and not (watching or                    topping or  pushing or  lefting or  righting)) or 
-                        (self.goal.task.name == "TOUCH THE TOP" and topped      and not (watching or    being_near or               pushing or  lefting or  righting)) or 
-                        (self.goal.task.name == "PUSH FORWARD"  and pushed      and not (watching or    being_near or   topping or              lefting or  righting)) or
-                        (self.goal.task.name == "PUSH LEFT"     and lefted      and not (watching or    being_near or   topping or  pushing or              righting)) or
-                        (self.goal.task.name == "PUSH RIGHT"    and righted     and not (watching or    being_near or   topping or  pushing or  lefting))):   
+                        (self.real_goal.task.name == "WATCH"         and watched     and not (               being_near or   topping or  pushing or  lefting or  righting)) or 
+                        (self.real_goal.task.name == "BE NEAR"       and been_near   and not (watching or                    topping or  pushing or  lefting or  righting)) or 
+                        (self.real_goal.task.name == "TOUCH THE TOP" and topped      and not (watching or    being_near or               pushing or  lefting or  righting)) or 
+                        (self.real_goal.task.name == "PUSH FORWARD"  and pushed      and not (watching or    being_near or   topping or              lefting or  righting)) or
+                        (self.real_goal.task.name == "PUSH LEFT"     and lefted      and not (watching or    being_near or   topping or  pushing or              righting)) or
+                        (self.real_goal.task.name == "PUSH RIGHT"    and righted     and not (watching or    being_near or   topping or  pushing or  lefting))):   
                         win = True 
                         reward = self.args.reward
                 # If a task is occuring with a wrong object, no reward.
@@ -823,29 +801,18 @@ class Arena():
                 if(lefting):    task_in_progress = task_map[5] 
                 if(righting):   task_in_progress = task_map[6]
                 
+                # WE NEED TO CHANGE THIS FOR EXCEPTIONS
                 report_voice = Goal(task_in_progress, color, shape, parenting = False)
                 
-                # If it's supposed to be an exception, and 
-                # the agent is performing the named goal instead of treating it as an exception,
-                # report nothing.
-                if(supposed_to_be_exception):
-                    #print("Should be excepting!")
-                    #print(report_voice, self.goal)
-                    #print(report_voice.task.char)
-                    if(report_voice.task.char == self.goal.task.char and report_voice.color.char == self.goal.color.char and report_voice.shape.char == self.goal.shape.char):
-                        #print("Report like goal!")
-                        win = False 
-                        reward = 0
-                        report_voice = empty_goal
+                if(not self.supposed_to_be_exception):
+                    pass
+                    
+                if(self.supposed_to_be_exception and report_voice.digits == self.goal.digits):
+                    report_voice = empty_goal
+                    
+                if(self.supposed_to_be_exception and report_voice.digits == self.real_goal.digits):
+                    report_voice = self.goal
 
-                
-        if(excepting):
-            report_voice = self.goal
-            
-        if(excepted):
-            win = True
-            reward = self.args.reward
-                
         if(wrong_object):
             win = False 
             if(task_performed == "watched"):

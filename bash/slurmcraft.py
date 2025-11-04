@@ -127,12 +127,8 @@ add_this("q3",   {
 
 
 add_this("t", {
-    "exceptions" : [1, 2],
-    "max_wheel_speed_for_exception" : [2, 3],
-    "max_arm_speed_for_exception" : .1,
-    "exception_distance" : [6, 8, 10]
+    "exceptions" : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
 })
-
 
 add_this("t1",   {
     "touch_top" : False,

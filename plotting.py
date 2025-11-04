@@ -65,7 +65,8 @@ def get_quantiles(plot_dict, name, levels=[99, 0], adjust_xs=None):
     lists = np.array([[np.nan if x in [None, "not_used"] else x for x in agent] 
                       for agent in plot_dict[name] if len(agent) == max_len], dtype=float)
         
-    lists = lists[:args.agents_for_plotting]
+    valid_indexes = [i for i in plot_dict["args"].agents_for_plotting if 0 <= i < len(lists)]
+    lists = lists[valid_indexes]
     non_nan_mask = ~np.isnan(lists).all(axis=0)
     xs = np.arange(lists.shape[1])
     if adjust_xs is not None:  
@@ -189,7 +190,7 @@ def many_min_max(min_max_list):
 
 # Create plots!
 def plots(plot_dicts, min_max_dict):
-    too_many_plot_dicts = len(plot_dicts) > 16
+    too_many_plot_dicts = len(plot_dicts) <= 1 or len(plot_dicts) > 16 
     levels = [99] # We use just a 99% confidence interval.
     #If we are plotting few agents, make a conjoined plot with all of them.
     if(not too_many_plot_dicts):
@@ -648,9 +649,24 @@ def plots(plot_dicts, min_max_dict):
         plt.savefig("thesis_pics/plot.png", bbox_inches = "tight")
         plt.close(fig)
     
-args.agents_for_plotting = 99999
-
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
+for i, plot_dict in enumerate(plot_dicts):
+    new_plot_dict = deepcopy(plot_dict)
+    new_plot_dict["args"].agents_for_plotting = [i for i in range(new_plot_dict["args"].agents_for_plotting)]
+    plot_dicts[i] = new_plot_dict
+
 plots(plot_dicts, min_max_dict)
+
+
+
+for i in range(10):
+    new_plot_dicts = []
+    for plot_dict in plot_dicts:
+        new_plot_dict = deepcopy(plot_dict)
+        new_plot_dict["arg_name"] = new_plot_dict["arg_name"] + f"_{i}"
+        new_plot_dict["args"].agents_for_plotting = [i]
+        new_plot_dicts.append(new_plot_dict)
+    plots(new_plot_dicts, min_max_dict)
+    
 print(f"\nDuration: {duration()}. Done!")
 # %%

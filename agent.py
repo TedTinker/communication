@@ -20,7 +20,7 @@ from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
 from utils import folder, wheels_joints_to_string, cpu_memory_usage, duration, print_duration, wait_for_button_press, \
-    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots, Goal, adjust_action, testing_combos_1, testing_combos_2, testing_combos_3, exceptions_0, exceptions_1, exceptions_2
+    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots, Goal, adjust_action, testing_combos_1, testing_combos_2, testing_combos_3, exceptions_dict
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from processor import Processor
@@ -485,14 +485,9 @@ class Agent:
         goal_task = self.processor.goal.task.name
         
         supposed_to_be_exception = False
-        if(self.args.exceptions == 0):
-            exception_list = exceptions_0
-        elif(self.args.exceptions == 1):
-            exception_list = exceptions_1
-        elif(self.args.exceptions == 2):
-            exception_list = exceptions_2
+        exception_list_a, exception_list_b = exceptions_dict[self.args.exceptions]
             
-        if(self.processor.goal.digits in exception_list):
+        if(self.processor.goal.digits in exception_list_a):
             goal_task = "exception"
         
         self.plot_dict["wins_all"].append(win)
