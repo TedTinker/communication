@@ -965,7 +965,6 @@ class Agent:
             Q_target_nexts = []
             for i in range(self.args.critics):
                 Q_target_next = self.critic_targets[i](new_action, hqs.detach())
-                Q_target_next[:,1:]
                 Q_target_nexts.append(Q_target_next)                
             log_pis_next = log_pis_next[:,1:]
             log_pis_next_text = log_pis_next_text[:,1:]

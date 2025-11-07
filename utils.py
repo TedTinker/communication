@@ -1,7 +1,6 @@
 #%% 
 
-# PROBLEM: ARENA STILL GIVES EXCEPTION GOAL WHEN DOING EXCEPTION GOAL INSTEAD OF SILENCE.
-# AND, ONLY SAYS CORRECT GOAL ON LAST STEP.
+# PROBLEM: When exceptions aren't actually exceptions, are they reported to the agent correctly (with original voice)?
 
 import os
 import pickle
@@ -393,39 +392,23 @@ testing_combos_3 = [combo for combo in all_combos if not combo in training_combo
 # WE SHOULD ALSO HAVE "EXCEPTIONS" LEAD BACK TO THEMSELVES, SO SHOW A LACK OF U-SHAPE!
 
 exceptions_dict = {
+    0 : (                           # Okay
+        [],            
+        []),
     
-    0 : ([], []),
-    
-    1 : (
-        [(1, 4, 0)],                # Bad
-        [(4, 2, 1)]),
-    
-    2 : (
-        [(1, 4, 0)],                # Bad (too good)
-        [(1, 1, 2)]),
-    
-    3 : (
-        [(1, 4, 0)],                # Bad (too good)
-        [(1, 5, 0)]),
-    
-    4 : (
-        [(1, 4, 0)],                # Bad
-        [(5, 4, 0)]),
-    
-    5 : (                           # Okay
+    1 : (                           # Okay
         [(5, 0, 4)],            
         [(1, 4, 0)]),
 
-    # Jun Tani's suggestion
-    6 : (                           # Good
+    3 : (                           # Good
         [(1, 4, 0), (2, 1, 1)], 
         [(4, 2, 1), (3, 3, 2)]),
     
-    7 : (
+    5 : (
         [(1, 4, 0), (2, 1, 1)],     # Good
         [(2, 1, 1), (1, 4, 0)]),
     
-    8 : (
+    7 : (
         [(1, 5, 0), (2, 5, 0)],     # Good
         [(2, 5, 0), (1, 5, 0)]),
     
@@ -433,39 +416,49 @@ exceptions_dict = {
         [(1, 4, 0), (2, 1, 1)],     # Bad
         [(5, 0, 4), (6, 3, 0)]),
     
-    10 : (
+    11 : (
         [(1, 4, 0), (2, 1, 1), (3, 2, 2), (4, 5, 3), (5, 0, 4), (6, 3, 0)],         # Good
         [(4, 5, 3), (3, 2, 2), (2, 1, 1), (1, 4, 0), (6, 3, 0), (5, 0, 4)]),
     
-    # GPT's suggestions
+    # Untested
     
-    11: (
-        [(1, 4, 0)],                # Bad
-        [(6, 4, 0)]    
-    ),
+    13 : (
+        [(1, 4, 0), (2, 1, 1), (3, 2, 2), (4, 5, 3)],        
+        [(4, 5, 3), (3, 2, 2), (2, 1, 1), (1, 4, 0)]),
     
-    12: (
-        [(3, 2, 1)],                # Bad (too good)
-        [(3, 2, 2)]    
-    ),
+    15 : (
+        [(4, 1, 0), (4, 2, 1), (4, 3, 2)],        
+        [(4, 1, 1), (4, 2, 2), (4, 3, 3)]),
     
-    13: (
-        [(4, 3, 2), (4, 4, 3)],     # Not tested (accident)
-        [(3, 3, 2), (3, 4, 3)]    
-    ),
-
-    14: (
-        [(1, 4, 0), (4, 2, 1), (3, 3, 2)], # Good (ish)
-        [(4, 2, 1), (3, 3, 2), (1, 4, 0)]
-    )
+    17 : (
+        [(4, 1, 0), (4, 2, 1), (4, 3, 2), (4, 4, 3), (4, 5, 4)],        
+        [(4, 1, 1), (4, 2, 2), (4, 3, 3), (4, 4, 4), (4, 5, 0)]),
+    
     
 }
 
 
 
+def add_control_exceptions(exceptions_dict):
+    """
+    For every odd-numbered key in exceptions_dict, add an even-numbered key
+    that uses the same list for exception and correct goal.
+    """
+    new_dict = exceptions_dict.copy()
+    for k in list(exceptions_dict.keys()):
+        if k % 2 == 1:  # it's odd
+            red = exceptions_dict[k][0]
+            control_key = k + 1
+            new_dict[control_key] = (red, red)
+    return new_dict
+
+exceptions_dict = add_control_exceptions(exceptions_dict)
+
+
+
 # In __main__, view plots showing training and testing combinations.
 if(__name__ == "__main__"):
-    def plot_combined_training_grid(training_combos, exception_num = 11, title="Training Set"):
+    def plot_combined_training_grid(training_combos, exception_num, title="Training Set"):
         task_items = [(a, t) for a, t in task_map.items() if t.name != "SILENCE"]
         num_tasks = len(task_items)
         num_cols = 3
@@ -536,7 +529,7 @@ if(__name__ == "__main__"):
                 xyB=(0.5, 0.5), 
                 coordsB=end_ax.transData,     # end (blue)
                 arrowstyle="-|>", 
-                ls = ":",
+                ls = "-",
                 mutation_scale=25, 
                 lw=1.8, 
                 color="black",
@@ -552,7 +545,10 @@ if(__name__ == "__main__"):
     
     #plot_combined_training_grid(training_combos_1, title="Training Set 1 – All Tasks")
     #plot_combined_training_grid(training_combos_2, title="Training Set 2 – All Tasks")
-    plot_combined_training_grid(training_combos_3, title="Training Set 3 – All Tasks")
+    
+    for key in exceptions_dict.keys():
+        #if(key % 2 != 0):
+            plot_combined_training_grid(training_combos_3, title=f"Training Set 3 - All Tasks - Exceptions {key}", exception_num = key)
             
         
         
@@ -1309,6 +1305,7 @@ def calculate_dkl(mu_1, std_1, mu_2, std_2):
 # Find rolling average.
 def rolling_average(lst, window_size=500):
     # print(f"\nSometimes this may result in error. In rolling average :{lst}\n")
+    print("Rolling...", end = " ")
     try:
         new_list = [0 if lst[0] is None else float(lst[0])]
         for i in range(1, len(lst)):
@@ -1333,7 +1330,10 @@ def load_dicts(args):
     if(os.getcwd().split("/")[-1] != save_file): os.chdir(save_file)
     plot_dicts = [] ; min_max_dicts = []
         
-    complete_order = args.arg_title[3:-3].split("+")
+    if(type(args) == dict):
+        complete_order = args["titles"]
+    else:
+        complete_order = args.arg_title[3:-3].split("+")
     order = [o for o in complete_order if not o in ["empty_space", "break"]]
                 
     for name in order:

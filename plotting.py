@@ -17,7 +17,7 @@ from itertools import accumulate
 from statistics import mode
 from collections import Counter
 
-from utils import args, duration, load_dicts, print
+from utils import args, duration, load_dicts, print, rolling_average
 
 # This file makes collections of plots gathered during robot training.
 
@@ -241,6 +241,12 @@ def plots(plot_dicts, min_max_dict):
         fig2_row_num = 0
                     
         for task_name in task_name_list:     
+                    
+            if(task_name == "exception"):
+                plot_dict["rolled_wins_" + task_name] = [rolling_average(wins, window_size=3000) for wins in plot_dict["wins_" + task_name]]                            
+            #plot_dict["rolled_wins_" + task_name] = [rolling_average(wins, window_size=1000) for wins in plot_dict["wins_" + task_name]]
+            #if(task_name == "exception"):
+            #    plot_dict["rolled_gen_wins_" + task_name] = [rolling_average(wins, window_size=1000) for wins in plot_dict["gen_wins_" + task_name]]
             
             win_dict = get_quantiles(plot_dict, f"rolled_wins_{task_name}", levels = levels, adjust_xs = None)
             if(task_name == "exception"):
