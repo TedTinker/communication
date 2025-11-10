@@ -392,47 +392,41 @@ testing_combos_3 = [combo for combo in all_combos if not combo in training_combo
 # WE SHOULD ALSO HAVE "EXCEPTIONS" LEAD BACK TO THEMSELVES, SO SHOW A LACK OF U-SHAPE!
 
 exceptions_dict = {
-    0 : (                           # Okay
+    0 : (                           # None
         [],            
         []),
     
-    1 : (                           # Okay
-        [(5, 0, 4)],            
-        [(1, 4, 0)]),
-
-    3 : (                           # Good
-        [(1, 4, 0), (2, 1, 1)], 
-        [(4, 2, 1), (3, 3, 2)]),
-    
-    5 : (
-        [(1, 4, 0), (2, 1, 1)],     # Good
+    1 : (
+        [(1, 4, 0), (2, 1, 1)],     # Swap Watch Magenta Pillar with Be Near Green Pole
         [(2, 1, 1), (1, 4, 0)]),
     
+    3 : (
+        [(1, 5, 1), (2, 2, 2)],     # Swap Watch Yellow Pole with Be Near Blue Dumbbell
+        [(2, 2, 2), (1, 5, 1)]),
+    
+    5 : (
+        [(1, 4, 0), (2, 1, 1), (1, 3, 4), (2, 2, 2)],     # Both of Those
+        [(2, 1, 1), (1, 4, 0), (2, 2, 2), (1, 3, 4)]),
+    
     7 : (
-        [(1, 5, 0), (2, 5, 0)],     # Good
-        [(2, 5, 0), (1, 5, 0)]),
+        [(3, 1, 1), (4, 3, 2)],     # Swap Touch the Top Green Pole with Push Forawrd Cyan Dumbbell
+        [(4, 3, 2), (3, 1, 1)]),
     
     9 : (
-        [(1, 4, 0), (2, 1, 1)],     # Bad
-        [(5, 0, 4), (6, 3, 0)]),
+        [(1, 4, 0), (2, 1, 1), (3, 5, 4), (4, 3, 2)],       # Swap Watch Magenta Pillar with Be Near Green Pole
+        [(2, 1, 1), (1, 4, 0), (4, 3, 2), (3, 5, 4)]),      # Swap Touch the Top Green Pole with Push Forawrd Cyan Dumbbell
     
     11 : (
-        [(1, 4, 0), (2, 1, 1), (3, 2, 2), (4, 5, 3), (5, 0, 4), (6, 3, 0)],         # Good
-        [(4, 5, 3), (3, 2, 2), (2, 1, 1), (1, 4, 0), (6, 3, 0), (5, 0, 4)]),
-    
-    # Untested
+        [(1, 4, 0), (4, 3, 2)],     # Swap Watch Magenta Pillar with Push Forward Cyan Dumbbell
+        [(4, 3, 2), (1, 4, 0)]),    
     
     13 : (
-        [(1, 4, 0), (2, 1, 1), (3, 2, 2), (4, 5, 3)],        
-        [(4, 5, 3), (3, 2, 2), (2, 1, 1), (1, 4, 0)]),
+        [(3, 1, 1), (2, 2, 2)],     # Swap Be Near Blue Dumbbell with Touch the Top Green Pole
+        [(2, 2, 2), (3, 1, 1)]),    
     
     15 : (
-        [(4, 1, 0), (4, 2, 1), (4, 3, 2)],        
-        [(4, 1, 1), (4, 2, 2), (4, 3, 3)]),
-    
-    17 : (
-        [(4, 1, 0), (4, 2, 1), (4, 3, 2), (4, 4, 3), (4, 5, 4)],        
-        [(4, 1, 1), (4, 2, 2), (4, 3, 3), (4, 4, 4), (4, 5, 0)]),
+        [(1, 4, 0), (4, 5, 4), (3, 1, 1), (2, 2, 2)],     # Both of Those
+        [(4, 5, 4), (1, 4, 0), (2, 2, 2), (3, 1, 1)]),
     
     
 }

@@ -123,11 +123,17 @@ add_this("q3",   {
     "save_behaviors" : "False",
     "save_compositions" : "False"})
 
+add_this("q4",   {
+    "agents_per_agent_save" : 1,
+    "epochs_per_agent_save" : 30000,
+    "save_behaviors" : "False",
+    "epochs_per_composition_data" : 10000})
+
 
 
 
 add_this("t", {
-    "exceptions" : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+    "exceptions" : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
 })
 
 add_this("t1",   {

@@ -665,14 +665,14 @@ plots(plot_dicts, min_max_dict)
 
 
 
-for i in range(10):
+"""for i in range(10):
     new_plot_dicts = []
     for plot_dict in plot_dicts:
         new_plot_dict = deepcopy(plot_dict)
         new_plot_dict["arg_name"] = new_plot_dict["arg_name"] + f"_{i}"
         new_plot_dict["args"].agents_for_plotting = [i]
         new_plot_dicts.append(new_plot_dict)
-    plots(new_plot_dicts, min_max_dict)
+    plots(new_plot_dicts, min_max_dict)"""
     
 print(f"\nDuration: {duration()}. Done!")
 # %%
