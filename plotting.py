@@ -16,6 +16,7 @@ from scipy import interpolate
 from itertools import accumulate
 from statistics import mode
 from collections import Counter
+from scipy.interpolate import interp1d
 
 from utils import args, duration, load_dicts, print, rolling_average
 
@@ -125,6 +126,34 @@ def get_list_quantiles(list_of_lists, plot_dict, levels = [99, 0]):
 
 
 
+def combine_quantile_dicts(train_dict, test_dict, train_weight=1, test_weight=2):
+    total_weight = train_weight + test_weight
+    combined_dict = {}
+
+    xs_train = train_dict["xs"]
+    xs_test = test_dict["xs"] * 50  # Rescale gen-test xs to align with training epochs
+
+    combined_dict["xs"] = xs_train  # Output uses training xs
+
+    for key in train_dict:
+        if key == "xs":
+            continue
+
+        train_vals = np.array(train_dict[key])
+        test_vals = np.array(test_dict[key])
+
+        # Interpolate test to match train
+        test_interp_func = interp1d(xs_test, test_vals, bounds_error=False, fill_value="extrapolate")
+        test_vals_interp = test_interp_func(xs_train)
+
+        # Weighted combine
+        combined_vals = (train_weight * train_vals + test_weight * test_vals_interp) / total_weight
+        combined_dict[key] = combined_vals
+
+    return combined_dict
+
+
+
 # Find log-values when necessary.
 def get_logs(quantile_dict):
     log_quantile_dict = {"xs" : quantile_dict["xs"]}
@@ -166,6 +195,7 @@ def awesome_plot(here, quantile_dict, color, label, min_max = None, line_transpa
         for i, pair in enumerate(pairs):
             if pair == (.5,):
                 handle, = here.plot(xs, quantile_dict[.5], color = color, alpha = line_transparency, label = label, linestyle = linestyle)
+                print(f"{label} : {quantile_dict[.5][-1]}")
             else:
                 start, stop = pair
                 transparency = line_transparency * (.05 * (i+1))
@@ -236,7 +266,8 @@ def plots(plot_dicts, min_max_dict):
         if(plot_dict["args"].exceptions == 0):
             task_name_list = task_name_list[:-1]
                        
-        fig2, ax2 = plt.subplots(len(task_name_list), 2, figsize = (20, 30))
+        #fig2, ax2 = plt.subplots(len(task_name_list), 2, figsize = (20, 30))
+        fig2, ax2 = plt.subplots(len(task_name_list), 3, figsize = (30, 30))
         fig2.suptitle(plot_dict["arg_title"])  
         fig2_row_num = 0
                     
@@ -244,19 +275,20 @@ def plots(plot_dicts, min_max_dict):
                     
             if(task_name == "exception"):
                 plot_dict["rolled_wins_" + task_name] = [rolling_average(wins, window_size=3000) for wins in plot_dict["wins_" + task_name]]                            
-            #plot_dict["rolled_wins_" + task_name] = [rolling_average(wins, window_size=1000) for wins in plot_dict["wins_" + task_name]]
-            #if(task_name == "exception"):
-            #    plot_dict["rolled_gen_wins_" + task_name] = [rolling_average(wins, window_size=1000) for wins in plot_dict["gen_wins_" + task_name]]
             
             win_dict = get_quantiles(plot_dict, f"rolled_wins_{task_name}", levels = levels, adjust_xs = None)
             if(task_name == "exception"):
                 gen_win_dict = None
+                combine_win_dict = None
             else:
                 gen_win_dict = get_quantiles(plot_dict, f"rolled_gen_wins_{task_name}", levels = levels, adjust_xs = None)
-            
+                combine_win_dict = combine_quantile_dicts(win_dict, gen_win_dict)
+                            
             for key, value in win_dict.items():
                 if(key != "xs"):
                     win_dict[key] *= 100
+                    if(combine_win_dict != None):
+                        combine_win_dict[key] *= 100
                     if(task_name == "exception"):
                         pass 
                     else:
@@ -265,18 +297,18 @@ def plots(plot_dicts, min_max_dict):
                     if(task_name == "exception"):
                         pass 
                     else:
-                        gen_win_dict[key] *= args.epochs_per_gen_test
+                        gen_win_dict[key] *= args.epochs_per_gen_test 
                                 
-            def plot_rolling_average_wins(here, gen = False):
-                this_win_dict = gen_win_dict if gen else win_dict
+            def plot_rolling_average_wins(here, which_dict = None):
+                this_win_dict = combine_win_dict if which_dict == "all" else gen_win_dict if which_dict == "gen" else win_dict
                 if(this_win_dict == None):
                     return
-                awesome_plot(here, this_win_dict, "black" if gen else "black", "WinRate", (0,100))
-                here.set_ylabel((f"Rolling-Average Gen-Win-Rate" if gen else f"Rolling-Average Win-Rate"))
+                awesome_plot(here, this_win_dict, "black", "WinRate", (0, 100))
+                here.set_ylabel((f"Rolling-Average Gen-Win-Rate" if which_dict == "gen" else f"Rolling-Average Win-Rate"))
                 here.yaxis.set_major_formatter(FuncFormatter(to_percent))
                 here.yaxis.set_minor_locator(MultipleLocator(5))
                 here.set_xlabel("Epochs")
-                here.set_title(plot_dict["arg_title"] + (f"\nRolling-Average Gen-Win-Rate ({task_name})" if gen else f"\nRolling-Average Win-Rate ({task_name})"))
+                here.set_title(plot_dict["arg_title"] + (f"\nRolling-Average Gen-Win-Rate ({task_name})" if which_dict == "gen" else f"\nRolling-Average Win-Rate ({task_name})"))
                 divide_arenas(this_win_dict, here)
                     
             if(not too_many_plot_dicts): 
@@ -287,8 +319,10 @@ def plots(plot_dicts, min_max_dict):
                 
             plot_rolling_average_wins(ax2[fig2_row_num, 0])  
             ax2[fig2_row_num, 0].set_title(f"Rolling-Average Win-Rate ({task_name})")
-            plot_rolling_average_wins(ax2[fig2_row_num, 1], gen = True)  
+            plot_rolling_average_wins(ax2[fig2_row_num, 1], which_dict = "gen")  
             ax2[fig2_row_num, 1].set_title(f"Rolling-Average Gen-Win-Rate ({task_name})")
+            plot_rolling_average_wins(ax2[fig2_row_num, 2], which_dict = "all")  
+            ax2[fig2_row_num, 2].set_title(f"Rolling-Average All-Win-Rate ({task_name})")
             
             fig2_row_num += 1
             print(f"\tFinished win-rates ({task_name}).")
@@ -665,14 +699,14 @@ plots(plot_dicts, min_max_dict)
 
 
 
-"""for i in range(10):
+for i in range(10):
     new_plot_dicts = []
     for plot_dict in plot_dicts:
         new_plot_dict = deepcopy(plot_dict)
         new_plot_dict["arg_name"] = new_plot_dict["arg_name"] + f"_{i}"
         new_plot_dict["args"].agents_for_plotting = [i]
         new_plot_dicts.append(new_plot_dict)
-    plots(new_plot_dicts, min_max_dict)"""
+    plots(new_plot_dicts, min_max_dict)
     
 print(f"\nDuration: {duration()}. Done!")
 # %%

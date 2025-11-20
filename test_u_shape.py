@@ -30,11 +30,12 @@ from utils import load_dicts, rolling_average
 rolling_window = 10000
 
 # Assuming the arguments contains two arg_names: one for exceptions, one for pseudo-exceptions, in that order.
-plot_dicts, min_max_dict, complete_order = load_dicts({"titles" : ["ef_q4t_1", "ef_q4t_2"]})
+plot_dicts, min_max_dict, complete_order = load_dicts({"titles" : ["ef_q4t_1_old", "ef_q4t_2_old"]})
 
 print("Getting results with exceptions...")
 exceptions_dict = plot_dicts[0]
 exceptions = [rolling_average(wins, window_size=rolling_window) for wins in exceptions_dict["wins_exception"]]  
+
 
 print("\nGetting results with pseudo-exceptions...")
 pseudo_exceptions_dict = plot_dicts[1]
@@ -43,6 +44,10 @@ pseudo_exceptions = [rolling_average(wins, window_size=rolling_window) for wins 
 print("\nGot results!")
 
 # So, we have two lists. Both lists have a list for each agent, showing rolling-average win-rates with exceptions.
+
+
+
+print("\nGot results!")
 
 #%%
 
@@ -73,30 +78,6 @@ def plot_these(list_1, list_2):
 
 plot_these(exceptions, pseudo_exceptions)
 
-
-#%%
-
-
-
-"""def smooth_all(data_list, frac=0.03, polyorder=1):
-    smoothed = []
-    for series in data_list:
-        y = np.array(series, dtype=float)
-        n = len(y)
-        window = max(5, int(frac * n))
-        if window % 2 == 0:
-            window += 1
-        if window >= n:
-            window = n - 1 if n % 2 == 0 else n
-        y_smooth = savgol_filter(y, window_length=window, polyorder=polyorder)
-        smoothed.append(y_smooth)
-    return smoothed
-
-exceptions = smooth_all(exceptions)
-pseudo_exceptions = smooth_all(pseudo_exceptions)
-
-
-plot_these(smoothed_exceptions, smoothed_pseudo_exceptions)"""
 
 
 
@@ -234,7 +215,7 @@ def u_shape_score(
 
     # shift back by burn-in
     iL += b; iM = i_min + b; iR += b
-    return 1, iL, iM, iR
+    return score, iL, iM, iR
 
 
 
@@ -268,12 +249,14 @@ def plot_groups_with_u_indices(
     if n == 1:
         ax = np.expand_dims(ax, axis=0)
 
+    # Set global font size
+    plt.rcParams.update({'font.size': 14})
+
     def _maybe_percent(y):
         y = np.asarray(y, dtype=float)
         return y if np.nanmax(y) > 2.0 else y * 100.0
 
     def _valid_triplet(iL, iM, iR, N):
-        # treat 0.0 placeholders as invalid; ensure in bounds and ordered
         if iL is None or iM is None or iR is None:
             return False
         try:
@@ -286,25 +269,20 @@ def plot_groups_with_u_indices(
         yp = _maybe_percent(y)
         axis.plot(yp, color=color, lw=1.6)
         axis.set_ylim(0, 100)
-        axis.set_xlabel("Epochs")
-        axis.set_ylabel("Success Rate")
-        axis.set_title(title, fontsize=12)
-
-        # U-score badge
-        axis.text(
-            0.01, 0.95, f"U-score: {score:.3f}",
-            transform=axis.transAxes,
-            fontsize=10, va="top",
-            bbox=dict(boxstyle="round,pad=0.35", facecolor="white", alpha=0.7)
-        )
+        axis.set_xlabel("Epochs", fontsize=22)
+        axis.set_ylabel("Success Rate", fontsize=22)
+        axis.set_title(title, fontsize=22)
 
         # Annotate if indices look valid
         if _valid_triplet(iL, iM, iR, len(yp)):
             iL, iM, iR = int(iL), int(iM), int(iR)
-            axis.axvline(iL, color="red", ls="--", lw=1)
-            axis.axvline(iM, color="red", ls="--", lw=1)
-            axis.axvline(iR, color="red", ls="--", lw=1)
+            axis.axvline(iL, color="red", ls="--", lw=3)
+            axis.axvline(iM, color="red", ls="--", lw=3)
+            axis.axvline(iR, color="red", ls="--", lw=3)
             axis.plot([iL, iM, iR], [yp[iL], yp[iM], yp[iR]], "o", ms=5, color="red")
+
+        # Larger tick labels
+        axis.tick_params(axis='both', which='major', labelsize=22)
 
     for i in range(n):
         _plot_one(
@@ -316,7 +294,7 @@ def plot_groups_with_u_indices(
             color="green", title=label_b
         )
 
-    fig.suptitle("Exceptions vs Pseudo-Exceptions (U-shape annotated)", fontsize=16)
+    fig.suptitle("Exceptions vs Pseudo-Exceptions (U-shape annotated)", fontsize=20)
     plt.tight_layout(rect=[0, 0.03, 1, 0.97])
     plt.show()
     
@@ -362,3 +340,4 @@ results = compare_u_scores_ttest(exception_u_scores, pseudo_exception_u_scores)
 print("Permutation Test Results:")
 for key, val in results.items():
     print(f"{key}: {val:.4f}")
+# %%

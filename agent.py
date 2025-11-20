@@ -751,12 +751,14 @@ class Agent:
     def get_composition_data(self, sleep_time = None):
         if(self.args.agents_per_composition_data != -1 and self.agent_num > self.args.agents_per_composition_data): 
             return
+        print(f"Agent {self.agent_num} saving composition_data.")
         adjusted_args = deepcopy(self.args)
         adjusted_args.capacity = len(self.all_processors)
         # Store information in a new, temporary memory buffer.
         temp_memory = RecurrentReplayBuffer(adjusted_args)
         processor_lens = []
         for processor_name in self.all_processor_names:
+            print(processor_name, end = ", ")
             #print(processor_name)
             self.processor = self.all_processors[processor_name]
             total_steps = 0 
@@ -813,11 +815,16 @@ class Agent:
         command_voice_zq = command_voice_is.zq.detach().cpu().numpy()
         report_voice_zq = report_voice_is.zq.detach().cpu().numpy()
         hq = hqs.detach().cpu().numpy()
+        
+        print("DONE:", hq.shape)
                         
         # Add information to the dictionary for plotting information.    
         self.plot_dict["composition_data"][self.epochs] = {
             "labels" : labels, "all_mask" : all_mask, "hq" : hq,
-            "vision_zq" : vision_zq, "touch_zq" : touch_zq, "prop_zq" : prop_zq,  "command_voice_zq" : command_voice_zq, "report_voice_zq" : report_voice_zq}
+            "vision_zq" : vision_zq, "touch_zq" : touch_zq, 
+            "prop_zq" : prop_zq,  "command_voice_zq" : command_voice_zq, 
+            "report_voice_zq" : report_voice_zq}
+        
         
         
     # Get a batch of information from a memory buffer.
@@ -877,10 +884,14 @@ class Agent:
         
                 
         # Train forward
+        print("action!", actions.wheels_joints.shape)
+        print("obs!", obs.vision.shape)
         hps, hqs, vision_is, touch_is, prop_is, command_voice_is, report_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
             obs, actions)
-                                
+                        
+        print("pred:", pred_obs_q.vision.shape)        
+        print("compared to:", vision[:,1:].shape)
         vision_loss = F.binary_cross_entropy(pred_obs_q.vision, vision[:,1:], reduction = "none").mean((-1,-2,-3)).unsqueeze(-1) * mask * self.args.vision_scaler
                         
         touch_loss = F.mse_loss(pred_obs_q.touch, touch[:,1:], reduction = "none")

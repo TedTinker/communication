@@ -131,10 +131,26 @@ add_this("q4",   {
 
 
 
-
 add_this("t", {
-    "exceptions" : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    "exceptions" : [1, 3],
+    "init_seed" : [555, 666, 777],
+    "save_agents" : "False",
+    "save_behaviors" : "False",
+    "epochs_per_composition_data" : 5000,
+    "agents_per_composition_data" : 99
 })
+
+add_this("k", {
+    "exceptions" : 1,
+    "save_behaviors" : "False",
+    "epochs_per_agent_save" : 2500,
+    "agents_per_agent_save" : 99,
+    "epochs_per_composition_data" : 10000
+})
+
+
+
+
 
 add_this("t1",   {
     "touch_top" : False,
@@ -188,7 +204,7 @@ if(__name__ == "__main__" and args.arg_list == []):
     print("ALL POSSIBLE HYPERPARAMETERS:")
     for key, value in slurm_dict.items(): 
         print(key, ":", value)
-    interesting = [f"ect_{i}" for i in range(1, 13)]
+    interesting = [f"ef_q4t_{i}" for i in range(1, 6)]
     if(len(interesting) != 0):
         print("\n\n\nTHESE HYPERPARAMETERS:")
         for this in interesting:

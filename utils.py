@@ -628,7 +628,7 @@ parser.add_argument("--agents",                         type=int,           defa
                     help='How many agents are trained in this job?')
 parser.add_argument("--previous_agents",                type=int,           default = 0,
                     help='How many agents with this argument-set are trained in previous jobs?')
-parser.add_argument("--init_seed",                      type=float,         default = 777,
+parser.add_argument("--init_seed",                      type=int,         default = 777,
                     help='Random seed.')
 parser.add_argument('--comp',                           type=str,           default = "deigo",
                     help='Cluster name (deigo or saion).')
@@ -1346,7 +1346,7 @@ def load_dicts(args):
     
     min_max_dict = {}
     for key in plot_dicts[0].keys():
-        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "all_processor_names", "behavior"]):
+        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "composition_data", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "all_processor_names", "behavior"]):
             if(key == "hidden_state"):
                 min_maxes = []
                 for layer in range(len(min_max_dicts[0][key])):
