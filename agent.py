@@ -352,609 +352,704 @@ class Agent:
         
         
         
-    # Save agent parameters, collect compositions, test generalization.
-    def regular_checks(self, force = False, swapping = False, sleep_time = None):
-        if(self.args.save_agents): # Most problematic, roughly in order: behavior, compositions, memory, forward, forward_opt.
-            if(
-                (self.agent_num <= self.args.agents_per_agent_save and self.epochs % self.args.epochs_per_agent_save == 0) or 
-                (self.agent_num <= self.args.agents_per_agent_save and force)):
+    def regular_checks(self, force=False, swapping=False, sleep_time=None):
+        """
+        Save agent parameters, collect compositions, test generalization.
+        """
+        if self.args.save_agents:
+            if (
+                (self.agent_num <= self.args.agents_per_agent_save and self.epochs % self.args.epochs_per_agent_save == 0) or
+                (self.agent_num <= self.args.agents_per_agent_save and force)
+            ):
                 self.save_agent()
-        if(self.args.save_compositions):
-            if(self.epochs % self.args.epochs_per_composition_data == 0 or force):
+
+        if self.args.save_compositions:
+            if self.epochs % self.args.epochs_per_composition_data == 0 or force:
                 self.get_composition_data()
-        if(self.epochs % self.args.epochs_per_gen_test == 0 or force):
-            self.gen_test(sleep_time = sleep_time)  
+
+        if self.epochs % self.args.epochs_per_gen_test == 0 or force:
+            self.gen_test(sleep_time=sleep_time)
+            
         
         
-        
-    # Begin training and track progression.
-    def training(self, q = None, sleep_time = None):      
-        self.regular_checks(sleep_time = sleep_time)
-        while(True):                
-            self.training_episode(sleep_time = sleep_time)
-            # If using GUI for early data-analysis, check for alert file and replace with dictionary.
-            if(self.check_ping()):
+    def training(self, q=None, sleep_time=None):
+        """
+        Begin training and track progression.
+        """
+        self.regular_checks(sleep_time=sleep_time)
+
+        while True:
+            self.training_episode(sleep_time=sleep_time)
+
+            # Early check via GUI ping
+            if self.check_ping():
                 self.save_dicts()
+
             percent_done = str(self.epochs / self.args.epochs)
-            if(q != None):
+            if q is not None:
                 q.put((self.agent_num, percent_done))
-            if(self.epochs >= self.args.epochs): 
+
+            if self.epochs >= self.args.epochs:
                 linestyle = self.processors[self.processor_name].linestyle
                 full_name = self.processors[self.processor_name].full_name
-                self.plot_dict["division_epochs"].append((self.total_epochs, linestyle, full_name))
+                self.plot_dict['division_epochs'].append((self.total_epochs, linestyle, full_name))
                 break
-            self.regular_checks(sleep_time = sleep_time)
-        self.regular_checks(force = True)
-        self.save_dicts(final = True)
+
+            self.regular_checks(sleep_time=sleep_time)
+
+        self.regular_checks(force=True)
+        self.save_dicts(final=True)
         
         
 
-    # If using GUI for early data-analysis, check for alert file and replace with dictionary.
     def check_ping(self):
+        """
+        Check for an alert file and remove it.
+        Used for GUI-based early analysis triggers.
+        """
         file_path = os.path.join(folder, self.agent_name)
-        if(os.path.isfile(file_path)):
+        if os.path.isfile(file_path):
             os.remove(file_path)
-            return(True)
-        return(False)
+            return True
+        return False
         
         
         
-    # Save dictionaries of plotting data.
-    def save_dicts(self, final = False):        
-        
-        self.plot_dict["accumulated_reward"] = list(accumulate(self.plot_dict["reward"]))
-        self.plot_dict["accumulated_gen_reward"] = list(accumulate(self.plot_dict["gen_reward"]))
-        
-        for task_name in task_name_list + ["all"]:
-            self.plot_dict["rolled_wins_" + task_name] = rolling_average(self.plot_dict["wins_" + task_name], window_size=500)
-            self.plot_dict["rolled_gen_wins_" + task_name] = rolling_average(self.plot_dict["gen_wins_" + task_name], window_size=500)
-        self.plot_dict["rolled_wins_exception"] = rolling_average(self.plot_dict["wins_exception"], window_size=500)
-            
-        # Make a dictionary for minimums and maximums of data as well.
-        self.min_max_dict = {key : [] for key in self.plot_dict.keys()}
+    def save_dicts(self, final=False):
+        """
+        Save dictionaries of plotting data and compute min/max statistics.
+        """
+        self.plot_dict['accumulated_reward'] = list(accumulate(self.plot_dict['reward']))
+        self.plot_dict['accumulated_gen_reward'] = list(accumulate(self.plot_dict['gen_reward']))
+
+        for task_name in task_name_list + ['all']:
+            self.plot_dict['rolled_wins_' + task_name] = rolling_average(
+                self.plot_dict['wins_' + task_name], window_size=500)
+            self.plot_dict['rolled_gen_wins_' + task_name] = rolling_average(
+                self.plot_dict['gen_wins_' + task_name], window_size=500)
+
+        self.plot_dict['rolled_wins_exception'] = rolling_average(
+            self.plot_dict['wins_exception'], window_size=500)
+
+        # Generate min/max statistics
+        self.min_max_dict = {key: [] for key in self.plot_dict.keys()}
+
         for key in self.min_max_dict.keys():
-            if(not key in ["args", "arg_title", "arg_name", "all_processor_names", "composition_data", "episode_dicts", "agent_lists", "spot_names", "steps", "behavior"]):
-                if(key == "hidden_state"):
-                    min_maxes = []
-                    hidden_state = deepcopy(self.plot_dict[key])
-                    for l in hidden_state:
-                        minimum = None ; maximum = None 
-                        l = [_ for _ in l if _ != None]
-                        if(l != []):
-                            if(  minimum == None):  minimum = min(l)
-                            elif(minimum > min(l)): minimum = min(l)
-                            if(  maximum == None):  maximum = max(l) 
-                            elif(maximum < max(l)): maximum = max(l)
-                        min_maxes.append((minimum, maximum))
-                    self.min_max_dict[key] = min_maxes
+            if key in [
+                'args', 'arg_title', 'arg_name',
+                'all_processor_names', 'composition_data',
+                'episode_dicts', 'agent_lists', 'spot_names',
+                'steps', 'behavior'
+            ]:
+                continue
+
+            if key == 'hidden_state':
+                min_maxes = []
+                hidden_state = deepcopy(self.plot_dict[key])
+                for l in hidden_state:
+                    l = [_ for _ in l if _ is not None]
+                    if l:
+                        minimum = min(l)
+                        maximum = max(l)
+                    else:
+                        minimum = maximum = None
+                    min_maxes.append((minimum, maximum))
+                self.min_max_dict[key] = min_maxes
+            else:
+                l = deepcopy(self.plot_dict[key])
+                l = [_ for _ in l if _ is not None]
+                if l:
+                    minimum = min(l)
+                    maximum = max(l)
                 else:
-                    minimum = None 
-                    maximum = None 
-                    l = self.plot_dict[key]
-                    l = deepcopy(l)
-                    l = [_ for _ in l if _ != None]
-                    if(l != []):
-                        if(  minimum == None):  minimum = min(l)
-                        elif(minimum > min(l)): minimum = min(l)
-                        if(  maximum == None):  maximum = max(l) 
-                        elif(maximum < max(l)): maximum = max(l)
-                    self.min_max_dict[key] = (minimum, maximum)
-                    
+                    minimum = maximum = None
+                self.min_max_dict[key] = (minimum, maximum)
+
         file_end = str(self.agent_num).zfill(3)
-        # If using GUI for early analysis, add "temp" to dictionary file.
-        if(not final):
-            file_end = f"temp_{file_end}"
-                
-        # Save.
-        with open(f"{folder}/plot_dict_{file_end}.pickle", "wb") as handle:
+        if not final:
+            file_end = f'temp_{file_end}'
+
+        with open(f'{folder}/plot_dict_{file_end}.pickle', 'wb') as handle:
             pickle.dump(self.plot_dict, handle)
-        with open(f"{folder}/min_max_dict_{file_end}.pickle", "wb") as handle:
+
+        with open(f'{folder}/min_max_dict_{file_end}.pickle', 'wb') as handle:
             pickle.dump(self.min_max_dict, handle)
                 
     
-    # Get observations from current processor.
-    def get_agent_obs(self, agent_1 = True):
+    
+    def get_agent_obs(self, agent_1=True):
+        """
+        Get observations from the current processor for the specified agent.
+        """
         parenting = self.processor.parenting
-        if(parenting and not agent_1):
-            return(None)
+        if parenting and not agent_1:
+            return None
+
         obs = self.processor.obs(agent_1)
-        obs.command_voice = obs.command_voice.one_hots.unsqueeze(0).unsqueeze(0) 
-        obs.feedback_voice = obs.feedback_voice.one_hots.unsqueeze(0).unsqueeze(0) 
-        return(obs)
+        obs.command_voice = obs.command_voice.one_hots.unsqueeze(0).unsqueeze(0)
+        obs.feedback_voice = obs.feedback_voice.one_hots.unsqueeze(0).unsqueeze(0)
+        return obs
                 
                 
 
-    # One step in an episode.
-    def step_in_episode(self, 
-                        prev_action_1, hq_1, obs_1,
-                        prev_action_2, hq_2, obs_2, verbose = False, sleep_time = None, user_action = False):
+    def step_in_episode(
+        self,
+        prev_action_1, hq_1, obs_1,
+        prev_action_2, hq_2, obs_2,
+        verbose=False, sleep_time=None, user_action=False
+    ):
+        """
+        Perform one step in an episode for both agents. Collect actions, rewards, and transition data.
+        """
 
         with torch.no_grad():
             self.eval()
             parenting = self.processor.parenting
                               
-            # Find agent's action in this step, and track transition information.     
-            def agent_step(agent_1 = True):
-                
-                if(parenting and not agent_1):
-                    return(None, None, hq_2, hq_2, None, None, None, None, None, None)
-                                
+            def agent_step(agent_1=True):
+                """
+                Inner function to compute a step for one agent.
+                """
+                if parenting and not agent_1:
+                    return (
+                        None, None, hq_2, hq_2,
+                        None, None, None, None, None, None
+                    )
+
                 prev_action = prev_action_1 if agent_1 else prev_action_2
-                partner_prev_voice_out = prev_action_2.voice_out if (agent_1 and not parenting) else torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape)) if agent_1 else prev_action_1.voice_out
+                partner_prev_voice_out = (
+                    prev_action_2.voice_out if agent_1 and not parenting
+                    else torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape))
+                    if agent_1 else prev_action_1.voice_out
+                )
+
                 hq = hq_1 if agent_1 else hq_2
                 obs = obs_1 if agent_1 else obs_2
-                
-                if(type(obs.command_voice) == Goal):
-                    obs.command_voice = obs.command_voice.one_hots
-                if(type(obs.feedback_voice) == Goal):
-                    obs.feedback_voice = obs.feedback_voice.one_hots
-                
-                hp, hq, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is = self.forward.bottom_to_top_step(
-                    hq_1, self.forward.obs_in(obs), self.forward.action_in(prev_action))
 
-                action, _, _ = self.actor(hq.detach(), parenting) 
-                
-                if(user_action):
+                if isinstance(obs.command_voice, Goal):
+                    obs.command_voice = obs.command_voice.one_hots
+                if isinstance(obs.feedback_voice, Goal):
+                    obs.feedback_voice = obs.feedback_voice.one_hots
+
+                hp, hq, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is = self.forward.bottom_to_top_step(
+                    hq_1,
+                    self.forward.obs_in(obs),
+                    self.forward.action_in(prev_action)
+                )
+
+                action, _, _ = self.actor(hq.detach(), parenting)
+
+                if user_action:
                     user_wheels_joints = adjust_action(action.wheels_joints)
                     action.wheels_joints = user_wheels_joints
-                
+
                 values = []
                 for i in range(self.args.critics):
-                    value = self.critics[i](action, hq.detach()) 
+                    value = self.critics[i](action, hq.detach())
                     values.append(round(value.item(), 3))
-                
-                return(obs, action, hp, hq, values, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is)
-            
-            
-            
-            obs_1, action_1, hp_1, hq_1, values_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1 = agent_step()
-            obs_2, action_2, hp_2, hq_2, values_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2 = agent_step(agent_1 = False)
 
-            # Run the step and receive rewards.
-            reward, done, win = self.processor.step(action_1.wheels_joints[0,0].clone(), None if action_2 == None else action_2.wheels_joints[0,0].clone(), sleep_time = sleep_time, verbose = verbose)
-            # If using irregular reward-tracking, adjust reward.
-            reward *= self.reward_inflation
+                return (
+                    obs, action, hp, hq, values,
+                    vision_is, touch_is, prop_is,
+                    command_voice_is, feedback_voice_is
+                )
             
-            # Find the next observations for transition.
-            def next_agent_step(agent_1 = True):
-                
-                if(parenting and not agent_1):
-                    return(None, None)
-                
+            # Run agent steps
+            obs_1, action_1, hp_1, hq_1, values_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1 = agent_step()
+            obs_2, action_2, hp_2, hq_2, values_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2 = agent_step(agent_1=False)
+
+            # Run the environment step
+            reward, done, win = self.processor.step(
+                action_1.wheels_joints[0, 0].clone(),
+                None if action_2 is None else action_2.wheels_joints[0, 0].clone(),
+                sleep_time=sleep_time,
+                verbose=verbose
+            )
+
+            # Adjust reward if using inflation
+            reward *= self.reward_inflation
+
+            def next_agent_step(agent_1=True):
+                """
+                Get next observation and transition for the agent.
+                """
+                if parenting and not agent_1:
+                    return None, None
+
                 next_obs = self.processor.obs(agent_1)
-                obs = obs_1 if agent_1 else obs_2 
+                obs = obs_1 if agent_1 else obs_2
                 action = action_1 if agent_1 else action_2
-                partner_voice_out = None if parenting else action_2.voice_out if agent_1 else action_1.voice_out
-                
+
                 next_obs.command_voice = next_obs.command_voice.one_hots.unsqueeze(0).unsqueeze(0)
                 next_obs.feedback_voice = next_obs.feedback_voice.one_hots.unsqueeze(0).unsqueeze(0)
 
-                # Transition to push.
-                to_push = To_Push(obs, action, reward, next_obs, done)     
-                return(next_obs, to_push)
-            
+                to_push = To_Push(obs, action, reward, next_obs, done)
+                return next_obs, to_push
+
+            # Get next states and transitions
             next_obs_1, to_push_1 = next_agent_step()
-            next_obs_2, to_push_2 = next_agent_step(agent_1 = False)
-            
+            next_obs_2, to_push_2 = next_agent_step(agent_1=False)
+
         torch.cuda.empty_cache()
         
-        # Return everything necessary.
-        return(action_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1), vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1,
-               action_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1), vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2,
-               reward, done, win, to_push_1, to_push_2)
+        # Return all outputs
+        return (
+            action_1, values_1, hp_1.squeeze(1), hq_1.squeeze(1),
+            vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1,
+            action_2, values_2, hp_2.squeeze(1), hq_2.squeeze(1),
+            vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2,
+            reward, done, win, to_push_1, to_push_2
+        )
             
            
            
     # Begin an episode.
     def start_episode(self):
+        """
+        Begin an episode, initializing states and actions.
+        """
         done = False
         complete_reward = 0
         steps = 0
-        
-        # Store initial action, hidden state.
-        def start_agent(agent_1 = True):
+
+        def start_agent(agent_1=True):
             to_push_list = []
-            prev_action = Action(torch.zeros((1, 1, self.args.wheels_joints_shape)), torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape)))
-            hq = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)) 
-            return(to_push_list, prev_action, hq)
-                
-        return(done, complete_reward, steps, start_agent(), start_agent(agent_1 = False))
+            prev_action = Action(
+                torch.zeros((1, 1, self.args.wheels_joints_shape)),
+                torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape))
+            )
+            hq = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size))
+            return to_push_list, prev_action, hq
+
+        return done, complete_reward, steps, start_agent(), start_agent(agent_1=False)
            
            
     
-    # An episode for training the agent. 
-    def training_episode(self, sleep_time = None):    
-        # Initiate agents.            
+    def training_episode(self, sleep_time=None):
+        """
+        Run a full training episode: simulate, step through actions,
+        record transitions, and update statistics.
+        """
+        # Initialize agents
         done, complete_reward, steps, \
             (to_push_list_1, prev_action_1, hq_1), \
             (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
-                    
-        # Track duration and progerss.
+
         start_time = duration()
-        self.episodes += 1 
+        self.episodes += 1
         self.total_episodes += 1
-        # If tracking behavior, consider goals acheived.
-        self.plot_dict["behavior"][self.episodes] = []
-        
-        # Select a processor and begin.
+
+        # Initialize behavior tracking
+        self.plot_dict['behavior'][self.episodes] = []
+
+        # Select processor
         self.processor = self.processors[self.processor_name]
-        self.processor.begin()    
-                        
-        # One step.
+        self.processor.begin()
+
         for step in range(self.args.max_steps):
-            self.steps += 1                           
-            self.total_steps += 1                                                                  
-            if(not done):
+            self.steps += 1
+            self.total_steps += 1
+
+            if not done:
                 steps += 1
-                # Get observations and use in "step_in_episode."
+
+                # Get observations and run one step
                 obs_1 = self.get_agent_obs()
-                obs_2 = self.get_agent_obs(agent_1 = False)
+                obs_2 = self.get_agent_obs(agent_1=False)
+
                 prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, \
                     prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, \
-                        reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                            prev_action_1, hq_1, obs_1,
-                            prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
-                        
-                # If tracking behavior, save feedback voices.
-                if(self.args.save_behaviors):
-                    if(self.args.agents_per_behavior_analysis == -1 or self.agent_num <= self.args.agents_per_behavior_analysis):  
-                        if(self.episodes == 0 or self.episodes % self.args.episodes_per_behavior_analysis == 0):
-                            self.plot_dict["behavior"][self.episodes].append(get_goal_from_one_hots(to_push_1.next_obs.feedback_voice)) 
-                    
-                # Transitions to push.
+                    reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                        prev_action_1, hq_1, obs_1,
+                        prev_action_2, hq_2, obs_2,
+                        sleep_time=sleep_time
+                    )
+
+                # Behavior tracking
+                if self.args.save_behaviors:
+                    if self.args.agents_per_behavior_analysis == -1 or self.agent_num <= self.args.agents_per_behavior_analysis:
+                        if self.episodes == 0 or self.episodes % self.args.episodes_per_behavior_analysis == 0:
+                            self.plot_dict['behavior'][self.episodes].append(
+                                get_goal_from_one_hots(to_push_1.next_obs.feedback_voice)
+                            )
+
+                # Push transitions
                 to_push_list_1.append(to_push_1)
                 to_push_list_2.append(to_push_2)
                 complete_reward += reward
-            if(self.steps % self.args.steps_per_epoch == 0):
+
+            # Epoch-level training
+            if self.steps % self.args.steps_per_epoch == 0:
                 self.epoch(self.args.batch_size)
-                            
-        # Finish. 
+
+        # Finish episode
         self.processor.done()
-        self.plot_dict["steps"].append(steps)
-        self.plot_dict["reward"].append(complete_reward)
-        # Track win-rates for each task.
+        self.plot_dict['steps'].append(steps)
+        self.plot_dict['reward'].append(complete_reward)
+
+        # Task-specific win tracking
         goal_task = self.processor.goal.task.name
-        
-        supposed_to_be_exception = False
         exception_list_a, exception_list_b = exceptions_dict[self.args.exceptions]
-            
-        if(self.processor.goal.digits in exception_list_a):
-            goal_task = "exception"
-        
-        self.plot_dict["wins_all"].append(win)
-        for task_name in task_name_list + ["exception"]:
-            if(task_name == goal_task): 
-                self.plot_dict["wins_" + task_name].append(win)
-            else:                
-                self.plot_dict["wins_" + task_name].append(None)
-                             
-        # Push transitions.
+        if self.processor.goal.digits in exception_list_a:
+            goal_task = 'exception'
+
+        self.plot_dict['wins_all'].append(win)
+        for task_name in task_name_list + ['exception']:
+            if task_name == goal_task:
+                self.plot_dict['wins_' + task_name].append(win)
+            else:
+                self.plot_dict['wins_' + task_name].append(None)
+
+        # Push transitions to memory
         for to_push in to_push_list_1:
             to_push.push(self.memory)
-            
+
         for to_push in to_push_list_2:
-            if(to_push != None):
+            if to_push is not None:
                 to_push.push(self.memory)
-        
-        # Track progress.
+
+        # Progress percentage
         percent_done = self.epochs / self.args.epochs
-        
-        # Not in use. If irregularly tracking curiosity, apply functions.
-        if(self.args.hidden_state_eta_feedback_voice_reduction_type == "linear"):
+
+        # Curiosity tracking adjustment (optional)
+        if self.args.hidden_state_eta_feedback_voice_reduction_type == 'linear':
             self.hidden_state_eta_feedback_voice_reduction = 1 - percent_done
-        if(self.args.hidden_state_eta_feedback_voice_reduction_type.startswith("exp")):
-            exp = float(self.args.hidden_state_eta_feedback_voice_reduction_type.split("_")[-1])
+        if self.args.hidden_state_eta_feedback_voice_reduction_type.startswith('exp'):
+            exp = float(self.args.hidden_state_eta_feedback_voice_reduction_type.split('_')[-1])
             self.hidden_state_eta_feedback_voice_reduction = 1 - (percent_done ** exp)
-        if(self.args.hidden_state_eta_feedback_voice_reduction_type.startswith("sigmoid")):
-            k = float(self.args.hidden_state_eta_feedback_voice_reduction_type.split("_")[-1])
-            self.hidden_state_eta_feedback_voice_reduction = 1 - (1 / (1 + np.exp(-k * (self.epochs - self.args.epochs/2))))
-            
-        # Not in use. If irregularly tracking rewards, apply functions.
-        if(self.args.reward_inflation_type == "linear"):
+        if self.args.hidden_state_eta_feedback_voice_reduction_type.startswith('sigmoid'):
+            k = float(self.args.hidden_state_eta_feedback_voice_reduction_type.split('_')[-1])
+            self.hidden_state_eta_feedback_voice_reduction = 1 - (
+                1 / (1 + np.exp(-k * (self.epochs - self.args.epochs / 2)))
+            )
+
+        # Reward inflation adjustment (optional)
+        if self.args.reward_inflation_type == 'linear':
             self.reward_inflation = percent_done
-        if(self.args.reward_inflation_type.startswith("exp")):
-            exp = float(self.args.reward_inflation_type.split("_")[-1])
+        if self.args.reward_inflation_type.startswith('exp'):
+            exp = float(self.args.reward_inflation_type.split('_')[-1])
             self.reward_inflation = percent_done ** exp
-        if(self.args.reward_inflation_type.startswith("sigmoid")):
-            k = float(self.args.reward_inflation_type.split("_")[-1])
-            self.reward_inflation = (1 / (1 + np.exp(-k * (self.epochs - self.args.epochs/2))))
-                        
-                        
+        if self.args.reward_inflation_type.startswith('sigmoid'):
+            k = float(self.args.reward_inflation_type.split('_')[-1])
+            self.reward_inflation = (
+                1 / (1 + np.exp(-k * (self.epochs - self.args.epochs / 2)))
+            )
+
         end_time = duration()
-        print_duration(start_time, end_time, "\nTraining episode", "\n")
-                        
-        return(step)
+        print_duration(start_time, end_time, '\nTraining episode', '\n')
+
+        return step
         
         
         
-    # Episode for testing generalization. 
-    # This is the same as a training episode, but without pushing transitions and different information-tracking.
-    def gen_test(self, sleep_time = None):
+    def gen_test(self, sleep_time=None):
+        """
+        Episode for testing generalization.
+        This is the same as a training episode, but without pushing transitions
+        and with different result tracking.
+        """
         done, complete_reward, steps, \
             (to_push_list_1, prev_action_1, hq_1), \
             (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
+
         try:
             self.processor = self.processors[self.processor_name]
-            self.processor.begin(test = True)        
+            self.processor.begin(test=True)
+
             for step in range(self.args.max_steps):
-                #print("Step", step)
-                if(not done):
+                if not done:
                     obs_1 = self.get_agent_obs()
-                    obs_2 = self.get_agent_obs(agent_1 = False)
+                    obs_2 = self.get_agent_obs(agent_1=False)
+
                     prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, \
                         prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, \
-                            reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                prev_action_1, hq_1, obs_1,
-                                prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
+                        reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                            prev_action_1, hq_1, obs_1,
+                            prev_action_2, hq_2, obs_2,
+                            sleep_time=sleep_time
+                        )
+
                     complete_reward += reward
-                #print("DONE")
+
             self.processor.done()
             goal_task = self.processor.goal.task.name
-            self.plot_dict["gen_wins_all"].append(win)
+
+            self.plot_dict['gen_wins_all'].append(win)
             for task_name in task_name_list:
-                if(task_name == goal_task): 
-                    self.plot_dict["gen_wins_" + task_name].append(win)
-                else:                       
-                    self.plot_dict["gen_wins_" + task_name].append(None)
-        except:
+                if task_name == goal_task:
+                    self.plot_dict['gen_wins_' + task_name].append(win)
+                else:
+                    self.plot_dict['gen_wins_' + task_name].append(None)
+
+        except Exception:
             complete_reward = 0
             win = False
-            self.plot_dict["gen_wins_all"].append(None)
+            self.plot_dict['gen_wins_all'].append(None)
             for task_name in task_name_list:
-                self.plot_dict["gen_wins_" + task_name].append(win)
-        self.plot_dict["gen_reward"].append(complete_reward)
-        return(win)
+                self.plot_dict['gen_wins_' + task_name].append(win)
+
+        self.plot_dict['gen_reward'].append(complete_reward)
+        return win
         
         
         
-    # For user-experiments, with options for using specific goals and what information to display.
-    def save_episodes(self, test = False, verbose = False, display = True, video_display = True, sleep_time = None, waiting = False, user_action = False, dreaming = False, set_positions = None, set_goal = None):        
+    def save_episodes(
+        self, test=False, verbose=False, display=True,
+        video_display=True, sleep_time=None, waiting=False,
+        user_action=False, dreaming=False,
+        set_positions=None, set_goal=None
+    ):
+        """
+        Run a single episode and save detailed visual/logging data for debugging or demos.
+        Supports real-time display and mental planning ('dreaming').
+        """
         with torch.no_grad():
             self.processor = self.processors[self.processor_name]
-            self.processor.begin(test = test, set_positions = set_positions, set_goal = set_goal)       
+            self.processor.begin(test=test, set_positions=set_positions, set_goal=set_goal)
             parenting = self.processor.parenting
 
-            # Track keys for display.
+            # Initialize episode dictionary
             common_keys = [
-                "obs", "action", "dream_obs",
-                "birds_eye", "reward", "critic_predictions", "prior_predictions", "posterior_predictions", 
-                "vision_dkl", "touch_dkl", "prop_dkl", "command_voice_dkl", "feedback_voice_dkl"]
-            episode_dict = {}
-            for agent_id in [0, 1]:
-                for key in common_keys:
-                    episode_dict[f"{key}_{agent_id}"] = []
-            episode_dict["reward"] = []
-            episode_dict["processor"] = self.processor
+                'obs', 'action', 'dream_obs',
+                'birds_eye', 'reward', 'critic_predictions',
+                'prior_predictions', 'posterior_predictions',
+                'vision_dkl', 'touch_dkl', 'prop_dkl',
+                'command_voice_dkl', 'feedback_voice_dkl'
+            ]
+            episode_dict = {f'{key}_{agent_id}': [] for agent_id in [0, 1] for key in common_keys}
+            episode_dict['reward'] = []
+            episode_dict['processor'] = self.processor
             self.processor.goal.make_texts()
-            episode_dict["goal"] = self.processor.goal
-            
-            # Begin for episode.
+            episode_dict['goal'] = self.processor.goal
+
+            # Episode state
             done, complete_reward, steps, \
                 (to_push_list_1, prev_action_1, hq_1), \
                 (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
-                    
+
             hp_1 = deepcopy(hq_1)
             hp_2 = deepcopy(hp_1)
-            
-            
-            
-            # In mental planning, this should be the observation.
-            # I use the phrase "dream" to represent this mental planning.
+
             previous_dream_obs_q_1 = None
             previous_dream_obs_q_2 = None
-            current_dream_obs_q_1 = None
-            current_dream_obs_q_2 = None
-            
-            
-                            
-            # Save observations of one step.    
-            def save_step(step, obs, agent_1 = True):
+
+            # Save real observations per step
+            def save_step(step, obs, agent_1=True):
                 agent_num = 1 if agent_1 else 2
                 birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
-                dream_obs_q = None
-                obs.command_voice = obs.command_voice if parenting else prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
-                if(type(obs.command_voice) != Goal):
+                obs.command_voice = (
+                    obs.command_voice if parenting else
+                    prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
+                )
+                if not isinstance(obs.command_voice, Goal):
                     obs.command_voice = get_goal_from_one_hots(obs.command_voice)
-                if(type(obs.feedback_voice) != Goal):
+                if not isinstance(obs.feedback_voice, Goal):
                     obs.feedback_voice = get_goal_from_one_hots(obs.feedback_voice)
-                
-                episode_dict[f"obs_{agent_num}"].append(obs) 
-                episode_dict[f"birds_eye_{agent_num}"].append(birds_eye[:,:,0:3])
-                
-                
-                
-            # Save predictions for one step.
-            def next_prediction(hp, hq, obs, wheels_joints, agent_1 = True):
+
+                episode_dict[f'obs_{agent_num}'].append(obs)
+                episode_dict[f'birds_eye_{agent_num}'].append(birds_eye[:, :, 0:3])
+
+            # Generate model predictions
+            def next_prediction(hp, hq, obs, wheels_joints, agent_1=True):
                 agent_num = 1 if agent_1 else 2
-                
-                pred_obs_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_joints_in(wheels_joints)) 
+
+                pred_obs_p = self.forward.predict(hp.unsqueeze(1), self.forward.wheels_joints_in(wheels_joints))
                 pred_obs_q = self.forward.predict(hq.unsqueeze(1), self.forward.wheels_joints_in(wheels_joints))
-                
+
                 dream_obs_q = deepcopy(pred_obs_q)
                 dream_obs_q.vision = dream_obs_q.vision.squeeze(0)
                 dream_obs_q.touch = dream_obs_q.touch.squeeze(0)
                 dream_obs_q.prop = dream_obs_q.prop.squeeze(0)
-                
+
                 pred_obs_p.command_voice = get_goal_from_one_hots(pred_obs_p.command_voice)
                 pred_obs_q.command_voice = get_goal_from_one_hots(pred_obs_q.command_voice)
-                
+
                 pred_obs_p.feedback_voice = get_goal_from_one_hots(pred_obs_p.feedback_voice)
                 pred_obs_q.feedback_voice = get_goal_from_one_hots(pred_obs_q.feedback_voice)
-                
-                episode_dict[f"prior_predictions_{agent_num}"].append(pred_obs_p)
-                episode_dict[f"posterior_predictions_{agent_num}"].append(pred_obs_q)
-            
-                return(dream_obs_q)
-                    
-                    
-                     
-            # If displaying all information, plot.                
-            def display_step(step, agent_1 = True, done = False, stopping = False, dreaming = False):
-                if(not display):
+
+                episode_dict[f'prior_predictions_{agent_num}'].append(pred_obs_p)
+                episode_dict[f'posterior_predictions_{agent_num}'].append(pred_obs_q)
+
+                return dream_obs_q
+
+            def display_step(step, agent_1=True, done=False, stopping=False, dreaming=False):
+                if not display:
                     return
-                #print(f"\n{self.processor.goal.human_text}", end = " ")
-                #print("STEP:", step)
-                plot_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = False, dreaming = dreaming, args = self.args)
-                if(not self.processor.parenting and not stopping):
-                    display_step(step, agent_1 = False, stopping = True)
-                if(waiting):
-                    WAITING = wait_for_button_press()
-                    
-            # If displaying all information, plot. 
-            def video_display_step(step, agent_1 = True, done = False, stopping = False, dreaming = False):
-                if(not video_display):
+                plot_step(step, episode_dict, agent_1=agent_1, last_step=done, saving=False, dreaming=dreaming, args=self.args)
+                if not self.processor.parenting and not stopping:
+                    display_step(step, agent_1=False, stopping=True)
+                if waiting:
+                    wait_for_button_press()
+
+            def video_display_step(step, agent_1=True, done=False, stopping=False, dreaming=False):
+                if not video_display:
                     return
-                #print(f"\n{self.processor.goal.human_text}", end = " ")
-                #print("STEP:", step)
-                plot_video_step(step, episode_dict, agent_1 = agent_1, last_step = done, saving = True, dreaming = dreaming, args = self.args)
-                if(not self.processor.parenting and not stopping):
-                    video_display_step(step, agent_1 = False, stopping = True)
-                if(waiting):
-                    WAITING = wait_for_button_press()
-                    
-                    
-            # Iterate over episode.
+                plot_video_step(step, episode_dict, agent_1=agent_1, last_step=done, saving=True, dreaming=dreaming, args=self.args)
+                if not self.processor.parenting and not stopping:
+                    video_display_step(step, agent_1=False, stopping=True)
+                if waiting:
+                    wait_for_button_press()
+
+            # Episode loop
             for step in range(self.args.max_steps + 1):
-                
-                # First, save step.
+                # Get real or imagined obs
                 real_obs_1 = self.get_agent_obs()
-                real_obs_2 = self.get_agent_obs(agent_1 = False)
-                if(dreaming and step != 0):                     
-                    print(f"\n\nDreaming, step {step}\n\n")
+                real_obs_2 = self.get_agent_obs(agent_1=False)
+
+                if dreaming and step != 0:
+                    print(f'\n\nDreaming, step {step}\n\n')
                     obs_1 = deepcopy(previous_dream_obs_q_1)
                     obs_2 = deepcopy(previous_dream_obs_q_2)
                 else:
                     obs_1 = deepcopy(real_obs_1)
                     obs_2 = deepcopy(real_obs_2)
-                
-                save_step(step, real_obs_1)    
-                if(not parenting):
-                    save_step(step, real_obs_1, agent_1 = False)  
-                    
-                display_step(step, dreaming = dreaming)
-                video_display_step(step, dreaming = dreaming)
-                
-                # Then, perform action.
+
+                save_step(step, real_obs_1, agent_1=True)
+                if not parenting:
+                    save_step(step, real_obs_2, agent_1=False)
+
+                display_step(step, dreaming=dreaming)
+                video_display_step(step, dreaming=dreaming)
+
+                # Act and collect predictions
                 prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, \
                     prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, \
-                        reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                            prev_action_1, hq_1, obs_1,
-                            prev_action_2, hq_2, obs_2, verbose = verbose, sleep_time = sleep_time, user_action = user_action) 
-                        
-                previous_dream_obs_q_1 = next_prediction(hp_1, hq_1, deepcopy(obs_1), wheels_joints = prev_action_1.wheels_joints, agent_1 = True)
-                if(not parenting):
-                    previous_dream_obs_q_2 = next_prediction(hp_2, hq_2, deepcopy(obs_2), wheels_joints = prev_action_2.wheels_joints, agent_1 = False)
-                        
-                episode_dict["reward"].append(str(round(reward, 3)))
-                
-                # Throughout, save information.
+                    reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                        prev_action_1, hq_1, obs_1,
+                        prev_action_2, hq_2, obs_2,
+                        verbose=verbose, sleep_time=sleep_time, user_action=user_action
+                    )
+
+                previous_dream_obs_q_1 = next_prediction(hp_1, hq_1, deepcopy(obs_1), prev_action_1.wheels_joints, agent_1=True)
+                if not parenting:
+                    previous_dream_obs_q_2 = next_prediction(hp_2, hq_2, deepcopy(obs_2), prev_action_2.wheels_joints, agent_1=False)
+
+                episode_dict['reward'].append(str(round(reward, 3)))
+
                 def update_episode_dict(index, prev_action, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is, values, reward):
-                    episode_dict[f"action_{index}"].append(prev_action)
-                    episode_dict[f"vision_dkl_{index}"].append(vision_is.dkl.sum().item())
-                    episode_dict[f"touch_dkl_{index}"].append(touch_is.dkl.sum().item())
-                    episode_dict[f"prop_dkl_{index}"].append(prop_is.dkl.sum().item())
-                    episode_dict[f"command_voice_dkl_{index}"].append(command_voice_is.dkl.sum().item())
-                    episode_dict[f"feedback_voice_dkl_{index}"].append(feedback_voice_is.dkl.sum().item())
-                    episode_dict[f"critic_predictions_{index}"].append(values)
-                    episode_dict[f"reward_{index}"].append(str(round(reward, 3)))
+                    episode_dict[f'action_{index}'].append(prev_action)
+                    episode_dict[f'vision_dkl_{index}'].append(vision_is.dkl.sum().item())
+                    episode_dict[f'touch_dkl_{index}'].append(touch_is.dkl.sum().item())
+                    episode_dict[f'prop_dkl_{index}'].append(prop_is.dkl.sum().item())
+                    episode_dict[f'command_voice_dkl_{index}'].append(command_voice_is.dkl.sum().item())
+                    episode_dict[f'feedback_voice_dkl_{index}'].append(feedback_voice_is.dkl.sum().item())
+                    episode_dict[f'critic_predictions_{index}'].append(values)
+                    episode_dict[f'reward_{index}'].append(str(round(reward, 3)))
 
                 update_episode_dict(1, prev_action_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, values_1, reward)
-                if not self.processor.parenting:
-                    update_episode_dict(2, prev_action_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, values_2, reward_2)
-                
-                # End episode is finished.
-                if(done):
+                if not parenting:
+                    update_episode_dict(2, prev_action_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, values_2, reward)
+
+                if done:
                     real_obs_1 = self.get_agent_obs()
-                    real_obs_2 = self.get_agent_obs(agent_1 = False)
-                    save_step(step, real_obs_1, agent_1 = True)    
-                    if(not self.processor.parenting):
-                        save_step(step, real_obs_2, agent_1 = False) 
-                    display_step(step + 1, done = True, dreaming = dreaming)
-                    video_display_step(step + 1, done = True, dreaming = dreaming)
+                    real_obs_2 = self.get_agent_obs(agent_1=False)
+                    save_step(step, real_obs_1, agent_1=True)
+                    if not parenting:
+                        save_step(step, real_obs_2, agent_1=False)
+                    display_step(step + 1, done=True, dreaming=dreaming)
+                    video_display_step(step + 1, done=True, dreaming=dreaming)
                     self.processor.done()
                     break
-            
-            return(win)
+
+            return win
                     
                     
 
-    # For tracking composition, collect agent interpretations of all possible goals.      
-    def get_composition_data(self, sleep_time = None):
-        if(self.args.agents_per_composition_data != -1 and self.agent_num > self.args.agents_per_composition_data): 
+    def get_composition_data(self, sleep_time=None):
+        """
+        Collect agent interpretations of all possible goals for composition analysis.
+        """
+        if self.args.agents_per_composition_data != -1 and self.agent_num > self.args.agents_per_composition_data:
             return
-        print(f"Agent {self.agent_num} saving composition_data.")
+
+        print(f'Agent {self.agent_num} saving composition_data.')
+
         adjusted_args = deepcopy(self.args)
         adjusted_args.capacity = len(self.all_processors)
-        # Store information in a new, temporary memory buffer.
+
+        # Temporary memory buffer
         temp_memory = RecurrentReplayBuffer(adjusted_args)
         processor_lens = []
+
         for processor_name in self.all_processor_names:
-            print(processor_name, end = ", ")
-            #print(processor_name)
+            print(processor_name, end=', ')
+
             self.processor = self.all_processors[processor_name]
-            total_steps = 0 
-            # Iterate over an episode.
-            while(total_steps < 30):
-                self.processor.begin(test = None)    
+            total_steps = 0
+
+            # Collect transitions for each processor
+            while total_steps < 30:
+                self.processor.begin(test=None)
+
                 done, complete_reward, steps, \
                     (to_push_list_1, prev_action_1, hq_1), \
                     (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
-                        
-                # In each step, track transitions.
+
                 for step in range(self.args.max_steps):
-                    #print("Step", step)
-                    if(not done):
+                    if not done:
                         obs_1 = self.get_agent_obs()
-                        obs_2 = self.get_agent_obs(agent_1 = False)
-                        prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, \
-                            prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, \
-                                reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                    prev_action_1, hq_1, obs_1,
-                                    prev_action_2, hq_2, obs_2, sleep_time = sleep_time)
+                        obs_2 = self.get_agent_obs(agent_1=False)
+
+                    prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, \
+                        prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, \
+                        reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                                prev_action_1, hq_1, obs_1,
+                                prev_action_2, hq_2, obs_2,
+                                sleep_time=sleep_time
+                            )
+
                     to_push_list_1.append(to_push_1)
-                    if(done): 
+                    if done:
                         break
-                #print("DONE")
+
                 self.processor.done()
-                processor_lens.append(step)           
+                processor_lens.append(step)
+
+                # Push transitions (truncate at 30 steps)
                 for to_push in to_push_list_1:
                     to_push.done = False
                     total_steps += 1
-                    if(total_steps >= 30):
+                    if total_steps >= 30:
                         to_push.done = True
                         to_push.push(temp_memory)
                         break
                     to_push.push(temp_memory)
-                
-        # Collect all saved transitions.
-        batch = self.get_batch(temp_memory, len(self.all_processors), random_sample = False)
-        vision, touch, prop, command_voice, feedback_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
-                
-        # Collect all inner-state prior-posterior understandings.
-        hps, hqs, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
-            torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
-            Obs(vision, touch, prop, command_voice, feedback_voice), Action(wheels_joints, voice_out))
-        
-        # Save labels (task/color/shape) for comparisons.
-        labels = labels.detach().cpu().numpy()
-        all_mask = all_mask.detach().cpu().numpy()  
 
-        # Save posterior inner-states.
+        # Retrieve processed batch
+        batch = self.get_batch(temp_memory, len(self.all_processors), random_sample=False)
+        vision, touch, prop, command_voice, feedback_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
+
+        # Forward pass to get priors/posteriors
+        hps, hqs, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
+            torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)),
+            Obs(vision, touch, prop, command_voice, feedback_voice),
+            Action(wheels_joints, voice_out)
+        )
+
+        labels = labels.detach().cpu().numpy()
+        all_mask = all_mask.detach().cpu().numpy()
+
+        # Posterior z_q values
         vision_zq = vision_is.zq.detach().cpu().numpy()
         touch_zq = touch_is.zq.detach().cpu().numpy()
         prop_zq = prop_is.zq.detach().cpu().numpy()
         command_voice_zq = command_voice_is.zq.detach().cpu().numpy()
         feedback_voice_zq = feedback_voice_is.zq.detach().cpu().numpy()
         hq = hqs.detach().cpu().numpy()
-        
-        print("DONE:", hq.shape)
-                        
-        # Add information to the dictionary for plotting information.    
-        self.plot_dict["composition_data"][self.epochs] = {
-            "labels" : labels, "all_mask" : all_mask, "hq" : hq,
-            "vision_zq" : vision_zq, "touch_zq" : touch_zq, 
-            "prop_zq" : prop_zq,  "command_voice_zq" : command_voice_zq, 
-            "feedback_voice_zq" : feedback_voice_zq}
+
+        print('DONE:', hq.shape)
+
+        # Save into composition data
+        self.plot_dict['composition_data'][self.epochs] = {
+            'labels': labels,
+            'all_mask': all_mask,
+            'hq': hq,
+            'vision_zq': vision_zq,
+            'touch_zq': touch_zq,
+            'prop_zq': prop_zq,
+            'command_voice_zq': command_voice_zq,
+            'feedback_voice_zq': feedback_voice_zq
+        }
         
         
         
