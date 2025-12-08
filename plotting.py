@@ -379,10 +379,10 @@ def plots(plot_dicts, min_max_dict):
         vision_dict = get_quantiles(plot_dict, "vision_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         touch_dict = get_quantiles(plot_dict, "touch_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         command_voice_dict = get_quantiles(plot_dict, "command_voice_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        report_voice_dict = get_quantiles(plot_dict, "report_voice_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
+        feedback_voice_dict = get_quantiles(plot_dict, "feedback_voice_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         accuracy_dict = get_quantiles(plot_dict, "accuracy_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
         comp_dict = get_quantiles(plot_dict, "complexity_loss", levels = levels, adjust_xs = plot_dict["args"].keep_data)
-        #forward_losses_min_max = many_min_max([min_max_dict["vision_loss"], min_max_dict["touch_loss"], min_max_dict["command_voice_loss"], min_max_dict["accuracy_loss"], min_max_dict["report_voice_loss"]])
+        #forward_losses_min_max = many_min_max([min_max_dict["vision_loss"], min_max_dict["touch_loss"], min_max_dict["command_voice_loss"], min_max_dict["accuracy_loss"], min_max_dict["feedback_voice_loss"]])
         all_values = np.concatenate([v for k, v in comp_dict.items() if k != 'xs'])
         min_val = np.min(all_values)
         max_val = np.max(all_values)
@@ -392,7 +392,7 @@ def plots(plot_dicts, min_max_dict):
         log_vision_dict = get_logs(vision_dict)
         log_touch_dict = get_logs(touch_dict)
         log_command_voice_dict = get_logs(command_voice_dict)
-        log_report_voice_dict = get_logs(report_voice_dict)
+        log_feedback_voice_dict = get_logs(feedback_voice_dict)
         log_accuracy_dict = get_logs(accuracy_dict)
         log_comp_dict = get_logs(comp_dict)
         if(forward_losses_min_max[0] == 0):
@@ -407,7 +407,7 @@ def plots(plot_dicts, min_max_dict):
             #handles.append(awesome_plot(here, log_vision_dict if log else vision_dict, "blue", "Vision-Loss", min_max))
             #handles.append(awesome_plot(here, log_touch_dict if log else touch_dict, "orange", "Touch-Loss", min_max))
             #handles.append(awesome_plot(here, log_command_voice_dict if log else command_voice_dict, "red", "Command voice-Loss", min_max))
-            #handles.append(awesome_plot(here, log_report_voice_dict if log else report_voice_dict, "red", "Report voice-Loss", min_max))
+            #handles.append(awesome_plot(here, log_feedback_voice_dict if log else feedback_voice_dict, "red", "feedback voice-Loss", min_max))
             #handles.append(awesome_plot(here, log_accuracy_dict if log else accuracy_dict, "purple", "Accuracy", min_max))
             handles.append(awesome_plot(here, log_comp_dict if log else comp_dict, "green",  "Complexity", min_max))
             here.set_ylabel("Loss")
@@ -569,13 +569,13 @@ def plots(plot_dicts, min_max_dict):
         vision_prediction_error_dict = get_quantiles(plot_dict, "vision_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         touch_prediction_error_dict = get_quantiles(plot_dict, "touch_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         command_voice_prediction_error_dict = get_quantiles(plot_dict, "command_voice_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
-        report_voice_prediction_error_dict = get_quantiles(plot_dict, "report_voice_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        feedback_voice_prediction_error_dict = get_quantiles(plot_dict, "feedback_voice_prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         prediction_error_dict = get_quantiles(plot_dict, "prediction_error_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         
         vision_hidden_state_dict = get_quantiles(plot_dict, "vision_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         touch_hidden_state_dict = get_quantiles(plot_dict, "touch_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         command_voice_hidden_state_dict = get_quantiles(plot_dict, "command_voice_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
-        report_voice_hidden_state_dict = get_quantiles(plot_dict, "report_voice_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
+        feedback_voice_hidden_state_dict = get_quantiles(plot_dict, "feedback_voice_hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         hidden_state_dict = get_quantiles(plot_dict, "hidden_state_curiosity", levels = [], adjust_xs = plot_dict["args"].keep_data)
         
         curiosity_min_max = many_min_max(
@@ -586,18 +586,18 @@ def plots(plot_dicts, min_max_dict):
             min_max_dict["vision_hidden_state_curiosity"],
             min_max_dict["touch_hidden_state_curiosity"],
             min_max_dict["command_voice_hidden_state_curiosity"],
-            min_max_dict["hidden_state_curiosity"]] + ([min_max_dict["report_voice_prediction_error_curiosity"], min_max_dict["report_voice_hidden_state_curiosity"]]))
+            min_max_dict["hidden_state_curiosity"]] + ([min_max_dict["feedback_voice_prediction_error_curiosity"], min_max_dict["feedback_voice_hidden_state_curiosity"]]))
         
         log_vision_prediction_error_dict = get_logs(vision_prediction_error_dict)
         log_touch_prediction_error_dict = get_logs(touch_prediction_error_dict)
         log_command_voice_prediction_error_dict = get_logs(command_voice_prediction_error_dict)
-        log_report_voice_prediction_error_dict = get_logs(report_voice_prediction_error_dict)
+        log_feedback_voice_prediction_error_dict = get_logs(feedback_voice_prediction_error_dict)
         log_prediction_error_dict = get_logs(prediction_error_dict)
         
         log_vision_hidden_state_dict = get_logs(vision_hidden_state_dict)
         log_touch_hidden_state_dict = get_logs(touch_hidden_state_dict)
         log_command_voice_hidden_state_dict = get_logs(command_voice_hidden_state_dict)
-        log_report_voice_hidden_state_dict = get_logs(report_voice_hidden_state_dict)
+        log_feedback_voice_hidden_state_dict = get_logs(feedback_voice_hidden_state_dict)
         log_hidden_state_dict = get_logs(hidden_state_dict)
         
         if(curiosity_min_max[0] == 0):
@@ -613,7 +613,7 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(here, log_vision_prediction_error_dict if log else vision_prediction_error_dict, "green", "Vision", min_max = this_min_max, linestyle = "dotted"))
             handles.append(awesome_plot(here, log_touch_prediction_error_dict if log else touch_prediction_error_dict, "green", "Touch", min_max = this_min_max, linestyle = custom_ls))
             handles.append(awesome_plot(here, log_command_voice_prediction_error_dict if log else command_voice_prediction_error_dict, "green", "Command voice", min_max = this_min_max, letter = "C"))
-            handles.append(awesome_plot(here, log_report_voice_prediction_error_dict if log else report_voice_prediction_error_dict, "green", "Report voice", min_max = this_min_max, letter = "R"))
+            handles.append(awesome_plot(here, log_feedback_voice_prediction_error_dict if log else feedback_voice_prediction_error_dict, "green", "Feedback voice", min_max = this_min_max, letter = "R"))
             here.set_ylabel("Prediction Error Curiosity")
             here.set_xlabel("Epochs")
             here.legend(handles = handles)
@@ -627,7 +627,7 @@ def plots(plot_dicts, min_max_dict):
             handles.append(awesome_plot(here, log_vision_hidden_state_dict if log else vision_hidden_state_dict, "red", "Vision", min_max = this_min_max, linestyle = "dotted"))
             handles.append(awesome_plot(here, log_touch_hidden_state_dict if log else touch_hidden_state_dict, "red", "Touch", min_max = this_min_max, linestyle = custom_ls))
             handles.append(awesome_plot(here, log_command_voice_hidden_state_dict if log else command_voice_hidden_state_dict, "red", "Command voice", min_max = this_min_max, letter = "C"))
-            handles.append(awesome_plot(here, log_report_voice_hidden_state_dict if log else report_voice_hidden_state_dict, "red", "Report voice", min_max = this_min_max, letter = "R"))
+            handles.append(awesome_plot(here, log_feedback_voice_hidden_state_dict if log else feedback_voice_hidden_state_dict, "red", "Feedback voice", min_max = this_min_max, letter = "R"))
             here.set_ylabel("Hidden State Curiosity")
             here.set_xlabel("Epochs")
             here.legend(handles = handles)

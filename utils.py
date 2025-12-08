@@ -1,7 +1,5 @@
 #%% 
 
-# PROBLEM: When exceptions aren't actually exceptions, are they reported to the agent correctly (with original voice)?
-
 import os
 import pickle
 import pybullet as p
@@ -194,7 +192,7 @@ class Goal:
         
     # Make text easier for humans to read.
     def human_friendly_text(self, command = True):
-        return(f"{'Command' if command else 'Report'}: {self.human_text}")
+        return(f"{'Command' if command else 'Feedback'}: {self.human_text}")
         
 # Goal representing silence.
 empty_goal = Goal(task_map[0], task_map[0], task_map[0], parenting = False)
@@ -237,7 +235,7 @@ def get_goal_from_digits(digits):
         
 # Class describing sensory observations. "prop" is proprioception.
 class Obs:
-    def __init__(self, vision, touch, prop, command_voice, report_voice):
+    def __init__(self, vision, touch, prop, command_voice, feedback_voice):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
 # Class describing motor commands.
@@ -256,7 +254,7 @@ class To_Push:
             self.obs.touch.to("cpu"),
             self.obs.prop.to("cpu"),
             self.obs.command_voice.to("cpu"),
-            self.obs.report_voice.to("cpu"),
+            self.obs.feedback_voice.to("cpu"),
             self.action.wheels_joints.to("cpu"), 
             self.action.voice_out.to("cpu"),
             self.reward, 
@@ -264,7 +262,7 @@ class To_Push:
             self.next_obs.touch.to("cpu"),
             self.next_obs.prop.to("cpu"),
             self.next_obs.command_voice.to("cpu"), 
-            self.next_obs.report_voice.to("cpu"), 
+            self.next_obs.feedback_voice.to("cpu"), 
             self.done)
 
 # Class describing prior, estimated posterior, and the kullback leibler divergence comparing them.
@@ -739,8 +737,8 @@ parser.add_argument('--reward',                         type=float,         defa
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--wrong_object_punishment',        type=float,         default = 0,
                     help='Negative reward for punishing doing anything to the wrong object (except watching).') 
-parser.add_argument("--hidden_state_eta_report_voice_reduction_type",  type=str,         default = "None",
-                    help='How should interest in report_voice chance?') 
+parser.add_argument("--hidden_state_eta_feedback_voice_reduction_type",  type=str,         default = "None",
+                    help='How should interest in feedback_voice chance?') 
 parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
                     help='How should reward increase?')   
 parser.add_argument('--tanh_touch',                     type=literal,       default = True,
@@ -943,21 +941,21 @@ parser.add_argument("--hidden_state_eta_command_voice",  type=float,         def
 
 
 
-    # Report Voice
-parser.add_argument('--report_voice_scaler',            type=float,         default = 3, 
-                    help='How much to consider report voice prediction in accuracy compared to vision and touch.')     
-parser.add_argument("--beta_report_voice",              type=float,         default = .1,
+    # Feedback Voice
+parser.add_argument('--feedback_voice_scaler',            type=float,         default = 3, 
+                    help='How much to consider feedback voice prediction in accuracy compared to vision and touch.')     
+parser.add_argument("--beta_feedback_voice",              type=float,         default = .1,
                     help='Relative importance of complexity for voice.')
-parser.add_argument("--prediction_error_eta_report_voice", type=float,      default = 0,
+parser.add_argument("--prediction_error_eta_feedback_voice", type=float,      default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
-parser.add_argument("--hidden_state_eta_report_voice",  type=float,         default = 0,
+parser.add_argument("--hidden_state_eta_feedback_voice",  type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
 
 
 
     # Saving data
 parser.add_argument('--keep_data',                      type=int,           default = 500,
-                    help='How many epochs should pass before keep data.')
+                    help='How many epochs should pass before keeping data.')
 parser.add_argument('--temp',                           type=literal,       default = False,
                     help='Should this use data saved temporarily?')      
 parser.add_argument('--agents_for_plotting',            type=int,           default = 9999,

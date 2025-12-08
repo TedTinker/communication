@@ -763,7 +763,7 @@ class Arena():
                 
                 
         # Now we check what feedback voice should be returned.                              
-        report_voice = empty_goal
+        feedback_voice = empty_goal
         wrong_object = False
         task_performed = None        
         
@@ -802,16 +802,16 @@ class Arena():
                 if(righting):   task_in_progress = task_map[6]
                 
                 # WE NEED TO CHANGE THIS FOR EXCEPTIONS
-                report_voice = Goal(task_in_progress, color, shape, parenting = False)
+                feedback_voice = Goal(task_in_progress, color, shape, parenting = False)
                 
                 if(not self.supposed_to_be_exception):
                     pass
                     
-                if(self.supposed_to_be_exception and report_voice.digits == self.goal.digits):
-                    report_voice = empty_goal
+                if(self.supposed_to_be_exception and feedback_voice.digits == self.goal.digits):
+                    feedback_voice = empty_goal
                     
-                if(self.supposed_to_be_exception and report_voice.digits == self.real_goal.digits):
-                    report_voice = self.goal
+                if(self.supposed_to_be_exception and feedback_voice.digits == self.real_goal.digits):
+                    feedback_voice = self.goal
 
         if(wrong_object):
             win = False 
@@ -820,18 +820,18 @@ class Arena():
             else:
                 reward = self.args.wrong_object_punishment
                         
-        report_voice.make_texts() 
+        feedback_voice.make_texts() 
 
 
             
         if(verbose):
-            print(f"Report voice: \'{report_voice.human_text}\'")
+            print(f"feedback voice: \'{feedback_voice.human_text}\'")
             print("Total reward:", reward)
             print("Win:", win)
             
            
                       
-        return(reward, win, report_voice)
+        return(reward, win, feedback_voice)
     
     
     

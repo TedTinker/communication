@@ -550,7 +550,7 @@ class Obs_OUT(nn.Module):
         self.touch_out = Touch_OUT(self.args)
         self.prop_out = Prop_OUT(self.args)
         self.command_voice_out = Voice_OUT(actor = False, args = self.args)
-        self.report_voice_out = Voice_OUT(actor = False, args = self.args)
+        self.feedback_voice_out = Voice_OUT(actor = False, args = self.args)
         
         self.apply(init_weights)
         self.to(self.args.device)
@@ -563,8 +563,8 @@ class Obs_OUT(nn.Module):
         touch_pred = self.touch_out(h_w_wheels_joints)
         prop_pred = self.prop_out(h_w_wheels_joints)
         command_voice_pred = self.command_voice_out(h_w_wheels_joints)
-        report_voice_pred = self.report_voice_out(h_w_wheels_joints)
-        return(vision_pred, touch_pred, prop_pred, command_voice_pred, report_voice_pred)
+        feedback_voice_pred = self.feedback_voice_out(h_w_wheels_joints)
+        return(vision_pred, touch_pred, prop_pred, command_voice_pred, feedback_voice_pred)
     
     
     

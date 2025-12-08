@@ -19,7 +19,7 @@ set_goal = None
 
 
 # Change these to the agent you would like to test.
-hyper_parameters = "ef_q2t_3"
+hyper_parameters = "ef_q2"
 agent_num = "0001"
 epochs = "000000"
 saved_file = "saved_deigo"
@@ -46,9 +46,9 @@ print("Ready to go!")
 
 # This step allows customising the agent's arguments.
 
-hyper_parameters = "ef_q2t_3"
+hyper_parameters = "e_q2"
 agent_num = "0001"
-epochs = "000000"
+epochs = "010000"
 saved_file = "saved_deigo"
 
 
@@ -145,23 +145,23 @@ print(set_goal[1][1][1].name)
             
 agent.processors = {0 : Processor(
     agent.args, agent.arena_1, agent.arena_2,
-    tasks_and_weights = [(1, 1)], 
+    tasks_and_weights = [(3, 1)], 
     objects = 2, 
-    colors = [4], 
-    shapes = [0], 
+    colors = [0, 1, 2, 3, 4, 5], 
+    shapes = [0, 1, 2, 3, 4], 
     parenting = True)}
 
 agent.processor_name = 0
 
 episodes += 1
 win = agent.save_episodes(
-    test = None,                               # Should randomly chosen objects be for training, test, or either?
+    test = True,                               # Should randomly chosen objects be for training, test, or either?
     verbose = False,                            # Should extra information be printed?
     display = False,                             # Should a complete set of observations, prior predictions, and posterior predictions be plotted?
     video_display = True,                      # Should a simple view of the robot's observations be plotted?
     sleep_time = .25,                           # How slow should the episode be?
     waiting = False,                            # Should the episode wait every step?
-    user_action = True,                        # Should the user be able to choose the robot's actions?
+    user_action = False,                        # Should the user be able to choose the robot's actions?
     dreaming = False,                            # Should the robot be "dreaming" or "hallucinating," only seeing its own predictions?
     set_positions = ([0, 5], [0, -5]),                       # Should the objects be in specific positions?
     set_goal = set_goal)                        # Should a specific goal be used?

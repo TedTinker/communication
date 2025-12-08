@@ -42,8 +42,8 @@ class Processor:
         if(not self.parenting):
             self.arena_2.begin(self.current_objects_2, self.goal, self.parenting, set_positions = set_positions)
         # Before beginning, the feedback voice is silent.
-        self.report_voice_1 = empty_goal
-        self.report_voice_2 = empty_goal
+        self.feedback_voice_1 = empty_goal
+        self.feedback_voice_2 = empty_goal
                                 
         if(verbose):
             print(self)
@@ -117,9 +117,9 @@ class Processor:
         prop = joint_angles_regularized + joint_speeds_regularized
         prop = torch.tensor([prop]).float()
         
-        report_voice = self.report_voice_1 if agent_1 else self.report_voice_2
+        feedback_voice = self.feedback_voice_1 if agent_1 else self.feedback_voice_2
                         
-        return(Obs(vision, touch, prop, self.goal, report_voice))
+        return(Obs(vision, touch, prop, self.goal, feedback_voice))
     
     
           
@@ -140,11 +140,11 @@ class Processor:
             
         arena.step(left_wheel_speed, right_wheel_speed, joint_speeds, verbose = verbose, sleep_time = sleep_time)
         
-        reward, win, report_voice = arena.rewards(verbose = verbose)
+        reward, win, feedback_voice = arena.rewards(verbose = verbose)
         if(agent_1): 
-            self.report_voice_1 = report_voice
+            self.feedback_voice_1 = feedback_voice
         else:
-            self.report_voice_2 = report_voice
+            self.feedback_voice_2 = feedback_voice
         return(reward, win)
     
     
@@ -190,8 +190,8 @@ class Processor:
         if(not self.parenting):
             self.arena_2.end()
             
-        self.report_voice_1 = empty_goal
-        self.report_voice_2 = empty_goal
+        self.feedback_voice_1 = empty_goal
+        self.feedback_voice_2 = empty_goal
     
     
     

@@ -35,25 +35,25 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
     vision = obs.vision[0,:,:,:-1]
     touch = obs.touch.tolist()[0]
     command_voice = obs.command_voice
-    report_voice = obs.report_voice
+    feedback_voice = obs.feedback_voice
     if(step != 0):
         prior = episode_dict[f"prior_predictions_{agent_num}"][step-1]
         prior_vision = prior.vision[0,0,:,:,:-1]
         prior_touch = prior.touch.tolist()[0][0]
         prior_command_voice = prior.command_voice 
-        prior_report_voice = prior.report_voice 
+        prior_feedback_voice = prior.feedback_voice 
         posterior = episode_dict[f"posterior_predictions_{agent_num}"][step-1]
         posterior_vision = posterior.vision[0,0,:,:,:-1]
         posterior_touch = posterior.touch.tolist()[0][0]
         posterior_command_voice = posterior.command_voice 
-        posterior_report_voice = posterior.report_voice 
+        posterior_feedback_voice = posterior.feedback_voice 
         action = episode_dict[f"action_{agent_num}"][step-1]
             
     data = []
     
     data.append(["Goal", [human_friendly_text(episode_dict["goal"])], .1])
     if not step == 0:
-        data.append(["Acheived Goal", [human_friendly_text(report_voice)], .1])
+        data.append(["Acheived Goal", [human_friendly_text(feedback_voice)], .1])
         
     data.append(["Bird's Eye View", [episode_dict[f"birds_eye_{agent_num}"][step], "image"], 1])
     
@@ -66,7 +66,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         data.append([f"Vision ({agent_num})", [vision, "image"], 1])
         data.append([f"Touch ({agent_num})", [touch, "touch"], 1])
         data.append([f"Command voice ({agent_num})", [human_friendly_text(command_voice)], 1])
-        data.append([f"Report voice ({agent_num})", [human_friendly_text(report_voice)], 1])
+        data.append([f"Feedback voice ({agent_num})", [human_friendly_text(feedback_voice)], 1])
     else:
         data.append(
             [f"Vision ({agent_num})", 
@@ -84,10 +84,10 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
             [human_friendly_text(prior_command_voice)],
             [human_friendly_text(posterior_command_voice)], .3])
         data.append(
-            [f"Report voice ({agent_num})",
-            [human_friendly_text(report_voice)],
-            [human_friendly_text(prior_report_voice)],
-            [human_friendly_text(posterior_report_voice)], .3])
+            [f"Feedback voice ({agent_num})",
+            [human_friendly_text(feedback_voice)],
+            [human_friendly_text(prior_feedback_voice)],
+            [human_friendly_text(posterior_feedback_voice)], .3])
         
         data.append([f"Wheels, Joints ({agent_num})", [action.wheels_joints, "bar_plot"], .5])
         data.append([f"Voice Out ({agent_num})", [human_friendly_text(get_goal_from_one_hots(action.voice_out))], .3])
@@ -95,7 +95,7 @@ def plot_step(step, episode_dict, agent_1 = True, last_step = False, saving = Tr
         data.append([f"Vision DKL ({agent_num})", [episode_dict[f"vision_dkl_{agent_num}"][:step], "line_plot"], .5])
         data.append([f"Touch DKL ({agent_num})", [episode_dict[f"touch_dkl_{agent_num}"][:step], "line_plot"], .5])
         data.append([f"Command voice DKL ({agent_num})", [episode_dict[f"command_voice_dkl_{agent_num}"][:step], "line_plot"], .5])
-        data.append([f"Report voice DKL ({agent_num})", [episode_dict[f"report_voice_dkl_{agent_num}"][:step], "line_plot"], .5])
+        data.append([f"Feedback voice DKL ({agent_num})", [episode_dict[f"feedback_voice_dkl_{agent_num}"][:step], "line_plot"], .5])
         
     max_sublist_len = 0
     for sublist in data:

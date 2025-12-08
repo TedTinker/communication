@@ -33,30 +33,30 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
     touch = obs.touch.tolist()[0]
     
     command_voice = obs.command_voice.human_friendly_text()
-    report_voice = obs.report_voice.human_friendly_text(command = False)
+    feedback_voice = obs.feedback_voice.human_friendly_text(command = False)
         
     command_task = obs.command_voice.task.name# .replace(" ", "\n")
     command_color = obs.command_voice.color.name# .replace(" ", "\n")
     command_shape = obs.command_voice.shape.name# .replace(" ", "\n")
 
-    report_task = obs.report_voice.task.name# .replace(" ", "\n")
-    report_color = obs.report_voice.color.name# .replace(" ", "\n")
-    report_shape = obs.report_voice.shape.name# .replace(" ", "\n")
+    feedback_task = obs.feedback_voice.task.name# .replace(" ", "\n")
+    feedback_color = obs.feedback_voice.color.name# .replace(" ", "\n")
+    feedback_shape = obs.feedback_voice.shape.name# .replace(" ", "\n")
     
     if(step != 0):
         posterior = episode_dict[f"posterior_predictions_{agent_num}"][step-1]
-        posterior_report_voice = posterior.report_voice 
+        posterior_feedback_voice = posterior.feedback_voice 
     else:
-        posterior_report_voice = empty_goal
-    predicted_report_task = posterior_report_voice.task.name# .replace(" ", "\n")
-    predicted_report_color = posterior_report_voice.color.name# .replace(" ", "\n")
-    predicted_report_shape = posterior_report_voice.shape.name# .replace(" ", "\n")
+        posterior_feedback_voice = empty_goal
+    predicted_feedback_task = posterior_feedback_voice.task.name# .replace(" ", "\n")
+    predicted_feedback_color = posterior_feedback_voice.color.name# .replace(" ", "\n")
+    predicted_feedback_shape = posterior_feedback_voice.shape.name# .replace(" ", "\n")
     
     cell_data = [
         ["", "Task", "Color", "Shape"],
         ["Command", command_task, command_color, command_shape],
-        ["Report", report_task, report_color, report_shape],
-        ["Predicted\nReport", predicted_report_task, predicted_report_color, predicted_report_shape]]
+        ["Feedback", feedback_task, feedback_color, feedback_shape],
+        ["Predicted\nFeedback", predicted_feedback_task, predicted_feedback_color, predicted_feedback_shape]]
     
     visual_curiosity        = episode_dict[f"vision_dkl_{agent_num}"][:step]        
     visual_curiosity        = [0] + [c * args.hidden_state_eta_vision for c in visual_curiosity]
@@ -64,8 +64,8 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
     touch_curiosity         = [0] + [c * args.hidden_state_eta_touch for c in touch_curiosity]
     prop_curiosity         = episode_dict[f"prop_dkl_{agent_num}"][:step]         
     prop_curiosity         = [0] + [c * args.hidden_state_eta_prop for c in prop_curiosity]
-    report_voice_curiosity  = episode_dict[f"report_voice_dkl_{agent_num}"][:step] 
-    report_voice_curiosity  = [0] + [c * args.hidden_state_eta_report_voice for c in report_voice_curiosity]
+    feedback_voice_curiosity  = episode_dict[f"feedback_voice_dkl_{agent_num}"][:step] 
+    feedback_voice_curiosity  = [0] + [c * args.hidden_state_eta_feedback_voice for c in feedback_voice_curiosity]
 
     dpi = 100  
     # Create figure with no facecolor (transparent)
@@ -115,18 +115,18 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
         spine.set_edgecolor('black')
         spine.set_linewidth(3)
     
-    # Command, report, and predicted report text
+    # Command, feedback, and predicted feedback text
     table_ax = fig.add_axes([0.05, -0.18, 0.9, 0.25])  # position: [left, bottom, width, height]
     table_ax.set_axis_off()
 
     fontsize = 12
     table_ax.text(0, .8, s = f"Command:\n{command_task} {command_color} {command_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
-    table_ax.text(0, .45, s = f"Report:\n{report_task} {report_color} {report_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
-    table_ax.text(0, .1, s = f"Predicted Report:\n{predicted_report_task} {predicted_report_color} {predicted_report_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
+    table_ax.text(0, .45, s = f"Feedback:\n{feedback_task} {feedback_color} {feedback_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
+    table_ax.text(0, .1, s = f"Predicted Feedback:\n{predicted_feedback_task} {predicted_feedback_color} {predicted_feedback_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
             
     # Curiosity values
     # Use or don't use these min/max values.
-    all_curiosities = visual_curiosity + touch_curiosity + prop_curiosity + report_voice_curiosity
+    all_curiosities = visual_curiosity + touch_curiosity + prop_curiosity + feedback_voice_curiosity
     if(all_curiosities == []):
         all_curiosities = [0]
     min_curi = min(all_curiosities) * .9
@@ -135,8 +135,8 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
     plot_height = 0.07
     base_bottom = -0.30  
     
-    curiosity_titles = ["Vision Curiosity", "Touch Curiosity", "Proprioception Curiosity", "Report Voice Curiosity"]
-    curiosity_data = [visual_curiosity, touch_curiosity, prop_curiosity, report_voice_curiosity]
+    curiosity_titles = ["Vision Curiosity", "Touch Curiosity", "Proprioception Curiosity", "Feedback Voice Curiosity"]
+    curiosity_data = [visual_curiosity, touch_curiosity, prop_curiosity, feedback_voice_curiosity]
 
     for idx, (title, data) in enumerate(zip(curiosity_titles, curiosity_data)):
         bottom_pos = base_bottom - idx * (plot_height + 0.03)

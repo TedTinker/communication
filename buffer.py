@@ -49,7 +49,7 @@ class RecurrentReplayBuffer:
             shape = (self.args.max_voice_len, self.args.voice_shape,), 
             before_and_after = True, 
             args = self.args)
-        self.report_voice = VariableBuffer(
+        self.feedback_voice = VariableBuffer(
             shape = (self.args.max_voice_len, self.args.voice_shape,), 
             before_and_after = True, 
             args = self.args)
@@ -73,7 +73,7 @@ class RecurrentReplayBuffer:
             touch,
             prop,
             command_voice, 
-            report_voice,
+            feedback_voice,
             wheels_joints, 
             voice_out, 
             reward, 
@@ -81,7 +81,7 @@ class RecurrentReplayBuffer:
             next_touch,
             next_prop,
             next_command_voice, 
-            next_report_voice,
+            next_feedback_voice,
             done):
         
                 
@@ -91,7 +91,7 @@ class RecurrentReplayBuffer:
                     self.touch,
                     self.prop,
                     self.command_voice, 
-                    self.report_voice,
+                    self.feedback_voice,
                     self.wheels_joints, 
                     self.voice_out, 
                     self.reward, 
@@ -105,7 +105,7 @@ class RecurrentReplayBuffer:
         self.touch.push(self.episode_ptr, self.time_ptr, touch)
         self.prop.push(self.episode_ptr, self.time_ptr, prop)
         self.command_voice.push(self.episode_ptr, self.time_ptr, command_voice)
-        self.report_voice.push(self.episode_ptr, self.time_ptr, report_voice)
+        self.feedback_voice.push(self.episode_ptr, self.time_ptr, feedback_voice)
         self.wheels_joints.push(self.episode_ptr, self.time_ptr, wheels_joints)
         self.voice_out.push(self.episode_ptr, self.time_ptr, voice_out)
         self.reward.push(self.episode_ptr, self.time_ptr, reward)
@@ -118,7 +118,7 @@ class RecurrentReplayBuffer:
             self.touch.push(self.episode_ptr, self.time_ptr, next_touch)
             self.prop.push(self.episode_ptr, self.time_ptr, next_prop)
             self.command_voice.push(self.episode_ptr, self.time_ptr, next_command_voice)
-            self.report_voice.push(self.episode_ptr, self.time_ptr, next_report_voice)
+            self.feedback_voice.push(self.episode_ptr, self.time_ptr, next_feedback_voice)
             self.episode_ptr = (self.episode_ptr + 1) % self.capacity
             self.time_ptr = 0
             self.num_episodes = min(self.num_episodes + 1, self.capacity)
@@ -138,7 +138,7 @@ class RecurrentReplayBuffer:
             self.touch.sample(indices),
             self.prop.sample(indices),
             self.command_voice.sample(indices),
-            self.report_voice.sample(indices),
+            self.feedback_voice.sample(indices),
             self.wheels_joints.sample(indices),
             self.voice_out.sample(indices),
             self.reward.sample(indices),

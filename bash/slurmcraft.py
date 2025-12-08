@@ -83,12 +83,12 @@ add_this("e",   {
 vision_eta = .05 
 touch_eta = 1
 prop_eta = .1
-report_eta = .2
+feedback_eta = .2
 
 # Curiosity of senses only
 add_this("c",   {                                           
     "curiosity" : "hidden_state",     
-    "hidden_state_eta_report_voice" : report_eta})
+    "hidden_state_eta_feedback_voice" : feedback_eta})
 
 # Curiosity of senses only
 add_this("p",   {                                           
@@ -103,7 +103,7 @@ add_this("f",   {
     "hidden_state_eta_vision" : vision_eta,
     "hidden_state_eta_touch" : touch_eta, 
     "hidden_state_eta_prop" : prop_eta,     
-    "hidden_state_eta_report_voice" : report_eta})   
+    "hidden_state_eta_feedback_voice" : feedback_eta})   
 
 
 
@@ -114,8 +114,8 @@ add_this("q",   {
 
 
 add_this("q2",   {
-    "agents_per_agent_save" : 1,
-    "epochs_per_agent_save" : 30000,
+    "agents_per_agent_save" : 10,
+    "epochs_per_agent_save" : 2500,
     "save_behaviors" : "False",
     "save_compositions" : "False"})
 
@@ -139,7 +139,7 @@ add_this("t", {
     "epochs_per_composition_data" : 5000,
     "agents_per_composition_data" : 99
 })
-
+ 
 add_this("k", {
     "exceptions" : 1,
     "save_behaviors" : "False",
