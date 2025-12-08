@@ -958,41 +958,63 @@ class Agent:
         
         
         
-    # Get a batch of information from a memory buffer.
-    def get_batch(self, memory, batch_size, random_sample = True):
-        batch = memory.sample(batch_size, random_sample = random_sample)
-        if(batch == False): return(False)
-        
-        vision, touch, prop, command_voice, feedback_voice, wheels_joints, voice_out, reward, done, mask = batch
+    def get_batch(self, memory, batch_size, random_sample=True):
+        """
+        Retrieve and preprocess a batch from a memory buffer.
+        """
+        batch = memory.sample(batch_size, random_sample=random_sample)
+        if batch is False:
+            return False
+
+        (vision, touch, prop, command_voice, feedback_voice,
+         wheels_joints, voice_out, reward, done, mask) = batch
+
         vision = torch.from_numpy(vision).to(self.args.device)
         touch = torch.from_numpy(touch).to(self.args.device)
         prop = torch.from_numpy(prop).to(self.args.device)
         command_voice = torch.from_numpy(command_voice).to(self.args.device)
         feedback_voice = torch.from_numpy(feedback_voice).to(self.args.device)
+
         wheels_joints = torch.from_numpy(wheels_joints)
         voice_out = torch.from_numpy(voice_out)
         reward = torch.from_numpy(reward).to(self.args.device)
         done = torch.from_numpy(done).to(self.args.device)
         mask = torch.from_numpy(mask)
-        wheels_joints = torch.cat([torch.zeros(wheels_joints[:,0].unsqueeze(1).shape), wheels_joints], dim = 1).to(self.args.device)
-        voice_out = torch.cat([torch.zeros(voice_out[:,0].unsqueeze(1).shape), voice_out], dim = 1).to(self.args.device)
-        all_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1).to(self.args.device)
+
+        wheels_joints = torch.cat(
+            [torch.zeros(wheels_joints[:, 0].unsqueeze(1).shape), wheels_joints], dim=1
+        ).to(self.args.device)
+
+        voice_out = torch.cat(
+            [torch.zeros(voice_out[:, 0].unsqueeze(1).shape), voice_out], dim=1
+        ).to(self.args.device)
+
+        all_mask = torch.cat(
+            [torch.ones(mask.shape[0], 1, 1), mask], dim=1
+        ).to(self.args.device)
+
         mask = mask.to(self.args.device)
+
         episodes = reward.shape[0]
         steps = reward.shape[1]
-        
-        if(self.args.half):
-            vision, touch, prop, command_voice, wheels_joints, voice_out, reward, done, mask, all_mask, mask = \
-                vision.to(dtype=torch.float16), touch.to(dtype=torch.float16), prop.to(dtype=torch.float16), command_voice.to(dtype=torch.float16), wheels_joints.to(dtype=torch.float16), \
-                voice_out.to(dtype=torch.float16), reward.to(dtype=torch.float16), done.to(dtype=torch.float16), \
-                mask.to(dtype=torch.float16), wheels_joints.to(dtype=torch.float16), voice_out.to(dtype=torch.float16), all_mask.to(dtype=torch.float16), mask.to(dtype=torch.float16)
-        
-        #print("\n\n")
-        #print("Agent {}, epoch {}. vision: {}. voice in: {}. wheels_joints: {}. voice out: {}. reward: {}.  done: {}. mask: {}.".format(
-        #    self.agent_num, self.epochs, vision.shape, voice_in.shape, wheels_joints.shape, voice_out.shape, reward.shape, done.shape, mask.shape))
-        #print("\n\n")
-        
-        return(vision, touch, prop, command_voice, feedback_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps)
+
+        if self.args.half:
+            vision = vision.to(dtype=torch.float16)
+            touch = touch.to(dtype=torch.float16)
+            prop = prop.to(dtype=torch.float16)
+            command_voice = command_voice.to(dtype=torch.float16)
+            wheels_joints = wheels_joints.to(dtype=torch.float16)
+            voice_out = voice_out.to(dtype=torch.float16)
+            reward = reward.to(dtype=torch.float16)
+            done = done.to(dtype=torch.float16)
+            mask = mask.to(dtype=torch.float16)
+            all_mask = all_mask.to(dtype=torch.float16)
+
+        return (
+            vision, touch, prop, command_voice, feedback_voice,
+            wheels_joints, voice_out, reward, done, mask,
+            all_mask, episodes, steps
+        )
         
     
     
