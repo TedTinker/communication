@@ -1,26 +1,39 @@
 #%%
 
-import os 
-import psutil
-from time import sleep
-import numpy as np
-from math import log
-from itertools import accumulate, product
-from copy import deepcopy
-import matplotlib.pyplot as plt
-import pickle
-import zipfile
-import gzip
+# ============================
+# IMPORTS
+# ============================
+
+# Standard libraries
+import os
 import sys
+import gzip
+import zipfile
+import pickle
+from time import sleep
+from math import log
+from copy import deepcopy
+from itertools import accumulate, product
 from collections.abc import Mapping, Container
 
+# Third-party libraries
+import psutil
+import numpy as np
+import matplotlib.pyplot as plt
+
+# PyTorch
 import torch
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils import folder, wheels_joints_to_string, cpu_memory_usage, duration, print_duration, wait_for_button_press, \
-    task_map, color_map, shape_map, task_name_list, print, To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots, Goal, adjust_action, testing_combos_1, testing_combos_2, testing_combos_3, exceptions_dict
+# Local modules
+from utils import (
+    folder, wheels_joints_to_string, cpu_memory_usage, duration, print_duration,
+    wait_for_button_press, task_map, color_map, shape_map, task_name_list, print,
+    To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots,
+    Goal, adjust_action, testing_combos_1, testing_combos_2, testing_combos_3, exceptions_dict
+)
 from utils_submodule import model_start
 from arena import Arena, get_physics
 from processor import Processor
@@ -31,193 +44,311 @@ from plotting_episodes import plot_step
 from plotting_for_video import plot_video_step
 
 
+# ============================
+# SYSTEM MONITORING FUNCTIONS
+# ============================
 
-# If concerned about computer-usage, print cpu usage.
 def print_cpu_usage(string, num):
+    """
+    Prints the CPU affinity and usage statistics for the current process.
+    """
     pid = os.getpid()
     process = psutil.Process(pid)
     cpu_affinity = process.cpu_affinity()
-    print(f"{string}: {num} CPU affinity: {cpu_affinity}")
+    print(f'{string}: {num} CPU affinity: {cpu_affinity}')
     current_cpu = psutil.cpu_percent(interval=1, percpu=True)
-    print(f"{string}: {num} Current CPU usage per core: {current_cpu}")
-    
-# If printing memory usage, use human terms. 
-def sizeof_fmt(num, suffix="B"):
-    """Convert bytes to human-readable KB, MB, GB, etc."""
-    for unit in ["", "K", "M", "G", "T", "P"]:
+    print(f'{string}: {num} Current CPU usage per core: {current_cpu}')
+
+
+def sizeof_fmt(num, suffix='B'):
+    """
+    Convert a byte size into a human-readable string (KB, MB, GB, etc.).
+    """
+    for unit in ['', 'K', 'M', 'G', 'T', 'P']:
         if abs(num) < 1024.0:
-            return f"{num:.2f} {unit}{suffix}"
+            return f'{num:.2f} {unit}{suffix}'
         num /= 1024.0
-    return f"{num:.2f} P{suffix}"
-    
-# Functions for using task-weights, not in use.
+    return f'{num:.2f} P{suffix}'
+
+
+# ============================
+# TASK WEIGHT UTILITIES (Unused)
+# ============================
+
 def get_uniform_weight(first_weight, num_weights):
     remaining_sum = 100 - first_weight
     uniform_weight = remaining_sum / (num_weights - 1)
     return uniform_weight
 
+
 def make_tasks_and_weights(first_weight):
     u = get_uniform_weight(first_weight, 6)
-    return([(0, first_weight)] + [(v, u) for v in [1, 2, 3, 4, 5]])
+    return [(0, first_weight)] + [(v, u) for v in [1, 2, 3, 4, 5]]
+
 
 fwpulr_tasks_and_weights = make_tasks_and_weights(50)
 
 
 
-# An agent, the neural networks controlling the robot.
+# ============================
+# AGENT CLASS
+# ============================
+
 class Agent:
-    
-    def __init__(self, args, i = -1, GUI = False):
-        
+    """
+    RL Agent containing actor, critic, forward models, memory, and task-specific processors.
+
+    Attributes:
+        args: Namespace of configuration arguments.
+        agent_num: Identifier for the agent instance.
+        actor, critics: Policy and value networks.
+        forward: Predictive model (PVRNN).
+        memory: Replay buffer for training.
+        plot_dict: Data logger for training and evaluation metrics.
+    """
+
+    def __init__(self, args, i=-1, GUI=False):
+
         self.args = args
         self.agent_num = i
-        self.agent_name = f"{self.args.arg_name}_{self.agent_num}"
-        
-        # Track process.
+        self.agent_name = f'{self.args.arg_name}_{self.agent_num}'
+
+        # Tracking overall progress
         self.total_steps = 0
         self.total_episodes = 0
         self.total_epochs = 0
-        
-        # Different ways to track reward and hidden state etas. These are not in use. 
-        self.reward_inflation = 0
-        if(self.args.reward_inflation_type == "None"):
-            self.reward_inflation = 1
-        self.hidden_state_eta_feedback_voice_reduction = 1
-        
-        if self.args.device.type == "cuda":
-            print(f"\nIN AGENT: {i} DEVICE: {self.args.device} ({torch.cuda.current_device()} out of {[j for j in range(torch.cuda.device_count())]}, {torch.cuda.get_device_name(torch.cuda.current_device())})\n")
-        else:
-            print(f"\nIN AGENT: {i} DEVICE: {self.args.device}\n")
-            
-        self.start_physics(GUI) 
-        
-        # Which processors are in use?  
-        self.processors = {
-            "all" :       Processor(
-                self.args, self.arena_1, self.arena_2, 
-                tasks_and_weights = [(t, 1) for t in self.args.allowed_tasks],     
-                objects = 2, colors = [c for c in self.args.allowed_colors], shapes = [s for s in self.args.allowed_shapes], parenting = True, full_name = "All Tasks")}
 
-        self.all_processors = {f"{task_map[task].name}_{color_map[color].name}_{shape_map[shape].name}" : 
-            Processor(self.args, self.arena_1, self.arena_2, tasks_and_weights = [(task, 1)], objects = 2, colors = [color], shapes = [shape], parenting = True) for task, color, shape in \
-                product([t for t in self.args.allowed_tasks], [c for c in self.args.allowed_colors], [s for s in self.args.allowed_shapes])}
-                #product([1, 2], [1, 2], [1, 2])}
-        all_processor_names = list(self.all_processors.keys())
-        self.all_processor_names = all_processor_names
-        
-        # One-element network, for alpha-value.
+        # Reward inflation config
+        self.reward_inflation = 0
+        if self.args.reward_inflation_type == 'None':
+            self.reward_inflation = 1
+
+        self.hidden_state_eta_feedback_voice_reduction = 1
+
+        # Device info
+        if self.args.device.type == 'cuda':
+            print(
+                f'\nIN AGENT: {i} DEVICE: {self.args.device} '
+                f'({torch.cuda.current_device()} out of {[j for j in range(torch.cuda.device_count())]}, '
+                f'{torch.cuda.get_device_name(torch.cuda.current_device())})\n'
+            )
+        else:
+            print(f'\nIN AGENT: {i} DEVICE: {self.args.device}\n')
+
+        self.start_physics(GUI)
+
+        # ----------------------------------------
+        # Initialize processors
+        # ----------------------------------------
+        self.processors = {
+            'all': Processor(
+                self.args,
+                self.arena_1,
+                self.arena_2,
+                tasks_and_weights=[(t, 1) for t in self.args.allowed_tasks],
+                objects=2,
+                colors=[c for c in self.args.allowed_colors],
+                shapes=[s for s in self.args.allowed_shapes],
+                parenting=True,
+                full_name='All Tasks'
+            )
+        }
+
+        self.all_processors = {
+            f'{task_map[task].name}_{color_map[color].name}_{shape_map[shape].name}':
+            Processor(
+                self.args,
+                self.arena_1,
+                self.arena_2,
+                tasks_and_weights=[(task, 1)],
+                objects=2,
+                colors=[color],
+                shapes=[shape],
+                parenting=True
+            )
+            for task, color, shape in product(
+                [t for t in self.args.allowed_tasks],
+                [c for c in self.args.allowed_colors],
+                [s for s in self.args.allowed_shapes]
+            )
+        }
+
+        self.all_processor_names = list(self.all_processors.keys())
+
+        # ----------------------------------------
+        # Entropy temperature α
+        # ----------------------------------------
         self.target_entropy = self.args.target_entropy
         self.alpha = 1
         self.log_alpha = torch.tensor([0.0], requires_grad=True)
-        self.alpha_opt = optim.Adam(params=[self.log_alpha], lr=self.args.lr, weight_decay = self.args.weight_decay) 
-        if(self.args.half):
+
+        self.alpha_opt = optim.Adam(
+            params=[self.log_alpha],
+            lr=self.args.lr,
+            weight_decay=self.args.weight_decay
+        )
+
+        if self.args.half:
             self.log_alpha = self.log_alpha.to(dtype=torch.float16)
-            
-        # If the agent is producing its own test, another alpha-value.
+
+        # Text entropy α (if used)
         self.target_entropy_text = self.args.target_entropy_text
         self.alpha_text = 1
         self.log_alpha_text = torch.tensor([0.0], requires_grad=True)
-        self.alpha_text_opt = optim.Adam(params=[self.log_alpha_text], lr=self.args.lr, weight_decay = self.args.weight_decay) 
-        if(self.args.half):
+
+        self.alpha_text_opt = optim.Adam(
+            params=[self.log_alpha_text],
+            lr=self.args.lr,
+            weight_decay=self.args.weight_decay
+        )
+
+        if self.args.half:
             self.log_alpha_text = self.log_alpha_text.to(dtype=torch.float16)
 
-        # Forward model.
+        # ----------------------------------------
+        # Models
+        # ----------------------------------------
+
+        # Forward model
         self.forward = PVRNN(self.args)
-        self.forward_opt = optim.Adam(self.forward.parameters(), lr=self.args.lr, weight_decay = self.args.weight_decay)
-                           
-        # Actor.   
+        self.forward_opt = optim.Adam(
+            self.forward.parameters(),
+            lr=self.args.lr,
+            weight_decay=self.args.weight_decay
+        )
+
+        # Actor
         self.actor = Actor(self.args)
-        self.actor_opt = optim.Adam(self.actor.parameters(), lr=self.args.lr, weight_decay = self.args.weight_decay) 
-        
-        # Critics.
+        self.actor_opt = optim.Adam(
+            self.actor.parameters(),
+            lr=self.args.lr,
+            weight_decay=self.args.weight_decay
+        )
+
+        # Critics
         self.critics = []
         self.critic_targets = []
         self.critic_opts = []
+
         for _ in range(self.args.critics):
-            self.critics.append(Critic(self.args))
-            self.critic_targets.append(Critic(self.args))
-            self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
-            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr=self.args.lr, weight_decay = self.args.weight_decay))
-            
-        all_params = list(self.forward.parameters())
-        all_params += list(self.actor.parameters())
+            critic = Critic(self.args)
+            target = Critic(self.args)
+            target.load_state_dict(critic.state_dict())
+
+            opt = optim.Adam(
+                critic.parameters(),
+                lr=self.args.lr,
+                weight_decay=self.args.weight_decay
+            )
+
+            self.critics.append(critic)
+            self.critic_targets.append(target)
+            self.critic_opts.append(opt)
+
+        # Unified optimizer (optional)
+        all_params = list(self.forward.parameters()) + list(self.actor.parameters())
         for critic in self.critics:
             all_params += list(critic.parameters())
-        self.complete_opt = optim.Adam(all_params, lr=self.args.lr, weight_decay=self.args.weight_decay)       
-        
-        # Start memory buffer.
-        self.memory = RecurrentReplayBuffer(self.args)
-        
-        # Dictionary for collecting data used in plotting.
-        self.plot_dict = {
-            "args" : self.args,
-            "arg_title" : self.args.arg_title,
-            "arg_name" : self.args.arg_name,
-            "all_processor_names" : self.all_processor_names,
-            "testing_combos" : testing_combos_1 if self.args.test_train_num == 1 else testing_combos_2 if self.args.test_train_num == 2 else testing_combos_3,
-            
-            "division_epochs" : [],
-            "steps" : [],
-            
-            "behavior" : {},
-            "composition_data" : {},
-            
-            "accuracy_loss" : [], 
-            "complexity_loss" : [],
-            "vision_loss" : [], 
-            "touch_loss" : [], 
-            "prop_loss" : [], 
-            "command_voice_loss" : [], 
-            "feedback_voice_loss" : [], 
-            
-            "actor_loss" : [], 
-            "critics_loss" : [[] for _ in range(self.args.critics)], 
-            
-            "alpha_loss" : [], 
-            "alpha_text_loss" : [],
-        
-            "reward" : [], 
-            "gen_reward" : [], 
-            "q" : [], 
-            "extrinsic" : [], 
-            
-            "intrinsic_curiosity" : [], 
-            "intrinsic_entropy" : [], 
-            
-            "vision_prediction_error_curiosity" : [], 
-            "touch_prediction_error_curiosity" : [], 
-            "prop_prediction_error_curiosity" : [], 
-            "command_voice_prediction_error_curiosity" : [], 
-            "feedback_voice_prediction_error_curiosity" : [], 
-            "prediction_error_curiosity" : [], 
-            
-            "vision_hidden_state_curiosity" : [],
-            "touch_hidden_state_curiosity" : [],
-            "prop_hidden_state_curiosity" : [],
-            "command_voice_hidden_state_curiosity" : [],
-            "feedback_voice_hidden_state_curiosity" : [],
-            "hidden_state_curiosity" : [],
 
-            "wins_all" : [],
-            "gen_wins_all" : []}
+        self.complete_opt = optim.Adam(
+            all_params,
+            lr=self.args.lr,
+            weight_decay=self.args.weight_decay
+        )
+
+        self.memory = RecurrentReplayBuffer(self.args)
+
+        # ----------------------------------------
+        # Plotting dictionary
+        # ----------------------------------------
+        self.plot_dict = {
+            'args': self.args,
+            'arg_title': self.args.arg_title,
+            'arg_name': self.args.arg_name,
+            'all_processor_names': self.all_processor_names,
+            'testing_combos': (
+                testing_combos_1 if self.args.test_train_num == 1
+                else testing_combos_2 if self.args.test_train_num == 2
+                else testing_combos_3
+            ),
+
+            'division_epochs': [],
+            'steps': [],
+            'behavior': {},
+            'composition_data': {},
+
+            'accuracy_loss': [],
+            'complexity_loss': [],
+            'vision_loss': [],
+            'touch_loss': [],
+            'prop_loss': [],
+            'command_voice_loss': [],
+            'feedback_voice_loss': [],
+
+            'actor_loss': [],
+            'critics_loss': [[] for _ in range(self.args.critics)],
+
+            'alpha_loss': [],
+            'alpha_text_loss': [],
+
+            'reward': [],
+            'gen_reward': [],
+            'q': [],
+            'extrinsic': [],
+
+            'intrinsic_curiosity': [],
+            'intrinsic_entropy': [],
+
+            'vision_prediction_error_curiosity': [],
+            'touch_prediction_error_curiosity': [],
+            'prop_prediction_error_curiosity': [],
+            'command_voice_prediction_error_curiosity': [],
+            'feedback_voice_prediction_error_curiosity': [],
+            'prediction_error_curiosity': [],
+
+            'vision_hidden_state_curiosity': [],
+            'touch_hidden_state_curiosity': [],
+            'prop_hidden_state_curiosity': [],
+            'command_voice_hidden_state_curiosity': [],
+            'feedback_voice_hidden_state_curiosity': [],
+            'hidden_state_curiosity': [],
+
+            'wins_all': [],
+            'gen_wins_all': []
+        }
+
+        # Add keys per task
         for t in task_map.values():
-            self.plot_dict[f"wins_{t.name}"] = []
-            self.plot_dict[f"gen_wins_{t.name}"] = []
-        self.plot_dict[f"wins_exception"] = []
-            
-            
-            
-    # Start arena. (If using two agents, two arenas.)
-    def start_physics(self, GUI = False):
+            self.plot_dict[f'wins_{t.name}'] = []
+            self.plot_dict[f'gen_wins_{t.name}'] = []
+
+        self.plot_dict['wins_exception'] = []
+
+
+
+    def start_physics(self, GUI=False):
+        """
+        Initialize simulation arenas and counters.
+        """
         self.steps = 0
-        self.episodes = 0 
-        self.epochs = 0 
-        self.arena_1 = Arena(GUI = GUI, args = self.args)
-        self.arena_2 = Arena(GUI = False, args = self.args)
+        self.episodes = 0
+        self.epochs = 0
+
+        self.arena_1 = Arena(GUI=GUI, args=self.args)
+        self.arena_2 = Arena(GUI=False, args=self.args)
+
         self.processor_name = self.args.processor
-        
+
+
+
     def give_actor_voice(self):
-        self.actor.voice_out.load_state_dict(self.forward.predict_obs.command_voice_out.state_dict())
+        """
+        Transfer weights from the forward model's command voice output
+        to the actor's voice output.
+        """
+        self.actor.voice_out.load_state_dict(
+            self.forward.predict_obs.command_voice_out.state_dict()
+        )
         
         
         
@@ -1136,38 +1267,39 @@ class Agent:
         
     
     
-    # Update target critics based on critics.
     def soft_update(self, local_model, target_model, tau):
+        """
+        Soft update target network parameters toward local network parameters.
+        """
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
-            target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
+            target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
 
     
         
-    # Print true deep sizes of self.plot_dict and other large self attributes.
     def sizeof_plot_dict(self):
-
-        total_bytes = 0
-        
-        print("\n\n\n")
-        print("-" * 50)
-        print("Key".ljust(30), "Size")
-        print("-" * 50)
+        """
+        Print approximate deep sizes of plot_dict contents and selected agent attributes.
+        """
+        print('\n\n\n')
+        print('-' * 50)
+        print('Key'.ljust(30), 'Size')
+        print('-' * 50)
 
         # Deep plot_dict
         for key, value in self.plot_dict.items():
             size_estimate = len(pickle.dumps(value))
-            if(size_estimate > 100000):
-                print(f"{key}:\t{sizeof_fmt(size_estimate)}")
+            if size_estimate > 100_000:
+                print(f'{key}:\t{sizeof_fmt(size_estimate)}')
 
-        print("-" * 50)
+        print('-' * 50)
 
-        # Deep special attributes
+        # Selected attributes
         keys_to_check = [
-            "arena_1", "arena_2", 
-            "log_alpha", "alpha_opt", 
-            "forward", "forward_opt", 
-            "actor", "actor_opt",
-            "memory"
+            'arena_1', 'arena_2',
+            'log_alpha', 'alpha_opt',
+            'forward', 'forward_opt',
+            'actor', 'actor_opt',
+            'memory'
         ]
 
         for attr_name in keys_to_check:
@@ -1175,76 +1307,93 @@ class Agent:
             if attr is not None:
                 try:
                     size_estimate = len(pickle.dumps(attr))
-                    if(size_estimate > 100000):
-                        print(f"{attr_name}:\t{sizeof_fmt(size_estimate)}")
+                    if size_estimate > 100_000:
+                        print(f'{attr_name}:\t{sizeof_fmt(size_estimate)}')
                 except Exception as e:
-                    print(f"{attr_name}:\t(Unserializable: {e})")
+                    print(f'{attr_name}:\t(Unserializable: {e})')
             else:
-                print(f"{attr_name}: (None)")
+                print(f'{attr_name}: (None)')
 
-        print("-" * 50)
-        print(f"{'TOTAL'.ljust(30)}\t{sizeof_fmt(len(pickle.dumps(self)))}")
-        print("-" * 50)
-        print("\n\n\n")
+        print('-' * 50)
+        print(f'{"TOTAL".ljust(30)}\t{sizeof_fmt(len(pickle.dumps(self)))}')
+        print('-' * 50)
+        print('\n\n\n')
         
         
     
-    # Save everything about this agent to a file.
     def save_agent(self):
+        """
+        Save the agent object to a file (excluding plot_dict and memory to reduce size).
+        """
         if not self.args.local:
             self.sizeof_plot_dict()
             plot_dict_backup = self.plot_dict
             memory_backup = self.memory
             self.plot_dict = None
             self.memory = None
-            save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz"
-            with gzip.open(save_path, "wb") as f:
+
+            save_path = f'{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz'
+            with gzip.open(save_path, 'wb') as f:
                 pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+
             self.plot_dict = plot_dict_backup
             self.memory = memory_backup
           
-    # Load this agent from a file.      
     def load_agent(self, load_path):
-        with gzip.open(load_path, "rb") as f:
+        """
+        Load model weights from a saved agent file.
+        """
+        with gzip.open(load_path, 'rb') as f:
             state_dict = torch.load(f)
         self.load_state_dict(state_dict)
                 
-    # Save parameters of neural networks.
     def state_dict(self):
+        """
+        Return state dicts for all learnable components.
+        """
         to_return = [self.forward.state_dict(), self.actor.state_dict()]
         for i in range(self.args.critics):
             to_return.append(self.critics[i].state_dict())
             to_return.append(self.critic_targets[i].state_dict())
-        return(to_return)
+        return to_return
 
-    # Load parameters of neural networks.
     def load_state_dict(self, state_dict):
-        self.forward.load_state_dict(state_dict = state_dict[0])
-        self.actor.load_state_dict(state_dict = state_dict[1])
+        """
+        Load state dicts into forward model, actor, and critics.
+        """
+        self.forward.load_state_dict(state_dict=state_dict[0])
+        self.actor.load_state_dict(state_dict=state_dict[1])
         for i in range(self.args.critics):
-            self.critics[i].load_state_dict(state_dict = state_dict[2+2*i])
-            self.critic_targets[i].load_state_dict(state_dict = state_dict[3+2*i])
+            self.critics[i].load_state_dict(state_dict=state_dict[2 + 2 * i])
+            self.critic_targets[i].load_state_dict(state_dict=state_dict[3 + 2 * i])
         self.memory = RecurrentReplayBuffer(self.args)
 
-    # Switch all neural networks to evaluation.
     def eval(self):
+        """
+        Set all models to evaluation mode.
+        """
         self.forward.eval()
         self.actor.eval()
         for i in range(self.args.critics):
             self.critics[i].eval()
             self.critic_targets[i].eval()
 
-    # Switch all neural networks to training.
     def train(self):
+        """
+        Set all models to training mode.
+        """
         self.forward.train()
         self.actor.train()
         for i in range(self.args.critics):
             self.critics[i].train()
             self.critic_targets[i].train()
-        
-        
-        
-if __name__ == "__main__":
-    agent = Agent(args = args)
+
+
+# ============================
+# SCRIPT ENTRY POINT
+# ============================
+
+if __name__ == '__main__':
+    agent = Agent(args=args)
     agent.save_episodes()
 # %%
