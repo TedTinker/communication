@@ -1,183 +1,280 @@
 #%%
+# ============================
+# IMPORTS
+# ============================
+
+# Standard libraries
 import os
-import matplotlib.pyplot as plt
-from random import uniform, shuffle
-import numpy as np
-import pybullet as p
 import math
 from math import pi, sin, cos, tan, radians, degrees, sqrt, isnan
 from time import sleep
-from skimage.transform import resize
-import threading
-import pkg_resources
-import statistics
+from random import uniform, shuffle
 from copy import deepcopy
+import threading
+import statistics
 
-from utils import shape_map, color_map, task_map, Goal, empty_goal, relative_to, opposite_relative_to, duration, wait_for_button_press, get_goal_from_digits, exceptions_dict, print
+# Third-party libraries
+import numpy as np
+import matplotlib.pyplot as plt
+import pybullet as p
+from skimage.transform import resize
+import pkg_resources
+
+# Local modules
+from utils import (
+    shape_map, color_map, task_map, Goal, empty_goal, relative_to,
+    opposite_relative_to, duration, wait_for_button_press,
+    get_goal_from_digits, exceptions_dict, print
+)
 from arena_navigator import run_tk
 
 
+# ============================
+# PHYSICS SETUP
+# ============================
 
-# Assign physical properties of pybullet.
-def get_physics(GUI, args, w = 10, h = 10):
-    if(GUI):
+def get_physics(GUI, args, w=10, h=10):
+    """
+    Set up PyBullet physics engine and environment.
+    """
+    if GUI:
         physicsClient = p.connect(p.GUI)
-        start_cam = (1, 90, -89, (w/2, h/2, w))
-        p.resetDebugVisualizerCamera(1,90,-89,(w/2,h/2,w), physicsClientId = physicsClient)
+        start_cam = (1, 90, -89, (w / 2, h / 2, w))
+        p.resetDebugVisualizerCamera(1, 90, -89, (w / 2, h / 2, w), physicsClientId=physicsClient)
+
         tk_thread = threading.Thread(target=run_tk, args=(physicsClient, start_cam))
         tk_thread.daemon = True
         tk_thread.start()
-    else:   
+    else:
         physicsClient = p.connect(p.DIRECT)
-        p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0, physicsClientId = physicsClient)
-    p.setAdditionalSearchPath("pybullet_data")
-    p.setGravity(0, 0, args.gravity, physicsClientId = physicsClient)
-    p.setTimeStep(args.time_step, physicsClientId=physicsClient)  
+        p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0, physicsClientId=physicsClient)
+
+    p.setAdditionalSearchPath('pybullet_data')
+    p.setGravity(0, 0, args.gravity, physicsClientId=physicsClient)
+    p.setTimeStep(args.time_step, physicsClientId=physicsClient)
     p.setPhysicsEngineParameter(
-        numSolverIterations=args.numSolverIterations, 
-        numSubSteps=args.numSubSteps, 
-        physicsClientId=physicsClient) 
-    return(physicsClient)
-    
-# Find index of joint in robot's body.
+        numSolverIterations=args.numSolverIterations,
+        numSubSteps=args.numSubSteps,
+        physicsClientId=physicsClient
+    )
+    return physicsClient
+
+
+# ============================
+# JOINT UTILITIES
+# ============================
+
 def get_joint_index(body_id, joint_name, physicsClient):
-    num_joints = p.getNumJoints(body_id, physicsClientId = physicsClient)
+    """
+    Get the index of a named joint from a body.
+    """
+    num_joints = p.getNumJoints(body_id, physicsClientId=physicsClient)
     for i in range(num_joints):
-        info = p.getJointInfo(body_id, i, physicsClientId = physicsClient)
+        info = p.getJointInfo(body_id, i, physicsClientId=physicsClient)
         if info[1].decode() == joint_name:
             return i
-    return -1  # Return -1 if no joint with the given name is found
+    return -1
 
-# Get all joint indices.
+
 def get_joint_indices(body_id, physicsClient):
+    """
+    Return a mapping from joint number to joint index for all valid joints.
+    """
     num_joints = p.getNumJoints(body_id, physicsClientId=physicsClient)
     joint_indices = {}
+
     for i in range(num_joints):
         info = p.getJointInfo(body_id, i, physicsClientId=physicsClient)
         joint_name = info[1].decode()
-        joint_name_parts = joint_name.split("_")[:-1]
-        if "sensor" not in joint_name and "joint" in joint_name_parts:
-            if joint_name_parts[-2] == "joint":
-                x = joint_name_parts[-1]
-                joint_indices[int(x)] = i
+        parts = joint_name.split('_')[:-1]
+
+        if 'sensor' not in joint_name and 'joint' in parts:
+            if parts[-2] == 'joint':
+                joint_id = int(parts[-1])
+                joint_indices[joint_id] = i
+
     return joint_indices
 
-# Search for tasks, colors, shapes from mapping.
+
+
 def find_key_by_value(my_dict, target_value):
+    """
+    Search for the key associated with a value in a dictionary.
+    """
     for key, value in my_dict.items():
         if value == target_value:
             return key
-    return None  # If the value is not found
+    return None
 
-# FOV of agent vision.
+
+# ============================
+# FOV AND MAP PARAMETERS
+# ============================
+
 fov_x_deg = 90
 fov_y_deg = 90
 fov_x_rad = radians(fov_x_deg)
 fov_y_rad = radians(fov_y_deg)
-near = .91
+
+near = 0.91
 far = 9
+
 right = near * tan(fov_x_rad / 2)
 left = -right
 top = near * tan(fov_y_rad / 2)
 bottom = -top
 
-# Positions of robot and objects.
 agent_upper_starting_pos = 2.02
-object_upper_starting_pos = 1.12    # Objects in use.
-object_lower_starting_pos = -8.85   # Objects waiting for use.
+object_upper_starting_pos = 1.12      # Objects in use
+object_lower_starting_pos = -8.85     # Objects waiting for use
 
 
 
-# Class representing the physical environment.
-class Arena():
+
+# ============================
+# CLASS: Arena
+# ============================
+
+class Arena:
+    """
+    Class representing the physical simulation environment.
+    Handles robot setup, object placement, and episode lifecycle.
+    """
+
     def __init__(self, GUI, args):
         self.args = args
-        self.physicsClient = get_physics(GUI = GUI, args = self.args)
-        # Objects in use.
+        self.physicsClient = get_physics(GUI=GUI, args=self.args)
+
+        # Objects currently in play
         self.objects_in_play = {}
-        # Continuous duration of robot performing tasks.
-        self.durations = {"watch" : {}, "be_near": {}, "top": {}, "push" : {}, "left" : {}, "right" : {}, "except" : {}}
-        # History of robot motor commands.
-        self.history_of_actions = {"left_wheel_speed" : [], "right_wheel_speed" : [], "joint_target_velocities" : {}}
-                                
-        # Make floor and lower level.
+
+        # Task-specific durations of robot behavior
+        self.durations = {
+            'watch': {}, 'be_near': {}, 'top': {},
+            'push': {}, 'left': {}, 'right': {}, 'except': {}
+        }
+
+        # Motor command history
+        self.history_of_actions = {
+            'left_wheel_speed': [],
+            'right_wheel_speed': [],
+            'joint_target_velocities': {}
+        }
+
+        # Create planes (floor, lower level)
         plane_positions = [[0, 0]]
-        plane_ids = []
         for position in plane_positions:
-            plane_id = p.loadURDF(f"pybullet_data/plane.urdf", position + [0], globalScaling=2, useFixedBase=True, physicsClientId=self.physicsClient)
-            plane_ids.append(plane_id)
-            plane_id = p.loadURDF(f"pybullet_data/plane.urdf", position + [-10], globalScaling=2, useFixedBase=True, physicsClientId=self.physicsClient)
-            plane_ids.append(plane_id)
-            
-        # Place robot. 
-        self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = self.physicsClient)
-        robot_urdf_path = f"pybullet_data/robots/{self.args.robot_name}.urdf"
-        self.robot_index = p.loadURDF(robot_urdf_path, (0, 0, agent_upper_starting_pos), self.default_orn, useFixedBase=False, globalScaling = self.args.body_size, physicsClientId = self.physicsClient)
+            for z_offset in [0, -10]:
+                plane_id = p.loadURDF(
+                    'pybullet_data/plane.urdf',
+                    position + [z_offset],
+                    globalScaling=2,
+                    useFixedBase=True,
+                    physicsClientId=self.physicsClient
+                )
+
+        # Load robot
+        self.default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId=self.physicsClient)
+        robot_urdf_path = f'pybullet_data/robots/{self.args.robot_name}.urdf'
+
+        self.robot_index = p.loadURDF(
+            robot_urdf_path,
+            (0, 0, agent_upper_starting_pos),
+            self.default_orn,
+            useFixedBase=False,
+            globalScaling=self.args.body_size,
+            physicsClientId=self.physicsClient
+        )
+
         self.wheel_accelerations = [0, 0]
-        self.joint_indices = get_joint_indices(self.robot_index, physicsClient=self.physicsClient) 
+        self.joint_indices = get_joint_indices(self.robot_index, physicsClient=self.physicsClient)
         self.joint_accelerations = {key: 0 for key in self.joint_indices.keys()}
-                        
-        # Color robot. 
-        p.changeVisualShape(self.robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = self.physicsClient)
-        p.changeDynamics(self.robot_index, -1, maxJointVelocity = 10000)
+
+        # Visual and dynamic setup
+        p.changeVisualShape(self.robot_index, -1, rgbaColor=(0.5, 0.5, 0.5, 1), physicsClientId=self.physicsClient)
+        p.changeDynamics(self.robot_index, -1, maxJointVelocity=10000)
+
         self.sensors = {}
         self.wheels = []
-        
-        for link_index in range(p.getNumJoints(self.robot_index, physicsClientId = self.physicsClient)):
-            joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
-            link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
-            p.changeDynamics(self.robot_index, link_index, maxJointVelocity = 10000)
-            if("wheel" in link_name):
-                self.wheels.append((link_index, link_name))
-            if("sensor" in link_name):
-                self.sensors[link_name] = link_index
-                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 0, 0, 0), physicsClientId = self.physicsClient)
-            elif("spoke" in link_name or "outline" in link_name):
-                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, 1), physicsClientId = self.physicsClient)
-            elif("camera_2" in link_name):
-                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, .3), physicsClientId = self.physicsClient)
-            elif("camera_3" in link_name):
-                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (1, 1, 1, .1), physicsClientId = self.physicsClient)
-            else:
-                p.changeVisualShape(self.robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = self.physicsClient)
 
-        # Place objects on lower level for future use.
-        linearDamping = 1
-        angularDamping = 100
-        self.loaded = {key : [] for key in shape_map.keys()}
+        for link_index in range(p.getNumJoints(self.robot_index, physicsClientId=self.physicsClient)):
+            joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId=self.physicsClient)
+            link_name = joint_info[12].decode('utf-8')
+
+            p.changeDynamics(self.robot_index, link_index, maxJointVelocity=10000)
+
+            if 'wheel' in link_name:
+                self.wheels.append((link_index, link_name))
+            elif 'sensor' in link_name:
+                self.sensors[link_name] = link_index
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor=(1, 0, 0, 0), physicsClientId=self.physicsClient)
+            elif 'spoke' in link_name or 'outline' in link_name:
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor=(1, 1, 1, 1), physicsClientId=self.physicsClient)
+            elif 'camera_2' in link_name:
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor=(1, 1, 1, 0.3), physicsClientId=self.physicsClient)
+            elif 'camera_3' in link_name:
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor=(1, 1, 1, 0.1), physicsClientId=self.physicsClient)
+            else:
+                p.changeVisualShape(self.robot_index, link_index, rgbaColor=(0, 0, 0, 1), physicsClientId=self.physicsClient)
+
+        # Load objects on lower level
+        linear_damping = 1
+        angular_damping = 100
+        self.loaded = {key: [] for key in shape_map.keys()}
         self.object_indexs = []
+
         for i, shape in shape_map.items():
             for j in range(2):
-                pos = (5*i, 5*j, object_lower_starting_pos)
-                shape_urdf_file = f"pybullet_data/shapes/{shape.file_name}"
-                object_index = p.loadURDF(shape_urdf_file, pos, p.getQuaternionFromEuler([0, 0, pi/2]), 
-                                          useFixedBase=False, globalScaling = self.args.object_size, physicsClientId=self.physicsClient)
-                p.changeDynamics(object_index, -1, maxJointVelocity = 10000, linearDamping=linearDamping, angularDamping=angularDamping)
-                for link_index in range(p.getNumJoints(object_index, physicsClientId = self.physicsClient)):
-                    joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId = self.physicsClient)
-                    p.changeDynamics(object_index, link_index, maxJointVelocity = 10000, linearDamping=linearDamping, angularDamping=angularDamping)
+                pos = (5 * i, 5 * j, object_lower_starting_pos)
+                shape_urdf_file = f'pybullet_data/shapes/{shape.file_name}'
+
+                object_index = p.loadURDF(
+                    shape_urdf_file,
+                    pos,
+                    p.getQuaternionFromEuler([0, 0, pi / 2]),
+                    useFixedBase=False,
+                    globalScaling=self.args.object_size,
+                    physicsClientId=self.physicsClient
+                )
+
+                p.changeDynamics(object_index, -1, maxJointVelocity=10000,
+                                 linearDamping=linear_damping, angularDamping=angular_damping)
+
+                for link_index in range(p.getNumJoints(object_index, physicsClientId=self.physicsClient)):
+                    p.changeDynamics(object_index, link_index, maxJointVelocity=10000,
+                                     linearDamping=linear_damping, angularDamping=angular_damping)
+
                 self.loaded[i].append((object_index, (pos[0], pos[1], object_lower_starting_pos)))
                 self.object_indexs.append(object_index)
-                
-    # If changing physicsClient.
+
+    # ----------------------------
+    # UTILITIES
+    # ----------------------------
+
     def change_physicsClient(self):
-        p.setGravity(0, 0, self.args.gravity, physicsClientId = self.physicsClient)
-        p.setTimeStep(self.args.time_step, physicsClientId=self.physicsClient)  
+        """
+        Update physics engine parameters after reconnecting or resuming.
+        """
+        p.setGravity(0, 0, self.args.gravity, physicsClientId=self.physicsClient)
+        p.setTimeStep(self.args.time_step, physicsClientId=self.physicsClient)
         p.setPhysicsEngineParameter(
-            numSolverIterations=self.args.numSolverIterations, 
-            numSubSteps=self.args.numSubSteps, 
-            physicsClientId=self.physicsClient)  # Increased solver iterations for potentially better stability
-            
-                
-    
-    # After episode, move objects in use back to lower level.
+            numSolverIterations=self.args.numSolverIterations,
+            numSubSteps=self.args.numSubSteps,
+            physicsClientId=self.physicsClient
+        )
+
     def end(self):
+        """
+        Reset object positions after an episode ends.
+        """
         for (_, _, idle_pos), object_index in self.objects_in_play.items():
-            p.resetBasePositionAndOrientation(object_index, idle_pos, self.default_orn, physicsClientId = self.physicsClient)
-            
-    # Close environment.
+            p.resetBasePositionAndOrientation(object_index, idle_pos, self.default_orn, physicsClientId=self.physicsClient)
+
     def stop(self):
-        p.disconnect(physicsClientId = self.physicsClient)
+        """
+        Clean up and disconnect simulation.
+        """
+        p.disconnect(physicsClientId=self.physicsClient)
         
         
     
