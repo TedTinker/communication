@@ -10,15 +10,15 @@ from collections import defaultdict
 from natsort import natsorted
 import shutil  
 
-# This file is only for viewing data for robots with various arguments mid-trianing.
+# This file is only for viewing data for robots with various arguments mid-training.
 
-# It may be important to observe only a few robot's data, in order to converse memory.
-files_to_create = [i for i in range(1, 10)]
+# It may be important to observe only a few robot's data, in order to conserve memory.
+files_to_create = [i for i in range(1, 11)]
 
-
-
-# Collect argument-names.
 def parse_slurm_files():
+    """
+    Parse slurm files and extract mappings from arg_name to filenames.
+    """
     arg_name_to_slurm_files = defaultdict(list)
     slurm_files = [f for f in os.listdir('.') if f.startswith('slurm-') and f.endswith('.out')]
     for slurm_file in slurm_files:
@@ -41,8 +41,10 @@ def parse_slurm_files():
             arg_name_to_slurm_files[arg_name].append(slurm_file)
     return arg_name_to_slurm_files
 
-# Update slurm files.
 class ArgNameData:
+    """
+    Tracks metadata for a single arg_name, including slurm files and status flags.
+    """
     def __init__(self, arg_name):
         self.arg_name = arg_name
         self.slurm_files = []
@@ -52,11 +54,16 @@ class ArgNameData:
         self.files_listbox = None
 
     def update_slurm_files(self, slurm_files):
+        """
+        Update the slurm file list for this argument name.
+        """
         self.slurm_files = slurm_files
         self.files_to_create = files_to_create
 
-# If necessary, make a folder. 
 def create_files_for_arg_name(arg_name_data):
+    """
+    Create dummy output files for a given arg_name.
+    """
     arg_name = arg_name_data.arg_name
     dir_path = os.path.join('communication', 'saved_deigo', arg_name)
     os.makedirs(dir_path, exist_ok=True)
@@ -66,8 +73,10 @@ def create_files_for_arg_name(arg_name_data):
     arg_name_data.files_created = True
     arg_name_data.singularity_run = False
 
-# See if a file contained the arg-name.
 def check_files_for_arg_name(arg_name_data):
+    """
+    Check if required files exist, and trigger merging script if missing.
+    """
     if not arg_name_data.files_created:
         return
     if arg_name_data.singularity_run:
@@ -78,8 +87,10 @@ def check_files_for_arg_name(arg_name_data):
     if not existing_files:
         run_python_command(arg_name_data)
 
-# After all agents have deposited dictionaries, merge those dictionaries.
 def run_python_command(arg_data):
+    """
+    Run the dictionary-merging script for the specified arg_name in a background thread.
+    """
     def run_command():
         arg_name = arg_data.arg_name
         cmd = [
@@ -93,8 +104,10 @@ def run_python_command(arg_data):
     arg_data.singularity_run = True  
     threading.Thread(target=run_command).start()
 
-# Create a graphic-user-interface showing all argument names and offering creating or deleting files.
 class GUIApp:
+    """
+    GUI application for managing and monitoring robots by argument name.
+    """
     def __init__(self, root):
         self.root = root
         self.root.title('Arg Name Monitor')
@@ -107,49 +120,51 @@ class GUIApp:
         self.build_ui()
         self.update_data()
 
-    # Create the UI.
     def build_ui(self):
+        """
+        Build the GUI layout and widget components.
+        """
         self.canvas = tk.Canvas(self.main_frame)
-        self.scrollbar = tk.Scrollbar(self.main_frame, orient="vertical", command=self.canvas.yview)
+        self.scrollbar = tk.Scrollbar(self.main_frame, orient='vertical', command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
-        self.canvas.pack(side="left", fill="both", expand=True)
-        self.scrollbar.pack(side="right", fill="y")
-        
+        self.canvas.pack(side='left', fill='both', expand=True)
+        self.scrollbar.pack(side='right', fill='y')
+
         self.scrollable_frame = tk.Frame(self.canvas)
         self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: self.canvas.configure(
-                scrollregion=self.canvas.bbox("all")
-            )
+            '<Configure>',
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox('all'))
         )
         self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor='nw')
-        
-        # Add a frame for the "All" buttons at the bottom of the main_frame
+
         all_buttons_frame = tk.Frame(self.main_frame)
-        all_buttons_frame.pack(side="bottom", pady=5)
+        all_buttons_frame.pack(side='bottom', pady=5)
 
-        # "Create Files for All" button
-        all_button = tk.Button(all_buttons_frame, text="Create Files for All", command=self.create_files_for_all)
-        all_button.pack(side="left", padx=5)
+        all_button = tk.Button(all_buttons_frame, text='Create Files for All', command=self.create_files_for_all)
+        all_button.pack(side='left', padx=5)
 
-        # "Delete Files for All" button
-        delete_all_button = tk.Button(all_buttons_frame, text="Delete Files for All", command=self.delete_files_for_all)
-        delete_all_button.pack(side="left", padx=5)
+        delete_all_button = tk.Button(all_buttons_frame, text='Delete Files for All', command=self.delete_files_for_all)
+        delete_all_button.pack(side='left', padx=5)
 
-    # Button to make a type of robot output files.
     def create_files_for_all(self):
+        """
+        Create dummy files for all arg_names currently loaded.
+        """
         for arg_data in self.arg_name_data_dict.values():
             self.create_files(arg_data)
 
-    # Button to delete all files in one robot's folder..
     def delete_files_for_all(self):
+        """
+        Delete files for all arg_names currently loaded.
+        """
         for arg_data in self.arg_name_data_dict.values():
             self.delete_files(arg_data)
 
-    # Check folders and show all filenames.
     def update_data(self):
+        """
+        Refresh the list of arg_names and update their corresponding frames.
+        """
         arg_name_to_slurm_files = parse_slurm_files()
-        # Update arg_name_data_dict
         for arg_name in natsorted(arg_name_to_slurm_files.keys()):
             slurm_files = arg_name_to_slurm_files[arg_name]
             if arg_name not in self.arg_name_data_dict:
@@ -160,60 +175,65 @@ class GUIApp:
             else:
                 arg_data = self.arg_name_data_dict[arg_name]
                 arg_data.update_slurm_files(slurm_files)
-        # Remove arg_names that no longer exist
+
         existing_arg_names = set(arg_name_to_slurm_files.keys())
         for arg_name in list(self.arg_name_data_dict.keys()):
             if arg_name not in existing_arg_names:
                 self.remove_arg_name_frame(arg_name)
-        # Update the frames (both content and grid positions)
+
         for arg_name, arg_data in self.arg_name_data_dict.items():
             self.update_arg_name_frame(arg_data)
+
         self.reposition_arg_frames()
-        # Schedule the next update
         self.root.after(self.update_interval, self.update_data)
 
-    # Move positions of argument titles.
     def reposition_arg_frames(self):
+        """
+        Rearrange argument name frames in a grid layout.
+        """
         sorted_keys = natsorted(self.arg_name_data_dict.keys())
         for idx, arg_name in enumerate(sorted_keys):
             frame = self.arg_name_frames[arg_name]
             row = idx // self.max_columns
             col = idx % self.max_columns
-            frame.grid_configure(row=row, column=col, padx=5, pady=5, sticky="n")
+            frame.grid_configure(row=row, column=col, padx=5, pady=5, sticky='n')
 
-    # Make position for argument title.
     def add_arg_name_frame(self, arg_data):
+        """
+        Create and display a frame for the given arg_name.
+        """
         frame = tk.Frame(self.scrollable_frame, bd=2, relief=tk.GROOVE)
         label = tk.Label(frame, text=f'arg_name: {arg_data.arg_name}')
         label.pack(side=tk.TOP, anchor='w')
 
-        # Create Files button
         create_button = tk.Button(frame, text='Create Files', command=lambda arg_data=arg_data: self.create_files(arg_data))
         create_button.pack(side=tk.TOP, anchor='w')
 
-        # Delete Files button
         delete_button = tk.Button(frame, text='Delete Files', command=lambda arg_data=arg_data: self.delete_files(arg_data))
         delete_button.pack(side=tk.TOP, anchor='w')
 
         files_label = tk.Label(frame, text='Files in folder:')
         files_label.pack(side=tk.TOP, anchor='w')
+
         files_listbox = tk.Listbox(frame)
         files_listbox.pack(side=tk.TOP, fill=tk.X, expand=True)
         arg_data.files_listbox = files_listbox
-        
-        # Initially grid the frame; its final position will be adjusted in reposition_arg_frames()
-        frame.grid(row=0, column=0, padx=5, pady=5, sticky="n")
+
+        frame.grid(row=0, column=0, padx=5, pady=5, sticky='n')
         self.arg_name_frames[arg_data.arg_name] = frame
 
-    # Delete arument title.
     def remove_arg_name_frame(self, arg_name):
+        """
+        Remove the frame associated with the given arg_name.
+        """
         frame = self.arg_name_frames.pop(arg_name)
         frame.destroy()
         self.arg_name_data_dict.pop(arg_name)
 
-    # Update one argument's frame.
     def update_arg_name_frame(self, arg_data):
-        # Update the files listbox
+        """
+        Refresh the file list for a specific arg_name's GUI frame.
+        """
         dir_path = os.path.join('communication', 'saved_deigo', arg_data.arg_name)
         if os.path.exists(dir_path):
             files = os.listdir(dir_path)
@@ -221,20 +241,22 @@ class GUIApp:
             arg_data.files_listbox.delete(0, tk.END)
             for f in files:
                 arg_data.files_listbox.insert(tk.END, f)
-            # Dynamically adjust the Listbox height
-            arg_data.files_listbox.config(height=min(len(files), 10))  # Cap at 10 rows for large lists
+            arg_data.files_listbox.config(height=min(len(files), 10))
         else:
             arg_data.files_listbox.delete(0, tk.END)
-            arg_data.files_listbox.config(height=1)  # Default to 1 row when no files
-        # Check if need to run the finish_dicts.py script
+            arg_data.files_listbox.config(height=1)
         check_files_for_arg_name(arg_data)
 
-    # Make a robot output files.
     def create_files(self, arg_data):
+        """
+        Create dummy files for a specific arg_name.
+        """
         create_files_for_arg_name(arg_data)
 
-    # Delete a robot's files.
     def delete_files(self, arg_data):
+        """
+        Delete files for a specific arg_name.
+        """
         dir_path = os.path.join('communication', 'saved_deigo', arg_data.arg_name)
         if os.path.exists(dir_path):
             for item in os.listdir(dir_path):
@@ -247,13 +269,9 @@ class GUIApp:
                             shutil.rmtree(item_path)
                     except Exception as e:
                         print(f'Failed to delete {item_path}. Reason: {e}')
-            # Update the files_listbox
             self.update_arg_name_frame(arg_data)
 
 if __name__ == '__main__':
     root = tk.Tk()
     app = GUIApp(root)
     root.mainloop()
-
-
-# %%

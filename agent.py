@@ -603,7 +603,6 @@ class Agent:
             
            
            
-    # Begin an episode.
     def start_episode(self):
         """
         Begin an episode, initializing states and actions.
