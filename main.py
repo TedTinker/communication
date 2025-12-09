@@ -1,95 +1,103 @@
 #%%
 
 import os
-import pickle, torch, random
+import pickle
+import torch
+import random
 import numpy as np
 from multiprocessing import Process, Queue, set_start_method
-from time import sleep 
+from time import sleep
 from math import floor
 
 from utils import args, folder, duration, estimate_total_duration, print
 from agent import Agent
 
-print("\nname:\n{}".format(args.arg_name))
-print("\nagents: {}. previous_agents: {}.".format(args.agents, args.previous_agents))
+print('\nname:\n{}'.format(args.arg_name))
+print('\nagents: {}. previous_agents: {}.'.format(args.agents, args.previous_agents))
 
 
-
-# Initiate training of one agent.
 def train(q, i):
+    """Train one agent (i) and send progress updates to queue q."""
     seed = args.init_seed + i
-    np.random.seed(seed) 
-    random.seed(seed) 
-    torch.manual_seed(seed) 
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    
-    if(str(args.device) != "cpu"):
+
+    if str(args.device) != 'cpu':
         num_gpus = torch.cuda.device_count()
         gpu_id = i % num_gpus
-        args.device = torch.device(f"cuda:{gpu_id}")
-        
+        args.device = torch.device(f'cuda:{gpu_id}')
+
     num_cores = os.cpu_count()
     cpu_id = i % num_cores
     args.cpu = cpu_id
-    
-    print(f"\nagent {i}: cpu {cpu_id}\n")
-    
-    if(args.load_agents):
-        with open(folder + "/agents/agent_" + str(i).zfill(3) + ".pickle", "rb") as handle: 
-            agent = pickle.load(handle)   
+
+    print(f'\nagent {i}: cpu {cpu_id}\n')
+
+    if args.load_agents:
+        with open(folder + '/agents/agent_' + str(i).zfill(3) + '.pickle', 'rb') as handle:
+            agent = pickle.load(handle)
         agent.start_physics()
         agent.args = args
     else:
-        agent = Agent(args = args, i = i)
+        agent = Agent(args=args, i=i)
+
     agent.training(q)
 
 
-
 if __name__ == '__main__':
-    # Begin multiprocessing.
-    set_start_method('spawn')
+    """Main entry point for multi-agent training."""
+    set_start_method('spawn')  # Required for multiprocessing
     queue = Queue()
     processes = []
+
     for worker_id in range(1 + args.previous_agents, 1 + args.agents + args.previous_agents):
         process = Process(target=train, args=(queue, worker_id))
         processes.append(process)
         process.start()
-    
-    # If multiple jobs are called for agents with the same arguments (in order to train many agents at once),
-    # consider which index numbers have already been used.
-    # These dictionaries track percentage of progress in an agent's training.
-    progress_dict      = {i : "0"  for i in range(1 + args.previous_agents, 1 + args.agents + args.previous_agents)}
-    prev_progress_dict = {i : None for i in range(1 + args.previous_agents, 1 + args.agents + args.previous_agents)}
-    
+
+    # Progress tracking
+    progress_dict      = {i: '0'   for i in range(1 + args.previous_agents, 1 + args.agents + args.previous_agents)}
+    prev_progress_dict = {i: None for i in range(1 + args.previous_agents, 1 + args.agents + args.previous_agents)}
+
     while any(process.is_alive() for process in processes) or not queue.empty():
         while not queue.empty():
             worker_id, progress_percentage = queue.get()
             progress_dict[worker_id] = progress_percentage
-    
-        # If the agents have progressed, print a line describing their progress.
-        if any(progress_dict[key] != prev_progress_dict[key] for key in progress_dict.keys()):
+
+        # If there's been any progress update, print the new state.
+        if any(progress_dict[k] != prev_progress_dict[k] for k in progress_dict):
             prev_progress_dict = progress_dict.copy()
-            string = "" 
-            hundreds = 0
-            values = list(progress_dict.values()) ; values.sort()
+
+            values = list(progress_dict.values())
+            values.sort()
             so_far = duration()
             lowest = float(values[0])
             estimated_total = estimate_total_duration(lowest)
-            if(estimated_total == "?:??:??"): to_do = "?:??:??"
-            else:                             to_do = estimated_total - so_far
-            values = [str(floor(100 * float(value))).ljust(3, " ") for value in values]
+            to_do = '?:??:??' if estimated_total == '?:??:??' else estimated_total - so_far
+
+            values_display = []
+            hundreds = 0
             for value in values:
-                if(value != "100"): string += " " + value
-                else:               hundreds += 1 
-            if(hundreds > 0): string += " ##" + " 100" * hundreds
-            string = "{} ({} left):\t".format(so_far, to_do) + string
-            if(hundreds == 0): string += " ##"
-            string = string.rstrip() + "."
-            print(string)
+                val_str = str(floor(100 * float(value))).ljust(3, ' ')
+                if val_str == '100':
+                    hundreds += 1
+                else:
+                    values_display.append(val_str)
+
+            bar = ' '.join(values_display)
+            if hundreds > 0:
+                bar += ' ##' + ' 100' * hundreds
+            if hundreds == 0:
+                bar += ' ##'
+            bar = f'{so_far} ({to_do} left):\t' + bar.rstrip() + '.'
+
+            print(bar)
+
         sleep(15)
-    
+
     for process in processes:
         process.join()
-    
-    print("\nDuration: {}. Done!".format(duration()))
-    # %%
+
+    print('\nDuration: {}. Done!'.format(duration()))
