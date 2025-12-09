@@ -196,7 +196,7 @@ class Arena:
 
         self.sensors = {}
         self.wheels = []
-
+    
         for link_index in range(p.getNumJoints(self.robot_index, physicsClientId=self.physicsClient)):
             joint_info = p.getJointInfo(self.robot_index, link_index, physicsClientId=self.physicsClient)
             link_name = joint_info[12].decode('utf-8')
@@ -205,7 +205,7 @@ class Arena:
 
             if 'wheel' in link_name:
                 self.wheels.append((link_index, link_name))
-            elif 'sensor' in link_name:
+            if 'sensor' in link_name:
                 self.sensors[link_name] = link_index
                 p.changeVisualShape(self.robot_index, link_index, rgbaColor=(1, 0, 0, 0), physicsClientId=self.physicsClient)
             elif 'spoke' in link_name or 'outline' in link_name:
@@ -709,171 +709,143 @@ class Arena:
             
         
         
-    # Find if the robot has performed any goals with any objects.
-    def rewards(self, verbose = False):
+    # -----------------------------
+    # Calculate Extrinsic Rewards
+    # -----------------------------
+    
+    def rewards(self, verbose=False):
+        """ 
+        Find if the robot has performed any goals with any objects.
+        """
         objects_goals = {}
         win = False
         reward = 0
         v_rx = cos(self.robot_start_yaw)
         v_ry = sin(self.robot_start_yaw)
-        
-        
-        
-        if(verbose):
+
+        if verbose:
             for object_key, object_dict in self.objects_touch.items():
                 for link_name, value in object_dict.items():
-                    if(value):
-                        print(f"Touching {object_key} with {link_name}.")
-                        
-                        
-                        
-        # Iterated over objects.                
+                    if value:
+                        print(f'Touching {object_key} with {link_name}.')
+
+        # Iterate over objects
         for i, ((color_index, shape_index, _), object_index) in enumerate(self.objects_in_play.items()):
-            # Assume no actions performed with object.
-            watched = False 
-            been_near = False
-            topped = False
-            pushed = False 
-            lefted = False 
-            righted = False    
-            excepted = False        
-            
-            # Is the agent touching the object?
+            watched = been_near = topped = pushed = lefted = righted = excepted = False
+
+            # Touch state
             objects_touch = self.objects_touch[object_index]
-            objects_touch_body = {key: value for key, value in objects_touch.items() if "body" in key}
+            objects_touch_body = {key: value for key, value in objects_touch.items() if 'body' in key}
             touching = any(objects_touch.values())
             touching_body = any(objects_touch_body.values())
-            
-            # Distance and angle from agent to object.
+
+            # Distance & movement
             object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
-            agent_pos, agent_ori = p.getBasePositionAndOrientation(self.robot_index, physicsClientId = self.physicsClient)
+            agent_pos, agent_ori = p.getBasePositionAndOrientation(self.robot_index, physicsClientId=self.physicsClient)
             distance_vector = np.subtract(object_pos[:2], agent_pos[:2])
             distance = np.linalg.norm(distance_vector)
-                
-            # How is the object moving in relation to the agent?
+
             (x_before, y_before, z_before) = self.objects_start[object_index]
             (x_after, y_after, z_after) = self.objects_end[object_index]
             delta_x = x_after - x_before
             delta_y = y_after - y_before
             global_movement_forward = delta_x * v_rx + delta_y * v_ry
             global_movement_left = delta_x * (-v_ry) + delta_y * v_rx
-            
-            # Not in use: local positions.
+
             object_local_pos_start = self.objects_local_pos_start[object_index]
             object_local_pos_end = self.objects_local_pos_end[object_index]
             local_movement_forward = object_local_pos_end[0] - object_local_pos_start[0]
             local_movement_left = object_local_pos_end[1] - object_local_pos_start[1]
 
-            # Changes in angle relative of agent.
             object_angle_start = self.objects_angle_start[object_index]
             object_angle_end = self.objects_angle_end[object_index]
             angle_change = object_angle_end - object_angle_start
+            angle_change_degrees = degrees(angle_change)
             object_angle_start_degrees = degrees(object_angle_start)
             object_angle_end_degrees = degrees(object_angle_end)
-            angle_change_degrees = degrees(angle_change)
-            
-            
-            
-            if(verbose):
-                print(f"Object: {color_map[color_index].name} {shape_map[shape_index].name}")
-                print(f"Angle from agent to object: \t{round(object_angle_start_degrees, 2)} before, \t{round(object_angle_end_degrees, 2)} after, \t{round(angle_change_degrees, 2)} change")
-                print(f"Movement forward: \t{round(global_movement_forward, 2)} global, \t{round(local_movement_forward, 2)} local")
-                print(f"Movement left: \t\t{round(global_movement_left, 2)} global, \t{round(local_movement_left, 2)} local")
-                print(f"Angle of movement: {round(v_rx, 2), round(v_ry, 2)}")
-                        
-                        
-                        
-            # Is the agent watching an object?
-            good_watching_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_watch 
+
+            if verbose:
+                print(f'Object: {color_map[color_index].name} {shape_map[shape_index].name}')
+                print(f'Angle from agent to object:\t{round(object_angle_start_degrees, 2)} before,\t{round(object_angle_end_degrees, 2)} after,\t{round(angle_change_degrees, 2)} change')
+                print(f'Movement forward:\t{round(global_movement_forward, 2)} global,\t{round(local_movement_forward, 2)} local')
+                print(f'Movement left:\t\t{round(global_movement_left, 2)} global,\t{round(local_movement_left, 2)} local')
+                print(f'Angle of movement: {(round(v_rx, 2), round(v_ry, 2))}')
+
+            # Conditions for different behaviors
+            good_watching_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_watch
             watching = good_watching_angle and not touching and distance <= self.args.watch_distance
-            
-            # Is the agent near an object?
-            good_being_near_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_being_near 
+
+            good_being_near_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_being_near
             being_near = good_being_near_angle and not touching and distance <= self.args.be_near_distance
-            
-            # Is the object touched by the arm, while the hand-position is high?
+
             good_touch_top_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_touch_top
-            link_index = None 
+            link_index = None
             for sensor_name, sensor_index in self.sensors.items():
-                if(sensor_name.startswith("hand_sensor_") and sensor_name.endswith("_stop")):
+                if sensor_name.startswith('hand_sensor_') and sensor_name.endswith('_stop'):
                     link_index = sensor_index
-            hand_height = p.getLinkState(bodyUniqueId=self.robot_index, linkIndex=link_index)[0][2]
-            good_hand_height = hand_height >= self.args.touch_top_min_height    
+            hand_height = p.getLinkState(self.robot_index, linkIndex=link_index)[0][2]
+            good_hand_height = hand_height >= self.args.touch_top_min_height
             topping = touching and not touching_body and good_hand_height and good_touch_top_angle
-                                    
-            # Is the object pushed away from its starting position, relative to the agent's starting position and angle?
-            good_push_distance = (global_movement_forward >= self.args.global_push_amount)
+
+            good_push_distance = global_movement_forward >= self.args.global_push_amount
             pushing = touching and good_push_distance and good_watching_angle
-                        
-            # Is the object pushed left/right from its starting position, relative to the agent's starting position and angle?
+
             left_wheel_speed, right_wheel_speed = self.get_wheel_speeds()
-            good_wheel_speed = max([abs(left_wheel_speed), abs(right_wheel_speed)]) <= self.args.max_wheel_speed_for_left_right
+            good_wheel_speed = max(abs(left_wheel_speed), abs(right_wheel_speed)) <= self.args.max_wheel_speed_for_left_right
             arm_speed = self.get_joint_speeds()[1]
             good_arm_speed = abs(arm_speed) >= self.args.min_arm_speed_for_left_right
-            #good_arm_speed_left = arm_speed >= self.args.min_arm_speed_for_left_right
-            #good_arm_speed_right = arm_speed <= -self.args.min_arm_speed_for_left_right
+
             good_push_left_distance = global_movement_left >= self.args.global_left_right_amount
             good_push_right_distance = global_movement_left <= -self.args.global_left_right_amount
-            good_left_right_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_left_right        
-            lefting     = touching and good_push_left_distance and  good_left_right_angle and good_wheel_speed and good_arm_speed
-            righting    = touching and good_push_right_distance and good_left_right_angle and good_wheel_speed and good_arm_speed
-            
-             
-                        
-            if(verbose):
-                print(f"\nTouching: {touching}. Touching body: {touching_body}.")
-                print(f"Watching angle: {watching_angle}. Lefting angle: {lefting_angle}.")
-                print(f"Good wheel speed: {good_wheel_speed}. Good arm speed left: {good_arm_speed_left}. Good arm speed right: {good_arm_speed_right}.")
-                print(f"Watching \t({watching}): \t\t{self.durations['watch'][object_index]} steps")
-                print(f"Being Near \t({being_near}): \t\t{self.durations['be_near'][object_index]} steps")
-                print(f"Topping \t({topping}): \t\t{self.durations['top'][object_index]} steps")
-                print(f"Pushing \t({pushing}): \t\t{self.durations['push'][object_index]} steps")
-                print(f"Lefting \t({lefting}): \t\t{self.durations['left'][object_index]} steps")
-                print(f"Righting \t({righting}): \t\t{self.durations['right'][object_index]} steps\n")
-                                
-                
-            
-            # If pushing forward and/or pushing left or right, choose one.
+            good_left_right_angle = abs(object_angle_end) <= self.args.pointing_at_object_for_left_right
+
+            lefting = touching and good_push_left_distance and good_left_right_angle and good_wheel_speed and good_arm_speed
+            righting = touching and good_push_right_distance and good_left_right_angle and good_wheel_speed and good_arm_speed
+
+            if verbose:
+                print(f'\nTouching: {touching}. Touching body: {touching_body}.')
+                print(f'Watching angle: {good_watching_angle}. Lefting angle: {good_left_right_angle}.')
+                print(f'Good wheel speed: {good_wheel_speed}. Good arm speed: {good_arm_speed}.')
+                print(f'Watching\t({watching}):\t\t{self.durations["watch"][object_index]} steps')
+                print(f'Being Near\t({being_near}):\t\t{self.durations["be_near"][object_index]} steps')
+                print(f'Topping\t\t({topping}):\t\t{self.durations["top"][object_index]} steps')
+                print(f'Pushing\t\t({pushing}):\t\t{self.durations["push"][object_index]} steps')
+                print(f'Lefting\t\t({lefting}):\t\t{self.durations["left"][object_index]} steps')
+                print(f'Righting\t({righting}):\t\t{self.durations["right"][object_index]} steps\n')
+
+            # Choose one motion type
             active_changes = []
             if pushing:
-                active_changes.append(("pushing", global_movement_forward))
+                active_changes.append(('pushing', global_movement_forward))
             if lefting:
-                active_changes.append(("lefting", global_movement_left))
+                active_changes.append(('lefting', global_movement_left))
             if righting:
-                active_changes.append(("righting", abs(global_movement_left))) 
+                active_changes.append(('righting', abs(global_movement_left)))
             if len(active_changes) > 1:
                 active_changes.sort(key=lambda x: x[1], reverse=True)
                 highest_change = active_changes[0][0]
-                pushing, lefting, righting = False, False, False
-                if highest_change == "pushing":
+                pushing = lefting = righting = False
+                if highest_change == 'pushing':
                     pushing = True
-                if highest_change == "lefting":
+                elif highest_change == 'lefting':
                     lefting = True
-                if highest_change == "righting":
-                    righting = True 
-                    
-            if(being_near):
+                elif highest_change == 'righting':
+                    righting = True
+
+            if being_near:
                 watching = False
-            
-            if(topping):
-                pushing = False 
-                lefting = False 
-                righting = False
-                
-                
+            if topping:
+                pushing = lefting = righting = False
 
-            if(verbose):
-                print(f"After consideration:")
-                print(f"Watching: \t{watching}")
-                print(f"Being Near: \t{being_near}")
-                print(f"Topping: \t{topping}") 
-                print(f"Pushing: \t{pushing}")
-                print(f"Lefting: \t{lefting}")
-                print(f"Righting: \t{righting}\n")
-                
+            if verbose:
+                print('After consideration:')
+                print(f'Watching:\t{watching}')
+                print(f'Being Near:\t{being_near}')
+                print(f'Topping:\t{topping}')
+                print(f'Pushing:\t{pushing}')
+                print(f'Lefting:\t{lefting}')
+                print(f'Righting:\t{righting}\n')
 
-            
-            # Update the duration dictionary, showing how long the robot has performed an action with an object.
             def update_duration(action_name, action_now, object_index, duration_threshold):
                 if action_now:
                     self.durations[action_name][object_index] += 1
@@ -881,206 +853,220 @@ class Arena:
                     self.durations[action_name][object_index] = 0
                 return self.durations[action_name][object_index] >= duration_threshold
 
-            watched     = update_duration("watch",      watching,   object_index, self.args.watch_duration)
-            been_near   = update_duration("be_near",    being_near, object_index, self.args.be_near_duration)
-            topped      = update_duration("top",        topping,    object_index, self.args.top_duration)
-            pushed      = update_duration("push",       pushing,    object_index, self.args.push_duration)
-            lefted      = update_duration("left",       lefting,    object_index, self.args.left_right_duration)
-            righted     = update_duration("right",      righting,   object_index, self.args.left_right_duration)
-            
+            watched   = update_duration('watch', watching, object_index, self.args.watch_duration)
+            been_near = update_duration('be_near', being_near, object_index, self.args.be_near_duration)
+            topped    = update_duration('top', topping, object_index, self.args.top_duration)
+            pushed    = update_duration('push', pushing, object_index, self.args.push_duration)
+            lefted    = update_duration('left', lefting, object_index, self.args.left_right_duration)
+            righted   = update_duration('right', righting, object_index, self.args.left_right_duration)
+
             key = (color_map[color_index], shape_map[shape_index])
-            new_value = [watched, been_near, topped, pushed, lefted, righted, watching, being_near, topping, pushing, lefting, righting]
-            
-            # If there are multiple of the same object, consider them all.
+            new_value = [watched, been_near, topped, pushed, lefted, righted,
+                         watching, being_near, topping, pushing, lefting, righting]
+
             if key in objects_goals:
                 objects_goals[key] = [old or new for old, new in zip(objects_goals[key], new_value)]
             else:
                 objects_goals[key] = new_value
 
-            if(verbose):
-                ings = sum([watching, being_near, topping, pushing, lefting, righting, excepting])
-                print(f"Finished:")
-                print(f"INGs: {ings}")
-                if(ings > 1): 
-                    print("\t\tWARNING! MULTIPLE TASKS AT ONCE!")
-                print(f"Watching: \t{watching} \tWatched: \t{watched} \t {self.durations['watch'][object_index]} steps")
-                print(f"Being near: \t{being_near} \tBeen Near: \t{been_near} \t {self.durations['be_near'][object_index]} steps")
-                print(f"Topping: \t{topping} \tTopped: \t{topped} \t {self.durations['top'][object_index]} steps")
-                print(f"Pushing: \t{pushing} \tPushed: \t{pushed} \t {self.durations['push'][object_index]} steps")
-                print(f"Lefting: \t{lefting} \tLefted: \t{lefted} \t {self.durations['left'][object_index]} steps")
-                print(f"Righting: \t{righting} \tRighted: \t{righted} \t {self.durations['right'][object_index]} steps\n")
-                
-                
-                
-        # Now we check what feedback voice should be returned.                              
+            if verbose:
+                ings = sum([watching, being_near, topping, pushing, lefting, righting, excepted])
+                print('Finished:')
+                if ings > 1:
+                    print('\t\tWARNING! MULTIPLE TASKS AT ONCE!')
+                print(f'Watching:\t{watching}\tWatched:\t{watched}\t{self.durations["watch"][object_index]} steps')
+                print(f'Being Near:\t{being_near}\tBeen Near:\t{been_near}\t{self.durations["be_near"][object_index]} steps')
+                print(f'Topping:\t{topping}\tTopped:\t\t{topped}\t{self.durations["top"][object_index]} steps')
+                print(f'Pushing:\t{pushing}\tPushed:\t\t{pushed}\t{self.durations["push"][object_index]} steps')
+                print(f'Lefting:\t{lefting}\tLefted:\t\t{lefted}\t{self.durations["left"][object_index]} steps')
+                print(f'Righting:\t{righting}\tRighted:\t{righted}\t{self.durations["right"][object_index]} steps\n')
+
         feedback_voice = empty_goal
         wrong_object = False
-        task_performed = None        
-        
-        
-                
+        task_performed = None
+
         for (color, shape), (watched, been_near, topped, pushed, lefted, righted, watching, being_near, topping, pushing, lefting, righting) in objects_goals.items():
-            # If any one task is accomplished, find the task/color/shape.
-            if(sum([watched, been_near, topped, pushed, lefted, righted]) == 1): 
-                # If the correct object, check the task.
-                if(watched):
-                    task_performed = "watched"  
-                else:
-                    task_performed = "other"
-                if(color == self.real_goal.color and shape == self.real_goal.shape):
-                    if(
-                        (self.real_goal.task.name == "WATCH"         and watched     and not (               being_near or   topping or  pushing or  lefting or  righting)) or 
-                        (self.real_goal.task.name == "BE NEAR"       and been_near   and not (watching or                    topping or  pushing or  lefting or  righting)) or 
-                        (self.real_goal.task.name == "TOUCH THE TOP" and topped      and not (watching or    being_near or               pushing or  lefting or  righting)) or 
-                        (self.real_goal.task.name == "PUSH FORWARD"  and pushed      and not (watching or    being_near or   topping or              lefting or  righting)) or
-                        (self.real_goal.task.name == "PUSH LEFT"     and lefted      and not (watching or    being_near or   topping or  pushing or              righting)) or
-                        (self.real_goal.task.name == "PUSH RIGHT"    and righted     and not (watching or    being_near or   topping or  pushing or  lefting))):   
-                        win = True 
+            if sum([watched, been_near, topped, pushed, lefted, righted]) == 1:
+                task_performed = 'watched' if watched else 'other'
+                if color == self.real_goal.color and shape == self.real_goal.shape:
+                    task_name = self.real_goal.task.name
+                    if (
+                        (task_name == 'WATCH'         and watched  and not (being_near or topping or pushing or lefting or righting)) or
+                        (task_name == 'BE NEAR'       and been_near and not (watching or topping or pushing or lefting or righting)) or
+                        (task_name == 'TOUCH THE TOP' and topped and not (watching or being_near or pushing or lefting or righting)) or
+                        (task_name == 'PUSH FORWARD'  and pushed and not (watching or being_near or topping or lefting or righting)) or
+                        (task_name == 'PUSH LEFT'     and lefted and not (watching or being_near or topping or pushing or righting)) or
+                        (task_name == 'PUSH RIGHT'    and righted and not (watching or being_near or topping or pushing or lefting))
+                    ):
+                        win = True
                         reward = self.args.reward
-                # If a task is occuring with a wrong object, no reward.
                 else:
-                    wrong_object = True                
-                    
-            # Feedback voice reflects ongoing processes.
+                    wrong_object = True
+
             task_in_progress = None
-            if(sum([watching, being_near, topping, pushing, lefting, righting]) >= 1):
-                if(watching):   task_in_progress = task_map[1]
-                if(being_near): task_in_progress = task_map[2]
-                if(topping):    task_in_progress = task_map[3]
-                if(pushing):    task_in_progress = task_map[4]
-                if(lefting):    task_in_progress = task_map[5] 
-                if(righting):   task_in_progress = task_map[6]
-                
-                # WE NEED TO CHANGE THIS FOR EXCEPTIONS
-                feedback_voice = Goal(task_in_progress, color, shape, parenting = False)
-                
-                if(not self.supposed_to_be_exception):
+            if sum([watching, being_near, topping, pushing, lefting, righting]) >= 1:
+                if watching: task_in_progress = task_map[1]
+                elif being_near: task_in_progress = task_map[2]
+                elif topping: task_in_progress = task_map[3]
+                elif pushing: task_in_progress = task_map[4]
+                elif lefting: task_in_progress = task_map[5]
+                elif righting: task_in_progress = task_map[6]
+                feedback_voice = Goal(task_in_progress, color, shape, parenting=False)
+
+                if not self.supposed_to_be_exception:
                     pass
-                    
-                if(self.supposed_to_be_exception and feedback_voice.digits == self.goal.digits):
+                elif self.supposed_to_be_exception and feedback_voice.digits == self.goal.digits:
                     feedback_voice = empty_goal
-                    
-                if(self.supposed_to_be_exception and feedback_voice.digits == self.real_goal.digits):
+                elif self.supposed_to_be_exception and feedback_voice.digits == self.real_goal.digits:
                     feedback_voice = self.goal
 
-        if(wrong_object):
-            win = False 
-            if(task_performed == "watched"):
-                reward = 0
-            else:
-                reward = self.args.wrong_object_punishment
-                        
-        feedback_voice.make_texts() 
+        if wrong_object:
+            win = False
+            reward = 0 if task_performed == 'watched' else self.args.wrong_object_punishment
 
+        feedback_voice.make_texts()
 
-            
-        if(verbose):
-            print(f"feedback voice: \'{feedback_voice.human_text}\'")
-            print("Total reward:", reward)
-            print("Win:", win)
-            
-           
-                      
-        return(reward, win, feedback_voice)
+        if verbose:
+            print(f'feedback voice: \'{feedback_voice.human_text}\'')
+            print('Total reward:', reward)
+            print('Win:', win)
+
+        return reward, win, feedback_voice
+
     
+    # -----------------------------
+    # Camera-related Functions
+    # -----------------------------
     
-    
-    # This takes a photo of the robot from a bird's eye view.
-    """def photo_from_above(self):
+    def birds_eye_view(self):
+        """
+        This takes a photo of the robot from a bird's eye view.
+        """
         pos, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
-        x, y = 4 * cos(-3*pi/4), 4 * sin(-3*pi/4)
+        x, y = 4 * cos(-3 * pi / 4), 4 * sin(-3 * pi / 4)
         view_matrix = p.computeViewMatrix(
-            cameraEyePosition = [pos[0] + x, pos[1] + y, 10], 
-            cameraTargetPosition = [pos[0], pos[1], 2],    
-            cameraUpVector = [0, 0, 1], physicsClientId = self.physicsClient)
+            cameraEyePosition=[pos[0] + x, pos[1] + y, 10],
+            cameraTargetPosition=[pos[0], pos[1], 2],
+            cameraUpVector=[0, 0, 1],
+            physicsClientId=self.physicsClient
+        )
         proj_matrix = p.computeProjectionMatrixFOV(
-            fov = 90, aspect = 1, nearVal = .01, 
-            farVal = 20, physicsClientId = self.physicsClient)
+            fov=90,
+            aspect=1,
+            nearVal=0.01,
+            farVal=20,
+            physicsClientId=self.physicsClient
+        )
         _, _, rgba, _, _ = p.getCameraImage(
-            width=256, height=256,
-            projectionMatrix=proj_matrix, viewMatrix=view_matrix, shadow = 0,
-            physicsClientId = self.physicsClient)
-        return(rgba)"""
-    
-    
-    
-    # This takes a photo of the robot from behind its right shoulder.
+            width=256,
+            height=256,
+            projectionMatrix=proj_matrix,
+            viewMatrix=view_matrix,
+            shadow=0,
+            physicsClientId=self.physicsClient
+        )
+        return rgba
+
     def photo_from_above(self):
+        """
+        This takes a photo of the robot from behind its right shoulder.
+        """
         pos, spe, roll, pitch, yaw = self.get_pos_spe_rpy(self.robot_index)
         quat = p.getQuaternionFromEuler([roll, pitch, yaw])
         rot_matrix_flat = p.getMatrixFromQuaternion(quat)
         rot_matrix = np.array(rot_matrix_flat).reshape(3, 3)
-        forward_vector = rot_matrix[:, 0]  
-        left_vector = rot_matrix[:, 1]  
-        up_vector = rot_matrix[:, 2]      
-                
+        forward_vector = rot_matrix[:, 0]
+        left_vector = rot_matrix[:, 1]
+        up_vector = rot_matrix[:, 2]
+
         cam_eye_pos = [pos[0], pos[1], pos[2] + 5]
-        cam_eye = np.array(cam_eye_pos) + forward_vector * -3.0 + left_vector * -2.0 
+        cam_eye = np.array(cam_eye_pos) + forward_vector * -3.0 + left_vector * -2.0
         cam_target = np.array(pos) + forward_vector * 4.0
-        
+
         view_matrix = p.computeViewMatrix(
             cameraEyePosition=cam_eye.tolist(),
             cameraTargetPosition=cam_target.tolist(),
             cameraUpVector=up_vector.tolist(),
-            physicsClientId=self.physicsClient)
+            physicsClientId=self.physicsClient
+        )
         proj_matrix = p.computeProjectionMatrix(
-            left=left, right=right, bottom=bottom, top=top, nearVal=near, farVal=25)
+            left=left,
+            right=right,
+            bottom=bottom,
+            top=top,
+            nearVal=near,
+            farVal=25
+        )
         _, _, rgba, depth, _ = p.getCameraImage(
             width=256,
             height=256,
             projectionMatrix=proj_matrix,
             viewMatrix=view_matrix,
             shadow=0,
-            physicsClientId=self.physicsClient)
-        return(rgba)
-    
-    
-    
-    # This takes a photo from the robot's camera.
+            physicsClientId=self.physicsClient
+        )
+        return rgba
+
     def photo_for_agent(self):
+        """
+        This takes a photo from the robot's camera.
+        """
         pos, spe, roll, pitch, yaw = self.get_pos_spe_rpy(self.robot_index)
         quat = p.getQuaternionFromEuler([roll, pitch, yaw])
         rot_matrix_flat = p.getMatrixFromQuaternion(quat)
         rot_matrix = np.array(rot_matrix_flat).reshape(3, 3)
-        forward_vector = rot_matrix[:, 0]  # robot's +X axis (forward)
-        up_vector = rot_matrix[:, 2]       # robot's +Z axis (up)
+        forward_vector = rot_matrix[:, 0]
+        up_vector = rot_matrix[:, 2]
+
         cam_eye = np.array(pos) + forward_vector * 0.1
         cam_target = np.array(pos) + forward_vector * 2.0
+
         view_matrix = p.computeViewMatrix(
             cameraEyePosition=cam_eye.tolist(),
             cameraTargetPosition=cam_target.tolist(),
             cameraUpVector=up_vector.tolist(),
-            physicsClientId=self.physicsClient)
+            physicsClientId=self.physicsClient
+        )
         proj_matrix = p.computeProjectionMatrix(
-            left=left, right=right, bottom=bottom, top=top, nearVal=near, farVal=far)
+            left=left,
+            right=right,
+            bottom=bottom,
+            top=top,
+            nearVal=near,
+            farVal=far
+        )
         _, _, rgba, depth, _ = p.getCameraImage(
             width=self.args.image_size * 2,
             height=self.args.image_size * 2,
             projectionMatrix=proj_matrix,
             viewMatrix=view_matrix,
             shadow=0,
-            physicsClientId=self.physicsClient)
+            physicsClientId=self.physicsClient
+        )
 
-        # Return a vision-observation, with values between 0 and 1 for red, green, blue, and distance.
-        if(type(rgba) == np.ndarray):
-            pass
-        else:
+        if not isinstance(rgba, np.ndarray):
             rgba = np.array(rgba).reshape(32, 32, 4)
             depth = np.array(depth).reshape(32, 32)
-        rgb = np.divide(rgba[:,:,:-1], 255)
+
+        rgb = rgba[:, :, :-1] / 255
         d = np.nan_to_num(np.expand_dims(depth, axis=-1), nan=1)
-        if(d.max() == d.min()): pass
-        else: d = (d - d.min())/(d.max()-d.min())
-        vision = np.concatenate([rgb, d], axis = -1)
+
+        if d.max() != d.min():
+            d = (d - d.min()) / (d.max() - d.min())
+
+        vision = np.concatenate([rgb, d], axis=-1)
         vision = resize(vision, (self.args.image_size, self.args.image_size, 4))
-        return(vision)
-        
-        
-    
-# If __main__, start a simulation. The user may click and drag the robot and objects.
-if __name__ == "__main__":
-    from utils import args
-    arena = Arena(GUI = True, args = args)
-    while True:
-        sleep(0.01)
-        p.stepSimulation(physicsClientId=arena.physicsClient)
+        return vision
+
+
+
+# ============================
+# SCRIPT ENTRY POINT
+# ============================
+
+    if __name__ == '__main__':
+        from utils import args
+        arena = Arena(GUI=True, args=args)
+        while True:
+            sleep(0.01)
+            p.stepSimulation(physicsClientId=arena.physicsClient)
