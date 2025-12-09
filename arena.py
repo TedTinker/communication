@@ -456,10 +456,14 @@ class Arena:
         
         
         
-    # Functions for objects.
-    
-    # At beginning of episode, find random positions for objects.
+    # -----------------------------
+    # Object-related Functions
+    # -----------------------------
+
     def generate_positions(self, n):
+        """
+        Generate randomized object positions arranged in a circular formation.
+        """
         distance = uniform(self.args.min_object_distance, self.args.max_object_distance)
         base_angle = uniform(0, 2 * pi)
         x1 = distance * cos(base_angle)
@@ -474,76 +478,89 @@ class Arena:
             positions.append((x, y))
         shuffle(positions)
         return positions
-            
-    # At beginning of episode, set object orientation.
+
     def object_faces_up(self, object_index):
+        """
+        Orient object to face toward the agent at episode start.
+        """
         obj_pos, obj_orn = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
         agent_pos, _ = p.getBasePositionAndOrientation(self.robot_index, physicsClientId=self.physicsClient)
         delta_x = agent_pos[0] - obj_pos[0]
         delta_y = agent_pos[1] - obj_pos[1]
         angle_to_agent = math.atan2(delta_y, delta_x)
-        (roll, pitch, _) = p.getEulerFromQuaternion(obj_orn, physicsClientId=self.physicsClient)
+        roll, pitch, _ = p.getEulerFromQuaternion(obj_orn, physicsClientId=self.physicsClient)
         new_orn = p.getQuaternionFromEuler([0, 0, angle_to_agent if not isnan(angle_to_agent) else 0])
         p.resetBasePositionAndOrientation(object_index, (obj_pos[0], obj_pos[1], object_upper_starting_pos), new_orn, physicsClientId=self.physicsClient)
-        
-    # Find positions of objects.
+
     def get_object_positions(self):
+        """
+        Return the world positions of all objects in play.
+        """
         object_positions = {}
         for object_index in self.objects_in_play.values():
             pos, spe, roll, pitch, yaw = self.get_pos_spe_rpy(object_index)
             object_positions[object_index] = pos
-        return(object_positions)
-    
-    # Find positions of objects with respect to the robot.
+        return object_positions
+
     def get_local_position_of_object(self, object_id, agent_pos, agent_orn):
+        """
+        Get an object's position relative to the robot's frame.
+        """
         inv_agent_pos, inv_agent_orn = p.invertTransform(agent_pos, agent_orn)
         obj_pos, obj_orn = p.getBasePositionAndOrientation(object_id)
-        local_obj_pos, _ = p.multiplyTransforms(
-            inv_agent_pos, inv_agent_orn,  
-            obj_pos, obj_orn)
-        return local_obj_pos # (x_local, y_local, z_local)
-    
-    # Find orientations of objects.
+        local_obj_pos, _ = p.multiplyTransforms(inv_agent_pos, inv_agent_orn, obj_pos, obj_orn)
+        return local_obj_pos
+
     def get_object_angle(self, object_index):
+        """
+        Compute the yaw-angle of an object relative to the robot's heading.
+        """
         object_pos, _ = p.getBasePositionAndOrientation(object_index, physicsClientId=self.physicsClient)
-        agent_pos, agent_ori = p.getBasePositionAndOrientation(self.robot_index, physicsClientId = self.physicsClient)
+        agent_pos, agent_ori = p.getBasePositionAndOrientation(self.robot_index, physicsClientId=self.physicsClient)
+
         distance_vector = np.subtract(object_pos[:2], agent_pos[:2])
         distance = np.linalg.norm(distance_vector)
         normalized_distance_vector = distance_vector / distance
-        rotation_matrix = p.getMatrixFromQuaternion(agent_ori, physicsClientId = self.physicsClient)
+
+        rotation_matrix = p.getMatrixFromQuaternion(agent_ori, physicsClientId=self.physicsClient)
         forward_vector = np.array([rotation_matrix[0], rotation_matrix[3]])
         forward_vector /= np.linalg.norm(forward_vector)
+
         dot_product = np.dot(forward_vector, normalized_distance_vector)
-        angle_radians = np.arccos(np.clip(dot_product, -1.0, 1.0))  
-        angle_degrees = degrees(angle_radians)
+        angle_radians = np.arccos(np.clip(dot_product, -1.0, 1.0))
+
         cross_product = np.cross(np.append(forward_vector, 0), np.append(normalized_distance_vector, 0))
-        if cross_product[2] < 0:  
+        if cross_product[2] < 0:
             angle_radians = -angle_radians
-        return(angle_radians)
-            
-    # Check which of the robot's sensors are touching the object.
+        return angle_radians
+
     def touching_object(self, object_index):
+        """
+        Check all sensor links on robot for contact with a specific object.
+        """
         touching = {}
         for link_name, sensor_index in self.sensors.items():
-            touching_this = bool(p.getContactPoints(
-                bodyA=self.robot_index, bodyB=object_index, linkIndexA=sensor_index, physicsClientId = self.physicsClient))
+            touching_this = bool(p.getContactPoints(bodyA=self.robot_index, bodyB=object_index, linkIndexA=sensor_index, physicsClientId=self.physicsClient))
             touching[link_name] = 1 if touching_this else 0
-        return(touching)
-    
-    # Check if the robot's sensors are touching any object.
+        return touching
+
     def touching_any_object(self):
+        """
+        Check all robot sensors against all objects.
+        """
         touching = {}
         for object_index in self.objects_in_play.values():
-            touching_this_object = self.touching_object(object_index)
-            touching[object_index] = touching_this_object
-        return(touching)
-            
-            
-            
-    # Functions for the robot.
-    
-    # Find position, speed, and orientation of the robot.
+            touching[object_index] = self.touching_object(object_index)
+        return touching
+
+    # -----------------------------
+    # Robot-related Functions
+    # -----------------------------
+
     def get_pos_spe_rpy(self, index):
+        """
+        Return position, linear speed (forward), and orientation of a body.
+        """
         pos, ors = p.getBasePositionAndOrientation(index, physicsClientId=self.physicsClient)
         roll, pitch, yaw = p.getEulerFromQuaternion(ors, physicsClientId=self.physicsClient)
         forward_dir = np.array([np.cos(yaw), np.sin(yaw)])
@@ -551,108 +568,144 @@ class Arena:
         velocity_vec = np.array([vx, vy])
         spe = float(np.dot(velocity_vec, forward_dir))
         return pos, spe, roll, pitch, yaw
-    
-    # Find robot's velocity.
+
     def get_robot_velocities(self):
+        """
+        Get linear and angular velocity of robot in its local frame.
+        """
         linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_index, physicsClientId=self.physicsClient)
-        vx, vy, _ = linear_velocity  # Get only x, y velocities
-        _, _, wz = angular_velocity  # Get yaw rotation
+        vx, vy, _ = linear_velocity
+        _, _, wz = angular_velocity
         _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
-        local_vx = cos(yaw) * vx + sin(yaw) * vy  # Forward speed in local frame
-        return local_vx, wz  
-        
-    # Find the velocity of each wheel.
+        local_vx = cos(yaw) * vx + sin(yaw) * vy
+        return local_vx, wz
+
     def get_wheel_speeds(self):
+        """
+        Compute wheel speeds from robot velocities using differential drive.
+        """
         linear_velocity, angular_velocity = self.get_robot_velocities()
-        left_wheel = linear_velocity - (angular_velocity / self.args.angular_scaler)/2
-        right_wheel = linear_velocity + (angular_velocity / self.args.angular_scaler)/2
+        left_wheel = linear_velocity - (angular_velocity / self.args.angular_scaler) / 2
+        right_wheel = linear_velocity + (angular_velocity / self.args.angular_scaler) / 2
         return left_wheel, right_wheel
-        
-    # Set robot position.
-    def set_pos(self, pos = (0, 0)):
+
+    def set_pos(self, pos=(0, 0)):
+        """
+        Set robot world position, maintaining current yaw.
+        """
         pos = (pos[0], pos[1], agent_upper_starting_pos)
         _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
         orn = p.getQuaternionFromEuler([0, 0, yaw])
-        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
-        
-    # Set robot yaw (left/right).
-    def set_yaw(self, yaw = 0):
-        orn = p.getQuaternionFromEuler([0, 0, yaw], physicsClientId = self.physicsClient)
+        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId=self.physicsClient)
+
+    def set_yaw(self, yaw=0):
+        """
+        Set robot yaw orientation while keeping position fixed.
+        """
+        orn = p.getQuaternionFromEuler([0, 0, yaw], physicsClientId=self.physicsClient)
         pos, _, _, _, _ = self.get_pos_spe_rpy(self.robot_index)
-        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId = self.physicsClient)
-            
-    # Set robot's velocity.
-    def set_wheel_speeds(self, left_wheel_speed = 0, right_wheel_speed = 0):
+        p.resetBasePositionAndOrientation(self.robot_index, pos, orn, physicsClientId=self.physicsClient)
+
+    def set_wheel_speeds(self, left_wheel_speed=0, right_wheel_speed=0):
+        """
+        Apply wheel speeds and update base linear/angular velocity.
+        """
         linear_velocity = (left_wheel_speed + right_wheel_speed) / 2
         _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)
         x = linear_velocity * cos(yaw)
         y = linear_velocity * sin(yaw)
         angular_velocity = (right_wheel_speed - left_wheel_speed) * self.args.angular_scaler
-        p.resetBaseVelocity(self.robot_index, linearVelocity=[x, y, 0], angularVelocity=[0, 0, angular_velocity], physicsClientId = self.physicsClient)
-        for index, name in self.wheels:
-            if(name == "left_wheel"):       
-                speed = left_wheel_speed 
-            else:
-                speed = right_wheel_speed
-            p.setJointMotorControl2(self.robot_index, index, controlMode = p.VELOCITY_CONTROL, targetVelocity = -4 * speed, physicsClientId=self.physicsClient)
-            
-    # Find the angle of robot's joints.    
-    def get_joint_angles(self):
-        joint_angles = {}
-        for key, index in self.joint_indices.items():
-            joint_angles[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[0]
-        return joint_angles
-                
-    # Find velocities of robot's joints.
-    def get_joint_speeds(self):
-        joint_speeds = {}
-        for key, index in self.joint_indices.items(): 
-            joint_speeds[key] = p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[1]  
-        return joint_speeds
-    
-    # Set the angle of robot's joints.
-    def set_joint_angles(self, joint_angles = None):
-        if(joint_angles == None):
-            joing_angles = {key: None for key in self.joint_indices}
-        for key, index in self.joint_indices.items():
-            if(joint_angles[key] != None):
-                p.resetJointState(self.robot_index, index, joint_angles[key], physicsClientId=self.physicsClient)
-                
-    # Set velocities of robot's joints.
-    def set_joint_target_velocities(self, joint_target_velocities = None):
-        if(joint_target_velocities == None):
-            joint_target_velocities = {key : 0 for key in self.joint_indices}
-        for key, index in self.joint_indices.items():
-            if(joint_target_velocities[key] != None):
-                p.setJointMotorControl2(self.robot_index, index, controlMode=p.VELOCITY_CONTROL, 
-                        targetVelocity=joint_target_velocities[key], force=self.args.force, maxVelocity=self.args.max_joint_speed)
 
-    # If the robot's target velocities are invalid, adjust them.
+        p.resetBaseVelocity(
+            self.robot_index,
+            linearVelocity=[x, y, 0],
+            angularVelocity=[0, 0, angular_velocity],
+            physicsClientId=self.physicsClient
+        )
+
+        for index, name in self.wheels:
+            speed = left_wheel_speed if name == 'left_wheel' else right_wheel_speed
+            p.setJointMotorControl2(
+                self.robot_index, index,
+                controlMode=p.VELOCITY_CONTROL,
+                targetVelocity=-4 * speed,
+                physicsClientId=self.physicsClient
+            )
+
+    def get_joint_angles(self):
+        """
+        Get current joint angles from robot.
+        """
+        return {
+            key: p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[0]
+            for key, index in self.joint_indices.items()
+        }
+
+    def get_joint_speeds(self):
+        """
+        Get current joint angular velocities from robot.
+        """
+        return {
+            key: p.getJointState(self.robot_index, index, physicsClientId=self.physicsClient)[1]
+            for key, index in self.joint_indices.items()
+        }
+
+    def set_joint_angles(self, joint_angles=None):
+        """
+        Set joint angles directly (useful for resets).
+        """
+        if joint_angles is None:
+            joint_angles = {key: None for key in self.joint_indices}
+        for key, index in self.joint_indices.items():
+            if joint_angles[key] is not None:
+                p.resetJointState(self.robot_index, index, joint_angles[key], physicsClientId=self.physicsClient)
+
+    def set_joint_target_velocities(self, joint_target_velocities=None):
+        """
+        Set target angular velocities for robot joints.
+        """
+        if joint_target_velocities is None:
+            joint_target_velocities = {key: 0 for key in self.joint_indices}
+        for key, index in self.joint_indices.items():
+            if joint_target_velocities[key] is not None:
+                p.setJointMotorControl2(
+                    self.robot_index, index,
+                    controlMode=p.VELOCITY_CONTROL,
+                    targetVelocity=joint_target_velocities[key],
+                    force=self.args.force,
+                    maxVelocity=self.args.max_joint_speed
+                )
+
     def fix_joints(self, joint_target_velocities):
+        """
+        Clamp joint velocities to within physical limits.
+        """
         joint_angles = self.get_joint_angles()
         joint_speeds = self.get_joint_speeds()
-        for key in self.joint_indices.keys():
+
+        for key in self.joint_indices:
             max_angle = getattr(self.args, f'max_joint_{key}_angle')
             min_angle = getattr(self.args, f'min_joint_{key}_angle')
             max_speed = self.args.max_joint_speed
-            
-            if(joint_speeds[key] > max_speed):
+
+            if joint_speeds[key] > max_speed:
                 joint_target_velocities[key] = max_speed
-            if(joint_speeds[key] < -max_speed):
+            if joint_speeds[key] < -max_speed:
                 joint_target_velocities[key] = -max_speed
-            
-            if(joint_angles[key] < min_angle):
+
+            if joint_angles[key] < min_angle:
                 diff = min_angle - joint_angles[key]
                 new_speed = diff * max_speed
-                if(joint_target_velocities[key] < new_speed):
+                if joint_target_velocities[key] < new_speed:
                     joint_target_velocities[key] = new_speed
-            if(joint_angles[key] > max_angle):
+
+            if joint_angles[key] > max_angle:
                 diff = max_angle - joint_angles[key]
                 new_speed = diff * max_speed
-                if(joint_target_velocities[key] > new_speed):
+                if joint_target_velocities[key] > new_speed:
                     joint_target_velocities[key] = new_speed
-                
-        return(joint_target_velocities)
+
+        return joint_target_velocities
             
         
         
