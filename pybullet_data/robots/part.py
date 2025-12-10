@@ -31,23 +31,23 @@ class Part:
         self, 
         name, 
         mass = 0, 
-        shape = "box",
+        shape = 'box',
         size = (1, 1, 1), 
         joint_parent = None, 
         joint_origin = (0, 0, 0), 
         joint_axis = (1, 0, 0),
-        joint_type = "fixed",
+        joint_type = 'fixed',
         sensors = 0, 
         sensor_width = .03, 
         sensor_angle = 0,
-        sensor_sides = ["start", "stop", "top", "bottom", "left", "right"],
+        sensor_sides = ['start', 'stop', 'top', 'bottom', 'left', 'right'],
         joint_rpy=(0, 0, 0),
         joint_limits = [0, 0, 0, 0],
         inertia = [.05, .05, .05, .05, .05, .05]):
                 
         params = locals()
         for param in params:
-            if param != "self":
+            if param != 'self':
                 setattr(self, param, params[param])
                 
         self.sensor_positions = []
@@ -55,34 +55,34 @@ class Part:
         self.sensor_angles = []
         
         self.shape_text = self.get_shape_text()
-        self.sensor_text = ""  # Initialize as empty
+        self.sensor_text = ''  # Initialize as empty
         self.joint_text = self.get_joint_text()
         
     def get_text(self):
         return(self.shape_text + self.sensor_text + self.joint_text)
         
     def get_shape_text(self):
-        if(self.shape == "box"):
+        if(self.shape == 'box'):
             shape_sizes = f'box size="{self.size[0]} {self.size[1]} {self.size[2]}"'
-        if(self.shape == "cylinder"):
+        if(self.shape == 'cylinder'):
             shape_sizes = f'cylinder radius="{self.size[0]}" length="{self.size[1]}"'          
         return(
 f"""\n\n
     <!-- {self.name} -->
-    <link name="{self.name}">
+    <link name='{self.name}'>
         <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="{self.mass}"/>
-            <inertia ixx="{self.inertia[0]}" ixy="{self.inertia[1]}" ixz="{self.inertia[2]}" iyy="{self.inertia[3]}" iyz="{self.inertia[4]}" izz="{self.inertia[5]}"/>
+            <origin xyz='0 0 0' rpy='0 0 0'/>
+            <mass value='{self.mass}'/>
+            <inertia ixx='{self.inertia[0]}' ixy='{self.inertia[1]}' ixz='{self.inertia[2]}' iyy='{self.inertia[3]}' iyz='{self.inertia[4]}' izz='{self.inertia[5]}'/>
         </inertial>
         <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <origin xyz='0 0 0' rpy='0 0 0'/>
             <geometry>
                 <{shape_sizes}/>
             </geometry>
         </visual>
         <collision>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <origin xyz='0 0 0' rpy='0 0 0'/>
             <geometry>
                 <{shape_sizes}/>
             </geometry>
@@ -115,21 +115,21 @@ f"""\n\n
         self.sensor_angles.append(self.joint_rpy)
                 
         sensor = Part(
-            name = f"{self.name}_sensor_{i}_{side}",
+            name = f'{self.name}_sensor_{i}_{side}',
             mass = 0,
             size = size,
-            joint_parent = f"{self.name}",
+            joint_parent = f'{self.name}',
             joint_origin = sensor_origin,
             joint_axis = self.joint_axis,
-            joint_type = "fixed",
+            joint_type = 'fixed',
             inertia = [0, 0, 0, 0, 0, 0])
         
         return(sensor.get_text())
     
     def get_sensors_text(self, parts):
         if(self.sensors == 0):
-            return("")
-        text = ""
+            return('')
+        text = ''
         if(self.sensors == 1):
             origin = (0, 0, 0)
         else:
@@ -157,18 +157,18 @@ f"""\n\n
             for i, s in enumerate(self.size)]
         
         for i in range(self.sensors):
-            if(i == 0 and "start" in self.sensor_sides):
-                text += self.make_sensor(i, "start", start_stop_size, (0, 0, 0), False, 2, 0, parts)
-            if(i == self.sensors - 1 and "stop" in self.sensor_sides):
-                text += self.make_sensor(i, "stop", start_stop_size, (0, 0, 0), True, 2, 0, parts)
-            if("top" in self.sensor_sides):
-                text += self.make_sensor(i, "top", top_bottom_size, origin, False, 2, 1, parts)
-            if("bottom" in self.sensor_sides):
-                text += self.make_sensor(i, "bottom", top_bottom_size, origin, True, 2, 1, parts)
-            if("left" in self.sensor_sides):
-                text += self.make_sensor(i, "left", left_right_size, origin, False, 0, 2, parts)
-            if("right" in self.sensor_sides):
-                text += self.make_sensor(i, "right", left_right_size, origin, True, 0, 2, parts)
+            if(i == 0 and 'start' in self.sensor_sides):
+                text += self.make_sensor(i, 'start', start_stop_size, (0, 0, 0), False, 2, 0, parts)
+            if(i == self.sensors - 1 and 'stop' in self.sensor_sides):
+                text += self.make_sensor(i, 'stop', start_stop_size, (0, 0, 0), True, 2, 0, parts)
+            if('top' in self.sensor_sides):
+                text += self.make_sensor(i, 'top', top_bottom_size, origin, False, 2, 1, parts)
+            if('bottom' in self.sensor_sides):
+                text += self.make_sensor(i, 'bottom', top_bottom_size, origin, True, 2, 1, parts)
+            if('left' in self.sensor_sides):
+                text += self.make_sensor(i, 'left', left_right_size, origin, False, 0, 2, parts)
+            if('right' in self.sensor_sides):
+                text += self.make_sensor(i, 'right', left_right_size, origin, True, 0, 2, parts)
             origin = (
                     origin[0] + self.size[0]/(self.sensors) if self.sensor_angle == 0 else origin[0], 
                     origin[1] + self.size[1]/(self.sensors) if self.sensor_angle == 1 else origin[1],
@@ -177,25 +177,25 @@ f"""\n\n
         
     def get_joint_text(self):
         if self.joint_parent is None:
-            return ""
+            return ''
         # Use self.joint_rpy here instead of fixed 0 0 0
         return f"""
     <!-- Joint: {self.joint_parent}, {self.name} -->
-    <joint name="{self.joint_parent}_{self.name}_joint" type="{self.joint_type}">
-        <parent link="{self.joint_parent}"/>
-        <child link="{self.name}"/>
-        <origin xyz="{self.joint_origin[0]} {self.joint_origin[1]} {self.joint_origin[2]}"
-                rpy="{self.joint_rpy[0]} {self.joint_rpy[1]} {self.joint_rpy[2]}"/>
-        <axis xyz="{self.joint_axis[0]} {self.joint_axis[1]} {self.joint_axis[2]}"/>
-        {"" if self.joint_type == "fixed" else f'<limit lower="{self.joint_limits[0]}" upper="{self.joint_limits[1]}" effort="{self.joint_limits[2]}" velocity="{self.joint_limits[3]}"/>'}
+    <joint name='{self.joint_parent}_{self.name}_joint' type='{self.joint_type}'>
+        <parent link='{self.joint_parent}'/>
+        <child link='{self.name}'/>
+        <origin xyz='{self.joint_origin[0]} {self.joint_origin[1]} {self.joint_origin[2]}'
+                rpy='{self.joint_rpy[0]} {self.joint_rpy[1]} {self.joint_rpy[2]}'/>
+        <axis xyz='{self.joint_axis[0]} {self.joint_axis[1]} {self.joint_axis[2]}'/>
+        {'' if self.joint_type == 'fixed' else f'<limit lower="{self.joint_limits[0]}" upper="{self.joint_limits[1]}" effort="{self.joint_limits[2]}" velocity="{self.joint_limits[3]}"/>'}
     </joint>"""
     
     
     
-if(__name__ == "__main__"):
+if(__name__ == '__main__'):
     part = Part(
-        name = "body", 
+        name = 'body', 
         mass = 100, 
         size = (1, 1, 1),
         sensors = 1,
-        sensor_sides = ["start", "stop", "top", "left", "right"]),
+        sensor_sides = ['start', 'stop', 'top', 'left', 'right']),

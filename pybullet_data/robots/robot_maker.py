@@ -23,7 +23,7 @@ except ImportError:
     
     
     
-add_this = "pybullet_data/robots/" if cluster else ""
+add_this = 'pybullet_data/robots/' if cluster else ''
 
 
 
@@ -38,20 +38,20 @@ def make_robot(robot_name, parts):
         part.joint_text = part.get_joint_text()
 
     robot = \
-    """<?xml version="1.0"?>
-    <robot name="robot">"""
+    '''<?xml version='1.0'?>
+    <robot name='robot'>'''
     for part in parts:
         robot += part.get_text()
     robot += \
-    """\n\n\n</robot>"""
+    '''\n\n\n</robot>'''
 
     current_dir = os.getcwd()
     last_folder = os.path.basename(current_dir)
-    if last_folder == "shapes":
+    if last_folder == 'shapes':
         new_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
         os.chdir(new_dir)    
         
-    with open(f"{robot_name}.urdf", 'w') as file:
+    with open(f'{robot_name}.urdf', 'w') as file:
         file.write(robot)
         
     # Example usage with actual robot parts data
@@ -68,11 +68,11 @@ def make_robot(robot_name, parts):
         sensor_positions.extend(part.sensor_positions)
         sensor_dimensions.extend(part.sensor_dimensions)
         sensor_angles.extend(part.sensor_angles)
-        if("wheel" in part.name):
+        if('wheel' in part.name):
             wheel_positions.append(part.joint_origin)
             wheel_dimensions.append(part.size)
             wheel_angles.append(part.joint_axis)
-        if("camera" in part.name):
+        if('camera' in part.name):
             camera_positions.append(part.joint_origin)
             camera_dimensions.append(part.size)
             camera_angles.append(part.joint_axis)
@@ -211,19 +211,19 @@ def make_robot(robot_name, parts):
         ax.set_axis_off()
 
         if(save_path != None):
-            plt.savefig(save_path, bbox_inches = "tight")
+            plt.savefig(save_path, bbox_inches = 'tight')
         if(show):
             plt.show()
             plt.close()
         else:
-            plt.savefig('temp_plot.png', bbox_inches="tight", dpi=300)  # Save the plot as an image file
+            plt.savefig('temp_plot.png', bbox_inches='tight', dpi=300)  # Save the plot as an image file
             plt.close()
-            """for _ in range(10):
+            '''for _ in range(10):
                 if os.path.exists('temp_plot.png'):
                     break
                 time.sleep(0.01)
             else:
-                raise FileNotFoundError(f"{filename} not found after waiting.")"""
+                raise FileNotFoundError(f'{filename} not found after waiting.')'''
             image = Image.open('temp_plot.png')
             image_array = np.array(image)
             os.remove('temp_plot.png')  # Delete the temporary image file
@@ -237,41 +237,34 @@ if(cluster):
     from .robot import parts
 else:
     from robot import parts
-make_robot("robot", parts)
-
-if(cluster):
-    from .robot_2 import parts
-else:
-    from robot_2 import parts
-make_robot("robot_2", parts)
+make_robot('robot', parts)
 
 
 
-
-if(__name__ == "__main__"):
+if(__name__ == '__main__'):
     
     physicsClient = p.connect(p.GUI)
     p.setGravity(0, 0, -10, physicsClientId = physicsClient)
     p.resetDebugVisualizerCamera(1,90,-89, 3, physicsClientId = physicsClient)
-    p.setAdditionalSearchPath("pybullet_data")
+    p.setAdditionalSearchPath('pybullet_data')
     
     num_bots = len(robot_dict)
     for i, robot_name in enumerate(robot_dict.keys()):
         sensor_plotter, sensor_values = robot_dict[robot_name]
-        robot_index = p.loadURDF("{}.urdf".format(robot_name), (-7 + num_bots * 10 / 2 - i * 10, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+        robot_index = p.loadURDF('{}.urdf'.format(robot_name), (-7 + num_bots * 10 / 2 - i * 10, 0, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                                     useFixedBase=True, globalScaling = 2, physicsClientId=physicsClient)
         p.changeVisualShape(robot_index, -1, rgbaColor = (.5,.5,.5,1), physicsClientId = physicsClient)
         for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
             joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
             link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
             p.changeDynamics(robot_index, link_index, maxJointVelocity = 10000)
-            if("sensor" in link_name):
+            if('sensor' in link_name):
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 0, 0, 0), physicsClientId = physicsClient)
-            elif("spoke" in link_name or "outline" in link_name or "flare" in link_name):
+            elif('spoke' in link_name or 'outline' in link_name or 'flare' in link_name):
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 1, 1, 1), physicsClientId = physicsClient)
-            elif("camera_2" in link_name):
+            elif('camera_2' in link_name):
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 1, 1, .3), physicsClientId = physicsClient)
-            elif("camera_3" in link_name):
+            elif('camera_3' in link_name):
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (1, 1, 1, .1), physicsClientId = physicsClient)
             else:
                 p.changeVisualShape(robot_index, link_index, rgbaColor = (0, 0, 0, 1), physicsClientId = physicsClient)
@@ -282,11 +275,11 @@ if(__name__ == "__main__"):
             sensor_values, 
             show = True, 
             figsize = (10, 10), 
-            save_path = f"sensor_plots/{robot_name}_{str(0).zfill(3)}.png", 
+            save_path = f'sensor_plots/{robot_name}_{str(0).zfill(3)}.png', 
             spread = 2)
         #for i in range(len(sensor_values)):
         #    sensor_values[i] = 1
-        #    sensor_plotter(sensor_values, show = True, figsize = (10, 10), save_path = f"sensor_plots/{robot_name}_{str(i+1).zfill(3)}.png")
+        #    sensor_plotter(sensor_values, show = True, figsize = (10, 10), save_path = f'sensor_plots/{robot_name}_{str(i+1).zfill(3)}.png')
         #    sensor_values[i] = 0
         
     # Simulation loop

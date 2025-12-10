@@ -19,37 +19,37 @@ base_izz = 0.5 * base_mass * base_radius**2
 
 
 base = \
-f"""
-<?xml version="1.0"?>
-<robot name="shape">
+f'''
+<?xml version='1.0'?>
+<robot name='shape'>
     <!-- Definition of the base -->
 
-    <link name="base">
+    <link name='base'>
         <visual>
             <geometry>
-                <cylinder length=".1" radius="{base_radius}"/>
+                <cylinder length='.1' radius='{base_radius}'/>
             </geometry>
-            <material name="base_material">
-                <color rgba="1 1 1 1"/> 
+            <material name='base_material'>
+                <color rgba='1 1 1 1'/> 
             </material>
         </visual>
         <collision>
             <geometry>
-                <cylinder length=".1" radius="{base_radius}"/>
+                <cylinder length='.1' radius='{base_radius}'/>
             </geometry>
         </collision>
         <inertial>
-            <origin xyz="0 0 0"/> 
-            <mass value="{base_mass}"/>
-            <inertia ixx="{base_ixx}" ixy="0" ixz="0" iyy="{base_iyy}" iyz="0" izz="{base_izz}"/>
+            <origin xyz='0 0 0'/> 
+            <mass value='{base_mass}'/>
+            <inertia ixx='{base_ixx}' ixy='0' ixz='0' iyy='{base_iyy}' iyz='0' izz='{base_izz}'/>
         </inertial>
     </link>
-"""
+'''
 
 
 
 def innards(lengths, radia, mass = 10):
-    text = "<!-- Definition of the shape -->\n"
+    text = '<!-- Definition of the shape -->\n'
     
     volumes = [pi * r**2 * l for r, l in zip(radia, lengths)]
     total_volume = sum(volumes)
@@ -63,37 +63,37 @@ def innards(lengths, radia, mass = 10):
         izz = 0.5 * link_mass * radius**2
         
         text += \
-f""" 
-    <link name="{i}">
+f''' 
+    <link name='{i}'>
         <visual>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <origin xyz='0 0 0' rpy='0 0 0'/>
             <geometry>
-                <cylinder length="{length}" radius="{radius}"/>
+                <cylinder length='{length}' radius='{radius}'/>
             </geometry>
-            <material name="red">
-                <color rgba="1 1 1 1"/>
+            <material name='red'>
+                <color rgba='1 1 1 1'/>
             </material>
         </visual>
         <collision>
             <geometry>
-                <cylinder length="{length}" radius="{radius}"/>
+                <cylinder length='{length}' radius='{radius}'/>
             </geometry>
         </collision>
         <inertial>
-            <origin xyz="0 0 {0}"/> 
-            <mass value="{link_mass}"/>
-            <inertia ixx="{ixx}" ixy="0" ixz="0" iyy="{iyy}" iyz="0" izz="{izz}"/>
+            <origin xyz='0 0 {0}'/> 
+            <mass value='{link_mass}'/>
+            <inertia ixx='{ixx}' ixy='0' ixz='0' iyy='{iyy}' iyz='0' izz='{izz}'/>
         </inertial>
     </link>
 
-    <joint name="{i}_joint" type="fixed">
-        <parent link="base"/>
-        <child link="{i}"/>
-        <origin xyz="0 0 {length/2 + length_so_far}" rpy="0 0 0"/>
+    <joint name='{i}_joint' type='fixed'>
+        <parent link='base'/>
+        <child link='{i}'/>
+        <origin xyz='0 0 {length/2 + length_so_far}' rpy='0 0 0'/>
     </joint>
-"""
+'''
         length_so_far += length
-    text += "\n</robot>"
+    text += '\n</robot>'
     return(text)
 
 hourglass_part = [max_radius - i/11 for i in range(6)]
@@ -109,19 +109,19 @@ hourglass   = innards(lengths = [.1] * 10,  radia = all_hourglass)
 
 current_dir = os.getcwd()
 last_folder = os.path.basename(os.getcwd())
-if last_folder == "pybullet_data":
-    new_dir = os.path.join(current_dir, "shapes")
+if last_folder == 'pybullet_data':
+    new_dir = os.path.join(current_dir, 'shapes')
     os.chdir(new_dir)
     
     
   
 shapes = [pillar, pole, dumbbell, cone, hourglass]
-names = ["PILLAR", "POLE", "DUMBBELL", "CONE", "HOURGLASS"]
-letters = ["N", "O", "P", "Q", "R"]
+names = ['PILLAR', 'POLE', 'DUMBBELL', 'CONE', 'HOURGLASS']
+letters = ['N', 'O', 'P', 'Q', 'R']
 file_names = []
 
 for i in range(len(shapes)):
-    file_name = f"{letters[i]}_{names[i]}.urdf"
+    file_name = f'{letters[i]}_{names[i]}.urdf'
     shape = shapes[i]
     file_names.append(file_name)
     with open(file_name, 'w') as file:
@@ -130,16 +130,10 @@ for i in range(len(shapes)):
 
 
 physicsClient = p.connect(p.GUI)
-p.setAdditionalSearchPath("pybullet_data")
+p.setAdditionalSearchPath('pybullet_data')
 p.setGravity(0, 0, -9.8, physicsClientId = physicsClient)
 
-"""plane_positions = [[0, 0]]
-plane_ids = []
-for position in plane_positions:
-    plane_id = p.loadURDF(f"plane.urdf", position + [0], globalScaling=2, useFixedBase=True, physicsClientId=physicsClient)
-    plane_ids.append(plane_id)
-    plane_id = p.loadURDF(f"plane.urdf", position + [-10], globalScaling=2, useFixedBase=True, physicsClientId=physicsClient)
-    plane_ids.append(plane_id)"""
+
 
 these_colors = [
     (1, 0, 0, 1),
@@ -150,7 +144,7 @@ these_colors = [
 ]
 
 for index, (i, file_name) in enumerate(zip([-2, -1, 0, 1, 2], file_names)):
-    object_index = p.loadURDF("{}".format(file_name), (-5, 15 * i, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
+    object_index = p.loadURDF('{}'.format(file_name), (-5, 15 * i, 0), p.getQuaternionFromEuler([0, 0, pi/2]), 
                                                 useFixedBase=False, globalScaling = 2, physicsClientId=physicsClient)
     color = these_colors[index]
     p.changeVisualShape(object_index, -1, rgbaColor = color, physicsClientId = physicsClient)
@@ -206,9 +200,9 @@ for image_size in [16]:
         all_rgbs.append(rgbs)
     plot_these(all_rgbs)
     
-"""while True:
+'''while True:
     sleep(0.05)
-    p.stepSimulation(physicsClientId=physicsClient)"""
+    p.stepSimulation(physicsClientId=physicsClient)'''
   
 #p.disconnect(physicsClientId = physicsClient)
 

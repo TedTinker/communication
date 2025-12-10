@@ -3,19 +3,19 @@ from copy import deepcopy
 import argparse, json
 from math import pi
 parser = argparse.ArgumentParser()
-parser.add_argument("--comp",         type=str,  default = "deigo")
-parser.add_argument("--agents",       type=int,  default = 10)
-parser.add_argument("--arg_list",     type=str,  default = [])
+parser.add_argument('--comp',         type=str,  default = 'deigo')
+parser.add_argument('--agents',       type=int,  default = 10)
+parser.add_argument('--arg_list',     type=str,  default = [])
 try:    args = parser.parse_args()
 except: args, _ = parser.parse_known_args()
 
 # This file works with communication.sh to operate many attempts with different parameters.
 
 if(type(args.arg_list) != list): args.arg_list = json.loads(args.arg_list)
-combined = "___{}___".format("+".join(args.arg_list))    
+combined = '___{}___'.format('+'.join(args.arg_list))    
 
 import os 
-try:    os.chdir("communication/bash")
+try:    os.chdir('communication/bash')
 except: pass
 
 
@@ -30,7 +30,7 @@ def expand_args(name, args):
                 combo[key] = value
         else: 
             complex = True
-            if(value[0]) == "num_min_max": 
+            if(value[0]) == 'num_min_max': 
                 num, min_val, max_val = value[1]
                 num = int(num)
                 min_val = float(min_val)
@@ -43,7 +43,7 @@ def expand_args(name, args):
                     combo[key] = v 
                     new_combos.append(combo)   
             combos = new_combos  
-    if(complex and name[-1] != "_"): name += "_"
+    if(complex and name[-1] != '_'): name += '_'
     return(name, combos)
 
 def convert_list(input_list):
@@ -52,7 +52,7 @@ def convert_list(input_list):
 
 
 
-slurm_dict = {"d" : {}} 
+slurm_dict = {'d' : {}} 
 
 
 
@@ -60,8 +60,8 @@ def add_this(name, args):
     keys, values = [], []
     for key, value in slurm_dict.items(): keys.append(key) ; values.append(value)
     for key, value in zip(keys, values):  
-        if(key == "d"): key = ""
-        between = "" if key == "" or len(name) == 1 else "_"
+        if(key == 'd'): key = ''
+        between = '' if key == '' or len(name) == 1 else '_'
         new_key = key + between + name 
         new_value = deepcopy(value)
         for arg_name, arg in args.items():
@@ -75,10 +75,10 @@ def add_this(name, args):
         slurm_dict[new_key] = new_value
 
 # Agents with entropy
-add_this("e",   {
-    "alpha" : "None", 
-    "normal_alpha" : .05,
-    "target_entropy" : -1.5})    
+add_this('e',   {
+    'alpha' : 'None', 
+    'normal_alpha' : .05,
+    'target_entropy' : -1.5})    
 
 vision_eta = .05 
 touch_eta = 1
@@ -86,88 +86,88 @@ prop_eta = .1
 feedback_eta = .2
 
 # Curiosity of senses only
-add_this("c",   {                                           
-    "curiosity" : "hidden_state",     
-    "hidden_state_eta_feedback_voice" : feedback_eta})
+add_this('c',   {                                           
+    'curiosity' : 'hidden_state',     
+    'hidden_state_eta_feedback_voice' : feedback_eta})
 
 # Curiosity of senses only
-add_this("p",   {                                           
-    "curiosity" : "hidden_state",
-    "hidden_state_eta_vision" : vision_eta,
-    "hidden_state_eta_touch" : touch_eta,
-    "hidden_state_eta_prop" : prop_eta})
+add_this('p',   {                                           
+    'curiosity' : 'hidden_state',
+    'hidden_state_eta_vision' : vision_eta,
+    'hidden_state_eta_touch' : touch_eta,
+    'hidden_state_eta_prop' : prop_eta})
 
 # Agents with curiosity (hidden state)
-add_this("f",   {
-    "curiosity" : "hidden_state",
-    "hidden_state_eta_vision" : vision_eta,
-    "hidden_state_eta_touch" : touch_eta, 
-    "hidden_state_eta_prop" : prop_eta,     
-    "hidden_state_eta_feedback_voice" : feedback_eta})   
+add_this('f',   {
+    'curiosity' : 'hidden_state',
+    'hidden_state_eta_vision' : vision_eta,
+    'hidden_state_eta_touch' : touch_eta, 
+    'hidden_state_eta_prop' : prop_eta,     
+    'hidden_state_eta_feedback_voice' : feedback_eta})   
 
 
 
-add_this("q",   {
-    "save_agents" : "False",
-    "save_behaviors" : "False",
-    "save_compositions" : "False"})
+add_this('q',   {
+    'save_agents' : 'False',
+    'save_behaviors' : 'False',
+    'save_compositions' : 'False'})
 
 
-add_this("q2",   {
-    "agents_per_agent_save" : 10,
-    "epochs_per_agent_save" : 2500,
-    "save_behaviors" : "False",
-    "save_compositions" : "False"})
+add_this('q2',   {
+    'agents_per_agent_save' : 10,
+    'epochs_per_agent_save' : 2500,
+    'save_behaviors' : 'False',
+    'save_compositions' : 'False'})
 
-add_this("q3",   {
-    "save_behaviors" : "False",
-    "save_compositions" : "False"})
+add_this('q3',   {
+    'save_behaviors' : 'False',
+    'save_compositions' : 'False'})
 
-add_this("q4",   {
-    "agents_per_agent_save" : 1,
-    "epochs_per_agent_save" : 30000,
-    "save_behaviors" : "False",
-    "epochs_per_composition_data" : 10000})
+add_this('q4',   {
+    'agents_per_agent_save' : 1,
+    'epochs_per_agent_save' : 30000,
+    'save_behaviors' : 'False',
+    'epochs_per_composition_data' : 10000})
 
 
 
-add_this("t", {
-    "exceptions" : [1, 3],
-    "init_seed" : [555, 666, 777],
-    "save_agents" : "False",
-    "save_behaviors" : "False",
-    "epochs_per_composition_data" : 5000,
-    "agents_per_composition_data" : 99
+add_this('t', {
+    'exceptions' : [1, 3],
+    'init_seed' : [555, 666, 777],
+    'save_agents' : 'False',
+    'save_behaviors' : 'False',
+    'epochs_per_composition_data' : 5000,
+    'agents_per_composition_data' : 99
 })
  
-add_this("k", {
-    "exceptions" : 1,
-    "save_behaviors" : "False",
-    "epochs_per_agent_save" : 2500,
-    "agents_per_agent_save" : 99,
-    "epochs_per_composition_data" : 10000
+add_this('k', {
+    'exceptions' : 1,
+    'save_behaviors' : 'False',
+    'epochs_per_agent_save' : 2500,
+    'agents_per_agent_save' : 99,
+    'epochs_per_composition_data' : 10000
 })
 
 
 
 
 
-add_this("t1",   {
-    "touch_top" : False,
-    "yellow" : False,
-    "cone" : False,
-    "hourglass" : False,
-    "test_train_num" : 2
+add_this('t1',   {
+    'touch_top' : False,
+    'yellow' : False,
+    'cone' : False,
+    'hourglass' : False,
+    'test_train_num' : 2
 }) 
 
-add_this("t2",   { 
-    "touch_top" : False,
-    "be_near" : False,
-    "magenta" : False,
-    "yellow" : False,
-    "cone" : False,
-    "hourglass" : False,
-    "test_train_num" : 1
+add_this('t2',   { 
+    'touch_top' : False,
+    'be_near' : False,
+    'magenta' : False,
+    'yellow' : False,
+    'cone' : False,
+    'hourglass' : False,
+    'test_train_num' : 1
 })
 
 
@@ -186,13 +186,13 @@ for key, value in slurm_dict.items():
 slurm_dict = new_slurm_dict
 
 def get_args(name):
-    s = "" 
-    for key, value in slurm_dict[name].items(): s += "--{} {} ".format(key, value)
+    s = '' 
+    for key, value in slurm_dict[name].items(): s += '--{} {} '.format(key, value)
     return(s)
 
 def all_like_this(this): 
-    if(this in ["break", "empty_space"]): result = [this]
-    elif(this[-1] != "_"):                result = [this]
+    if(this in ['break', 'empty_space']): result = [this]
+    elif(this[-1] != '_'):                result = [this]
     else: result = [key for key in slurm_dict.keys() if key.startswith(this) and key[len(this):].isdigit()]
     return(json.dumps(result))
 
@@ -200,110 +200,110 @@ def all_like_this(this):
 
 max_cpus = args.agents if args.agents < 30 else 30
  
-if(__name__ == "__main__" and args.arg_list == []):
-    print("ALL POSSIBLE HYPERPARAMETERS:")
+if(__name__ == '__main__' and args.arg_list == []):
+    print('ALL POSSIBLE HYPERPARAMETERS:')
     for key, value in slurm_dict.items(): 
-        print(key, ":", value)
-    interesting = [f"ef_q4t_{i}" for i in range(1, 6)]
+        print(key, ':', value)
+    interesting = [f'ef_q4t_{i}' for i in range(1, 6)]
     if(len(interesting) != 0):
-        print("\n\n\nTHESE HYPERPARAMETERS:")
+        print('\n\n\nTHESE HYPERPARAMETERS:')
         for this in interesting:
-            print("{} : {}".format(this,slurm_dict[this]))
+            print('{} : {}'.format(this,slurm_dict[this]))
 
-if(__name__ == "__main__" and args.arg_list != []):
+if(__name__ == '__main__' and args.arg_list != []):
     
-    if(args.comp == "deigo"):
-        nv = ""
-        module = "module load singularity"
+    if(args.comp == 'deigo'):
+        nv = ''
+        module = 'module load singularity'
         partition = \
-"""
+'''
 #!/bin/bash -l
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
 #SBATCH --time 72:00:00
-#SBATCH --mem=50G"""
+#SBATCH --mem=50G'''
 
-    if(args.comp == "saion"):
-        nv = " --nv"
-        module = "module load singularity cuda"
+    if(args.comp == 'saion'):
+        nv = ' --nv'
+        module = 'module load singularity cuda'
         partition = \
-"""
+'''
 #!/bin/bash -l
 #SBATCH --partition=taniu
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
 #SBATCH --time 48:00:00
 #SBATCH --mem=490G
-#SBATCH --gres=gpu:4"""
+#SBATCH --gres=gpu:4'''
     for name in args.arg_list:
-        if(name in ["break", "empty_space"]): pass 
+        if(name in ['break', 'empty_space']): pass 
         else:
-            with open("main_{}.slurm".format(name), "w") as f:
+            with open('main_{}.slurm'.format(name), 'w') as f:
                 f.write(
-f"""
+f'''
 {partition}
 #SBATCH --ntasks={max_cpus}
 {module}
 singularity exec{nv} communication.sif python communication/main.py --comp {args.comp} --arg_name {name} {get_args(name)} --agents $agents_per_job --previous_agents $previous_agents
-"""[2:])
+'''[2:])
             
 
 
-    with open("finish_dicts.slurm", "w") as f:
+    with open('finish_dicts.slurm', 'w') as f:
         f.write(
-f"""
+f'''
 {partition}
 {module}
 singularity exec{nv} communication.sif python communication/finish_dicts.py --comp {args.comp} --arg_title {combined} --arg_name finishing_dictionaries
-"""[2:])
+'''[2:])
         
-    with open("plotting.slurm", "w") as f:
+    with open('plotting.slurm', 'w') as f:
         f.write(
-f"""
+f'''
 {partition}
 {module}
 singularity exec{nv} communication.sif python communication/plotting.py --comp {args.comp} --arg_title {combined} --arg_name plotting
-"""[2:])
+'''[2:])
         
-    with open("plotting_composition.slurm", "w") as f:
+    with open('plotting_composition.slurm', 'w') as f:
         f.write(
-f"""
+f'''
 {partition}
 {module}
 singularity exec{nv} communication.sif python communication/plotting_composition.py --comp {args.comp} --arg_title {combined} --arg_name plotting_composition
-"""[2:])
+'''[2:])
         
-    with open("plotting_episodes.slurm", "w") as f:
+    with open('plotting_episodes.slurm', 'w') as f:
         f.write(
-f"""
+f'''
 {partition}
 {module}
 singularity exec{nv} communication.sif python communication/plotting_episodes.py --comp {args.comp} --arg_title {combined} --arg_name plotting_episodes
-"""[2:])
+'''[2:])
         
-    with open("plotting_p_values.slurm", "w") as f:
+    with open('plotting_p_values.slurm', 'w') as f:
         f.write(
-f"""
+f'''
 {partition}
 {module}
 singularity exec{nv} communication.sif python communication/plotting_p_val.py --comp {args.comp} --arg_title {combined} --arg_name plotting_p_values
-"""[2:])
+'''[2:])
         
-    with open("plotting_behavior.slurm", "w") as f:
+    with open('plotting_behavior.slurm', 'w') as f:
         f.write(
-f"""
+f'''
 {partition}
 {module}
 singularity exec{nv} communication.sif python communication/plotting_behavior.py --comp {args.comp} --arg_title {combined} --arg_name plotting_behavior
-"""[2:])
+'''[2:])
         
-    with open("combine_plots.slurm", "w") as f:
+    with open('combine_plots.slurm', 'w') as f:
         f.write(
-f"""
+f'''
 {partition}
 {module}
 singularity exec{nv} communication.sif python communication/combine_plots.py --comp {args.comp} --arg_title {combined} --arg_name combining_plots
-"""[2:])
+'''[2:])
 # %%
 
