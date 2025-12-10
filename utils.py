@@ -1,17 +1,16 @@
-#%% 
+#%%
 
 import os
 import pickle
 import pybullet as p
 from time import sleep
 import builtins
-import datetime 
+import datetime
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
-from matplotlib.patches import FancyArrowPatch
-from matplotlib.patches import ConnectionPatch
+from matplotlib.patches import FancyArrowPatch, ConnectionPatch
 import argparse, ast
 from math import exp, log, pi
 from random import choice, choices
@@ -20,75 +19,85 @@ import psutil
 from itertools import product
 import tkinter as tk
 import numpy as np
-import torch
 
-# Find torch device.
-#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device("cpu")
+# -------------------------------
+# TORCH SETUP
+# -------------------------------
 
-# Choose correct folder.
-if(os.getcwd().split("/")[-1] != "communication"): 
+device = torch.device("cpu")  # I recommend CPU explicitly
+
+# -------------------------------
+# DIRECTORY CHECK
+# -------------------------------
+
+if os.getcwd().split("/")[-1] != "communication": 
     os.chdir("communication")
 print(f"\n\nWorking in: {os.getcwd()}\n\n")
 
-# Adjusting font in PLT.
-font = {'family' : 'sans-serif',
-        #'weight' : 'bold',
-        'size'   : 22}
+# -------------------------------
+# Miscellaneous
+# -------------------------------
+
+font = {
+    'family': 'sans-serif',
+    'size': 22
+}
 matplotlib.rc('font', **font)
 
-# Adjusting printing for computer-cluster.
 def print(*args, **kwargs):
+    """Override built-in print to auto-flush."""
     kwargs["flush"] = True
     builtins.print(*args, **kwargs)
-    
-# For readable printing options.
+
 torch.set_printoptions(precision=3, sci_mode=False)
 
-# Functions to view durations.
 start_time = datetime.datetime.now()
 
-def duration(start_time = start_time):
-    change_time = datetime.datetime.now() - start_time
-    change_time = change_time# - datetime.timedelta(microseconds=change_time.microseconds)
-    return(change_time)
+def duration(start_time=start_time):
+    """Return elapsed time since given start time (default: script start)."""
+    delta = datetime.datetime.now() - start_time
+    return delta
 
-def print_duration(start_time, end_time, text = None, end_text = ""):
-    if(text == None):
-        print(f"{end_time - start_time}{end_text}")
+def print_duration(start_time, end_time, text=None, end_text=""):
+    """Print the duration between two times with optional prefix text."""
+    delta = end_time - start_time
+    if text:
+        print(f"{text}: {delta}{end_text}")
     else:
-        print(f"{text}: {end_time - start_time}{end_text}")
+        print(f"{delta}{end_text}")
 
 def estimate_total_duration(proportion_completed, start_time=start_time):
-    if(proportion_completed != 0): 
-        so_far = datetime.datetime.now() - start_time
-        estimated_total = so_far / proportion_completed
-        estimated_total = estimated_total - datetime.timedelta(microseconds=estimated_total.microseconds)
-    else: estimated_total = "?:??:??"
-    return(estimated_total)
+    """Estimate total time given progress percentage and elapsed time."""
+    if proportion_completed == 0:
+        return "?:??:??"
+    so_far = datetime.datetime.now() - start_time
+    estimated_total = so_far / proportion_completed
+    estimated_total = estimated_total - datetime.timedelta(microseconds=estimated_total.microseconds)
+    return estimated_total
 
-# Options to view memory. 
 def cpu_memory_usage():
+    """Print memory usage of current Python process (in GB)."""
     process = psutil.Process(os.getpid())
-    mem_usage_bytes = process.memory_info().rss  # rss is the Resident Set Size
-    mem_usage_gb = mem_usage_bytes / (1024 ** 3)  # Convert bytes to gigabytes
-    print('memory use:', mem_usage_gb, "gigabytes")
-
-
+    mem_usage_bytes = process.memory_info().rss
+    mem_usage_gb = mem_usage_bytes / (1024 ** 3)
+    print('memory use:', round(mem_usage_gb, 3), "gigabytes")
 
 #%%
 
+# -------------------------------
+# TASK
+# -------------------------------
 
-
-# Class describing task.
 class Task:
+    """Represent a task with a character and name."""
     def __init__(self, char, name):
-        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
-        
+        self.char = char
+        self.name = name
+
     def __str__(self):
-        return(f"{self.char}, {self.name}")
-    
-# Mapping tasks to digits.
+        return f"{self.char}, {self.name}"
+
+
 task_map = {
     0:  Task("A", "SILENCE"),
     1:  Task("B", "WATCH"),
@@ -96,63 +105,77 @@ task_map = {
     3:  Task("D", "TOUCH THE TOP"),
     4:  Task("E", "PUSH FORWARD"),     
     5:  Task("F", "PUSH LEFT"),   
-    6:  Task("G", "PUSH RIGHT")}    
-max_len_taskname = max([len(t.name) for t in task_map.values()])
+    6:  Task("G", "PUSH RIGHT")
+}
+
+max_len_taskname = max(len(task.name) for task in task_map.values())
 task_name_list = [task.name for task in task_map.values()]
 
+# -------------------------------
+# COLOR
+# -------------------------------
 
-        
-# Mapping describing color.
 class Color:
+    """Represent a color with a character, name, and RGBA tuple."""
     def __init__(self, char, name, rgba):
-        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
-        
+        self.char = char
+        self.name = name
+        self.rgba = rgba
+
     def __str__(self):
-        return(f"{self.char}, {self.name}")
-    
-# Mapping colors to digits.
+        return f"{self.char}, {self.name}"
+
+
 color_map = {
-    0: Color("H", "RED",        (1,0,0,1)), 
-    1: Color("I", "GREEN",      (0,1,0,1)),
-    2: Color("J", "BLUE",       (0,0,1,1)),
-    3: Color("K", "CYAN",       (0,1,1,1)), 
-    4: Color("L", "MAGENTA",    (1,0,1,1)), 
-    5: Color("M", "YELLOW",     (1,1,0,1))} 
-max_len_color_name = max([len(c.name) for c in color_map.values()])
+    0: Color("H", "RED",     (1, 0, 0, 1)),
+    1: Color("I", "GREEN",   (0, 1, 0, 1)),
+    2: Color("J", "BLUE",    (0, 0, 1, 1)),
+    3: Color("K", "CYAN",    (0, 1, 1, 1)),
+    4: Color("L", "MAGENTA", (1, 0, 1, 1)),
+    5: Color("M", "YELLOW",  (1, 1, 0, 1)),
+}
+
+max_len_color_name = max(len(c.name) for c in color_map.values())
 color_name_list = [c.name for c in color_map.values()]
 
+# -------------------------------
+# SHAPE
+# -------------------------------
 
-        
-# Class describing shapes.
 class Shape:
+    """Represent a shape using a character and shape file name."""
     def __init__(self, char, file_name):
-        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
-        self.name = file_name.split("_")[-1][:-5]
-        
+        self.char = char
+        self.file_name = file_name
+        self.name = file_name.split("_")[-1][:-5]  # Extract name from filename
+
     def __str__(self):
-        return(f"{self.char}, {self.name}")
-    
-# Mapping describing shapes.
-shape_files = [f.name for f in os.scandir("pybullet_data/shapes") if f.name.endswith("urdf")] 
+        return f"{self.char}, {self.name}"
+
+
+shape_files = [f.name for f in os.scandir("pybullet_data/shapes") if f.name.endswith("urdf")]
 shape_files.sort()
 shape_letter_file = [[f.split("_")[0], f] for f in shape_files]
-shape_map = {i : Shape(l, f) for i, (l, f) in enumerate(shape_letter_file)} 
-max_len_shape_name = max([len(s.name) for s in shape_map.values()])
+shape_map = {i: Shape(letter, fname) for i, (letter, fname) in enumerate(shape_letter_file)}
+
+max_len_shape_name = max(len(s.name) for s in shape_map.values())
 shape_name_list = [s.name for s in shape_map.values()]
 
+# -------------------------------
+# DISPLAY ALL OPTIONS
+# -------------------------------
 
-
-# In __main__, view all tasks/colors/shapes.
-if(__name__ == "__main__"):
+if __name__ == "__main__":
     print("Tasks:")
     for key, value in task_map.items():
-        print(f"\t{key} : \t {value}")
+        print(f"\t{key} :\t{value}")
     print("Colors:")
     for key, value in color_map.items():
-        print(f"\t{key} : \t {value}")
+        print(f"\t{key} :\t{value}")
     print("Shapes:")
     for key, value in shape_map.items():
-        print(f"\t{key} : \t {value}")
+        print(f"\t{key} :\t{value}")
+
         
         
         
@@ -160,95 +183,121 @@ if(__name__ == "__main__"):
 
 
         
-# Class combining tasks, colors, and shaped. 
-# "Parenting" refers to the command voice. If we were using two agents in cooperation, parenting is false. 
+#%%
+
+import torch
+
+# -------------------------------
+# GOAL
+# -------------------------------
+
 class Goal:
+    """
+    Combines a task, color, and shape into a single goal object.
+    Used for interpreting command voices or specifying target behavior.
+
+    - `parenting` indicates if command voice is used (True) or agent is cooperating with another (False).
+    """
     def __init__(self, task, color, shape, parenting):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
-        # If the voice is silent, make sure all parts of the voice are silent.
-        if(self.task.name == "SILENCE"):
-            self.color = self.task 
+        if self.task.name == "SILENCE":
+            self.color = self.task
             self.shape = self.task
+        
         self.one_hots = torch.zeros((3, len(task_map) + len(color_map) + len(shape_map)))
         self.digits = ()
         self.make_texts()
-    
-    # Make text representing the goal.    
-    def make_texts(self):
 
+    def make_texts(self):
+        """Generate one-hot vector, index triplet, and text representations."""
         for i, char in enumerate([self.task.char, self.color.char, self.shape.char]):
             index = ord(char) - ord('A')
             self.one_hots[i, index] = 1
             
-        self.digits = ()
         task_index = ord(self.task.char) - ord('A')
         color_index = ord(self.color.char) - ord('A') - len(task_map)
         shape_index = ord(self.shape.char) - ord('A') - len(task_map) - len(color_map)
         self.digits = (task_index, color_index, shape_index)
-            
+
         self.char_text = f"{self.task.char}{self.color.char}{self.shape.char}"
         self.human_text = f"{self.task.name} {self.color.name} {self.shape.name}"
-        
-    # Make text easier for humans to read.
-    def human_friendly_text(self, command = True):
-        return(f"{'Command' if command else 'Feedback'}: {self.human_text}")
-        
-# Goal representing silence.
-empty_goal = Goal(task_map[0], task_map[0], task_map[0], parenting = False)
+
+    def human_friendly_text(self, command=True):
+        """Return a more readable label for command/feedback voice."""
+        return f"{'Command' if command else 'Feedback'}: {self.human_text}"
+
+# Create a default "silent" goal
+empty_goal = Goal(task_map[0], task_map[0], task_map[0], parenting=False)
 
 
+# -------------------------------
+# GOAL UTILITIES
+# -------------------------------
 
-# Given a one-hot vector, make a goal.
 def get_goal_from_one_hots(one_hots):
-    while(len(one_hots.shape) > 2):
+    """Construct a Goal object from a one-hot representation."""
+    while one_hots.ndim > 2:
         one_hots = one_hots.squeeze(0)
-    task_one_hot = one_hots[0, : len(task_map)]
-    color_one_hot = one_hots[1, len(task_map) : len(task_map) + len(color_map)]
-    shape_one_hot = one_hots[2, len(task_map) + len(color_map) : len(task_map) + len(color_map) + len(shape_map)]
-    
-    task_index = torch.argmax(task_one_hot).item()
-    color_index = torch.argmax(color_one_hot).item()
-    shape_index = torch.argmax(shape_one_hot).item()
-            
-    task = task_map[task_index]
-    color = color_map[color_index]
-    shape = shape_map[shape_index]
+        
+    task_one_hot = one_hots[0, :len(task_map)]
+    color_one_hot = one_hots[1, len(task_map):len(task_map) + len(color_map)]
+    shape_one_hot = one_hots[2, len(task_map) + len(color_map):]
+
+    task = task_map[torch.argmax(task_one_hot).item()]
+    color = color_map[torch.argmax(color_one_hot).item()]
+    shape = shape_map[torch.argmax(shape_one_hot).item()]
     
     goal = Goal(task, color, shape, parenting=False)
-    if(task.name == "SILENCE"):
-        goal = empty_goal
-    return goal
+    return empty_goal if task.name == "SILENCE" else goal
 
 
-
-# Given (x, y, z) digits, make a goal.
 def get_goal_from_digits(digits):
+    """Construct a Goal object from a tuple of (task, color, shape) indices."""
     x, y, z = digits
     one_hots = torch.zeros((3, len(task_map) + len(color_map) + len(shape_map)))
     one_hots[0, x] = 1
     one_hots[1, len(task_map) + y] = 1
     one_hots[2, len(task_map) + len(color_map) + z] = 1
-    return(get_goal_from_one_hots(one_hots))
+    return get_goal_from_one_hots(one_hots)
 
+# -------------------------------
+# REINFORCEMENT LEARNING WRAPPERS
+# -------------------------------
 
-        
-# Class describing sensory observations. "prop" is proprioception.
 class Obs:
+    """
+    A single observation consisting of:
+    - vision
+    - touch
+    - proprioception
+    - command voice
+    - feedback voice
+    """
     def __init__(self, vision, touch, prop, command_voice, feedback_voice):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
-        
-# Class describing motor commands.
+
+
 class Action:
+    """
+    A single action consisting of:
+    - wheels & joints
+    - voice output
+    """
     def __init__(self, wheels_joints, voice_out):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
-        
-# Class describing transitions to be pushed into the recurrent replay buffer.
+
+
 class To_Push:
+    """
+    Transition for replay buffer:
+    (obs, action, reward, next_obs, done)
+    """
     def __init__(self, obs, action, reward, next_obs, done):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
-        
+
     def push(self, memory):
+        """Push the transition into the replay memory."""
         memory.push(
             self.obs.vision.to("cpu"),
             self.obs.touch.to("cpu"),
@@ -263,35 +312,48 @@ class To_Push:
             self.next_obs.prop.to("cpu"),
             self.next_obs.command_voice.to("cpu"), 
             self.next_obs.feedback_voice.to("cpu"), 
-            self.done)
+            self.done
+        )
 
-# Class describing prior, estimated posterior, and the kullback leibler divergence comparing them.
+
 class Inner_States:
+    """
+    Latent internal state:
+    - zp: prior sample
+    - zq: posterior sample
+    - dkl: KL divergence
+    """
     def __init__(self, zp, zq, dkl):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
 
 
+# -------------------------------
+# CHAR ↔ INDEX MAPPINGS
+# -------------------------------
 
-# Mapping indexes and characters representing tasks, colors, and shapes.
-used_chars = list(
-                 [t.char for t in task_map.values()] +
-                 [c.char for c in color_map.values()] +
-                 [s.char for s in shape_map.values()])
-used_chars.sort()
+used_chars = sorted(
+    [t.char for t in task_map.values()] +
+    [c.char for c in color_map.values()] +
+    [s.char for s in shape_map.values()]
+)
 
-voice_map = {k: v for k, v in {
-    0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G',
-    7: 'H', 8: 'I', 9: 'J', 10: 'K', 11: 'L', 12: 'M', 13: 'N',
-    14: 'O', 15: 'P', 16: 'Q', 17: 'R', 18: 'S', 19: 'T', 20: 'U',
-    21: 'V', 22: 'W', 23: 'X', 24: 'Y', 25: 'Z'
-}.items() if v in used_chars}
+voice_map = {
+    k: v for k, v in {
+        0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G',
+        7: 'H', 8: 'I', 9: 'J', 10: 'K', 11: 'L', 12: 'M', 13: 'N',
+        14: 'O', 15: 'P', 16: 'Q', 17: 'R', 18: 'S', 19: 'T', 20: 'U',
+        21: 'V', 22: 'W', 23: 'X', 24: 'Y', 25: 'Z'
+    }.items() if v in used_chars
+}
 
 char_to_index = {v: k for k, v in voice_map.items()}
 
 
+# -------------------------------
+# TESTING EXAMPLES
+# -------------------------------
 
-# In __main__, view the one-hot version, character version, and human-friendly version of some example goals.
-if(__name__ == "__main__"):
+if __name__ == "__main__":
     print("\n\nEmpty Goal:")
     example = empty_goal
     print(example.one_hots)
@@ -299,21 +361,21 @@ if(__name__ == "__main__"):
     print(example.human_text)
     print(get_goal_from_one_hots(example.one_hots).human_text)
 
-
     print("\n\nExample Goal:")
-    example = Goal(task_map[1], color_map[2], shape_map[2], parenting = False)
+    example = Goal(task_map[1], color_map[2], shape_map[2], parenting=False)
     print(example.one_hots)
     print(example.char_text)
     print(example.human_text)
     print(get_goal_from_one_hots(example.one_hots).human_text)
 
     print("\n\nExample Goal:")
-    example = Goal(task_map[4], color_map[3], shape_map[3], parenting = False)
+    example = Goal(task_map[4], color_map[3], shape_map[3], parenting=False)
     print(example.one_hots)
     print(example.char_text)
     print(example.human_text)
     print(get_goal_from_one_hots(example.one_hots).human_text)
     print("\n\n")
+
 
 
 
