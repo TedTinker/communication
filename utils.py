@@ -715,17 +715,17 @@ def literal(arg_string):
 parser = argparse.ArgumentParser()
 
     # Meta 
-parser.add_argument("--arg_title",                      type=str,           default = "default",
+parser.add_argument('--arg_title',                      type=str,           default = 'default',
                     help='Title of argument-set containing all non-default arguments.') 
-parser.add_argument("--arg_name",                       type=str,           default = "default",
+parser.add_argument('--arg_name',                       type=str,           default = 'default',
                     help='Title of argument-set for human-understanding.') 
-parser.add_argument("--agents",                         type=int,           default = 36,
+parser.add_argument('--agents',                         type=int,           default = 36,
                     help='How many agents are trained in this job?')
-parser.add_argument("--previous_agents",                type=int,           default = 0,
+parser.add_argument('--previous_agents',                type=int,           default = 0,
                     help='How many agents with this argument-set are trained in previous jobs?')
-parser.add_argument("--init_seed",                      type=int,         default = 777,
+parser.add_argument('--init_seed',                      type=int,         default = 777,
                     help='Random seed.')
-parser.add_argument('--comp',                           type=str,           default = "deigo",
+parser.add_argument('--comp',                           type=str,           default = 'deigo',
                     help='Cluster name (deigo or saion).')
 parser.add_argument('--device',                         type=str,           default = device,
                     help='Which device to use for Torch.')
@@ -797,7 +797,7 @@ parser.add_argument('--hourglass',                      type=literal,       defa
 
 
     # Agent details
-parser.add_argument('--robot_name',                     type=str,           default = "robot",
+parser.add_argument('--robot_name',                     type=str,           default = 'robot',
                     help='Name of the robot\'s urdf file.')  
 parser.add_argument('--body_size',                      type=float,         default = 2,
                     help='How large is the agent\'s body?')  
@@ -819,7 +819,7 @@ parser.add_argument('--max_joint_2_angle',              type=float,         defa
 
 
     # Arena/Processor details
-parser.add_argument('--processor',                      type=str,       default = "all",
+parser.add_argument('--processor',                      type=str,       default = 'all',
                 help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 parser.add_argument('--min_object_distance',            type=float,         default = 4,
                     help='How far objects can start from the agent.')
@@ -834,9 +834,9 @@ parser.add_argument('--reward',                         type=float,         defa
                     help='Extrinsic reward for choosing correct task, shape, and color.') 
 parser.add_argument('--wrong_object_punishment',        type=float,         default = 0,
                     help='Negative reward for punishing doing anything to the wrong object (except watching).') 
-parser.add_argument("--hidden_state_eta_feedback_voice_reduction_type",  type=str,         default = "None",
+parser.add_argument('--hidden_state_eta_feedback_voice_reduction_type',  type=str,         default = 'None',
                     help='How should interest in feedback_voice chance?') 
-parser.add_argument('--reward_inflation_type',          type=str,           default = "None",
+parser.add_argument('--reward_inflation_type',          type=str,           default = 'None',
                     help='How should reward increase?')   
 parser.add_argument('--tanh_touch',                     type=literal,       default = True,
                     help='Do sensors measure contact with Tanh?')
@@ -955,25 +955,25 @@ parser.add_argument('--lr',                             type=float,         defa
                     help='Learning rate.')
 parser.add_argument('--critics',                        type=int,           default = 2,
                     help='How many critics?')  
-parser.add_argument("--tau",                            type=float,         default = .1,
+parser.add_argument('--tau',                            type=float,         default = .1,
                     help='Rate at which target-critics approach critics.')      
 parser.add_argument('--GAMMA',                          type=float,         default = .9,
                     help='How heavily critics consider the future.')
-parser.add_argument("--d",                              type=int,           default = 2,
+parser.add_argument('--d',                              type=int,           default = 2,
                     help='Delay for training actors.') 
 
 
 
     # Entropy
-parser.add_argument("--normal_alpha",                   type=float,         default = 0,
+parser.add_argument('--normal_alpha',                   type=float,         default = 0,
                     help='Nonnegative value, how much to consider policy prior.') 
-parser.add_argument("--alpha",                          type=literal,       default = 0,
+parser.add_argument('--alpha',                          type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy. Set to None to use target_entropy.')        
-parser.add_argument("--target_entropy",                 type=float,         default = 0,
+parser.add_argument('--target_entropy',                 type=float,         default = 0,
                     help='Target for choosing alpha if alpha set to None. Recommended: negative size of action-space.')      
-parser.add_argument("--alpha_text",                     type=literal,       default = 0,
+parser.add_argument('--alpha_text',                     type=literal,       default = 0,
                     help='Nonnegative value, how much to consider entropy regarding agent voice. Set to None to use target_entropy_text.')        
-parser.add_argument("--target_entropy_text",            type=float,         default = 0,
+parser.add_argument('--target_entropy_text',            type=float,         default = 0,
                     help='Target for choosing alpha_text if alpha_text set to None. Recommended: negative size of voice_out-space.')     
 
 
@@ -983,9 +983,9 @@ parser.add_argument('--std_min',                        type=int,           defa
                     help='Minimum value for standard deviation.')
 parser.add_argument('--std_max',                        type=int,           default = exp(2),
                     help='Maximum value for standard deviation.')
-parser.add_argument("--curiosity",                      type=str,           default = "none",
+parser.add_argument('--curiosity',                      type=str,           default = 'none',
                     help='Which kind of curiosity: none, prediction_error, or hidden_state.')  
-parser.add_argument("--dkl_max",                        type=float,         default = 1,
+parser.add_argument('--dkl_max',                        type=float,         default = 1,
                     help='Maximum value for clamping Kullback-Liebler divergence for hidden_state curiosity.')   
 
 
@@ -993,11 +993,11 @@ parser.add_argument("--dkl_max",                        type=float,         defa
     # Vision
 parser.add_argument('--vision_scaler',                  type=float,         default = 5, 
                     help='How much to consider vision prediction in accuracy compared to voice and touch.')   
-parser.add_argument("--beta_vision",                    type=float,         default = .03,
+parser.add_argument('--beta_vision',                    type=float,         default = .03,
                     help='Relative importance of complexity for vision.')
-parser.add_argument("--prediction_error_eta_vision",    type=float,         default = 0,
+parser.add_argument('--prediction_error_eta_vision',    type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for vision.')    
-parser.add_argument("--hidden_state_eta_vision",        type=float,         default = 0,
+parser.add_argument('--hidden_state_eta_vision',        type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for vision.') 
 
 
@@ -1005,11 +1005,11 @@ parser.add_argument("--hidden_state_eta_vision",        type=float,         defa
     # Touch
 parser.add_argument('--touch_scaler',                   type=float,         default = .3, 
                     help='How much to consider touch prediction in accuracy compared to vision and voice.')   
-parser.add_argument("--beta_touch",                     type=float,         default = .3,
+parser.add_argument('--beta_touch',                     type=float,         default = .3,
                     help='Relative importance of complexity for touch.')     
-parser.add_argument("--prediction_error_eta_touch",     type=float,         default = 0,
+parser.add_argument('--prediction_error_eta_touch',     type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for touch.')   
-parser.add_argument("--hidden_state_eta_touch",         type=float,         default = 0,
+parser.add_argument('--hidden_state_eta_touch',         type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for touch.') 
 
 
@@ -1017,11 +1017,11 @@ parser.add_argument("--hidden_state_eta_touch",         type=float,         defa
     # Proprioception
 parser.add_argument('--prop_scaler',                    type=float,         default = .01, 
                     help='How much to consider proprioception prediction in accuracy compared to vision and voice.')   
-parser.add_argument("--beta_prop",                      type=float,         default = .3,
+parser.add_argument('--beta_prop',                      type=float,         default = .3,
                     help='Relative importance of complexity for proprioception.')     
-parser.add_argument("--prediction_error_eta_prop",      type=float,         default = 0,
+parser.add_argument('--prediction_error_eta_prop',      type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for proprioception.')   
-parser.add_argument("--hidden_state_eta_prop",          type=float,         default = 0,
+parser.add_argument('--hidden_state_eta_prop',          type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for proprioception.') 
 
 
@@ -1029,11 +1029,11 @@ parser.add_argument("--hidden_state_eta_prop",          type=float,         defa
     # Command Voice
 parser.add_argument('--command_voice_scaler',            type=float,         default = 3,
                     help='How much to consider command voice prediction in accuracy compared to vision and touch.') 
-parser.add_argument("--beta_command_voice",              type=float,         default = .1,
+parser.add_argument('--beta_command_voice',              type=float,         default = .1,
                     help='Relative importance of complexity for voice.')
-parser.add_argument("--prediction_error_eta_command_voice", type=float,      default = 0,
+parser.add_argument('--prediction_error_eta_command_voice', type=float,      default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')    
-parser.add_argument("--hidden_state_eta_command_voice",  type=float,         default = 0,
+parser.add_argument('--hidden_state_eta_command_voice',  type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
 
 
@@ -1041,11 +1041,11 @@ parser.add_argument("--hidden_state_eta_command_voice",  type=float,         def
     # Feedback Voice
 parser.add_argument('--feedback_voice_scaler',            type=float,         default = 3, 
                     help='How much to consider feedback voice prediction in accuracy compared to vision and touch.')     
-parser.add_argument("--beta_feedback_voice",              type=float,         default = .1,
+parser.add_argument('--beta_feedback_voice',              type=float,         default = .1,
                     help='Relative importance of complexity for voice.')
-parser.add_argument("--prediction_error_eta_feedback_voice", type=float,      default = 0,
+parser.add_argument('--prediction_error_eta_feedback_voice', type=float,      default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
-parser.add_argument("--hidden_state_eta_feedback_voice",  type=float,         default = 0,
+parser.add_argument('--hidden_state_eta_feedback_voice',  type=float,         default = 0,
                     help='Nonnegative values, how much to consider hidden_state curiosity for voice.') 
 
 
@@ -1087,27 +1087,32 @@ parser.add_argument('--agents_per_composition_data',    type=int,           defa
 # Make arguments.
 try:
     default_args = parser.parse_args([])
-    try:    args    = parser.parse_args()
-    except: args, _ = parser.parse_known_args()
+    try:    
+        args = parser.parse_args()
+    except: 
+        args, _ = parser.parse_known_args()
 except:
-    import sys ; sys.argv=[''] ; del sys           
+    import sys 
+    sys.argv=[''] ; del sys           
     default_args = parser.parse_args([])
-    try:    args    = parser.parse_args()
-    except: args, _ = parser.parse_known_args()
+    try:    
+        args = parser.parse_args()
+    except: 
+        args, _ = parser.parse_known_args()
     
     
     
-# Checking robot parts.
+# Checking how many sensors the robot has.
 def get_num_sensors(robot_name):
-    urdf_path = "pybullet_data/robots/{}.urdf".format(args.robot_name)
+    urdf_path = 'pybullet_data/robots/{}.urdf'.format(args.robot_name)
     physicsClient = p.connect(p.DIRECT)
     default_orn = p.getQuaternionFromEuler([0, 0, 0], physicsClientId = physicsClient)
     robot_index = p.loadURDF(urdf_path, (0, 0, 0), default_orn, useFixedBase=False, globalScaling = 1, physicsClientId = physicsClient)
     sensors = []
     for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
         joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
-        link_name = joint_info[12].decode('utf-8')  # Child link name for the joint
-        if("sensor" in link_name):
+        link_name = joint_info[12].decode('utf-8')  
+        if('sensor' in link_name):
             sensors.append(link_name)
     p.disconnect(physicsClientId = physicsClient)
     num_sensors = len(sensors)
@@ -1117,7 +1122,7 @@ def get_num_sensors(robot_name):
 
 # Based on arguments, adjust other arguments.
 def update_args(arg_set):
-    if(arg_set.comp == "deigo"):
+    if(arg_set.comp == 'deigo'):
         arg_set.half = False
         
     arg_set.min_joint_1_angle = -arg_set.max_joint_1_angle
@@ -1168,81 +1173,94 @@ for arg_set in [default_args, args]:
         
 # Make a title for these arguments based on comparing it to the default arguments, without including these parameters.
 args_not_in_title = [
-    "arg_title", "id", "agents", "previous_agents", "init_seed", "keep_data", "epochs_per_pred_list", 
-    "episodes_in_pred_list", "agents_per_pred_list", "epochs_per_pos_list", "episodes_in_pos_list", "agents_per_pos_list",
-    "watch", "be_near", "touch_top", "push_forward", "push_left", "push_right", "red", "green", "blue", "cyan", "magenta", "yellow", "pillar", "pole", "dumbbell", "cone", "hourglass"]
+    'arg_title', 'id', 'agents', 'previous_agents', 'init_seed', 'keep_data', 'epochs_per_pred_list', 
+    'episodes_in_pred_list', 'agents_per_pred_list', 'epochs_per_pos_list', 'episodes_in_pos_list', 'agents_per_pos_list',
+    'watch', 'be_near', 'touch_top', 'push_forward', 'push_left', 'push_right', 'red', 'green', 'blue', 'cyan', 'magenta', 'yellow', 'pillar', 'pole', 'dumbbell', 'cone', 'hourglass']
 
+# Make a title for the arguments. 
 def get_args_title(default_args, args):
-    if(args.arg_title[:3] == "___"): return(args.arg_title)
-    name = "" ; first = True
+    if(args.arg_title[:3] == '___'): 
+        return(args.arg_title)
+    name = '' 
+    first = True
     arg_list = list(vars(default_args).keys())
-    arg_list.insert(0, arg_list.pop(arg_list.index("arg_name")))
+    arg_list.insert(0, arg_list.pop(arg_list.index('arg_name')))
     for arg in arg_list:
-        if(arg in args_not_in_title): pass 
+        if(arg in args_not_in_title): 
+            pass 
         else: 
             default = getattr(default_args, arg)
             try:
                 this_time = getattr(args, arg)
             except:
-                this_time = "NONE"
-            if(this_time == default): pass
-            elif(arg == "arg_name"):
-                name += "{} (".format(this_time)
+                this_time = 'NONE'
+            if(this_time == default): 
+                pass
+            elif(arg == 'arg_name'):
+                name += '{} ('.format(this_time)
             else: 
-                if first: first = False
-                else: name += ", "
-                name += "{}: {}".format(arg, this_time)
-    if(name == ""): name = "default" 
-    else:           name += ")"
-    if(name.endswith(" ()")): name = name[:-3]
+                if first: 
+                    first = False
+                else: 
+                    name += ', '
+                name += '{}: {}'.format(arg, this_time)
+    if(name == ''): 
+        name = 'default' 
+    else:           
+        name += ')'
+    if(name.endswith(' ()')): 
+        name = name[:-3]
     parts = name.split(',')
-    name = "" ; line = ""
+    name = '' 
+    line = ''
     for i, part in enumerate(parts):
-        if(len(line) > 50 and len(part) > 2): name += line + "\n" ; line = ""
+        if(len(line) > 50 and len(part) > 2): 
+            name += line + '\n' ; line = ''
         line += part
-        if(i+1 != len(parts)): line += ","
+        if(i+1 != len(parts)): 
+            line += ','
     name += line
     return(name)
 
 args.arg_title = get_args_title(default_args, args)
 
 # Generate some folders for saving agents and plots.
-save_file = f"saved_{args.comp}"
-os.makedirs(f"{save_file}", exist_ok=True)
-os.makedirs(f"{save_file}/thesis_pics", exist_ok=True)
-os.makedirs(f"{save_file}/thesis_pics/final", exist_ok=True)
-folder = f"{save_file}/{args.arg_name}"
+save_file = f'saved_{args.comp}'
+os.makedirs(f'{save_file}', exist_ok=True)
+os.makedirs(f'{save_file}/thesis_pics', exist_ok=True)
+os.makedirs(f'{save_file}/thesis_pics/final', exist_ok=True)
+folder = f'{save_file}/{args.arg_name}'
 
-if(args.arg_title[:3] != "___" and not args.arg_name in ["default", "finishing_dictionaries", "plotting", "plotting_predictions", "plotting_positions"]):
-    os.makedirs(f"{folder}", exist_ok=True)
-    os.makedirs(f"{folder}/agents", exist_ok=True)
-    with open(f"{folder}/agents/args.pickle", "wb") as handle:
+if(args.arg_title[:3] != '___' and not args.arg_name in ['default', 'finishing_dictionaries', 'plotting', 'plotting_predictions', 'plotting_positions']):
+    os.makedirs(f'{folder}', exist_ok=True)
+    os.makedirs(f'{folder}/agents', exist_ok=True)
+    with open(f'{folder}/agents/args.pickle', 'wb') as handle:
         pickle.dump(args, handle)
-if(default_args.alpha == "None"): 
+if(default_args.alpha == 'None'): 
     default_args.alpha = None
-if(args.alpha == "None"):         
+if(args.alpha == 'None'):         
     args.alpha = None
 
 # Print information about arguments.
 if(args == default_args): 
-    print("Using default arguments.")
+    print('Using default arguments.')
 else:
     for arg in vars(default_args):
         default = getattr(default_args, arg)
         try:
             this_time = getattr(args, arg)
         except:
-            this_time = "NONE"
+            this_time = 'NONE'
         if(this_time != default):
-            print("{}:\n\tDefault:\t{}\n\tThis time:\t{}".format(arg, default, this_time))
-        elif(arg == "device"):
-            print("{}:\n\tDefault:\t{}\n\tThis time:\t{}".format(arg, default, this_time))
+            print('{}:\n\tDefault:\t{}\n\tThis time:\t{}'.format(arg, default, this_time))
+        elif(arg == 'device'):
+            print('{}:\n\tDefault:\t{}\n\tThis time:\t{}'.format(arg, default, this_time))
             
             
             
 # If we are not showing durations, remove influence of this function.
 if(not args.show_duration):
-    def print_duration(start_time, end_time, text = None, end_text = ""):
+    def print_duration(start_time, end_time, text = None, end_text = ''):
         pass
      
 
@@ -1251,16 +1269,22 @@ if(not args.show_duration):
 
 
 
-# Buttons are used in some tkinter GUIs.
-def wait_for_button_press(button_label="Continue"):
+""" 
+For GUIs.
+"""
+
+
+
+def wait_for_button_press(button_label='Continue'):
+    """Open a blocking Tkinter window with a button to resume execution."""
     def on_button_click():
         nonlocal continue_simulation
         continue_simulation = True
         root.destroy()
 
     root = tk.Tk()
-    root.title("Wait for Input")
-    root.geometry("200x100")
+    root.title('Wait for Input')
+    root.geometry('200x100')
     button = tk.Button(root, text=button_label, command=on_button_click)
     button.pack(expand=True)
     continue_simulation = False
@@ -1268,10 +1292,10 @@ def wait_for_button_press(button_label="Continue"):
     
     
 
-# GUI for users to input custom motor commands.
 def adjust_action(action_tensor):
+    """Open a Tkinter window to adjust each element of an action tensor via sliders."""
     root = tk.Tk()
-    root.title("Adjust Actions")
+    root.title('Adjust Actions')
     shape = action_tensor.shape
     flat_action = action_tensor.view(-1).detach().numpy()
     num_elements = flat_action.size
@@ -1280,7 +1304,7 @@ def adjust_action(action_tensor):
     original_values = flat_action.copy()
 
     def update_value_label(val, label):
-        label.config(text=f"{float(val):.2f}")
+        label.config(text=f'{float(val):.2f}')
 
     def confirm():
         root.quit()
@@ -1288,7 +1312,7 @@ def adjust_action(action_tensor):
     def reset_to_original():
         for i, scale in enumerate(scales):
             scale.set(original_values[i])
-            
+
     def reset_to_zero():
         for scale in scales:
             scale.set(0.0)
@@ -1296,7 +1320,7 @@ def adjust_action(action_tensor):
     for i in range(num_elements):
         frame = tk.Frame(root, padx=5, pady=5)
         frame.pack(fill=tk.X)
-        label = tk.Label(frame, text=f"Action[{i}]")
+        label = tk.Label(frame, text=f'Action[{i}]')
         label.pack(side=tk.LEFT)
         current_val_label = tk.Label(frame, width=5, anchor='e')
         current_val_label.pack(side=tk.RIGHT)
@@ -1305,18 +1329,16 @@ def adjust_action(action_tensor):
             command=lambda val, lbl=current_val_label: update_value_label(val, lbl))
         scale.set(flat_action[i])
         scale.pack(side=tk.RIGHT, padx=10)
-        current_val_label.config(text=f"{scale.get():.2f}")
+        current_val_label.config(text=f'{scale.get():.2f}')
         scales.append(scale)
         value_labels.append(current_val_label)
 
     btn_frame = tk.Frame(root, pady=10)
     btn_frame.pack()
-    reset_orig_btn = tk.Button(btn_frame, text="Reset to Original", command=reset_to_original)
-    reset_orig_btn.pack(side=tk.LEFT, padx=5)
-    reset_zero_btn = tk.Button(btn_frame, text="Reset to Zero", command=reset_to_zero)
-    reset_zero_btn.pack(side=tk.LEFT, padx=5)
-    confirm_btn = tk.Button(btn_frame, text="Confirm", command=confirm)
-    confirm_btn.pack(side=tk.LEFT, padx=5)
+    tk.Button(btn_frame, text='Reset to Original', command=reset_to_original).pack(side=tk.LEFT, padx=5)
+    tk.Button(btn_frame, text='Reset to Zero', command=reset_to_zero).pack(side=tk.LEFT, padx=5)
+    tk.Button(btn_frame, text='Confirm', command=confirm).pack(side=tk.LEFT, padx=5)
+
     root.mainloop()
     updated_values = [scale.get() for scale in scales]
     root.destroy()
@@ -1324,77 +1346,80 @@ def adjust_action(action_tensor):
 
 
 
-#%%
-
-
-
-# Make human-readable text describing robot's wheels and joints.
-def wheels_joints_to_string(wheels_joints):
-    while(len(wheels_joints.shape) > 1):
-        wheels_joints = wheels_joints.squeeze(0)
-    print(f"\n\nIN WHEEL_JOINTS_TO_STRING: {wheels_joints}\n\n")
-    string = "Left Wheel: {} ".format(round(wheels_joints[0].item(),2))
-    string += "Right Wheel: {} ".format(round(wheels_joints[1].item(),2))
-    string += "Joint 1: {} ".format(round(wheels_joints[2].item(),2))
-    if(len(wheels_joints) == 4):
-        string += "Joint 2: {} ".format(round(wheels_joints[3].item(),2))
-    return(string)
-
-
-
-# Make human-readable plot of robot motor commands.
 def plot_number_bars(numbers):
-    numbers = [n for n in numbers if n != None]
+    """Plot a bar chart of motor commands with red (neg) and blue (pos) bars."""
+    numbers = [n for n in numbers if n is not None]
     fontsize = 7
-    plt.figure(figsize=(1.5,1.5))
+    plt.figure(figsize=(1.5, 1.5))
     plt.bar(range(len(numbers)), numbers, color=['red' if x < 0 else 'blue' for x in numbers])
-    
     plt.axhline(0, color='black', linewidth=1)
-    plt.xlabel("Index", fontsize = fontsize)
-    plt.ylabel("Value", fontsize = fontsize)
-    plt.title("Bar Plot of Motor Commands", fontsize = fontsize)
-    plt.ylim(-1, 1) 
-    xticks = ["left wheel", "right wheel"]
+    plt.xlabel('Index', fontsize=fontsize)
+    plt.ylabel('Value', fontsize=fontsize)
+    plt.title('Bar Plot of Motor Commands', fontsize=fontsize)
+    plt.ylim(-1, 1)
+
+    xticks = ['left wheel', 'right wheel']
     i = 1
     while(len(xticks) < len(numbers)):
-        xticks.append(f"joint {i}")
+        xticks.append(f'joint {i}')
         i += 1
-    plt.xticks(range(len(xticks)), xticks, rotation=45, ha='right', fontsize = fontsize)
-    plt.yticks(fontsize = fontsize)
+
+    plt.xticks(range(len(xticks)), xticks, rotation=45, ha='right', fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
     plt.show()
 
 
 
-# Given minimum and maximum, find proportional value of "this" in [-1, 1].
+
+#%%
+
+
+
+def wheels_joints_to_string(wheels_joints):
+    """Convert tensor of wheels and joints into readable string format."""
+    while(len(wheels_joints.shape) > 1):
+        wheels_joints = wheels_joints.squeeze(0)
+    print(f'\n\nIN WHEEL_JOINTS_TO_STRING: {wheels_joints}\n\n')
+    string = f'Left Wheel: {round(wheels_joints[0].item(), 2)}'
+    string += f'Right Wheel: {round(wheels_joints[1].item(), 2)}'
+    string += f'Joint 1: {round(wheels_joints[2].item(), 2)}'
+    if(len(wheels_joints) == 4):
+        string += f'Joint 2: {round(wheels_joints[3].item(), 2)}'
+    return string
+
+
+
 def relative_to(this, min, max):
-    this = min + ((this + 1)/2) * (max - min)
+    """Convert a value in [-1, 1] to the range [min, max]."""
+    this = min + ((this + 1) / 2) * (max - min)
     this = [min, max, this]
     this.sort()
-    return(this[1])
+    return this[1]
 
-# Do the reverse.
+
+
 def opposite_relative_to(this, min, max):
+    """Convert a value in [min, max] to [-1, 1]."""
     return ((this - min) / (max - min)) * 2 - 1
 
 
     
-# Calculate Kullback-Leibler divergence.
 def calculate_dkl(mu_1, std_1, mu_2, std_2):
-    std_1 = std_1**2
-    std_2 = std_2**2
-    term_1 = (mu_2 - mu_1)**2 / std_2 
-    term_2 = std_1 / std_2 
+    """Calculate Kullback-Leibler divergence between two Gaussians."""
+    std_1 = std_1 ** 2
+    std_2 = std_2 ** 2
+    term_1 = (mu_2 - mu_1) ** 2 / std_2
+    term_2 = std_1 / std_2
     term_3 = torch.log(term_2)
-    out = (.5 * (term_1 + term_2 - term_3 - 1))
+    out = 0.5 * (term_1 + term_2 - term_3 - 1)
     out = torch.nan_to_num(out)
-    return(out)
+    return out
 
 
 
-# Find rolling average.
 def rolling_average(lst, window_size=500):
-    # print(f"\nSometimes this may result in error. In rolling average :{lst}\n")
-    print("Rolling...", end = " ")
+    """Compute rolling average over list, handling None values."""
+    print('Rolling...', end=' ')
     try:
         new_list = [0 if lst[0] is None else float(lst[0])]
         for i in range(1, len(lst)):
@@ -1402,83 +1427,97 @@ def rolling_average(lst, window_size=500):
                 new_list.append(new_list[-1])
             else:
                 start_index = max(0, i - window_size + 1)
-                window = [x for x in lst[start_index:i+1] if x is not None]
-                if window:
-                    new_value = sum(window) / len(window)
-                else:
-                    new_value = 0 
+                window = [x for x in lst[start_index:i + 1] if x is not None]
+                new_value = sum(window) / len(window) if window else 0
                 new_list.append(new_value)
         return new_list
-    except:
-        print("\n\nRolling average failed.\n\n")
+    except Exception as e:
+        print('\n\nRolling average failed.\n\n')
 
 
 
-# Load dictionaries for plotting robot data.
 def load_dicts(args):
-    if(os.getcwd().split("/")[-1] != save_file): os.chdir(save_file)
-    plot_dicts = [] ; min_max_dicts = []
-        
-    if(type(args) == dict):
-        complete_order = args["titles"]
+    """Load plot_dicts and min_max_dicts for a given experiment (saved runs)."""
+    if(os.getcwd().split('/')[-1] != save_file):
+        os.chdir(save_file)
+
+    plot_dicts = []
+    min_max_dicts = []
+
+    if isinstance(args, dict):
+        complete_order = args['titles']
     else:
-        complete_order = args.arg_title[3:-3].split("+")
-    order = [o for o in complete_order if not o in ["empty_space", "break"]]
-                
+        complete_order = args.arg_title[3:-3].split('+')
+
+    order = [o for o in complete_order if o not in ['empty_space', 'break']]
+
     for name in order:
-        print(f"Loading dictionaries for {name}...")
-        got_plot_dicts = False ; got_min_max_dicts = False
-        while(not got_plot_dicts):
-            with open(name + "/" + "plot_dict.pickle", "rb") as handle: 
-                plot_dicts.append(pickle.load(handle)) ; got_plot_dicts = True
-        while(not got_min_max_dicts):
+        print(f'Loading dictionaries for {name}...')
+        got_plot_dicts = False
+        got_min_max_dicts = False
+        while not got_plot_dicts:
+            with open(name + '/plot_dict.pickle', 'rb') as handle:
+                plot_dicts.append(pickle.load(handle))
+                got_plot_dicts = True
+        while not got_min_max_dicts:
             try:
-                with open(name + "/" + "min_max_dict.pickle", "rb") as handle: 
-                    min_max_dicts.append(pickle.load(handle)) ; got_min_max_dicts = True 
-            except: 
-                print("Stuck trying to get {}'s min_max_dicts...".format(name)) ; sleep(1)
-    print("Loaded all dicts! Making min/max dict...")
-    
+                with open(name + '/min_max_dict.pickle', 'rb') as handle:
+                    min_max_dicts.append(pickle.load(handle))
+                    got_min_max_dicts = True
+            except:
+                print(f'Stuck trying to get {name}\'s min_max_dicts...')
+                sleep(1)
+
+    print('Loaded all dicts! Making min/max dict...')
+
     min_max_dict = {}
     for key in plot_dicts[0].keys():
-        if(not key in ["args", "arg_title", "arg_name", "all_task_names", "composition_data", "component_data", "episode_dicts", "agent_lists", "spot_names", "steps", "goal_task", "all_processor_names", "behavior"]):
-            if(key == "hidden_state"):
+        if key not in [
+            'args', 'arg_title', 'arg_name', 'all_task_names',
+            'composition_data', 'component_data', 'episode_dicts',
+            'agent_lists', 'spot_names', 'steps', 'goal_task',
+            'all_processor_names', 'behavior'
+        ]:
+            if key == 'hidden_state':
                 min_maxes = []
                 for layer in range(len(min_max_dicts[0][key])):
-                    minimum = None ; maximum = None
+                    minimum = None
+                    maximum = None
                     for mm_dict in min_max_dicts:
-                        if(  minimum == None):                  minimum = mm_dict[key][layer][0]
-                        elif(minimum > mm_dict[key][layer][0]): minimum = mm_dict[key][layer][0]
-                        if(  maximum == None):                  maximum = mm_dict[key][layer][1]
-                        elif(maximum < mm_dict[key][layer][1]): maximum = mm_dict[key][layer][1]
+                        if minimum is None or minimum > mm_dict[key][layer][0]:
+                            minimum = mm_dict[key][layer][0]
+                        if maximum is None or maximum < mm_dict[key][layer][1]:
+                            maximum = mm_dict[key][layer][1]
                     min_maxes.append((minimum, maximum))
                 min_max_dict[key] = min_maxes
             else:
-                minimum = None ; maximum = None
+                minimum = None
+                maximum = None
                 for mm_dict in min_max_dicts:
-                    if(mm_dict[key] != (None, None)):
-                        if(  minimum == None):           minimum = mm_dict[key][0]
-                        elif(minimum > mm_dict[key][0]): minimum = mm_dict[key][0]
-                        if(  maximum == None):           maximum = mm_dict[key][1]
-                        elif(maximum < mm_dict[key][1]): maximum = mm_dict[key][1]
+                    if mm_dict[key] != (None, None):
+                        if minimum is None or minimum > mm_dict[key][0]:
+                            minimum = mm_dict[key][0]
+                        if maximum is None or maximum < mm_dict[key][1]:
+                            maximum = mm_dict[key][1]
                 min_max_dict[key] = (minimum, maximum)
-    print("Made min/max dict!")
-                
-    final_complete_order = [] ; final_plot_dicts = []
 
-    for arg_name in complete_order: 
-        if(arg_name in ["break", "empty_space"]): 
+    print('Made min/max dict!')
+
+    final_complete_order = []
+    final_plot_dicts = []
+
+    for arg_name in complete_order:
+        if arg_name in ['break', 'empty_space']:
             final_complete_order.append(arg_name)
         else:
             for plot_dict in plot_dicts:
-                if(plot_dict["args"].arg_name == arg_name or plot_dict["args"].arg_name + "_old" == arg_name):    
-                    final_complete_order.append(arg_name) 
+                if plot_dict['args'].arg_name == arg_name or plot_dict['args'].arg_name + '_old' == arg_name:
+                    final_complete_order.append(arg_name)
                     final_plot_dicts.append(plot_dict)
-                    
-    while(len(final_complete_order) > 0 and final_complete_order[0] in ["break", "empty_space"]): 
-        final_complete_order.pop(0)    
-        
-    print("Done with Load Dicts!")          
-    
-    return(final_plot_dicts, min_max_dict, complete_order)
+
+    while final_complete_order and final_complete_order[0] in ['break', 'empty_space']:
+        final_complete_order.pop(0)
+
+    print('Done with Load Dicts!')
+    return final_plot_dicts, min_max_dict, complete_order
 # %%
