@@ -24,15 +24,15 @@ import numpy as np
 # TORCH SETUP
 # -------------------------------
 
-device = torch.device("cpu")  # I recommend CPU explicitly
+device = torch.device('cpu')  # I recommend CPU explicitly
 
 # -------------------------------
 # DIRECTORY CHECK
 # -------------------------------
 
-if os.getcwd().split("/")[-1] != "communication": 
-    os.chdir("communication")
-print(f"\n\nWorking in: {os.getcwd()}\n\n")
+if os.getcwd().split('/')[-1] != 'communication': 
+    os.chdir('communication')
+print(f'\n\nWorking in: {os.getcwd()}\n\n')
 
 # -------------------------------
 # Miscellaneous
@@ -46,7 +46,7 @@ matplotlib.rc('font', **font)
 
 def print(*args, **kwargs):
     """Override built-in print to auto-flush."""
-    kwargs["flush"] = True
+    kwargs['flush'] = True
     builtins.print(*args, **kwargs)
 
 torch.set_printoptions(precision=3, sci_mode=False)
@@ -58,18 +58,18 @@ def duration(start_time=start_time):
     delta = datetime.datetime.now() - start_time
     return delta
 
-def print_duration(start_time, end_time, text=None, end_text=""):
+def print_duration(start_time, end_time, text=None, end_text=''):
     """Print the duration between two times with optional prefix text."""
     delta = end_time - start_time
     if text:
-        print(f"{text}: {delta}{end_text}")
+        print(f'{text}: {delta}{end_text}')
     else:
-        print(f"{delta}{end_text}")
+        print(f'{delta}{end_text}')
 
 def estimate_total_duration(proportion_completed, start_time=start_time):
     """Estimate total time given progress percentage and elapsed time."""
     if proportion_completed == 0:
-        return "?:??:??"
+        return '?:??:??'
     so_far = datetime.datetime.now() - start_time
     estimated_total = so_far / proportion_completed
     estimated_total = estimated_total - datetime.timedelta(microseconds=estimated_total.microseconds)
@@ -80,7 +80,7 @@ def cpu_memory_usage():
     process = psutil.Process(os.getpid())
     mem_usage_bytes = process.memory_info().rss
     mem_usage_gb = mem_usage_bytes / (1024 ** 3)
-    print('memory use:', round(mem_usage_gb, 3), "gigabytes")
+    print('memory use:', round(mem_usage_gb, 3), 'gigabytes')
 
 #%%
 
@@ -95,17 +95,17 @@ class Task:
         self.name = name
 
     def __str__(self):
-        return f"{self.char}, {self.name}"
+        return f'{self.char}, {self.name}'
 
 
 task_map = {
-    0:  Task("A", "SILENCE"),
-    1:  Task("B", "WATCH"),
-    2:  Task("C", "BE NEAR"),
-    3:  Task("D", "TOUCH THE TOP"),
-    4:  Task("E", "PUSH FORWARD"),     
-    5:  Task("F", "PUSH LEFT"),   
-    6:  Task("G", "PUSH RIGHT")
+    0:  Task('A', 'SILENCE'),
+    1:  Task('B', 'WATCH'),
+    2:  Task('C', 'BE NEAR'),
+    3:  Task('D', 'TOUCH THE TOP'),
+    4:  Task('E', 'PUSH FORWARD'),     
+    5:  Task('F', 'PUSH LEFT'),   
+    6:  Task('G', 'PUSH RIGHT')
 }
 
 max_len_taskname = max(len(task.name) for task in task_map.values())
@@ -123,16 +123,16 @@ class Color:
         self.rgba = rgba
 
     def __str__(self):
-        return f"{self.char}, {self.name}"
+        return f'{self.char}, {self.name}'
 
 
 color_map = {
-    0: Color("H", "RED",     (1, 0, 0, 1)),
-    1: Color("I", "GREEN",   (0, 1, 0, 1)),
-    2: Color("J", "BLUE",    (0, 0, 1, 1)),
-    3: Color("K", "CYAN",    (0, 1, 1, 1)),
-    4: Color("L", "MAGENTA", (1, 0, 1, 1)),
-    5: Color("M", "YELLOW",  (1, 1, 0, 1)),
+    0: Color('H', 'RED',     (1, 0, 0, 1)),
+    1: Color('I', 'GREEN',   (0, 1, 0, 1)),
+    2: Color('J', 'BLUE',    (0, 0, 1, 1)),
+    3: Color('K', 'CYAN',    (0, 1, 1, 1)),
+    4: Color('L', 'MAGENTA', (1, 0, 1, 1)),
+    5: Color('M', 'YELLOW',  (1, 1, 0, 1)),
 }
 
 max_len_color_name = max(len(c.name) for c in color_map.values())
@@ -147,15 +147,15 @@ class Shape:
     def __init__(self, char, file_name):
         self.char = char
         self.file_name = file_name
-        self.name = file_name.split("_")[-1][:-5]  # Extract name from filename
+        self.name = file_name.split('_')[-1][:-5]  # Extract name from filename
 
     def __str__(self):
-        return f"{self.char}, {self.name}"
+        return f'{self.char}, {self.name}'
 
 
-shape_files = [f.name for f in os.scandir("pybullet_data/shapes") if f.name.endswith("urdf")]
+shape_files = [f.name for f in os.scandir('pybullet_data/shapes') if f.name.endswith('urdf')]
 shape_files.sort()
-shape_letter_file = [[f.split("_")[0], f] for f in shape_files]
+shape_letter_file = [[f.split('_')[0], f] for f in shape_files]
 shape_map = {i: Shape(letter, fname) for i, (letter, fname) in enumerate(shape_letter_file)}
 
 max_len_shape_name = max(len(s.name) for s in shape_map.values())
@@ -165,16 +165,16 @@ shape_name_list = [s.name for s in shape_map.values()]
 # DISPLAY ALL OPTIONS
 # -------------------------------
 
-if __name__ == "__main__":
-    print("Tasks:")
+if __name__ == '__main__':
+    print('Tasks:')
     for key, value in task_map.items():
-        print(f"\t{key} :\t{value}")
-    print("Colors:")
+        print(f'\t{key} :\t{value}')
+    print('Colors:')
     for key, value in color_map.items():
-        print(f"\t{key} :\t{value}")
-    print("Shapes:")
+        print(f'\t{key} :\t{value}')
+    print('Shapes:')
     for key, value in shape_map.items():
-        print(f"\t{key} :\t{value}")
+        print(f'\t{key} :\t{value}')
 
         
         
@@ -201,7 +201,7 @@ class Goal:
     def __init__(self, task, color, shape, parenting):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         
-        if self.task.name == "SILENCE":
+        if self.task.name == 'SILENCE':
             self.color = self.task
             self.shape = self.task
         
@@ -220,14 +220,14 @@ class Goal:
         shape_index = ord(self.shape.char) - ord('A') - len(task_map) - len(color_map)
         self.digits = (task_index, color_index, shape_index)
 
-        self.char_text = f"{self.task.char}{self.color.char}{self.shape.char}"
-        self.human_text = f"{self.task.name} {self.color.name} {self.shape.name}"
+        self.char_text = f'{self.task.char}{self.color.char}{self.shape.char}'
+        self.human_text = f'{self.task.name} {self.color.name} {self.shape.name}'
 
     def human_friendly_text(self, command=True):
         """Return a more readable label for command/feedback voice."""
-        return f"{'Command' if command else 'Feedback'}: {self.human_text}"
+        return f'{"Command" if command else "Feedback"}: {self.human_text}'
 
-# Create a default "silent" goal
+# Create a default 'silent' goal
 empty_goal = Goal(task_map[0], task_map[0], task_map[0], parenting=False)
 
 
@@ -249,7 +249,7 @@ def get_goal_from_one_hots(one_hots):
     shape = shape_map[torch.argmax(shape_one_hot).item()]
     
     goal = Goal(task, color, shape, parenting=False)
-    return empty_goal if task.name == "SILENCE" else goal
+    return empty_goal if task.name == 'SILENCE' else goal
 
 
 def get_goal_from_digits(digits):
@@ -299,19 +299,19 @@ class To_Push:
     def push(self, memory):
         """Push the transition into the replay memory."""
         memory.push(
-            self.obs.vision.to("cpu"),
-            self.obs.touch.to("cpu"),
-            self.obs.prop.to("cpu"),
-            self.obs.command_voice.to("cpu"),
-            self.obs.feedback_voice.to("cpu"),
-            self.action.wheels_joints.to("cpu"), 
-            self.action.voice_out.to("cpu"),
+            self.obs.vision.to('cpu'),
+            self.obs.touch.to('cpu'),
+            self.obs.prop.to('cpu'),
+            self.obs.command_voice.to('cpu'),
+            self.obs.feedback_voice.to('cpu'),
+            self.action.wheels_joints.to('cpu'), 
+            self.action.voice_out.to('cpu'),
             self.reward, 
-            self.next_obs.vision.to("cpu"),
-            self.next_obs.touch.to("cpu"),
-            self.next_obs.prop.to("cpu"),
-            self.next_obs.command_voice.to("cpu"), 
-            self.next_obs.feedback_voice.to("cpu"), 
+            self.next_obs.vision.to('cpu'),
+            self.next_obs.touch.to('cpu'),
+            self.next_obs.prop.to('cpu'),
+            self.next_obs.command_voice.to('cpu'), 
+            self.next_obs.feedback_voice.to('cpu'), 
             self.done
         )
 
@@ -353,28 +353,28 @@ char_to_index = {v: k for k, v in voice_map.items()}
 # TESTING EXAMPLES
 # -------------------------------
 
-if __name__ == "__main__":
-    print("\n\nEmpty Goal:")
+if __name__ == '__main__':
+    print('\n\nEmpty Goal:')
     example = empty_goal
     print(example.one_hots)
     print(example.char_text)
     print(example.human_text)
     print(get_goal_from_one_hots(example.one_hots).human_text)
 
-    print("\n\nExample Goal:")
+    print('\n\nExample Goal:')
     example = Goal(task_map[1], color_map[2], shape_map[2], parenting=False)
     print(example.one_hots)
     print(example.char_text)
     print(example.human_text)
     print(get_goal_from_one_hots(example.one_hots).human_text)
 
-    print("\n\nExample Goal:")
+    print('\n\nExample Goal:')
     example = Goal(task_map[4], color_map[3], shape_map[3], parenting=False)
     print(example.one_hots)
     print(example.char_text)
     print(example.human_text)
     print(get_goal_from_one_hots(example.one_hots).human_text)
-    print("\n\n")
+    print('\n\n')
 
 
 
@@ -383,127 +383,124 @@ if __name__ == "__main__":
 
 
 
+#%%
+
+
 # Here we generate valid combinations in training versus testing generalization.
 
 
 
+# All possible combinations of (task, color, shape)
 all_combos = list(product(task_map.keys(), color_map.keys(), shape_map.keys()))
 
 def get_matrix_pattern(a_values, rows=5, cols=6):
+    """
+    Returns a matrix pattern excluding (r, c) pairs for additive cyclic offsets.
+    """
     excluded = set()
     for a in a_values:
         for r in range(rows):
-            c = (r + a) % cols  
+            c = (r + a) % cols
             excluded.add((r, c))
     return [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in excluded]
 
+# Pattern lookups for training set 3
 pattern_lookup_3 = {
     1: set(get_matrix_pattern([0, 1, 2, 3])),
     2: set(get_matrix_pattern([1, 2, 3, 4])),
     3: set(get_matrix_pattern([2, 3, 4, 5])),
     4: set(get_matrix_pattern([3, 4, 5, 6])),
     5: set(get_matrix_pattern([-2, -1, 0, 1])),
-    6: set(get_matrix_pattern([-1, 0, 1, 2]))}
-
-def get_training_combos(pattern_lookup):
-    training_combos = [(a, c, s) for (a, c, s) in all_combos if 
-                        a == 0 or 
-                        (a == 1 and (s, c) in pattern_lookup[1]) or
-                        (a == 2 and (s, c) in pattern_lookup[2]) or
-                        (a == 3 and (s, c) in pattern_lookup[3]) or
-                        (a == 4 and (s, c) in pattern_lookup[4]) or
-                        (a == 5 and (s, c) in pattern_lookup[5]) or
-                        (a == 6 and (s, c) in pattern_lookup[6])]
-    return(training_combos)
-
-
-
-# 4 tasks, 4 colors, 3 shapes. 48 goals, 16 for training, 32 for testing.
-training_combos_1 = [
-    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 3, 0), (0, 3, 1), (0, 3, 2), 
-    (1, 2, 0), (1, 3, 0), (1, 0, 1), (1, 1, 2),
-    (4, 0, 0), (4, 1, 1), (4, 3, 1), (4, 2, 2), 
-    (5, 1, 0), (5, 2, 1), (5, 0, 2), (5, 3, 2), 
-    (6, 1, 0), (6, 2, 0), (6, 3, 1), (6, 0, 2)]
-testing_combos_1 = [combo for combo in all_combos if not combo in training_combos_1]
-
-# 5 tasks, 5 colors, 3 shapes. 75 goals, 25 for training, 50 for testing.
-training_combos_2 = [
-    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), 
-    (1, 3, 0), (1, 0, 1), (1, 4, 1), (1, 0, 2), (1, 1, 2), 
-    (2, 0, 0), (2, 4, 0), (2, 1, 1), (2, 1, 2), (2, 2, 2), 
-    (4, 0, 0), (4, 1, 0), (4, 1, 1), (4, 2, 1), (4, 3, 2), 
-    (5, 1, 0), (5, 2, 0), (5, 2, 1), (5, 3, 1), (5, 3, 2), (5, 4, 2),
-    (6, 2, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2)]
-testing_combos_2 = [combo for combo in all_combos if not combo in training_combos_2]
-
-# 6 tasks, 6 colors, 5 shapes. 180 goals, 60 for training, 120 for testing.
-training_combos_3 = get_training_combos(pattern_lookup_3)
-testing_combos_3 = [combo for combo in all_combos if not combo in training_combos_3]
-
-
-
-# Jun's new request!
-# Exceptions replace one goal with a completely different goal.
-# His suggestions: 
-#   Watch Magenta Pillar -> Push Blue Pole (or maybe just the other object)
-#   Be Near Green Pole -> Touch the Top of the Red Dumbbell (or maybe just the other object)
-
-# WE SHOULD ALSO HAVE "EXCEPTIONS" LEAD BACK TO THEMSELVES, SO SHOW A LACK OF U-SHAPE!
-
-exceptions_dict = {
-    0 : (                           # None
-        [],            
-        []),
-    
-    1 : (
-        [(1, 4, 0), (2, 1, 1)],     # Swap Watch Magenta Pillar with Be Near Green Pole
-        [(2, 1, 1), (1, 4, 0)]),
-    
-    3 : (
-        [(1, 5, 1), (2, 2, 2)],     # Swap Watch Yellow Pole with Be Near Blue Dumbbell
-        [(2, 2, 2), (1, 5, 1)]),
-    
-    5 : (
-        [(1, 4, 0), (2, 1, 1), (1, 3, 4), (2, 2, 2)],     # Both of Those
-        [(2, 1, 1), (1, 4, 0), (2, 2, 2), (1, 3, 4)]),
-    
-    7 : (
-        [(3, 1, 1), (4, 3, 2)],     # Swap Touch the Top Green Pole with Push Forawrd Cyan Dumbbell
-        [(4, 3, 2), (3, 1, 1)]),
-    
-    9 : (
-        [(1, 4, 0), (2, 1, 1), (3, 5, 4), (4, 3, 2)],       # Swap Watch Magenta Pillar with Be Near Green Pole
-        [(2, 1, 1), (1, 4, 0), (4, 3, 2), (3, 5, 4)]),      # Swap Touch the Top Green Pole with Push Forawrd Cyan Dumbbell
-    
-    11 : (
-        [(1, 4, 0), (4, 3, 2)],     # Swap Watch Magenta Pillar with Push Forward Cyan Dumbbell
-        [(4, 3, 2), (1, 4, 0)]),    
-    
-    13 : (
-        [(3, 1, 1), (2, 2, 2)],     # Swap Be Near Blue Dumbbell with Touch the Top Green Pole
-        [(2, 2, 2), (3, 1, 1)]),    
-    
-    15 : (
-        [(1, 4, 0), (4, 5, 4), (3, 1, 1), (2, 2, 2)],     # Both of Those
-        [(4, 5, 4), (1, 4, 0), (2, 2, 2), (3, 1, 1)]),
-    
-    
+    6: set(get_matrix_pattern([-1, 0, 1, 2]))
 }
 
 
 
-def add_control_exceptions(exceptions_dict):
+
+
+def get_training_combos(pattern_lookup):
     """
-    For every odd-numbered key in exceptions_dict, add an even-numbered key
-    that uses the same list for exception and correct goal.
+    Uses a task-specific pattern lookup to filter all_combos for training.
+
+    Returns:
+        A list of (task, color, shape) combinations used in training.
     """
-    new_dict = exceptions_dict.copy()
-    for k in list(exceptions_dict.keys()):
-        if k % 2 == 1:  # it's odd
-            red = exceptions_dict[k][0]
-            control_key = k + 1
-            new_dict[control_key] = (red, red)
+    return [
+        (a, c, s) for (a, c, s) in all_combos if
+        a == 0 or
+        (a == 1 and (s, c) in pattern_lookup[1]) or
+        (a == 2 and (s, c) in pattern_lookup[2]) or
+        (a == 3 and (s, c) in pattern_lookup[3]) or
+        (a == 4 and (s, c) in pattern_lookup[4]) or
+        (a == 5 and (s, c) in pattern_lookup[5]) or
+        (a == 6 and (s, c) in pattern_lookup[6])
+    ]
+
+
+# ------------------------------------------------------------
+# Training & Testing Splits
+# ------------------------------------------------------------
+
+# === Set 1: 4 tasks, 4 colors, 3 shapes (48 goals total) ===
+# 16 for training, 32 for testing
+training_combos_1 = [
+    # SILENCE (all color/shape combos allowed)
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0), (0, 1, 1), (0, 1, 2),
+    (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 3, 0), (0, 3, 1), (0, 3, 2),
+    # Sparse task combos
+    (1, 2, 0), (1, 3, 0), (1, 0, 1), (1, 1, 2),
+    (4, 0, 0), (4, 1, 1), (4, 3, 1), (4, 2, 2),
+    (5, 1, 0), (5, 2, 1), (5, 0, 2), (5, 3, 2),
+    (6, 1, 0), (6, 2, 0), (6, 3, 1), (6, 0, 2)
+]
+testing_combos_1 = [combo for combo in all_combos if combo not in training_combos_1]
+
+# === Set 2: 5 tasks, 5 colors, 3 shapes (75 goals total) ===
+# 25 for training, 50 for testing
+training_combos_2 = [
+    # SILENCE
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3),
+    (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3),
+    (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3),
+    # Sparse task combos
+    (1, 3, 0), (1, 0, 1), (1, 4, 1), (1, 0, 2), (1, 1, 2),
+    (2, 0, 0), (2, 4, 0), (2, 1, 1), (2, 1, 2), (2, 2, 2),
+    (4, 0, 0), (4, 1, 0), (4, 1, 1), (4, 2, 1), (4, 3, 2),
+    (5, 1, 0), (5, 2, 0), (5, 2, 1), (5, 3, 1), (5, 3, 2), (5, 4, 2),
+    (6, 2, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2)
+]
+testing_combos_2 = [combo for combo in all_combos if combo not in training_combos_2]
+
+# === Set 3: 6 tasks, 6 colors, 5 shapes (180 goals total) ===
+# ~60 training goals using cyclic pattern
+training_combos_3 = get_training_combos(pattern_lookup_3)
+testing_combos_3 = [combo for combo in all_combos if combo not in training_combos_3]
+
+
+# Exceptions dictionary
+exceptions_dict = {
+    0: ([], []),                                                # No exceptions
+    1: ([(1, 4, 0), (2, 1, 1)], [(2, 1, 1), (1, 4, 0)]),        # Exceptions used in paper
+    3: ([(1, 5, 1), (2, 2, 2)], [(2, 2, 2), (1, 5, 1)]),
+    5: ([(1, 4, 0), (2, 1, 1), (1, 3, 4), (2, 2, 2)], [(2, 1, 1), (1, 4, 0), (2, 2, 2), (1, 3, 4)]),
+    7: ([(3, 1, 1), (4, 3, 2)], [(4, 3, 2), (3, 1, 1)]),
+    9: ([(1, 4, 0), (2, 1, 1), (3, 5, 4), (4, 3, 2)], [(2, 1, 1), (1, 4, 0), (4, 3, 2), (3, 5, 4)]),
+    11: ([(1, 4, 0), (4, 3, 2)], [(4, 3, 2), (1, 4, 0)]),
+    13: ([(3, 1, 1), (2, 2, 2)], [(2, 2, 2), (3, 1, 1)]),
+    15: ([(1, 4, 0), (4, 5, 4), (3, 1, 1), (2, 2, 2)], [(4, 5, 4), (1, 4, 0), (2, 2, 2), (3, 1, 1)])
+}
+
+
+def add_control_exceptions(ex_dict):
+    """
+    Adds control conditions: each odd-numbered exception key gets a paired even-numbered key
+    where red == blue (no actual change, tests robustness to exception highlighting).
+    """
+    new_dict = ex_dict.copy()
+    for k in list(ex_dict.keys()):
+        if k % 2 == 1:
+            red = ex_dict[k][0]
+            new_dict[k + 1] = (red, red)
     return new_dict
 
 exceptions_dict = add_control_exceptions(exceptions_dict)
@@ -511,9 +508,9 @@ exceptions_dict = add_control_exceptions(exceptions_dict)
 
 
 # In __main__, view plots showing training and testing combinations.
-if(__name__ == "__main__"):
-    def plot_combined_training_grid(training_combos, exception_num, title="Training Set"):
-        task_items = [(a, t) for a, t in task_map.items() if t.name != "SILENCE"]
+if(__name__ == '__main__'):
+    def plot_combined_training_grid(training_combos, exception_num, title='Training Set'):
+        task_items = [(a, t) for a, t in task_map.items() if t.name != 'SILENCE']
         num_tasks = len(task_items)
         num_cols = 3
         num_rows = (num_tasks + num_cols - 1) // num_cols
@@ -557,7 +554,7 @@ if(__name__ == "__main__"):
                         ax.add_patch(patches.Rectangle((.375, .375), .25, .25, facecolor='blue', alpha = .3, edgecolor='blue'))
 
                     # Label
-                    ax.text(0.5, 0.5, f"{color_map[c].name}\n{shape_map[s].name}",
+                    ax.text(0.5, 0.5, f'{color_map[c].name}\n{shape_map[s].name}',
                             va='center', ha='center', fontsize=9, wrap=True)
 
             # Task title in the middle column
@@ -582,11 +579,11 @@ if(__name__ == "__main__"):
                 coordsA=start_ax.transData,   # start (red)
                 xyB=(0.5, 0.5), 
                 coordsB=end_ax.transData,     # end (blue)
-                arrowstyle="-|>", 
-                ls = "-",
+                arrowstyle='-|>', 
+                ls = '-',
                 mutation_scale=25, 
                 lw=1.8, 
-                color="black",
+                color='black',
                 shrinkA=10, 
                 shrinkB=10  # keep arrowheads off the colored squares
             )
@@ -597,12 +594,12 @@ if(__name__ == "__main__"):
         plt.show()
         plt.close()
     
-    #plot_combined_training_grid(training_combos_1, title="Training Set 1 – All Tasks")
-    #plot_combined_training_grid(training_combos_2, title="Training Set 2 – All Tasks")
+    #plot_combined_training_grid(training_combos_1, title='Training Set 1 – All Tasks')
+    #plot_combined_training_grid(training_combos_2, title='Training Set 2 – All Tasks')
     
     for key in exceptions_dict.keys():
         #if(key % 2 != 0):
-            plot_combined_training_grid(training_combos_3, title=f"Training Set 3 - All Tasks - Exceptions {key}", exception_num = key)
+            plot_combined_training_grid(training_combos_3, title=f'Training Set 3 - All Tasks - Exceptions {key}', exception_num = key)
             
         
         
@@ -610,59 +607,97 @@ if(__name__ == "__main__"):
 
 
 
-# These functions can make goals given which tasks, colors, and shapes are allowed.
+#%%
+"""
+Functions for generating task-goal combinations with constraints on tasks, colors, and shapes.
+"""
 
 
+def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shapes, test_train_num=3, test=False):
+    """
+    Choose a valid (color, shape) pair for a given task, filtering based on:
+    - test vs. train set (controlled by `test` flag)
+    - allowed colors and shapes
+    - exclusion of duplicates from other_shape_colors
+    """
+    training_combos = (
+        training_combos_1 if test_train_num == 1 else
+        training_combos_2 if test_train_num == 2 else
+        training_combos_3 if test_train_num == 3 else
+        training_combos_4
+    )
+    testing_combos = [combo for combo in all_combos if combo not in training_combos]
 
-# Choose color and shape, given tasks/colors/shapes in use.
-def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shapes, test_train_num = 3, test = False):
-    training_combos = training_combos_1 if test_train_num == 1 else training_combos_2 if test_train_num == 2 else training_combos_3 if test_train_num == 3 else training_combos_4
-    testing_combos = [combo for combo in all_combos if not combo in training_combos]
-    if(test == None):
+    if test is None:
         these_combos = testing_combos + training_combos
-    elif(test):
+    elif test:
         these_combos = testing_combos
     else:
         these_combos = training_combos
-    these_combos = [combo for combo in these_combos if combo[0] == task_num]
-    these_combos = [(combo[1], combo[2]) for combo in these_combos if combo[1] in allowed_colors and combo[2] in allowed_shapes]
-    if(test != None):
-        these_combos = [combo for combo in these_combos if not combo in other_shape_colors]
-    color_num, shape_num = choice(these_combos)
-    return(color_num, shape_num)
 
-# Return goals, given allowed tasks, colors, and shapes. 
-# This returns two sets of colors and shapes. If using two robots in cooperation, the second set is for the second robot.
-def make_objects_and_task(num_objects, allowed_tasks_and_weights, allowed_colors, allowed_shapes, test_train_num = 3, test = False):
-    tasks   = [v for v, w in allowed_tasks_and_weights]
+    these_combos = [combo for combo in these_combos if combo[0] == task_num]
+    these_combos = [
+        (color, shape) for _, color, shape in these_combos
+        if color in allowed_colors and shape in allowed_shapes
+    ]
+    if test is not None:
+        these_combos = [combo for combo in these_combos if combo not in other_shape_colors]
+
+    color_num, shape_num = choice(these_combos)
+    return color_num, shape_num
+
+
+def make_objects_and_task(num_objects, allowed_tasks_and_weights, allowed_colors, allowed_shapes, test_train_num=3, test=False):
+    """
+    Generate a full goal specification:
+    - Randomly selects a task based on weights
+    - Selects valid color-shape combinations for two object lists
+    - Returns: (Task, List1 of (Color, Shape), List2 of (Color, Shape))
+    """
+    tasks = [v for v, w in allowed_tasks_and_weights]
     weights = [w for v, w in allowed_tasks_and_weights]
     task_num = choices(tasks, weights=weights, k=1)[0]
-    
-    goal_object = valid_color_shape(task_num, [], allowed_colors, allowed_shapes, test_train_num, test = test)
+
+    goal_object = valid_color_shape(task_num, [], allowed_colors, allowed_shapes, test_train_num, test=test)
     colors_shapes_1 = [goal_object]
     colors_shapes_2 = [goal_object]
-    for n in range(num_objects-1):
-        colors_shapes_1.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test_train_num, test = test))
-    for n in range(num_objects-1):
-        colors_shapes_2.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test_train_num, test = test))
-    
+
+    for _ in range(num_objects - 1):
+        colors_shapes_1.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test_train_num, test=test))
+    for _ in range(num_objects - 1):
+        colors_shapes_2.append(valid_color_shape(task_num, colors_shapes_1 + colors_shapes_2, allowed_colors, allowed_shapes, test_train_num, test=test))
+
     task = task_map[task_num]
-    colors_shapes_1 = [(color_map[color_index], shape_map[shape_index]) for color_index, shape_index in colors_shapes_1]
-    colors_shapes_2 = [(color_map[color_index], shape_map[shape_index]) for color_index, shape_index in colors_shapes_2]
-    return(task, colors_shapes_1, colors_shapes_2)
+    colors_shapes_1 = [(color_map[c], shape_map[s]) for c, s in colors_shapes_1]
+    colors_shapes_2 = [(color_map[c], shape_map[s]) for c, s in colors_shapes_2]
+
+    return task, colors_shapes_1, colors_shapes_2
 
 
-        
-# In __main__, view some example goals.
-if(__name__ == "__main__"):
-    print("Train")
-    for i in range(1):
-        task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(2, [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4])
-        print(task.name, [(color.name, shape.name) for color, shape in colors_shapes_1], [(color.name, shape.name) for color, shape in colors_shapes_2])
-    print("\nTest")
-    for i in range(1):
-        task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(2, [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4], test = True)
-        print(task.name, [(color.name, shape.name) for color, shape in colors_shapes_1], [(color.name, shape.name) for color, shape in colors_shapes_2])
+# ---------------------------------------
+# Demonstration of goal generation logic
+# ---------------------------------------
+if __name__ == '__main__':
+    print('Train')
+    for _ in range(1):
+        task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
+            num_objects=2,
+            allowed_tasks_and_weights=[(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],
+            allowed_colors=[0, 1, 2, 3, 4, 5],
+            allowed_shapes=[0, 1, 2, 3, 4]
+        )
+        print(task.name, [(c.name, s.name) for c, s in colors_shapes_1], [(c.name, s.name) for c, s in colors_shapes_2])
+
+    print('\nTest')
+    for _ in range(1):
+        task, colors_shapes_1, colors_shapes_2 = make_objects_and_task(
+            num_objects=2,
+            allowed_tasks_and_weights=[(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],
+            allowed_colors=[0, 1, 2, 3, 4, 5],
+            allowed_shapes=[0, 1, 2, 3, 4],
+            test=True
+        )
+        print(task.name, [(c.name, s.name) for c, s in colors_shapes_1], [(c.name, s.name) for c, s in colors_shapes_2])
         
         
         
