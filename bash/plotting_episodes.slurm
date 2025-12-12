@@ -5,4 +5,4 @@
 #SBATCH --time 72:00:00
 #SBATCH --mem=50G
 module load singularity
-singularity exec communication.sif python communication/plotting_episodes.py --comp deigo --arg_title ___ef_q2+ef_q2+ef_q2+ef_q2+ef_q2+ef_q2+ef_q2+ef_q2+ef_q2+ef_q2___ --arg_name plotting_episodes
+singularity exec communication.sif python communication/plotting_episodes.py --comp deigo --arg_title ___ef_q2_t1+ef_q2_t1+ef_q2_t1+ef_q2_t2+ef_q2_t2+ef_q2_t2___ --arg_name plotting_episodes

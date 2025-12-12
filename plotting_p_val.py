@@ -9,10 +9,10 @@ from utils import args, duration, load_dicts
 
 # This file plots statistical relationships between robot performances.
 
-print("name:\n{}".format(args.arg_name))
+print('name:\n{}'.format(args.arg_name))
 
-os.chdir(f"saved_{args.comp}")
-try: os.mkdir("thesis_pics/p_values")
+os.chdir(f'saved_{args.comp}')
+try: os.mkdir('thesis_pics/p_values')
 except: pass
 
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
@@ -23,43 +23,43 @@ plot_dicts, min_max_dict, complete_order = load_dicts(args)
 arg_names = []
 values_to_plot = {}
 for plot_dict in plot_dicts:
-    arg_name = plot_dict["args"].arg_name
+    arg_name = plot_dict['args'].arg_name
     arg_names.append(arg_name)
     values_to_plot[arg_name] = {}
         
 # Collect task names.
 task_names = []
 for key in plot_dicts[0].keys():
-    if(key.startswith("wins_")):
-        if(key[5:] != "free_play"):
+    if(key.startswith('wins_')):
+        if(key[5:] != 'free_play'):
             task_names.append(key[5:])
             
 # Find success-rates and cumulative rewards.
 for plot_dict in plot_dicts:
-    args = plot_dict["args"]
+    args = plot_dict['args']
 
     # Final win-rates                 
     for task_name in task_names:
-        wins = plot_dict["rolled_wins_" + task_name]
+        wins = plot_dict['rolled_wins_' + task_name]
         wins = np.array(wins)
         wins = wins[:,-1]
-        values_to_plot[args.arg_name]["wins_" + task_name] = wins
+        values_to_plot[args.arg_name]['wins_' + task_name] = wins
         
-        gen_wins = plot_dict["rolled_gen_wins_" + task_name]
+        gen_wins = plot_dict['rolled_gen_wins_' + task_name]
         gen_wins = np.array(gen_wins)  
         gen_wins = gen_wins[:,-1]
-        values_to_plot[args.arg_name]["gen_wins_" + task_name] = gen_wins
+        values_to_plot[args.arg_name]['gen_wins_' + task_name] = gen_wins
                 
     # reward
-    reward = plot_dict["reward"]
+    reward = plot_dict['reward']
     reward = np.array(reward)
     reward = reward[:,-1]
-    values_to_plot[args.arg_name]["reward"] = reward
+    values_to_plot[args.arg_name]['reward'] = reward
     
-    gen_reward = plot_dict["gen_reward"]
+    gen_reward = plot_dict['gen_reward']
     gen_reward= np.array(gen_reward)   
     gen_reward = gen_reward[:,-1]
-    values_to_plot[args.arg_name]["gen_reward"] = gen_reward
+    values_to_plot[args.arg_name]['gen_reward'] = gen_reward
 
 
 
@@ -102,9 +102,9 @@ def compare_and_plot(values_1, values_2, args_name_1, args_name_2, here, data_ty
     else:  # No significant difference
         color_1, color_2 = 'white', 'white'
 
-    print(f"\t\tMeans: {mean_1}, {mean_2}")
-    print(f"\t\tConf: {ci_1}, {ci_2}")
-    print(f"\t\tColor: {color_1}, {color_2}")
+    print(f'\t\tMeans: {mean_1}, {mean_2}')
+    print(f'\t\tConf: {ci_1}, {ci_2}')
+    print(f'\t\tColor: {color_1}, {color_2}')
 
     here.bar(
         [f'{args_name_1}', f'{args_name_2}'],
@@ -123,30 +123,30 @@ def compare_and_plot(values_1, values_2, args_name_1, args_name_2, here, data_ty
     
 # Iterate over values.
 for value_name in value_names:
-    print(f"\n{value_name}")
+    print(f'\n{value_name}')
     fig, axes = plt.subplots(num_args-1, num_args-1, figsize = (10, 10))
     fig.suptitle(f'{value_name}')
     for (row, args_name_1), (column, args_name_2) in product(enumerate(values_to_plot.keys()), enumerate(values_to_plot.keys())):
-        print(f"row {row} column {column}: {args_name_1}, {args_name_2}")
+        print(f'row {row} column {column}: {args_name_1}, {args_name_2}')
         if(row == len(values_to_plot)-1 or column == 0):
-            print("passing")
+            print('passing')
         else:
-            print("in plot")
+            print('in plot')
             ax = axes[row, column-1]
             if(row >= column):
-                print(f"\t row, column {row}, {column}: REMOVING AXIS")
-                ax.axis("off")
+                print(f'\t row, column {row}, {column}: REMOVING AXIS')
+                ax.axis('off')
             else:
-                print(f"\t row, column {row}, {column}: {args_name_1} vs {args_name_2}")
+                print(f'\t row, column {row}, {column}: {args_name_1} vs {args_name_2}')
                 value_1 = values_to_plot[args_name_1][value_name]
                 value_2 = values_to_plot[args_name_2][value_name]
                 value_1 = np.array([v for v in values_to_plot[args_name_1][value_name] if v is not None])
                 value_2 = np.array([v for v in values_to_plot[args_name_2][value_name] if v is not None])
-                compare_and_plot(value_1, value_2, args_name_1, args_name_2, ax, data_type = "boolean" if "win" in value_name else "numeric")            
+                compare_and_plot(value_1, value_2, args_name_1, args_name_2, ax, data_type = 'boolean' if 'win' in value_name else 'numeric')            
     fig.tight_layout()
-    plt.savefig(f"thesis_pics/p_values/{value_name}_p_values.png")
+    plt.savefig(f'thesis_pics/p_values/{value_name}_p_values.png')
     plt.close()
 
 
 
-print(f"\nDuration: {duration()}. Done!")
+print(f'\nDuration: {duration()}. Done!')

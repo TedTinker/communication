@@ -2,6 +2,7 @@
 from copy import deepcopy
 import argparse, json
 from math import pi
+from itertools import product
 parser = argparse.ArgumentParser()
 parser.add_argument('--comp',         type=str,  default = 'deigo')
 parser.add_argument('--agents',       type=int,  default = 10)
@@ -9,7 +10,7 @@ parser.add_argument('--arg_list',     type=str,  default = [])
 try:    args = parser.parse_args()
 except: args, _ = parser.parse_known_args()
 
-# This file works with communication.sh to operate many attempts with different parameters.
+# This file works with communication.sh to implement many different parameters.
 
 if(type(args.arg_list) != list): args.arg_list = json.loads(args.arg_list)
 combined = '___{}___'.format('+'.join(args.arg_list))    
@@ -20,7 +21,7 @@ except: pass
 
 
 
-from itertools import product
+# Given sets of arguments, return all possible combinations.
 def expand_args(name, args):
     combos = [{}]
     complex = False
@@ -52,10 +53,11 @@ def convert_list(input_list):
 
 
 
-slurm_dict = {'d' : {}} 
+slurm_dict = {'d' : {}}     # d for default
 
 
 
+# Add these arguments to slurm_dict.
 def add_this(name, args):
     keys, values = [], []
     for key, value in slurm_dict.items(): keys.append(key) ; values.append(value)
@@ -114,8 +116,8 @@ add_this('q',   {
 
 
 add_this('q2',   {
-    'agents_per_agent_save' : 10,
-    'epochs_per_agent_save' : 2500,
+    'agents_per_agent_save' : 2,
+    'epochs_per_agent_save' : 10000,
     'save_behaviors' : 'False',
     'save_compositions' : 'False'})
 
@@ -141,14 +143,12 @@ add_this('t', {
 })
  
 add_this('k', {
-    'exceptions' : 1,
+    'exceptions' : [1, 2],
     'save_behaviors' : 'False',
     'epochs_per_agent_save' : 2500,
     'agents_per_agent_save' : 99,
     'epochs_per_composition_data' : 10000
 })
-
-
 
 
 
@@ -169,10 +169,6 @@ add_this('t2',   {
     'hourglass' : False,
     'test_train_num' : 1
 })
-
-
-
-
 
 
 
@@ -209,6 +205,8 @@ if(__name__ == '__main__' and args.arg_list == []):
         print('\n\n\nTHESE HYPERPARAMETERS:')
         for this in interesting:
             print('{} : {}'.format(this,slurm_dict[this]))
+
+
 
 if(__name__ == '__main__' and args.arg_list != []):
     

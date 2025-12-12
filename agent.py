@@ -40,7 +40,7 @@ from processor import Processor
 from buffer import RecurrentReplayBuffer
 from pvrnn import PVRNN
 from models import Actor, Critic
-from plotting_episodes import plot_step
+from plotting_step import plot_step
 from plotting_for_video import plot_video_step
 
 

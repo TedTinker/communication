@@ -386,7 +386,9 @@ if __name__ == '__main__':
 #%%
 
 
-# Here we generate valid combinations in training versus testing generalization.
+# -------------------------------
+# GENERATING VALID TEST/TRAINING COMBINATIONS
+# -------------------------------
 
 
 
@@ -404,7 +406,7 @@ def get_matrix_pattern(a_values, rows=5, cols=6):
             excluded.add((r, c))
     return [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in excluded]
 
-# Pattern lookups for training set 3
+# Pattern lookups for training set 3: 6 tasks, 6 colors, 5 shapes (180 goals total, 60 in training)
 pattern_lookup_3 = {
     1: set(get_matrix_pattern([0, 1, 2, 3])),
     2: set(get_matrix_pattern([1, 2, 3, 4])),
@@ -416,12 +418,9 @@ pattern_lookup_3 = {
 
 
 
-
-
 def get_training_combos(pattern_lookup):
     """
     Uses a task-specific pattern lookup to filter all_combos for training.
-
     Returns:
         A list of (task, color, shape) combinations used in training.
     """
@@ -437,11 +436,12 @@ def get_training_combos(pattern_lookup):
     ]
 
 
+
 # ------------------------------------------------------------
 # Training & Testing Splits
 # ------------------------------------------------------------
 
-# === Set 1: 4 tasks, 4 colors, 3 shapes (48 goals total) ===
+# === Set 1: 4 tasks, 4 colors, 3 shapes (48 goals total, 16 in training) ===
 # 16 for training, 32 for testing
 training_combos_1 = [
     # SILENCE (all color/shape combos allowed)
@@ -455,7 +455,7 @@ training_combos_1 = [
 ]
 testing_combos_1 = [combo for combo in all_combos if combo not in training_combos_1]
 
-# === Set 2: 5 tasks, 5 colors, 3 shapes (75 goals total) ===
+# === Set 2: 5 tasks, 5 colors, 3 shapes (75 goals total, 25 in training) ===
 # 25 for training, 50 for testing
 training_combos_2 = [
     # SILENCE
@@ -471,15 +471,14 @@ training_combos_2 = [
 ]
 testing_combos_2 = [combo for combo in all_combos if combo not in training_combos_2]
 
-# === Set 3: 6 tasks, 6 colors, 5 shapes (180 goals total) ===
-# ~60 training goals using cyclic pattern
+# === Set 3: 6 tasks, 6 colors, 5 shapes (180 goals total, 60 in training) ===
 training_combos_3 = get_training_combos(pattern_lookup_3)
 testing_combos_3 = [combo for combo in all_combos if combo not in training_combos_3]
 
 
 # Exceptions dictionary
 exceptions_dict = {
-    0: ([], []),                                                # No exceptions
+    0: ([], []),                                                # No exceptions (default)
     1: ([(1, 4, 0), (2, 1, 1)], [(2, 1, 1), (1, 4, 0)]),        # Exceptions used in paper
     3: ([(1, 5, 1), (2, 2, 2)], [(2, 2, 2), (1, 5, 1)]),
     5: ([(1, 4, 0), (2, 1, 1), (1, 3, 4), (2, 2, 2)], [(2, 1, 1), (1, 4, 0), (2, 2, 2), (1, 3, 4)]),
@@ -703,6 +702,12 @@ if __name__ == '__main__':
         
         
 #%% 
+
+
+
+# ---------------------------------------
+# LIST OF ARGUMENTS
+# ---------------------------------------
 
 
 
@@ -1170,12 +1175,22 @@ def update_args(arg_set):
 for arg_set in [default_args, args]:
     default_args = update_args(default_args) 
     args = update_args(args)
+    
+    
+
+# ---------------------------------------
+# MAKE A TITLE FOR ARGUMENTS, COMPARED TO DEFAULT ARGUMENTS
+# ---------------------------------------
+
+    
         
-# Make a title for these arguments based on comparing it to the default arguments, without including these parameters.
+# Don't include these parameters in title.
 args_not_in_title = [
     'arg_title', 'id', 'agents', 'previous_agents', 'init_seed', 'keep_data', 'epochs_per_pred_list', 
     'episodes_in_pred_list', 'agents_per_pred_list', 'epochs_per_pos_list', 'episodes_in_pos_list', 'agents_per_pos_list',
-    'watch', 'be_near', 'touch_top', 'push_forward', 'push_left', 'push_right', 'red', 'green', 'blue', 'cyan', 'magenta', 'yellow', 'pillar', 'pole', 'dumbbell', 'cone', 'hourglass']
+    'watch', 'be_near', 'touch_top', 'push_forward', 'push_left', 'push_right',
+    'red', 'green', 'blue', 'cyan', 'magenta', 'yellow', 
+    'pillar', 'pole', 'dumbbell', 'cone', 'hourglass']
 
 # Make a title for the arguments. 
 def get_args_title(default_args, args):
@@ -1224,7 +1239,7 @@ def get_args_title(default_args, args):
 
 args.arg_title = get_args_title(default_args, args)
 
-# Generate some folders for saving agents and plots.
+# Generate folders for saving agents and plots.
 save_file = f'saved_{args.comp}'
 os.makedirs(f'{save_file}', exist_ok=True)
 os.makedirs(f'{save_file}/thesis_pics', exist_ok=True)
@@ -1375,6 +1390,12 @@ def plot_number_bars(numbers):
 
 
 
+""" 
+For various calculations.
+"""
+
+
+
 def wheels_joints_to_string(wheels_joints):
     """Convert tensor of wheels and joints into readable string format."""
     while(len(wheels_joints.shape) > 1):
@@ -1433,6 +1454,16 @@ def rolling_average(lst, window_size=500):
         return new_list
     except Exception as e:
         print('\n\nRolling average failed.\n\n')
+
+
+
+#%%
+
+
+
+""" 
+Loading files for plotting, etc.
+"""
 
 
 

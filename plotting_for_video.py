@@ -1,141 +1,134 @@
-#%% 
+#%%
 
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.table import Table
-import tkinter as tk
-import matplotlib.patches as patches
-import matplotlib.gridspec as gridspec
 import os
 import re
-import imageio
-import numpy as np
-import threading
 import time
+import imageio
+import threading
+import numpy as np
+import tkinter as tk
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.gridspec as gridspec
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.table import Table
 
 from utils import print, args, duration, load_dicts, wheels_joints_to_string, plot_number_bars, empty_goal
 from pybullet_data.robots.robot_maker import robot_dict
 
 
+"""
+This script creates concise visualizations of agent observations and curiosity metrics.
+Includes:
+    - Vision, touch
+    - Command and feedback voices
+    - Feedback prediction
+    - Curiosity DKL values (vision, touch, proprioception, feedback voice)
+"""
 
-# This file makes a concise depiction of the agent's observations
-# and the DKL values of its predictions.
-
-
-    
 def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=True, dreaming=False, args=args):
+    """Plot a visual summary of a single step in the agent's episode."""
 
     sensor_plotter, sensor_values = robot_dict[args.robot_name]
     agent_num = 1 if agent_1 else 2
 
-    obs = episode_dict[f"obs_{agent_num}"][step]
+    # --- Observations ---
+    obs = episode_dict[f'obs_{agent_num}'][step]
     vision = obs.vision[0, :, :, :-1]
     touch = obs.touch.tolist()[0]
     
+    # --- Voice (human readable) ---
     command_voice = obs.command_voice.human_friendly_text()
-    feedback_voice = obs.feedback_voice.human_friendly_text(command = False)
-        
-    command_task = obs.command_voice.task.name# .replace(" ", "\n")
-    command_color = obs.command_voice.color.name# .replace(" ", "\n")
-    command_shape = obs.command_voice.shape.name# .replace(" ", "\n")
+    feedback_voice = obs.feedback_voice.human_friendly_text(command=False)
 
-    feedback_task = obs.feedback_voice.task.name# .replace(" ", "\n")
-    feedback_color = obs.feedback_voice.color.name# .replace(" ", "\n")
-    feedback_shape = obs.feedback_voice.shape.name# .replace(" ", "\n")
-    
-    if(step != 0):
-        posterior = episode_dict[f"posterior_predictions_{agent_num}"][step-1]
-        posterior_feedback_voice = posterior.feedback_voice 
+    command_task = obs.command_voice.task.name
+    command_color = obs.command_voice.color.name
+    command_shape = obs.command_voice.shape.name
+
+    feedback_task = obs.feedback_voice.task.name
+    feedback_color = obs.feedback_voice.color.name
+    feedback_shape = obs.feedback_voice.shape.name
+
+    if step != 0:
+        posterior = episode_dict[f'posterior_predictions_{agent_num}'][step - 1]
+        posterior_feedback_voice = posterior.feedback_voice
     else:
         posterior_feedback_voice = empty_goal
-    predicted_feedback_task = posterior_feedback_voice.task.name# .replace(" ", "\n")
-    predicted_feedback_color = posterior_feedback_voice.color.name# .replace(" ", "\n")
-    predicted_feedback_shape = posterior_feedback_voice.shape.name# .replace(" ", "\n")
-    
-    cell_data = [
-        ["", "Task", "Color", "Shape"],
-        ["Command", command_task, command_color, command_shape],
-        ["Feedback", feedback_task, feedback_color, feedback_shape],
-        ["Predicted\nFeedback", predicted_feedback_task, predicted_feedback_color, predicted_feedback_shape]]
-    
-    visual_curiosity        = episode_dict[f"vision_dkl_{agent_num}"][:step]        
-    visual_curiosity        = [0] + [c * args.hidden_state_eta_vision for c in visual_curiosity]
-    touch_curiosity         = episode_dict[f"touch_dkl_{agent_num}"][:step]         
-    touch_curiosity         = [0] + [c * args.hidden_state_eta_touch for c in touch_curiosity]
-    prop_curiosity         = episode_dict[f"prop_dkl_{agent_num}"][:step]         
-    prop_curiosity         = [0] + [c * args.hidden_state_eta_prop for c in prop_curiosity]
-    feedback_voice_curiosity  = episode_dict[f"feedback_voice_dkl_{agent_num}"][:step] 
-    feedback_voice_curiosity  = [0] + [c * args.hidden_state_eta_feedback_voice for c in feedback_voice_curiosity]
 
-    dpi = 100  
-    # Create figure with no facecolor (transparent)
+    predicted_feedback_task = posterior_feedback_voice.task.name
+    predicted_feedback_color = posterior_feedback_voice.color.name
+    predicted_feedback_shape = posterior_feedback_voice.shape.name
+
+    # --- DKL Curiosity values ---
+    visual_curiosity = [0] + [c * args.hidden_state_eta_vision for c in episode_dict[f'vision_dkl_{agent_num}'][:step]]
+    touch_curiosity = [0] + [c * args.hidden_state_eta_touch for c in episode_dict[f'touch_dkl_{agent_num}'][:step]]
+    prop_curiosity = [0] + [c * args.hidden_state_eta_prop for c in episode_dict[f'prop_dkl_{agent_num}'][:step]]
+    feedback_voice_curiosity = [0] + [c * args.hidden_state_eta_feedback_voice for c in episode_dict[f'feedback_voice_dkl_{agent_num}'][:step]]
+
+    # --- Figure setup ---
+    dpi = 100
     fig = plt.figure(figsize=(4, 8), dpi=dpi, facecolor='none')
     fig.patch.set_alpha(0)
-            
-    # Main invisible axes covering the whole figure
+
     main_ax = fig.add_axes([0, 0, 1, 1])
     main_ax.set_axis_off()
     main_ax.patch.set_alpha(0)
     
-    # Steps, upper right.
+    # Step label
     main_ax.text(
-        .94, 0.98, f"Step {step}",
+        0.94, 0.98, f'Step {step}',
         fontsize=15,
         transform=main_ax.transAxes,
         zorder=3,
         ha='right',
         va='center',
-        bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3', alpha=1.0, linewidth=2))
-        
-    # Vision image in the top-right region; adjust these coordinates as needed.
+        bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3', alpha=1.0, linewidth=2)
+    )
+
+    # --- Vision ---
     vision_ax = fig.add_axes([0.05, 0.27, 0.9, 0.9])
     vision_ax.imshow(vision)
     vision_ax.set_xticks([])
     vision_ax.set_yticks([])
-    vision_ax.set_xticklabels([])
-    vision_ax.set_yticklabels([])
     vision_ax.patch.set_alpha(0)
     for spine in vision_ax.spines.values():
         spine.set_visible(True)
         spine.set_edgecolor('black')
-        spine.set_linewidth(3)  # Use a reasonable width like 3, not 50
+        spine.set_linewidth(3)
     
-    # Touch image in the mid-right region.
+    # --- Touch ---
     touch_ax = fig.add_axes([0.05, -0.14, 0.9, 0.9])
-    touch_image = sensor_plotter(touch)
-    touch_image = touch_image[80:-70, 80:-60]
+    touch_image = sensor_plotter(touch)[80:-70, 80:-60]
     touch_ax.imshow(touch_image)
     touch_ax.patch.set_alpha(0)
     touch_ax.set_xticks([])
     touch_ax.set_yticks([])
-    touch_ax.set_xticklabels([])
-    touch_ax.set_yticklabels([])
     for spine in touch_ax.spines.values():
         spine.set_visible(True)
         spine.set_edgecolor('black')
         spine.set_linewidth(3)
-    
-    # Command, feedback, and predicted feedback text
-    table_ax = fig.add_axes([0.05, -0.18, 0.9, 0.25])  # position: [left, bottom, width, height]
-    table_ax.set_axis_off()
 
+    # --- Command and Feedback Table ---
+    table_ax = fig.add_axes([0.05, -0.18, 0.9, 0.25])
+    table_ax.set_axis_off()
     fontsize = 12
-    table_ax.text(0, .8, s = f"Command:\n{command_task} {command_color} {command_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
-    table_ax.text(0, .45, s = f"Feedback:\n{feedback_task} {feedback_color} {feedback_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
-    table_ax.text(0, .1, s = f"Predicted Feedback:\n{predicted_feedback_task} {predicted_feedback_color} {predicted_feedback_shape}.", horizontalalignment='left', verticalalignment='center', fontsize = fontsize)
+    table_ax.text(0, 0.8, f'Command:\n{command_task} {command_color} {command_shape}.',
+                  ha='left', va='center', fontsize=fontsize)
+    table_ax.text(0, 0.45, f'Feedback:\n{feedback_task} {feedback_color} {feedback_shape}.',
+                  ha='left', va='center', fontsize=fontsize)
+    table_ax.text(0, 0.1, f'Predicted Feedback:\n{predicted_feedback_task} {predicted_feedback_color} {predicted_feedback_shape}.',
+                  ha='left', va='center', fontsize=fontsize)
             
-    # Curiosity values
-    # Use or don't use these min/max values.
+    # --- Curiosity Plots ---
     all_curiosities = visual_curiosity + touch_curiosity + prop_curiosity + feedback_voice_curiosity
-    if(all_curiosities == []):
+    if not all_curiosities:
         all_curiosities = [0]
-    min_curi = min(all_curiosities) * .9
+    min_curi = min(all_curiosities) * 0.9
     max_curi = max(all_curiosities) * 1.1
-    
+
     plot_height = 0.07
-    base_bottom = -0.30  
-    
-    curiosity_titles = ["Vision Curiosity", "Touch Curiosity", "Proprioception Curiosity", "Feedback Voice Curiosity"]
+    base_bottom = -0.30
+    curiosity_titles = ['Vision Curiosity', 'Touch Curiosity', 'Proprioception Curiosity', 'Feedback Voice Curiosity']
     curiosity_data = [visual_curiosity, touch_curiosity, prop_curiosity, feedback_voice_curiosity]
 
     for idx, (title, data) in enumerate(zip(curiosity_titles, curiosity_data)):
@@ -145,37 +138,32 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
             ax.plot(data, color='black', linewidth=2)
         elif len(data) == 1:
             ax.plot([0], data, marker='o', markersize=6, color='black')
-        #ax.set_ylim([min_curi, max_curi])
         ax.set_xlim([0, step])
         ax.set_yticks([])
         ax.set_xticks([])
         ax.set_title(title, fontsize=10)
         ax.patch.set_alpha(0)
-        #ax.text(-0.02, min_curi, f"{round(min_curi)}", va='center', ha='right', fontsize=8, transform=ax.get_yaxis_transform())
-        #ax.text(-0.02, max_curi, f"{round(max_curi)}", va='center', ha='right', fontsize=8, transform=ax.get_yaxis_transform())
         for spine in ax.spines.values():
             spine.set_edgecolor('gray')
             spine.set_linewidth(1)
-
-    #table_ax.add_table(table)
     
 
     
+    # --- Save or Show ---
     if saving:
-        # Save with transparent=True so the background remains transparent.
-        os.makedirs(f"saved_deigo/thesis_pics", exist_ok=True)
-        os.makedirs(f"saved_deigo/thesis_pics/video_pics", exist_ok=True)
-        plt.savefig(f"saved_deigo/thesis_pics/video_pics/Goal {command_voice} Step {step}.png",
-                    transparent=True, bbox_inches='tight', pad_inches=0)
+        os.makedirs('saved_deigo/thesis_pics/video_pics', exist_ok=True)
+        filename = f'saved_deigo/thesis_pics/video_pics/Goal {command_voice} Step {step}.png'
+        plt.savefig(filename, transparent=True, bbox_inches='tight', pad_inches=0)
     plt.show()
+
     plt.close()
             
     
 
-if __name__ == "__main__":
-    print("name:\n{}\n".format(args.arg_name),)
+if __name__ == '__main__':
+    print(f'name:\n{args.arg_name}\n')
     plot_dicts, min_max_dict, complete_order = load_dicts(args)
     plot_episodes(complete_order, plot_dicts)
-    print("\nDuration: {}. Done!".format(duration()))
+    print(f'\nDuration: {duration()}. Done!')
     
 # %%

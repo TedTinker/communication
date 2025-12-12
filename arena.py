@@ -30,7 +30,7 @@ from arena_navigator import run_tk
 
 
 # ============================
-# PHYSICS SETUP
+# PyBullet PHYSICS SETUP
 # ============================
 
 def get_physics(GUI, args, w=10, h=10):
@@ -105,6 +105,7 @@ def find_key_by_value(my_dict, target_value):
         if value == target_value:
             return key
     return None
+
 
 
 # ============================
@@ -278,8 +279,10 @@ class Arena:
         
         
     
-    # Begin an episode.
     def begin(self, objects, goal, parenting, set_positions = None):
+        """
+        Begin episode with given objects and goals.
+        """
         self.set_pos()
         self.set_yaw()
         self.set_wheel_speeds()
@@ -290,9 +293,8 @@ class Arena:
         self.joint_accelerations = {key: 0 for key in self.joint_indices.keys()}
         self.goal = goal
         
-        
-        
-        self.real_goal = goal
+        # If there are exceptions, adjust goal. 
+        self.real_goal = goal   
         self.supposed_to_be_exception = False
         
         exception_list_a, exception_list_b = exceptions_dict[self.args.exceptions]
@@ -302,8 +304,6 @@ class Arena:
             goal_index = exception_list_a.index(self.goal.digits)
             self.real_goal = get_goal_from_digits(exception_list_b[goal_index])
             objects[0] = (self.real_goal.color, self.real_goal.shape)
-            
-        
         
         self.parenting = parenting
         self.objects_in_play = {}
@@ -362,8 +362,11 @@ class Arena:
             
             
             
-    # One step in an episode.
     def step(self, left_wheel_speed, right_wheel_speed, joint_target_velocities, verbose = False, sleep_time = None, waiting = False):
+        
+        """
+        One step in an episode.
+        """
         
         # Check beginning stats regarding objects.
         _, _, _, _, yaw = self.get_pos_spe_rpy(self.robot_index)

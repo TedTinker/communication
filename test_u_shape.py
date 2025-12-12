@@ -9,7 +9,7 @@ from matplotlib.patches import PathPatch
 from matplotlib.transforms import Affine2D
 from matplotlib.ticker import MultipleLocator
 import matplotlib.lines as mlines
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE" # Without this, pyplot crashes the kernal
+os.environ['KMP_DUPLICATE_LIB_OK']='TRUE' # Without this, pyplot crashes the kernal
 from matplotlib.ticker import FuncFormatter
 from itertools import accumulate
 from math import log
@@ -30,24 +30,24 @@ from utils import load_dicts, rolling_average
 rolling_window = 10000
 
 # Assuming the arguments contains two arg_names: one for exceptions, one for pseudo-exceptions, in that order.
-plot_dicts, min_max_dict, complete_order = load_dicts({"titles" : ["ef_q4t_1_old", "ef_q4t_2_old"]})
+plot_dicts, min_max_dict, complete_order = load_dicts({'titles' : ['ef_q4t_1_old', 'ef_q4t_2_old']})
 
-print("Getting results with exceptions...")
+print('Getting results with exceptions...')
 exceptions_dict = plot_dicts[0]
-exceptions = [rolling_average(wins, window_size=rolling_window) for wins in exceptions_dict["wins_exception"]]  
+exceptions = [rolling_average(wins, window_size=rolling_window) for wins in exceptions_dict['wins_exception']]  
 
 
-print("\nGetting results with pseudo-exceptions...")
+print('\nGetting results with pseudo-exceptions...')
 pseudo_exceptions_dict = plot_dicts[1]
-pseudo_exceptions = [rolling_average(wins, window_size=rolling_window) for wins in pseudo_exceptions_dict["wins_exception"]]  
+pseudo_exceptions = [rolling_average(wins, window_size=rolling_window) for wins in pseudo_exceptions_dict['wins_exception']]  
 
-print("\nGot results!")
+print('\nGot results!')
 
 # So, we have two lists. Both lists have a list for each agent, showing rolling-average win-rates with exceptions.
 
 
 
-print("\nGot results!")
+print('\nGot results!')
 
 #%%
 
@@ -55,7 +55,7 @@ print("\nGot results!")
 
 def plot_these(list_1, list_2):
     fig, ax = plt.subplots(len(list_1), 2, figsize=(20, 4 * len(list_1)))
-    fig.suptitle("Exceptions vs Pseudo-Exceptions", fontsize=16)
+    fig.suptitle('Exceptions vs Pseudo-Exceptions', fontsize=16)
 
     # Ensure ax is a 2D array even if len(exceptions) == 1
     if len(exceptions) == 1:
@@ -65,13 +65,13 @@ def plot_these(list_1, list_2):
     def plot_rolling_average_wins(axis, data, label, color):
         axis.plot([100 * d for d in data], label=label, color=color)
         axis.set_ylim(0, 100)
-        axis.set_xlabel("Epochs")
-        axis.set_ylabel("Success Rate")
+        axis.set_xlabel('Epochs')
+        axis.set_ylabel('Success Rate')
 
     # Plot all agent data
     for i in range(len(list_1)):
-        plot_rolling_average_wins(ax[i, 0], list_1[i], label="Exceptions", color="blue")
-        plot_rolling_average_wins(ax[i, 1], list_2[i], label="Pseudo-Exceptions", color="green")
+        plot_rolling_average_wins(ax[i, 0], list_1[i], label='Exceptions', color='blue')
+        plot_rolling_average_wins(ax[i, 1], list_2[i], label='Pseudo-Exceptions', color='green')
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.97])
     plt.show()
@@ -91,7 +91,7 @@ def _savgol_safe(y, frac=0.03, poly=2):
     win = max(7, int(np.floor(n * frac)))
     if win % 2 == 0: win += 1
     if win >= n: win = n-1 if n % 2 == 0 else n
-    return savgol_filter(y, window_length=win, polyorder=min(poly, win-1), mode="interp")
+    return savgol_filter(y, window_length=win, polyorder=min(poly, win-1), mode='interp')
 
 def u_shape_score(
     y,
@@ -240,9 +240,9 @@ def plot_groups_with_u_indices(
     curves_a, curves_b,
     scores_a, iLs_a, iMs_a, iRs_a,
     scores_b, iLs_b, iMs_b, iRs_b,
-    label_a="Exceptions", label_b="Pseudo-Exceptions"
+    label_a='Exceptions', label_b='Pseudo-Exceptions'
 ):
-    assert len(curves_a) == len(curves_b), "Groups must have same number of curves"
+    assert len(curves_a) == len(curves_b), 'Groups must have same number of curves'
     n = len(curves_a)
 
     fig, ax = plt.subplots(n, 2, figsize=(20, 4 * n), sharex=False)
@@ -269,17 +269,17 @@ def plot_groups_with_u_indices(
         yp = _maybe_percent(y)
         axis.plot(yp, color=color, lw=1.6)
         axis.set_ylim(0, 100)
-        axis.set_xlabel("Epochs", fontsize=22)
-        axis.set_ylabel("Success Rate", fontsize=22)
+        axis.set_xlabel('Epochs', fontsize=22)
+        axis.set_ylabel('Success Rate', fontsize=22)
         axis.set_title(title, fontsize=22)
 
         # Annotate if indices look valid
         if _valid_triplet(iL, iM, iR, len(yp)):
             iL, iM, iR = int(iL), int(iM), int(iR)
-            axis.axvline(iL, color="red", ls="--", lw=3)
-            axis.axvline(iM, color="red", ls="--", lw=3)
-            axis.axvline(iR, color="red", ls="--", lw=3)
-            axis.plot([iL, iM, iR], [yp[iL], yp[iM], yp[iR]], "o", ms=5, color="red")
+            axis.axvline(iL, color='red', ls='--', lw=3)
+            axis.axvline(iM, color='red', ls='--', lw=3)
+            axis.axvline(iR, color='red', ls='--', lw=3)
+            axis.plot([iL, iM, iR], [yp[iL], yp[iM], yp[iR]], 'o', ms=5, color='red')
 
         # Larger tick labels
         axis.tick_params(axis='both', which='major', labelsize=22)
@@ -287,14 +287,14 @@ def plot_groups_with_u_indices(
     for i in range(n):
         _plot_one(
             ax[i, 0], curves_a[i], scores_a[i], iLs_a[i], iMs_a[i], iRs_a[i],
-            color="blue", title=label_a
+            color='blue', title=label_a
         )
         _plot_one(
             ax[i, 1], curves_b[i], scores_b[i], iLs_b[i], iMs_b[i], iRs_b[i],
-            color="green", title=label_b
+            color='green', title=label_b
         )
 
-    fig.suptitle("Exceptions vs Pseudo-Exceptions (U-shape annotated)", fontsize=20)
+    fig.suptitle('Exceptions vs Pseudo-Exceptions (U-shape annotated)', fontsize=20)
     plt.tight_layout(rect=[0, 0.03, 1, 0.97])
     plt.show()
     
@@ -304,7 +304,7 @@ exception_iLs = []
 exception_iMs = []
 exception_iRs = []
 for i, e in enumerate(exceptions):
-    score, iL, iM, iR = u_shape_score(e, title = f"exceptions {i}")
+    score, iL, iM, iR = u_shape_score(e, title = f'exceptions {i}')
     exception_u_scores.append(score)
     exception_iLs.append(iL)
     exception_iMs.append(iM)
@@ -317,7 +317,7 @@ pseudo_exception_iLs = []
 pseudo_exception_iMs = []
 pseudo_exception_iRs = []
 for i, e in enumerate(pseudo_exceptions):
-    score, iL, iM, iR = u_shape_score(e, title = f"pseudo {i}")
+    score, iL, iM, iR = u_shape_score(e, title = f'pseudo {i}')
     pseudo_exception_u_scores.append(score)
     pseudo_exception_iLs.append(iL)
     pseudo_exception_iMs.append(iM)
@@ -329,7 +329,7 @@ plot_groups_with_u_indices(
     exceptions, pseudo_exceptions,
     exception_u_scores, exception_iLs, exception_iMs, exception_iRs,
     pseudo_exception_u_scores, pseudo_exception_iLs, pseudo_exception_iMs, pseudo_exception_iRs,
-    label_a="Exceptions", label_b="Pseudo-Exceptions"
+    label_a='Exceptions', label_b='Pseudo-Exceptions'
 )
 
 print(exception_u_scores)
@@ -337,7 +337,7 @@ print(pseudo_exception_u_scores)
 
 results = compare_u_scores_ttest(exception_u_scores, pseudo_exception_u_scores)
 
-print("Permutation Test Results:")
+print('Permutation Test Results:')
 for key, val in results.items():
-    print(f"{key}: {val:.4f}")
+    print(f'{key}: {val:.4f}')
 # %%
