@@ -231,22 +231,18 @@ class Agent:
         self.critic_opts = []
 
         for _ in range(self.args.critics):
-            critic = Critic(self.args)
-            target = Critic(self.args)
-            target.load_state_dict(critic.state_dict())
+            self.critics.append(Critic(self.args))
+            self.critic_targets.append(Critic(self.args))
+            self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
+            self.critic_opts.append(
+                optim.Adam(
+                    self.critics[-1].parameters(), 
+                    lr=self.args.lr, 
+                    weight_decay = self.args.weight_decay))
 
-            opt = optim.Adam(
-                critic.parameters(),
-                lr=self.args.lr,
-                weight_decay=self.args.weight_decay
-            )
-
-            self.critics.append(critic)
-            self.critic_targets.append(target)
-            self.critic_opts.append(opt)
-
-        # Unified optimizer (optional)
-        all_params = list(self.forward.parameters()) + list(self.actor.parameters())
+        all_params = list(self.forward.parameters())
+        all_params += list(self.actor.parameters())
+        
         for critic in self.critics:
             all_params += list(critic.parameters())
 
@@ -531,9 +527,10 @@ class Agent:
                 if isinstance(obs.feedback_voice, Goal):
                     obs.feedback_voice = obs.feedback_voice.one_hots
 
+                obs_in, a, b, encoded_command = self.forward.obs_in(obs)
                 hp, hq, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is = self.forward.bottom_to_top_step(
                     hq_1,
-                    self.forward.obs_in(obs),
+                    obs_in,
                     self.forward.action_in(prev_action)
                 )
 
@@ -1019,7 +1016,7 @@ class Agent:
         vision, touch, prop, command_voice, feedback_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
 
         # Forward pass to get priors/posteriors
-        hps, hqs, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
+        hps, hqs, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is, pred_obs_p, pred_obs_q, labels, a, b, encoded_command = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)),
             Obs(vision, touch, prop, command_voice, feedback_voice),
             Action(wheels_joints, voice_out)
@@ -1035,8 +1032,16 @@ class Agent:
         command_voice_zq = command_voice_is.zq.detach().cpu().numpy()
         feedback_voice_zq = feedback_voice_is.zq.detach().cpu().numpy()
         hq = hqs.detach().cpu().numpy()
-
-        print('DONE:', hq.shape)
+        a = a.detach().cpu().numpy()
+        b = b.detach().cpu().numpy()
+        encoded_command = encoded_command.detach().cpu().numpy()
+        
+        print("Labels:", labels.shape)
+        print("all_mask:", all_mask.shape)
+        print("hq:", hq.shape)
+        print("a:", labels.shape)
+        print("b:", labels.shape)
+        print("encoded_command:", labels.shape)
 
         # Save into composition data
         self.plot_dict['composition_data'][self.epochs] = {
@@ -1047,7 +1052,10 @@ class Agent:
             'touch_zq': touch_zq,
             'prop_zq': prop_zq,
             'command_voice_zq': command_voice_zq,
-            'feedback_voice_zq': feedback_voice_zq
+            'feedback_voice_zq': feedback_voice_zq,
+            'a' : a,
+            'b' : b,
+            'encoded_command' : encoded_command
         }
         
         
@@ -1097,6 +1105,7 @@ class Agent:
             touch = touch.to(dtype=torch.float16)
             prop = prop.to(dtype=torch.float16)
             command_voice = command_voice.to(dtype=torch.float16)
+            feedback_voice = feedback_voice.to(dtype=torch.float16)
             wheels_joints = wheels_joints.to(dtype=torch.float16)
             voice_out = voice_out.to(dtype=torch.float16)
             reward = reward.to(dtype=torch.float16)
@@ -1122,7 +1131,7 @@ class Agent:
                    
         # Collect information.               
         batch = self.get_batch(self.memory, batch_size)
-        if(batch == False):
+        if batch == False:
             return(False)
         vision, touch, prop, command_voice, feedback_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
         obs = Obs(vision, touch, prop, command_voice, feedback_voice)
@@ -1131,7 +1140,7 @@ class Agent:
         
                 
         # Train forward
-        hps, hqs, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is, pred_obs_p, pred_obs_q, labels = self.forward(
+        hps, hqs, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is, pred_obs_p, pred_obs_q, labels, a, b, encoded_command = self.forward(
             torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)), 
             obs, actions)
                         
@@ -1203,9 +1212,12 @@ class Agent:
         feedback_voice_hidden_state_curiosity     = self.args.hidden_state_eta_feedback_voice       * torch.clamp(feedback_voice_complexity, min = 0, max = self.args.dkl_max) * self.hidden_state_eta_feedback_voice_reduction
         hidden_state_curiosity                      = vision_hidden_state_curiosity + touch_hidden_state_curiosity + prop_hidden_state_curiosity + command_voice_hidden_state_curiosity + feedback_voice_hidden_state_curiosity
         
-        if(self.args.curiosity == "prediction_error"):  curiosity = prediction_error_curiosity
-        elif(self.args.curiosity == "hidden_state"):    curiosity = hidden_state_curiosity
-        else:                                           curiosity = torch.zeros(reward.shape).to(self.args.device)
+        if self.args.curiosity == "prediction_error":  
+            curiosity = prediction_error_curiosity
+        elif self.args.curiosity == "hidden_state":    
+            curiosity = hidden_state_curiosity
+        else:                                           
+            curiosity = torch.zeros(reward.shape).to(self.args.device)
         extrinsic = torch.mean(reward).item()
         intrinsic_curiosity = curiosity.mean().item()
         reward += curiosity
@@ -1314,19 +1326,19 @@ class Agent:
                                 
                                 
         # Save information.
-        if(accuracy != None):               accuracy = accuracy.item()
-        if(vision_loss != None):              vision_loss = vision_loss.mean().item()
-        if(touch_loss != None):           touch_loss = touch_loss.mean().item()
-        if(prop_loss != None):           prop_loss = prop_loss.mean().item()
-        if(command_voice_loss != None):     command_voice_loss = command_voice_loss.mean().item()
-        if(feedback_voice_loss != None):      feedback_voice_loss = feedback_voice_loss.mean().item()
-        if(complexity != None):             complexity = complexity.item()
-        if(alpha_loss != None):             alpha_loss = alpha_loss.item()
-        if(alpha_text_loss != None):        alpha_text_loss = alpha_text_loss.item()
-        if(actor_loss != None):             actor_loss = actor_loss.item()
-        if(Q != None):                      Q = -Q.mean().item()
+        if accuracy is not None:                accuracy = accuracy.item()
+        if vision_loss is not None:             vision_loss = vision_loss.mean().item()
+        if touch_loss is not None:              touch_loss = touch_loss.mean().item()
+        if prop_loss is not None:               prop_loss = prop_loss.mean().item()
+        if command_voice_loss is not None:      command_voice_loss = command_voice_loss.mean().item()
+        if feedback_voice_loss is not None:     feedback_voice_loss = feedback_voice_loss.mean().item()
+        if complexity is not None:              complexity = complexity.item()
+        if alpha_loss is not None:              alpha_loss = alpha_loss.item()
+        if alpha_text_loss is not None:         alpha_text_loss = alpha_text_loss.item()
+        if actor_loss is not None:              actor_loss = actor_loss.item()
+        if Q is not None:                       Q = -Q.mean().item()
         for i in range(self.args.critics):
-            if(critic_losses[i] != None): 
+            if critic_losses[i] is not None: 
                 critic_losses[i] = critic_losses[i].item()
                 critic_losses[i] = log(critic_losses[i]) if critic_losses[i] > 0 else critic_losses[i]
                 
@@ -1347,7 +1359,7 @@ class Agent:
         
 
 
-        if(self.epochs == 1 or self.epochs >= self.args.epochs or self.epochs % self.args.keep_data == 0):
+        if self.epochs == 1 or self.epochs >= self.args.epochs or self.epochs % self.args.keep_data == 0:
             self.plot_dict["accuracy_loss"].append(accuracy)
             self.plot_dict["vision_loss"].append(vision_loss)
             self.plot_dict["touch_loss"].append(touch_loss)
@@ -1404,7 +1416,7 @@ class Agent:
         # Deep plot_dict
         for key, value in self.plot_dict.items():
             size_estimate = len(pickle.dumps(value))
-            if size_estimate > 100_000:
+            if size_estimate > 100000:
                 print(f'{key}:\t{sizeof_fmt(size_estimate)}')
 
         print('-' * 50)
@@ -1423,7 +1435,7 @@ class Agent:
             if attr is not None:
                 try:
                     size_estimate = len(pickle.dumps(attr))
-                    if size_estimate > 100_000:
+                    if size_estimate > 100000:
                         print(f'{attr_name}:\t{sizeof_fmt(size_estimate)}')
                 except Exception as e:
                     print(f'{attr_name}:\t(Unserializable: {e})')

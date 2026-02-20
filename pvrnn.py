@@ -200,8 +200,7 @@ class PVRNN(nn.Module):
         self.vision_in = Vision_IN(self.args)
         self.touch_in = Touch_IN(self.args)
         self.prop_in = Prop_IN(self.args)
-        self.command_voice_in = Voice_IN(self.args)
-        self.self_voice_in = Voice_IN(self.args)
+        self.voice_in = Voice_IN(self.args)
         self.wheels_joints_in = Wheels_Joints_IN(self.args)
 
         self.pvrnn_layer = PVRNN_LAYER(args = self.args, time_scale = 1)
@@ -219,13 +218,14 @@ class PVRNN(nn.Module):
         '''
         Encode observations into latent/embedded form.
         '''
-        return Obs(
+        encoded_command, a, b = self.voice_in(obs.command_voice, return_a_b = True)
+        return(Obs(
             self.vision_in(obs.vision),
             self.touch_in(obs.touch),
             self.prop_in(obs.prop),
-            self.command_voice_in(obs.command_voice),
-            self.command_voice_in(obs.feedback_voice)
-        )
+            encoded_command,
+            self.voice_in(obs.feedback_voice)),
+            a, b, encoded_command)
     
     
     def action_in(self, action):
@@ -234,7 +234,7 @@ class PVRNN(nn.Module):
         '''
         return Action(
             self.wheels_joints_in(action.wheels_joints),
-            self.command_voice_in(action.voice_out)
+            self.voice_in(action.voice_out)
         )
     
     
@@ -317,7 +317,7 @@ class PVRNN(nn.Module):
         
         prev_time = duration()
         
-        obs = self.obs_in(obs)
+        obs, a, b, encoded_command = self.obs_in(obs)
         prev_action = self.action_in(prev_action)
         
         for step in range(steps):
@@ -395,8 +395,8 @@ class PVRNN(nn.Module):
         color_labels = labels[:, :, 1].clone().unsqueeze(-1)
         shape_labels = labels[:, :, 2].clone().unsqueeze(-1)
         
-        color_labels[color_labels != 0] -= 7
-        shape_labels[shape_labels != 0] -= 13
+        color_labels[color_labels != 0] -= 7    # 7-12 -> 1-6
+        shape_labels[shape_labels != 0] -= 13   # 13-17 -> 1-5
         
         labels = torch.cat((task_labels, color_labels, shape_labels), dim = -1)
         
@@ -410,7 +410,8 @@ class PVRNN(nn.Module):
             feedback_voice_is,
             pred_obs_p,
             pred_obs_q,
-            labels
+            labels,
+            a, b, encoded_command
         )
 
 

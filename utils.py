@@ -196,7 +196,7 @@ class Goal:
     Combines a task, color, and shape into a single goal object.
     Used for interpreting command voices or specifying target behavior.
 
-    - `parenting` indicates if command voice is used (True) or agent is cooperating with another (False).
+    - 'parenting' indicates if command voice is used (True) or agent is cooperating with another (False).
     """
     def __init__(self, task, color, shape, parenting):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
@@ -242,7 +242,7 @@ def get_goal_from_one_hots(one_hots):
         
     task_one_hot = one_hots[0, :len(task_map)]
     color_one_hot = one_hots[1, len(task_map):len(task_map) + len(color_map)]
-    shape_one_hot = one_hots[2, len(task_map) + len(color_map):]
+    shape_one_hot = one_hots[2, len(task_map) + len(color_map):len(task_map) + len(color_map) + len(shape_map)]
 
     task = task_map[torch.argmax(task_one_hot).item()]
     color = color_map[torch.argmax(color_one_hot).item()]
@@ -478,15 +478,41 @@ testing_combos_3 = [combo for combo in all_combos if combo not in training_combo
 
 # Exceptions dictionary
 exceptions_dict = {
-    0: ([], []),                                                # No exceptions (default)
-    1: ([(1, 4, 0), (2, 1, 1)], [(2, 1, 1), (1, 4, 0)]),        # Exceptions used in paper
-    3: ([(1, 5, 1), (2, 2, 2)], [(2, 2, 2), (1, 5, 1)]),
-    5: ([(1, 4, 0), (2, 1, 1), (1, 3, 4), (2, 2, 2)], [(2, 1, 1), (1, 4, 0), (2, 2, 2), (1, 3, 4)]),
-    7: ([(3, 1, 1), (4, 3, 2)], [(4, 3, 2), (3, 1, 1)]),
-    9: ([(1, 4, 0), (2, 1, 1), (3, 5, 4), (4, 3, 2)], [(2, 1, 1), (1, 4, 0), (4, 3, 2), (3, 5, 4)]),
-    11: ([(1, 4, 0), (4, 3, 2)], [(4, 3, 2), (1, 4, 0)]),
-    13: ([(3, 1, 1), (2, 2, 2)], [(2, 2, 2), (3, 1, 1)]),
-    15: ([(1, 4, 0), (4, 5, 4), (3, 1, 1), (2, 2, 2)], [(4, 5, 4), (1, 4, 0), (2, 2, 2), (3, 1, 1)])
+    0 : (                           # None
+        [],            
+        []),
+
+    1 : (
+        [(1, 4, 0), (2, 1, 1)],     # Swap Watch Magenta Pillar with Be Near Green Pole
+        [(2, 1, 1), (1, 4, 0)]),
+
+    3 : (
+        [(1, 5, 1), (2, 2, 2)],     # Swap Watch Yellow Pole with Be Near Blue Dumbbell
+        [(2, 2, 2), (1, 5, 1)]),
+
+    5 : (
+        [(1, 4, 0), (2, 1, 1), (1, 3, 4), (2, 2, 2)],     # Both of Those
+        [(2, 1, 1), (1, 4, 0), (2, 2, 2), (1, 3, 4)]),
+
+    7 : (
+        [(3, 1, 1), (4, 3, 2)],     # Swap Touch the Top Green Pole with Push Forawrd Cyan Dumbbell
+        [(4, 3, 2), (3, 1, 1)]),
+
+    9 : (
+        [(1, 4, 0), (2, 1, 1), (3, 5, 4), (4, 3, 2)],       # Swap Watch Magenta Pillar with Be Near Green Pole
+        [(2, 1, 1), (1, 4, 0), (4, 3, 2), (3, 5, 4)]),      # Swap Touch the Top Green Pole with Push Forawrd Cyan Dumbbell
+
+    11 : (
+        [(1, 4, 0), (4, 3, 2)],     # Swap Watch Magenta Pillar with Push Forward Cyan Dumbbell
+        [(4, 3, 2), (1, 4, 0)]),    
+
+    13 : (
+        [(3, 1, 1), (2, 2, 2)],     # Swap Be Near Blue Dumbbell with Touch the Top Green Pole
+        [(2, 2, 2), (3, 1, 1)]),    
+
+    15 : (
+        [(1, 4, 0), (4, 5, 4), (3, 1, 1), (2, 2, 2)],     # Both of Those
+        [(4, 5, 4), (1, 4, 0), (2, 2, 2), (3, 1, 1)]),
 }
 
 
@@ -507,7 +533,7 @@ exceptions_dict = add_control_exceptions(exceptions_dict)
 
 
 # In __main__, view plots showing training and testing combinations.
-if(__name__ == '__main__'):
+if __name__ == '__main__':
     def plot_combined_training_grid(training_combos, exception_num, title='Training Set'):
         task_items = [(a, t) for a, t in task_map.items() if t.name != 'SILENCE']
         num_tasks = len(task_items)
@@ -597,7 +623,7 @@ if(__name__ == '__main__'):
     #plot_combined_training_grid(training_combos_2, title='Training Set 2 – All Tasks')
     
     for key in exceptions_dict.keys():
-        #if(key % 2 != 0):
+        #if key % 2 != 0:
             plot_combined_training_grid(training_combos_3, title=f'Training Set 3 - All Tasks - Exceptions {key}', exception_num = key)
             
         
@@ -728,7 +754,7 @@ parser.add_argument('--agents',                         type=int,           defa
                     help='How many agents are trained in this job?')
 parser.add_argument('--previous_agents',                type=int,           default = 0,
                     help='How many agents with this argument-set are trained in previous jobs?')
-parser.add_argument('--init_seed',                      type=int,         default = 777,
+parser.add_argument('--init_seed',                      type=float,         default = 777,
                     help='Random seed.')
 parser.add_argument('--comp',                           type=str,           default = 'deigo',
                     help='Cluster name (deigo or saion).')
@@ -824,7 +850,7 @@ parser.add_argument('--max_joint_2_angle',              type=float,         defa
 
 
     # Arena/Processor details
-parser.add_argument('--processor',                      type=str,       default = 'all',
+parser.add_argument('--processor',                      type=str,           default = 'all',
                 help='List of processors. Agent trains on each processor based on epochs in epochs parameter.')
 parser.add_argument('--min_object_distance',            type=float,         default = 4,
                     help='How far objects can start from the agent.')
@@ -1098,7 +1124,8 @@ try:
         args, _ = parser.parse_known_args()
 except:
     import sys 
-    sys.argv=[''] ; del sys           
+    sys.argv=[''] 
+    del sys           
     default_args = parser.parse_args([])
     try:    
         args = parser.parse_args()
@@ -1117,7 +1144,7 @@ def get_num_sensors(robot_name):
     for link_index in range(p.getNumJoints(robot_index, physicsClientId = physicsClient)):
         joint_info = p.getJointInfo(robot_index, link_index, physicsClientId = physicsClient)
         link_name = joint_info[12].decode('utf-8')  
-        if('sensor' in link_name):
+        if 'sensor' in link_name:
             sensors.append(link_name)
     p.disconnect(physicsClientId = physicsClient)
     num_sensors = len(sensors)
@@ -1127,7 +1154,7 @@ def get_num_sensors(robot_name):
 
 # Based on arguments, adjust other arguments.
 def update_args(arg_set):
-    if(arg_set.comp == 'deigo'):
+    if arg_set.comp == 'deigo':
         arg_set.half = False
         
     arg_set.min_joint_1_angle = -arg_set.max_joint_1_angle
@@ -1194,14 +1221,14 @@ args_not_in_title = [
 
 # Make a title for the arguments. 
 def get_args_title(default_args, args):
-    if(args.arg_title[:3] == '___'): 
+    if args.arg_title[:3] == '___': 
         return(args.arg_title)
     name = '' 
     first = True
     arg_list = list(vars(default_args).keys())
     arg_list.insert(0, arg_list.pop(arg_list.index('arg_name')))
     for arg in arg_list:
-        if(arg in args_not_in_title): 
+        if arg in args_not_in_title: 
             pass 
         else: 
             default = getattr(default_args, arg)
@@ -1209,9 +1236,9 @@ def get_args_title(default_args, args):
                 this_time = getattr(args, arg)
             except:
                 this_time = 'NONE'
-            if(this_time == default): 
+            if this_time == default: 
                 pass
-            elif(arg == 'arg_name'):
+            elif arg == 'arg_name':
                 name += '{} ('.format(this_time)
             else: 
                 if first: 
@@ -1219,20 +1246,21 @@ def get_args_title(default_args, args):
                 else: 
                     name += ', '
                 name += '{}: {}'.format(arg, this_time)
-    if(name == ''): 
+    if name == '': 
         name = 'default' 
     else:           
         name += ')'
-    if(name.endswith(' ()')): 
+    if name.endswith(' ()'): 
         name = name[:-3]
     parts = name.split(',')
     name = '' 
     line = ''
     for i, part in enumerate(parts):
-        if(len(line) > 50 and len(part) > 2): 
-            name += line + '\n' ; line = ''
+        if len(line) > 50 and len(part) > 2: 
+            name += line + '\n' 
+            line = ''
         line += part
-        if(i+1 != len(parts)): 
+        if i+1 != len(parts): 
             line += ','
     name += line
     return(name)
@@ -1246,18 +1274,18 @@ os.makedirs(f'{save_file}/thesis_pics', exist_ok=True)
 os.makedirs(f'{save_file}/thesis_pics/final', exist_ok=True)
 folder = f'{save_file}/{args.arg_name}'
 
-if(args.arg_title[:3] != '___' and not args.arg_name in ['default', 'finishing_dictionaries', 'plotting', 'plotting_predictions', 'plotting_positions']):
+if args.arg_title[:3] != '___' and not args.arg_name in ['default', 'finishing_dictionaries', 'plotting', 'plotting_predictions', 'plotting_positions']:
     os.makedirs(f'{folder}', exist_ok=True)
     os.makedirs(f'{folder}/agents', exist_ok=True)
     with open(f'{folder}/agents/args.pickle', 'wb') as handle:
         pickle.dump(args, handle)
-if(default_args.alpha == 'None'): 
+if default_args.alpha == 'None': 
     default_args.alpha = None
-if(args.alpha == 'None'):         
+if args.alpha == 'None':         
     args.alpha = None
 
 # Print information about arguments.
-if(args == default_args): 
+if args == default_args: 
     print('Using default arguments.')
 else:
     for arg in vars(default_args):
@@ -1266,15 +1294,15 @@ else:
             this_time = getattr(args, arg)
         except:
             this_time = 'NONE'
-        if(this_time != default):
+        if this_time != default:
             print('{}:\n\tDefault:\t{}\n\tThis time:\t{}'.format(arg, default, this_time))
-        elif(arg == 'device'):
+        elif arg == 'device':
             print('{}:\n\tDefault:\t{}\n\tThis time:\t{}'.format(arg, default, this_time))
             
             
             
 # If we are not showing durations, remove influence of this function.
-if(not args.show_duration):
+if not args.show_duration:
     def print_duration(start_time, end_time, text = None, end_text = ''):
         pass
      
@@ -1404,7 +1432,7 @@ def wheels_joints_to_string(wheels_joints):
     string = f'Left Wheel: {round(wheels_joints[0].item(), 2)}'
     string += f'Right Wheel: {round(wheels_joints[1].item(), 2)}'
     string += f'Joint 1: {round(wheels_joints[2].item(), 2)}'
-    if(len(wheels_joints) == 4):
+    if len(wheels_joints) == 4:
         string += f'Joint 2: {round(wheels_joints[3].item(), 2)}'
     return string
 
@@ -1469,7 +1497,7 @@ Loading files for plotting, etc.
 
 def load_dicts(args):
     """Load plot_dicts and min_max_dicts for a given experiment (saved runs)."""
-    if(os.getcwd().split('/')[-1] != save_file):
+    if os.getcwd().split('/')[-1] != save_file:
         os.chdir(save_file)
 
     plot_dicts = []

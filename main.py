@@ -19,10 +19,10 @@ print('\nagents: {}. previous_agents: {}.'.format(args.agents, args.previous_age
 def train(q, i):
     """Train one agent (i) and send progress updates to queue q."""
     seed = args.init_seed + i
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
+    np.random.seed(int(seed))
+    random.seed(int(seed))
+    torch.manual_seed(int(seed))
+    torch.cuda.manual_seed(int(seed))
 
     if str(args.device) != 'cpu':
         num_gpus = torch.cuda.device_count()
@@ -38,8 +38,8 @@ def train(q, i):
     if args.load_agents:
         with open(folder + '/agents/agent_' + str(i).zfill(3) + '.pickle', 'rb') as handle:
             agent = pickle.load(handle)
-        agent.start_physics()
         agent.args = args
+        agent.start_physics()
     else:
         agent = Agent(args=args, i=i)
 

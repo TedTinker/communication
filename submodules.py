@@ -379,7 +379,7 @@ class Voice_IN(nn.Module):
             batch_first = True
         )
 
-        self.c = nn.Sequential()  # BatchNorm1d not used (tested)
+        self.c = nn.Sequential()  # I tested BatchNorm1d here. It was not helpful.
 
         self.cb = nn.Sequential(
             nn.PReLU(),
@@ -395,28 +395,32 @@ class Voice_IN(nn.Module):
             self = self.half()
             torch.nn.utils.clip_grad_norm_(self.parameters(), .1)
 
-    def forward(self, voice):
+    def forward(self, voice, return_a_b = False):
         start_time, episodes, steps, [voice] = model_start([(voice, 'voice')], self.args.device, self.args.half)
 
+        self.to('cpu')
         voice = pad_zeros(voice, self.args.max_voice_len)
         voice = torch.argmax(voice, dim = -1).int()
-
+        
         a = self.a(voice)
         a = a.permute(0, 2, 1)
         a = self.ab(a)
         a = a.permute(0, 2, 1)
         _, b = self.b(a)
-
+        
         b = b.reshape(episodes, steps, self.args.hidden_size)
         b = b.permute(0, 2, 1)
         c = self.c(b)
         c = c.permute(0, 2, 1)
 
         encoding = self.cb(c)
-
+        
         [encoding] = model_end(start_time, episodes, steps, [(encoding, 'lin')], '\tVoice_IN')
-        return encoding
-
+        if return_a_b:
+            a = a.reshape(episodes, steps, a.shape[-2], a.shape[-1])
+            return encoding, a, b
+        else:
+            return encoding
 
 
 if __name__ == '__main__':

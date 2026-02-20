@@ -145,7 +145,7 @@ meta_data_dict = {}
 
 def get_all_data(plot_dict, component):
     args = plot_dict['args']
-    print(f'Getting {args.arg_name}'s {component} data...')
+    print(f'Getting {args.arg_name}\'s {component} data...')
     
     # Iterate over agents.
     for agent_num, values_for_composition in enumerate(plot_dict['composition_data']):
@@ -169,7 +169,11 @@ def get_all_data(plot_dict, component):
                                                             
             def process_component(key):
                 data = comp_dict[key]
+                if key == 'b':
+                    data = data.transpose(0, 2, 1)
+                print(data.shape, all_mask.shape)
                 data = data.reshape(-1, data.shape[-1])
+                print(data.shape)
                 data = data[all_mask]
                 return data
 
@@ -186,7 +190,7 @@ meta_reducer_dict = {}
 
 def make_all_reducers(plot_dict, component, reducer_type, these_epochs):
     args = plot_dict['args']
-    print(f'Making {args.arg_name}'s {component} reducers...')
+    print(f'Making {args.arg_name}\'s {component} reducers...')
     
     # Iterate over agents.
     for agent_num, values_for_composition in enumerate(plot_dict['composition_data']):
@@ -261,7 +265,7 @@ meta_reduced_data_dict = {}
 # Making all reduced data.
 def make_all_reduced_data(plot_dict, component, reducer_type):
     args = plot_dict['args']
-    print(f'Reducing {args.arg_name}'s {component} data with {reducer_type}...')
+    print(f'Reducing {args.arg_name}\'s {component} data with {reducer_type}...')
     
     # Iterate over agents.
     for agent_num, values_for_composition in enumerate(plot_dict['composition_data']):
@@ -307,7 +311,7 @@ meta_aligned_data_dict = {}
 # For all analysed epochs, find compositionality of all data combinations.
 def make_all_aligned_data(plot_dict, component, reducer_type):
     args = plot_dict['args']
-    print(f'Aligning {args.arg_name}'s {component} data with {reducer_type}...')
+    print(f'Aligning {args.arg_name}\'s {component} data with {reducer_type}...')
     
     # Iterate over agents.
     for agent_num, values_for_composition in enumerate(plot_dict['composition_data']):
@@ -358,7 +362,7 @@ def align_data(reduced_data_dict_1, reduced_data_dict_2):
 # Make frames between two recorded epochs, to make a smooth video.
 def smooth_plots(plot_dict, component, reducer_type, anchor_epochs, smooth_frames):
     args = plot_dict['args']
-    print(f'Plotting {args.arg_name}'s {component} data with {reducer_type}...')
+    print(f'Plotting {args.arg_name}\'s {component} data with {reducer_type}...')
     
     for agent_num, values_for_composition in enumerate(plot_dict['composition_data']):
         if(values_for_composition == {} or agent_num > max_agent_num):
@@ -550,7 +554,7 @@ these_epochs = [i for i in range(0, 60001, 2500)]
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 for plot_dict in plot_dicts:
     for component in [
-        'hq', 
+        'b', 
         ]:
         get_all_data(
             plot_dict = plot_dict, 

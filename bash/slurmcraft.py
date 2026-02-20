@@ -12,7 +12,8 @@ except: args, _ = parser.parse_known_args()
 
 # This file works with communication.sh to implement many different parameters.
 
-if(type(args.arg_list) != list): args.arg_list = json.loads(args.arg_list)
+if type(args.arg_list) != list: 
+    args.arg_list = json.loads(args.arg_list)
 combined = '___{}___'.format('+'.join(args.arg_list))    
 
 import os 
@@ -26,12 +27,12 @@ def expand_args(name, args):
     combos = [{}]
     complex = False
     for key, value in args.items():
-        if(type(value) != list):
+        if type(value) != list:
             for combo in combos:
                 combo[key] = value
         else: 
             complex = True
-            if(value[0]) == 'num_min_max': 
+            if value[0] == 'num_min_max': 
                 num, min_val, max_val = value[1]
                 num = int(num)
                 min_val = float(min_val)
@@ -44,7 +45,8 @@ def expand_args(name, args):
                     combo[key] = v 
                     new_combos.append(combo)   
             combos = new_combos  
-    if(complex and name[-1] != '_'): name += '_'
+    if complex and name[-1] != '_': 
+        name += '_'
     return(name, combos)
 
 def convert_list(input_list):
@@ -62,17 +64,20 @@ def add_this(name, args):
     keys, values = [], []
     for key, value in slurm_dict.items(): keys.append(key) ; values.append(value)
     for key, value in zip(keys, values):  
-        if(key == 'd'): key = ''
+        if key == 'd': 
+            key = ''
         between = '' if key == '' or len(name) == 1 else '_'
         new_key = key + between + name 
         new_value = deepcopy(value)
         for arg_name, arg in args.items():
-            if(type(arg) != list): new_value[arg_name] = arg
-            elif(type(arg[0]) != list): new_value[arg_name] = arg
+            if type(arg) != list: 
+                new_value[arg_name] = arg
+            elif type(arg[0]) != list: 
+                new_value[arg_name] = arg
             else:
                 for condition in arg:
                     for if_arg_name, if_arg in condition[0].items():
-                        if(if_arg_name in value and value[if_arg_name] == if_arg):
+                        if if_arg_name in value and value[if_arg_name] == if_arg:
                             new_value[arg_name] = condition[1]
         slurm_dict[new_key] = new_value
 
@@ -87,7 +92,7 @@ touch_eta = 1
 prop_eta = .1
 feedback_eta = .2
 
-# Curiosity of senses only
+# Curiosity of voice only
 add_this('c',   {                                           
     'curiosity' : 'hidden_state',     
     'hidden_state_eta_feedback_voice' : feedback_eta})
@@ -99,7 +104,7 @@ add_this('p',   {
     'hidden_state_eta_touch' : touch_eta,
     'hidden_state_eta_prop' : prop_eta})
 
-# Agents with curiosity (hidden state)
+# Agents with curiosity (all)
 add_this('f',   {
     'curiosity' : 'hidden_state',
     'hidden_state_eta_vision' : vision_eta,
@@ -131,17 +136,20 @@ add_this('q4',   {
     'save_behaviors' : 'False',
     'epochs_per_composition_data' : 10000})
 
-
-
-add_this('t', {
-    'exceptions' : [1, 3],
-    'init_seed' : [555, 666, 777],
-    'save_agents' : 'False',
-    'save_behaviors' : 'False',
-    'epochs_per_composition_data' : 5000,
-    'agents_per_composition_data' : 99
+add_this('seeds', {
+    'init_seed' : [555, 777, 888, 999]
 })
- 
+
+add_this('long', {
+    'epochs' : [120000],
+    'agents_per_agent_save' : 10,
+    'epochs_per_agent_save' : 20000,
+    'save_behaviors' : 'False'
+})
+
+
+
+
 add_this('k', {
     'exceptions' : [1, 2],
     'save_behaviors' : 'False',
@@ -175,7 +183,8 @@ add_this('t2',   {
 new_slurm_dict = {}
 for key, value in slurm_dict.items():
     key, combos = expand_args(key, value)
-    if(len(combos) == 1): new_slurm_dict[key] = combos[0] 
+    if len(combos) == 1: 
+        new_slurm_dict[key] = combos[0] 
     else:
         for i, combo in enumerate(combos): new_slurm_dict[key + str(i+1)] = combo
         
@@ -187,30 +196,33 @@ def get_args(name):
     return(s)
 
 def all_like_this(this): 
-    if(this in ['break', 'empty_space']): result = [this]
-    elif(this[-1] != '_'):                result = [this]
-    else: result = [key for key in slurm_dict.keys() if key.startswith(this) and key[len(this):].isdigit()]
+    if this in ['break', 'empty_space']: 
+        result = [this]
+    elif this[-1] != '_':                
+        result = [this]
+    else: 
+        result = [key for key in slurm_dict.keys() if key.startswith(this) and key[len(this):].isdigit()]
     return(json.dumps(result))
 
             
 
 max_cpus = args.agents if args.agents < 30 else 30
  
-if(__name__ == '__main__' and args.arg_list == []):
+if __name__ == '__main__' and args.arg_list == []:
     print('ALL POSSIBLE HYPERPARAMETERS:')
     for key, value in slurm_dict.items(): 
         print(key, ':', value)
     interesting = [f'ef_q4t_{i}' for i in range(1, 6)]
-    if(len(interesting) != 0):
+    if len(interesting) != 0:
         print('\n\n\nTHESE HYPERPARAMETERS:')
         for this in interesting:
             print('{} : {}'.format(this,slurm_dict[this]))
 
 
 
-if(__name__ == '__main__' and args.arg_list != []):
+if __name__ == '__main__' and args.arg_list != []:
     
-    if(args.comp == 'deigo'):
+    if args.comp == 'deigo':
         nv = ''
         module = 'module load singularity'
         partition = \
@@ -222,7 +234,7 @@ if(__name__ == '__main__' and args.arg_list != []):
 #SBATCH --time 72:00:00
 #SBATCH --mem=50G'''
 
-    if(args.comp == 'saion'):
+    if args.comp == 'saion':
         nv = ' --nv'
         module = 'module load singularity cuda'
         partition = \
@@ -235,7 +247,8 @@ if(__name__ == '__main__' and args.arg_list != []):
 #SBATCH --mem=490G
 #SBATCH --gres=gpu:4'''
     for name in args.arg_list:
-        if(name in ['break', 'empty_space']): pass 
+        if name in ['break', 'empty_space']: 
+            pass 
         else:
             with open('main_{}.slurm'.format(name), 'w') as f:
                 f.write(

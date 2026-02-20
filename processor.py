@@ -46,7 +46,7 @@ class Processor:
                 test=test
             )
         else:
-            goal_task, self.current_objects_1, self.current_objects_2 = set_goal
+            goal_task, self.current_objects_1, self.current_objects_2 = set_goal[0], set_goal[1], set_goal[2]
 
         goal_color, goal_shape = self.current_objects_1[0]
 
@@ -128,15 +128,20 @@ class Processor:
         ]
 
         joint_speeds = arena.get_joint_speeds()
-        joint_speeds_regularized = [
-            (1 + opposite_relative_to(angle, -self.args.max_joint_speed, self.args.max_joint_speed)) / 2
-            for angle in joint_speeds.values()
-        ]
+        joint_speeds_regularized = []
+        for key, angle in joint_speeds.items():
+            joint_speed = opposite_relative_to(
+                angle, 
+                -self.args.max_joint_speed,
+                self.args.max_joint_speed)
+            joint_speeds_regularized.append((1 + joint_speed)/2)
 
-        prop = torch.tensor([joint_angles_regularized + joint_speeds_regularized]).float()
+        prop = joint_angles_regularized + joint_speeds_regularized
+        prop = torch.tensor([prop]).float()
+
         feedback_voice = self.feedback_voice_1 if agent_1 else self.feedback_voice_2
 
-        return Obs(vision, touch, prop, self.goal, feedback_voice)
+        return(Obs(vision, touch, prop, self.goal, feedback_voice))
 
 
     def act(self, wheels_joints, agent_1=True, verbose=False, sleep_time=None):

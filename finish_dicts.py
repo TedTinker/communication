@@ -97,7 +97,7 @@ for folder in folders:
             maximum = None
             for min_max in min_max_dict[key]:
                 if any(item in [None, 'not_used'] for item in min_max):
-                    continue
+                    pass
                 if minimum is None or minimum > min_max[0]:
                     minimum = min_max[0]
                 if maximum is None or maximum < min_max[1]:
