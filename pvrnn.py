@@ -169,7 +169,7 @@ if __name__ == '__main__':
     print(pvrnn_layer)
     print()
     
-    with profile(activities = [ProfilerActivity.CPU], record_shapes = True) as prof:
+    """with profile(activities = [ProfilerActivity.CPU], record_shapes = True) as prof:
         with record_function('model_inference'):
             print(torch_summary(pvrnn_layer, 
                 ((episodes, 1, args.pvrnn_mtrnn_size), 
@@ -180,7 +180,7 @@ if __name__ == '__main__':
                  (episodes, 1, args.wheels_joints_encode_size),
                  (episodes, 1, args.voice_encode_size))))
     
-    print(prof.key_averages().table(sort_by = 'cpu_time_total', row_limit = 100))
+    print(prof.key_averages().table(sort_by = 'cpu_time_total', row_limit = 100))"""
     
     
     
@@ -427,7 +427,7 @@ if __name__ == '__main__':
     print(pvrnn)
     print()
     
-    with profile(activities = [ProfilerActivity.CPU], record_shapes = True) as prof:
+    """with profile(activities = [ProfilerActivity.CPU], record_shapes = True) as prof:
         with record_function('model_inference'):
             print(torch_summary(
                 pvrnn,
@@ -442,5 +442,17 @@ if __name__ == '__main__':
                 )
             ))
     
-    print(prof.key_averages().table(sort_by = 'cpu_time_total', row_limit = 100))
+    print(prof.key_averages().table(sort_by = 'cpu_time_total', row_limit = 100))"""
+    
+    
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters())
+
+    def count_trainable_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    pvrnn = PVRNN(args)
+
+    print("Total parameters:      ", count_parameters(pvrnn))
+    print("Trainable parameters:  ", count_trainable_parameters(pvrnn))
 

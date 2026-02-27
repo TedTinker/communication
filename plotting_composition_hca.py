@@ -639,12 +639,12 @@ def plot(component, data_epochs, agent_num, arg_name, K, max_labels_per_cluster=
         
     
 # Iterate over components, etc.
-these_epochs = [i for i in range(0, 60001, 2500)]
-K = 15
+these_epochs = [i for i in range(0, 120001, 10000)]
+K = 50
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 
-component = 'b'
-label_averaging_tuple = ('task',) #, 'color', 'shape')
+component = 'command_voice_zq'
+label_averaging_tuple = ('task', 'color', 'shape')
 for plot_dict in plot_dicts:
 
     get_all_data(

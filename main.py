@@ -11,6 +11,7 @@ from math import floor
 
 from utils import args, folder, duration, estimate_total_duration, print
 from agent import Agent
+from agent_lstm import Agent as Agent_lstm
 
 print('\nname:\n{}'.format(args.arg_name))
 print('\nagents: {}. previous_agents: {}.'.format(args.agents, args.previous_agents))
@@ -41,7 +42,10 @@ def train(q, i):
         agent.args = args
         agent.start_physics()
     else:
-        agent = Agent(args=args, i=i)
+        if args.lstm:
+            agent = Agent_lstm(args=args, i=i)
+        else:    
+            agent = Agent(args=args, i=i)
 
     agent.training(q)
 

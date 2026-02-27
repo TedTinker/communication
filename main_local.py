@@ -4,6 +4,7 @@ from math import pi
 
 from utils import args, get_num_sensors, update_args
 from agent import Agent
+from agent_lstm import Agent as Agent_lstm
 
 # Set local run flags for debugging or argument testing.
 args.local = True
@@ -17,7 +18,7 @@ def run():
     """
     This is helpful for testing new arguments.
     """
-    agent = Agent(
+    agent = Agent_lstm(
         args=args,
         i=1,
         GUI=True)

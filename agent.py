@@ -748,41 +748,35 @@ class Agent:
             (to_push_list_1, prev_action_1, hq_1), \
             (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
 
-        try:
-            self.processor = self.processors[self.processor_name]
-            self.processor.begin(test=True)
+        self.processor = self.processors[self.processor_name]
+        self.processor.begin(test=True)
 
-            for step in range(self.args.max_steps):
-                if not done:
-                    obs_1 = self.get_agent_obs()
-                    obs_2 = self.get_agent_obs(agent_1=False)
+        for step in range(self.args.max_steps):
+            if not done:
+                obs_1 = self.get_agent_obs()
+                obs_2 = self.get_agent_obs(agent_1=False)
 
-                    prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, \
-                        prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, \
-                        reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                            prev_action_1, hq_1, obs_1,
-                            prev_action_2, hq_2, obs_2,
-                            sleep_time=sleep_time
-                        )
+                prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, \
+                    prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, \
+                    reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                        prev_action_1, hq_1, obs_1,
+                        prev_action_2, hq_2, obs_2,
+                        sleep_time=sleep_time
+                    )
 
-                    complete_reward += reward
+                complete_reward += reward
 
-            self.processor.done()
-            goal_task = self.processor.goal.task.name
+        self.processor.done()
+        goal_task = self.processor.goal.task.name
 
-            self.plot_dict['gen_wins_all'].append(win)
-            for task_name in task_name_list:
-                if task_name == goal_task:
-                    self.plot_dict['gen_wins_' + task_name].append(win)
-                else:
-                    self.plot_dict['gen_wins_' + task_name].append(None)
-
-        except Exception:
-            complete_reward = 0
-            win = False
-            self.plot_dict['gen_wins_all'].append(None)
-            for task_name in task_name_list:
+        self.plot_dict['gen_wins_all'].append(win)
+        for task_name in task_name_list:
+            if task_name == goal_task:
                 self.plot_dict['gen_wins_' + task_name].append(win)
+            else:
+                self.plot_dict['gen_wins_' + task_name].append(None)
+
+
 
         self.plot_dict['gen_reward'].append(complete_reward)
         return win
@@ -1198,18 +1192,18 @@ class Agent:
                         
         
         # Get curiosity                 
-        vision_prediction_error_curiosity             = self.args.prediction_error_eta_vision           * vision_loss
-        touch_prediction_error_curiosity          = self.args.prediction_error_eta_touch        * touch_loss
-        prop_prediction_error_curiosity          = self.args.prediction_error_eta_prop        * prop_loss
-        command_voice_prediction_error_curiosity     = self.args.prediction_error_eta_command_voice   * command_voice_loss
-        feedback_voice_prediction_error_curiosity = self.args.prediction_error_eta_feedback_voice   * feedback_voice_loss
+        vision_prediction_error_curiosity           = self.args.prediction_error_eta_vision * vision_loss
+        touch_prediction_error_curiosity            = self.args.prediction_error_eta_touch * touch_loss
+        prop_prediction_error_curiosity             = self.args.prediction_error_eta_prop * prop_loss
+        command_voice_prediction_error_curiosity    = self.args.prediction_error_eta_command_voice * command_voice_loss
+        feedback_voice_prediction_error_curiosity   = self.args.prediction_error_eta_feedback_voice * feedback_voice_loss
         prediction_error_curiosity                  = vision_prediction_error_curiosity + touch_prediction_error_curiosity + command_voice_prediction_error_curiosity + feedback_voice_prediction_error_curiosity
         
-        vision_hidden_state_curiosity                 = self.args.hidden_state_eta_vision               * torch.clamp(vision_complexity, min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
-        touch_hidden_state_curiosity              = self.args.hidden_state_eta_touch            * torch.clamp(touch_complexity, min = 0, max = self.args.dkl_max)
-        prop_hidden_state_curiosity              = self.args.hidden_state_eta_prop            * torch.clamp(prop_complexity, min = 0, max = self.args.dkl_max)
-        command_voice_hidden_state_curiosity         = self.args.hidden_state_eta_command_voice       * torch.clamp(command_voice_complexity, min = 0, max = self.args.dkl_max)
-        feedback_voice_hidden_state_curiosity     = self.args.hidden_state_eta_feedback_voice       * torch.clamp(feedback_voice_complexity, min = 0, max = self.args.dkl_max) * self.hidden_state_eta_feedback_voice_reduction
+        vision_hidden_state_curiosity               = self.args.hidden_state_eta_vision * torch.clamp(vision_complexity, min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
+        touch_hidden_state_curiosity                = self.args.hidden_state_eta_touch * torch.clamp(touch_complexity, min = 0, max = self.args.dkl_max)
+        prop_hidden_state_curiosity                 = self.args.hidden_state_eta_prop * torch.clamp(prop_complexity, min = 0, max = self.args.dkl_max)
+        command_voice_hidden_state_curiosity        = self.args.hidden_state_eta_command_voice * torch.clamp(command_voice_complexity, min = 0, max = self.args.dkl_max)
+        feedback_voice_hidden_state_curiosity       = self.args.hidden_state_eta_feedback_voice * torch.clamp(feedback_voice_complexity, min = 0, max = self.args.dkl_max) * self.hidden_state_eta_feedback_voice_reduction
         hidden_state_curiosity                      = vision_hidden_state_curiosity + touch_hidden_state_curiosity + prop_hidden_state_curiosity + command_voice_hidden_state_curiosity + feedback_voice_hidden_state_curiosity
         
         if self.args.curiosity == "prediction_error":  
@@ -1263,10 +1257,14 @@ class Agent:
         
         # Train actor
         if self.epochs % self.args.d == 0:
-            if self.args.alpha == None:      alpha = self.alpha 
-            else:                            alpha = self.args.alpha
-            if self.args.alpha_text == None: alpha_text = self.alpha_text 
-            else:                            alpha_text = self.args.alpha_text
+            if self.args.alpha == None:      
+                alpha = self.alpha 
+            else:                            
+                alpha = self.args.alpha
+            if self.args.alpha_text == None: 
+                alpha_text = self.alpha_text 
+            else:                            
+                alpha_text = self.args.alpha_text
             new_action, log_pis, log_pis_text = self.actor(hqs[:,:-1].detach(), parenting)
             
             loc = torch.zeros(self.args.wheels_joints_shape, dtype=torch.float64).to(self.args.device).float()
@@ -1460,7 +1458,7 @@ class Agent:
             self.plot_dict = None
             self.memory = None
 
-            save_path = f'{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz'
+            save_path = f'{folder}/agents/agent_{str(self.agent_num).zfill(4)}.pkl.gz'
             with gzip.open(save_path, 'wb') as f:
                 pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
 

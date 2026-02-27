@@ -31,13 +31,15 @@ class Actor(nn.Module):
         self.voice_in = Voice_IN(self.args)
         self.wheels_joints_in = Wheels_Joints_IN(self.args)
         
-        self.mtrnn = MTRNN(
-            input_size = self.args.vision_state_size + self.args.touch_state_size +
-                         self.args.prop_state_size + self.args.voice_state_size * 3 + 
-                         self.args.wheels_joints_encode_size,
+        self.lstm = nn.LSTM(
+            input_size = self.args.vision_state_size + 
+                        self.args.touch_state_size +
+                        self.args.prop_state_size + 
+                        self.args.voice_state_size * 3 + 
+                        self.args.wheels_joints_encode_size,
             hidden_size = self.args.pvrnn_mtrnn_size,
-            time_constant = 1,
-            args = self.args)
+            num_layers = 1,
+            batch_first = True)
 
         self.voice_out = Voice_OUT(actor=True, args=self.args)
 
@@ -55,6 +57,7 @@ class Actor(nn.Module):
     def forward(self, obs, prev_action, hidden_state, parenting=True):
         """
         Returns motor commands and optionally voice output from the actor.
+        hidden_state should be a tuple (h0, c0)
         """
         obs_and_prev_action_encoded = torch.cat([
             self.vision_in(obs.vision), 
@@ -65,7 +68,21 @@ class Actor(nn.Module):
             self.wheels_joints_in(prev_action.wheels_joints),
             self.voice_in(prev_action.voice_out)], dim = -1)
                 
-        h = self.mtrnn(obs_and_prev_action_encoded, hidden_state)
+        batch_size = obs_and_prev_action_encoded.size(0)
+
+        if hidden_state is None:
+            h0 = torch.zeros(1, batch_size, self.args.pvrnn_mtrnn_size, device=self.args.device)
+            c0 = torch.zeros(1, batch_size, self.args.pvrnn_mtrnn_size, device=self.args.device)
+        else:
+            # hidden_state expected shape: (batch, hidden_size)
+            h0 = hidden_state[0]
+            c0 = hidden_state[1]
+            if h0.dim() == 2:
+                h0 = h0.unsqueeze(0)  # (1, batch, hidden)
+            if c0.dim() == 2:
+                c0 = c0.unsqueeze(0)  # (1, batch, hidden)
+
+        h, (hn, cn) = self.lstm(obs_and_prev_action_encoded, (h0, c0))
         
         mu, std = var(h, self.mu, self.std, self.args)
         sampled = sample(mu, std, self.args.device)
@@ -87,7 +104,7 @@ class Actor(nn.Module):
                 voice_out = voice_out.half()
                 voice_log_prob = voice_log_prob.half()
                 
-        return Action(wheels_joints, voice_out), log_prob, voice_log_prob, h
+        return Action(wheels_joints, voice_out), log_prob, voice_log_prob, (hn, cn)
     
     
     
@@ -114,7 +131,9 @@ if __name__ == '__main__':
         wheels_joints = torch.zeros((episodes, steps, args.wheels_joints_shape)), 
         voice_out = torch.zeros((episodes, steps, args.max_voice_len, args.voice_shape)))
     
-    example_hidden_state = torch.zeros((episodes, 1, args.pvrnn_mtrnn_size))
+    example_hidden_state = (
+        torch.zeros((1, episodes, args.pvrnn_mtrnn_size), device=args.device),
+        torch.zeros((1, episodes, args.pvrnn_mtrnn_size), device=args.device),)
     
     actor(example_obs, example_prev_action, example_hidden_state)
         
@@ -140,13 +159,15 @@ class Critic(nn.Module):
         self.voice_in = Voice_IN(self.args)
         self.wheels_joints_in = Wheels_Joints_IN(self.args)
         
-        self.mtrnn = MTRNN(
-            input_size = self.args.vision_state_size + self.args.touch_state_size +
-                         self.args.prop_state_size + self.args.voice_state_size * 3 + 
-                         self.args.wheels_joints_encode_size,
+        self.lstm = nn.LSTM(
+            input_size = self.args.vision_state_size + 
+                        self.args.touch_state_size +
+                        self.args.prop_state_size + 
+                        self.args.voice_state_size * 3 + 
+                        self.args.wheels_joints_encode_size,
             hidden_size = self.args.pvrnn_mtrnn_size,
-            time_constant = 1,
-            args = self.args)
+            num_layers = 1,
+            batch_first = True)
 
         self.value = nn.Sequential(
             nn.Linear(self.args.pvrnn_mtrnn_size, self.args.hidden_size),
@@ -162,7 +183,9 @@ class Critic(nn.Module):
     def forward(self, obs, action, hidden_state):
         """
         Returns predicted Q-value for given action and hidden state.
+        hidden_state should be a tuple (h0, c0)
         """
+        
         obs_and_prev_action_encoded = torch.cat([
             self.vision_in(obs.vision), 
             self.touch_in(obs.touch), 
@@ -171,12 +194,23 @@ class Critic(nn.Module):
             self.voice_in(obs.feedback_voice),
             self.wheels_joints_in(action.wheels_joints),
             self.voice_in(action.voice_out)], dim = -1)
-                
-        h = self.mtrnn(obs_and_prev_action_encoded, hidden_state)
         
+        if hidden_state is None:
+            h0 = torch.zeros(1, batch_size, self.args.pvrnn_mtrnn_size, device=self.args.device)
+            c0 = torch.zeros(1, batch_size, self.args.pvrnn_mtrnn_size, device=self.args.device)
+        else:
+            # hidden_state expected shape: (batch, hidden_size)
+            h0 = hidden_state[0]
+            c0 = hidden_state[1]
+            if h0.dim() == 2:
+                h0 = h0.unsqueeze(0)  # (1, batch, hidden)
+            if c0.dim() == 2:
+                c0 = c0.unsqueeze(0)  # (1, batch, hidden)
+
+        h, (hn, cn) = self.lstm(obs_and_prev_action_encoded, (h0, c0))
         value = self.value(h)
 
-        return value, h
+        return value, (hn, cn)
 
 
 
@@ -205,7 +239,9 @@ if __name__ == "__main__":
         wheels_joints = torch.zeros((episodes, steps, args.wheels_joints_shape)), 
         voice_out = torch.zeros((episodes, steps, args.max_voice_len, args.voice_shape)))
     
-    example_hidden_state = torch.zeros((episodes, 1, args.pvrnn_mtrnn_size))
+    example_hidden_state = (
+        torch.zeros((1, episodes, args.pvrnn_mtrnn_size), device=args.device),
+        torch.zeros((1, episodes, args.pvrnn_mtrnn_size), device=args.device),)
     
     critic(example_obs, example_action, example_hidden_state)
 

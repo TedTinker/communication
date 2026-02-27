@@ -933,6 +933,8 @@ parser.add_argument('--exceptions',                     type=literal,       defa
 
 
     # Model architecture
+parser.add_argument('--lstm',                           type=literal,       default = False,
+                    help='Should we use the LSTM model, instead of the PVRNN-style model?')   
 parser.add_argument('--hidden_size',                    type=int,           default = 64,
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,

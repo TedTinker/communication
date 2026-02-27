@@ -21,9 +21,9 @@ from agent import Agent
 set_goal = None
 
 # Change these to the agent you would like to test
-hyper_parameters = 'ef_q2'
+hyper_parameters = 'e_q2_lstm'
 agent_num = '0001'
-epochs = '000000'
+epochs = '070000'
 saved_file = 'saved_deigo'
 
 print('\n\nLoading default agent...', end = ' ')
@@ -46,7 +46,7 @@ print('Ready to go!')
 #  SWAP AGENT + PROPAGATE ARGS
 # -------------------------------
 
-hyper_parameters = 'e_q2'
+"""hyper_parameters = 'e_q2'
 agent_num = '0001'
 epochs = '010000'
 saved_file = 'saved_deigo'
@@ -88,7 +88,7 @@ def change_args(new_agent):
         processor.arena_2.args = args
 
 
-change_agent(hyper_parameters, agent_num, epochs)
+change_agent(hyper_parameters, agent_num, epochs)"""
 
 
 
@@ -97,7 +97,7 @@ change_agent(hyper_parameters, agent_num, epochs)
 #  DEFINE SPECIFIC GOAL
 # -------------------------------
 
-set_goal = make_objects_and_task(
+"""set_goal = make_objects_and_task(
     num_objects = agent.processors['all'].objects,
     allowed_tasks_and_weights = agent.processors['all'].tasks_and_weights,
     allowed_colors = agent.processors['all'].colors,
@@ -112,7 +112,7 @@ print(set_goal[0].name)
 print(set_goal[1][0][0].name)
 print(set_goal[1][0][1].name)
 print(set_goal[1][1][0].name)
-print(set_goal[1][1][1].name)
+print(set_goal[1][1][1].name)"""
 
 
 
@@ -166,7 +166,7 @@ win = agent.save_episodes(
     test = True,                    # Use training or test objects?
     verbose = False,                # Print extra info?
     display = False,                # Full plotting of model internals
-    video_display = True,           # Plot observation video
+    video_display = False,           # Plot observation video
     sleep_time = 0.25,              # Delay per step
     waiting = False,                # Wait for user input per step?
     user_action = False,            # Manual control?

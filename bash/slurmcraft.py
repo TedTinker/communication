@@ -119,9 +119,8 @@ add_this('q',   {
     'save_behaviors' : 'False',
     'save_compositions' : 'False'})
 
-
 add_this('q2',   {
-    'agents_per_agent_save' : 2,
+    'agents_per_agent_save' : 11,
     'epochs_per_agent_save' : 10000,
     'save_behaviors' : 'False',
     'save_compositions' : 'False'})
@@ -140,15 +139,9 @@ add_this('seeds', {
     'init_seed' : [555, 777, 888, 999]
 })
 
-add_this('long', {
-    'epochs' : [120000],
-    'agents_per_agent_save' : 10,
-    'epochs_per_agent_save' : 20000,
-    'save_behaviors' : 'False'
+add_this('lstm', {
+    'lstm' : 'True'
 })
-
-
-
 
 add_this('k', {
     'exceptions' : [1, 2],
@@ -157,8 +150,6 @@ add_this('k', {
     'agents_per_agent_save' : 99,
     'epochs_per_composition_data' : 10000
 })
-
-
 
 add_this('t1',   {
     'touch_top' : False,
@@ -176,6 +167,13 @@ add_this('t2',   {
     'cone' : False,
     'hourglass' : False,
     'test_train_num' : 1
+})
+
+add_this('long', {
+    'epochs' : 120000,
+    'agents_per_agent_save' : 10,
+    'epochs_per_agent_save' : 20000,
+    'save_behaviors' : 'False'
 })
 
 
@@ -212,7 +210,7 @@ if __name__ == '__main__' and args.arg_list == []:
     print('ALL POSSIBLE HYPERPARAMETERS:')
     for key, value in slurm_dict.items(): 
         print(key, ':', value)
-    interesting = [f'ef_q4t_{i}' for i in range(1, 6)]
+    interesting = []
     if len(interesting) != 0:
         print('\n\n\nTHESE HYPERPARAMETERS:')
         for this in interesting:
@@ -231,7 +229,7 @@ if __name__ == '__main__' and args.arg_list != []:
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time 72:00:00
+#SBATCH --time 96:00:00
 #SBATCH --mem=50G'''
 
     if args.comp == 'saion':

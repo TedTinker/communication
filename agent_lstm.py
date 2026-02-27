@@ -231,17 +231,6 @@ class Agent:
                     lr=self.args.lr, 
                     weight_decay = self.args.weight_decay))
 
-        all_params += list(self.actor.parameters())
-        
-        for critic in self.critics:
-            all_params += list(critic.parameters())
-
-        self.complete_opt = optim.Adam(
-            all_params,
-            lr=self.args.lr,
-            weight_decay=self.args.weight_decay
-        )
-
         self.memory = RecurrentReplayBuffer(self.args)
 
         # ----------------------------------------
@@ -436,7 +425,7 @@ class Agent:
         """
         Perform one step in an episode for both agents. Collect actions, rewards, and transition data.
         """
-
+                
         with torch.no_grad():
             self.eval()
             parenting = self.processor.parenting
@@ -447,8 +436,7 @@ class Agent:
                 """
                 if parenting and not agent_1:
                     return (
-                        None, None, hq_2, hq_2,
-                        None, None, None, None, None, None
+                        None, None, actor_h_2, critic_h_2, None
                     )
 
                 prev_action = prev_action_1 if agent_1 else prev_action_2
@@ -468,7 +456,7 @@ class Agent:
                 if isinstance(obs.feedback_voice, Goal):
                     obs.feedback_voice = obs.feedback_voice.one_hots
 
-                action, _, _, actor_h = self.actor(obs, prev_action, actor_h.detach(), parenting)
+                action, _, _, actor_h = self.actor(obs, prev_action, actor_h, parenting)
 
                 if user_action:
                     user_wheels_joints = adjust_action(action.wheels_joints)
@@ -476,7 +464,7 @@ class Agent:
 
                 values = []
                 for i in range(self.args.critics):
-                    value, critic_h[i] = self.critics[i](obs, action, critic_h[i].detach())
+                    value, critic_h[i] = self.critics[i](obs, action, critic_h[i])
                     values.append(round(value.item(), 3))
 
                 return (
@@ -523,8 +511,8 @@ class Agent:
         
         # Return all outputs
         return (
-            action_1, values_1, actor_h_1.squeeze(1), [c.squeeze(1) for c in critic_h_1],
-            action_2, values_2, actor_h_2.squeeze(1), [c.squeeze(1) for c in critic_h_2]
+            action_1, values_1, (actor_h_1[0].squeeze(1), actor_h_1[1].squeeze(1)), [(c[0].squeeze(1), c[1].squeeze(1)) for c in critic_h_1],
+            action_2, values_2, (actor_h_2[0].squeeze(1), actor_h_2[1].squeeze(1)), [(c[0].squeeze(1), c[1].squeeze(1)) for c in critic_h_2],
             reward, done, win, to_push_1, to_push_2
         )
             
@@ -544,8 +532,8 @@ class Agent:
                 torch.zeros((1, 1, self.args.wheels_joints_shape)),
                 torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape))
             )
-            actor_h = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size))
-            critic_h = [torch.zeros((1, 1, self.args.pvrnn_mtrnn_size))] * len(self.args.critics)
+            actor_h = (torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)),) * 2
+            critic_h = [(torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)),) * 2] * len(self.critics)
             return to_push_list, prev_action, actor_h, critic_h
 
         return done, complete_reward, steps, start_agent(), start_agent(agent_1=False)
@@ -587,8 +575,8 @@ class Agent:
                 prev_action_1, values_1, actor_h_1, critic_h_1, \
                     prev_action_2, values_2, actor_h_2, critic_h_2, \
                     reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                        prev_action_1, actor_h_1, critic_h_1, obs_1,
-                        prev_action_2, actor_h_2, critic_h_2, obs_2,
+                        prev_action_1, obs_1, actor_h_1, critic_h_1, 
+                        prev_action_2, obs_2, actor_h_2, critic_h_2, 
                         sleep_time=sleep_time
                     )
 
@@ -691,8 +679,8 @@ class Agent:
                     prev_action_1, values_1, actor_h_1, critic_h_1, \
                         prev_action_2, values_2, actor_h_2, critic_h_2, \
                         reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                            prev_action_1, actor_h_1, critic_h_1, obs_1,
-                            prev_action_2, actor_h_2, critic_h_2, obs_2,
+                            prev_action_1, obs_1, actor_h_1, critic_h_1, 
+                            prev_action_2, obs_2, actor_h_2, critic_h_2, 
                             sleep_time=sleep_time
                         )
 
@@ -717,10 +705,109 @@ class Agent:
 
         self.plot_dict['gen_reward'].append(complete_reward)
         return win
+    
+    
+    
+    def save_episodes(
+        self, test=False, verbose=False, display=True,
+        video_display=True, sleep_time=None, waiting=False,
+        user_action=False, dreaming=False,
+        set_positions=None, set_goal=None
+    ):
+        """
+        Run a single episode and save detailed visual/logging data for debugging or demos.
+        Supports real-time display and mental planning ('dreaming').
+        """
+        with torch.no_grad():
+            self.processor = self.processors[self.processor_name]
+            self.processor.begin(test=test, set_positions=set_positions, set_goal=set_goal)
+            parenting = self.processor.parenting
+
+            # Initialize episode dictionary
+            common_keys = [
+                'obs', 'action', 'birds_eye', 'reward', 'critic_predictions'
+            ]
+            episode_dict = {f'{key}_{agent_id}': [] for agent_id in [0, 1] for key in common_keys}
+            episode_dict['reward'] = []
+            episode_dict['processor'] = self.processor
+            self.processor.goal.make_texts()
+            episode_dict['goal'] = self.processor.goal
+
+            # Episode state
+            done, complete_reward, steps, \
+                (to_push_list_1, prev_action_1, actor_h_1, critic_h_1), \
+                (to_push_list_2, prev_action_2, actor_h_2, critic_h_2) = self.start_episode()
+
+            # Save real observations per step
+            def save_step(step, obs, agent_1=True):
+                agent_num = 1 if agent_1 else 2
+                birds_eye = self.processor.arena_1.photo_from_above() if agent_1 else self.processor.arena_2.photo_from_above()
+                obs.command_voice = (
+                    obs.command_voice if parenting else
+                    prev_action_2.voice_out if agent_1 else prev_action_1.voice_out
+                )
+                if not isinstance(obs.command_voice, Goal):
+                    obs.command_voice = get_goal_from_one_hots(obs.command_voice)
+                if not isinstance(obs.feedback_voice, Goal):
+                    obs.feedback_voice = get_goal_from_one_hots(obs.feedback_voice)
+
+                episode_dict[f'obs_{agent_num}'].append(obs)
+                #episode_dict[f'birds_eye_{agent_num}'].append(birds_eye[:, :, 0:3])
+
+            def display_step(step, agent_1=True, done=False, stopping=False):
+                return
+
+            def video_display_step(step, agent_1=True, done=False, stopping=False):
+                return
+
+            # Episode loop
+            for step in range(self.args.max_steps + 1):
+                # Get real or imagined obs
+                obs_1 = self.get_agent_obs()
+                obs_2 = self.get_agent_obs(agent_1=False)
+
+                save_step(step, obs_1, agent_1=True)
+                if not parenting:
+                    save_step(step, obs_2, agent_1=False)
+
+                display_step(step)
+                video_display_step(step)
+
+                # Act and collect predictions
+                prev_action_1, values_1, actor_h_1, critic_h_1, \
+                    prev_action_2, values_2, actor_h_2, critic_h_2, \
+                    reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                        prev_action_1, obs_1, actor_h_1, critic_h_1, 
+                        prev_action_2, obs_2, actor_h_2, critic_h_2, 
+                        sleep_time=sleep_time
+                    )
+
+                episode_dict['reward'].append(str(round(reward, 3)))
+
+                def update_episode_dict(index, prev_action, values, reward):
+                    episode_dict[f'action_{index}'].append(prev_action)
+                    episode_dict[f'critic_predictions_{index}'].append(values)
+                    episode_dict[f'reward_{index}'].append(str(round(reward, 3)))
+
+                update_episode_dict(1, prev_action_1, values_1, reward)
+                if not parenting:
+                    update_episode_dict(2, prev_action_2, values_2, reward)
+
+                if done:
+                    obs_1 = self.get_agent_obs()
+                    obs_2 = self.get_agent_obs(agent_1=False)
+                    save_step(step, obs_1, agent_1=True)
+                    if not parenting:
+                        save_step(step, obs_2, agent_1=False)
+                    display_step(step + 1, done=True)
+                    video_display_step(step + 1, done=True)
+                    self.processor.done()
+                    break
+
+            return win
         
         
         
-    # NEED TO DEAL WITH HIDDEN STATES HERE!
     def get_batch(self, memory, batch_size, random_sample=True):
         """
         Retrieve and preprocess a batch from a memory buffer.
@@ -795,18 +882,23 @@ class Agent:
         if batch == False:
             return(False)
         vision, touch, prop, command_voice, feedback_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
+        extrinsic = torch.mean(reward).item()
         obs = Obs(vision, touch, prop, command_voice, feedback_voice)
+        non_last_obs = Obs(vision[:,:-1], touch[:,:-1], prop[:,:-1], command_voice[:,:-1], feedback_voice[:,:-1])
         actions = Action(wheels_joints, voice_out)
+        non_last_action = Action(wheels_joints[:,:-1], voice_out[:,:-1])
+
+        starting_hidden_state = (torch.zeros(1, episodes, self.args.pvrnn_mtrnn_size), torch.zeros(1, episodes, self.args.pvrnn_mtrnn_size))
         
 
                 
         # Train critics
         with torch.no_grad():
             new_action, log_pis_next, log_pis_next_text, _ = \
-                self.actor(obs, actions, torch.zeros([????]), parenting)
+                self.actor(obs, actions, starting_hidden_state, parenting)
             Q_target_nexts = []
             for i in range(self.args.critics):
-                Q_target_next, _ = self.critic_targets[i](obs, new_actions, torch.zeros([????]))
+                Q_target_next, _ = self.critic_targets[i](obs, new_action, starting_hidden_state)
                 Q_target_nexts.append(Q_target_next)                
             log_pis_next = log_pis_next[:,1:]
             log_pis_next_text = log_pis_next_text[:,1:]
@@ -823,7 +915,7 @@ class Agent:
         critic_losses = []
         Qs = []
         for i in range(self.args.critics):
-            Q, _ = self.critics[i](obs, Action(wheels_joints[:,1:], voice_out[:,1:]), torch.zeros([????]).detach())
+            Q, _ = self.critics[i](non_last_obs, non_last_action, starting_hidden_state)
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
             critic_losses.append(critic_loss)
             Qs.append(Q[0,0].item())
@@ -839,11 +931,15 @@ class Agent:
         
         # Train actor
         if self.epochs % self.args.d == 0:
-            if self.args.alpha == None:      alpha = self.alpha 
-            else:                            alpha = self.args.alpha
-            if self.args.alpha_text == None: alpha_text = self.alpha_text 
-            else:                            alpha_text = self.args.alpha_text
-            new_action, log_pis, log_pis_text, _ = self.actor(obs, actions, torch.zeros([????]), parenting)
+            if self.args.alpha == None:      
+                alpha = self.alpha 
+            else:                            
+                alpha = self.args.alpha
+            if self.args.alpha_text == None: 
+                alpha_text = self.alpha_text 
+            else:                            
+                alpha_text = self.args.alpha_text
+            new_action, log_pis, log_pis_text, _ = self.actor(non_last_obs, non_last_action, starting_hidden_state, parenting)
             
             loc = torch.zeros(self.args.wheels_joints_shape, dtype=torch.float64).to(self.args.device).float()
             n = self.args.wheels_joints_shape
@@ -854,7 +950,7 @@ class Agent:
                 
             Qs = []
             for i in range(self.args.critics):
-                Q, _ = self.critics[i](obs, new_action, torch.zeros([????]))
+                Q, _ = self.critics[i](non_last_obs, new_action, starting_hidden_state)
                 Qs.append(Q)
             Qs_stacked = torch.stack(Qs, dim=0)
             Q, _ = torch.min(Qs_stacked, dim=0)
@@ -876,7 +972,7 @@ class Agent:
             
         # Train alpha values.
         if self.args.alpha == None:
-            _, log_pis, _, _ = self.actor(obs, actions, torch.zeros([????]), parenting)
+            _, log_pis, _, _ = self.actor(non_last_obs, non_last_action, starting_hidden_state, parenting)
             alpha_loss = -(self.log_alpha.to(self.args.device) * (log_pis + self.target_entropy))*mask
             alpha_loss = alpha_loss.mean() / mask.mean()
             self.alpha_opt.zero_grad()
@@ -888,7 +984,7 @@ class Agent:
             alpha_loss = None
             
         if self.args.alpha_text == None:
-            _, _, log_pis_text, _ = self.actor(obs, actions, torch.zeros([????]), parenting)
+            _, _, log_pis_text, _ = self.actor(non_last_obs, non_last_action, starting_hidden_state, parenting)
             alpha_text_loss = -(self.log_alpha_text.to(self.args.device) * (log_pis_text + self.target_entropy_text))*mask
             alpha_text_loss = alpha_text_loss.mean() / mask.mean()
             self.alpha_text_opt.zero_grad()
@@ -991,7 +1087,7 @@ class Agent:
             self.plot_dict = None
             self.memory = None
 
-            save_path = f'{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz'
+            save_path = f'{folder}/agents/agent_{str(self.agent_num).zfill(4)}.pkl.gz'
             with gzip.open(save_path, 'wb') as f:
                 pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -1010,6 +1106,7 @@ class Agent:
         """
         Return state dicts for all learnable components.
         """
+        to_return = [self.actor.state_dict()]
         for i in range(self.args.critics):
             to_return.append(self.critics[i].state_dict())
             to_return.append(self.critic_targets[i].state_dict())
@@ -1019,10 +1116,10 @@ class Agent:
         """
         Load state dicts into actor and critics.
         """
-        self.actor.load_state_dict(state_dict=state_dict[1])
+        self.actor.load_state_dict(state_dict=state_dict[0])
         for i in range(self.args.critics):
-            self.critics[i].load_state_dict(state_dict=state_dict[2 + 2 * i])
-            self.critic_targets[i].load_state_dict(state_dict=state_dict[3 + 2 * i])
+            self.critics[i].load_state_dict(state_dict=state_dict[1 + 2 * i])
+            self.critic_targets[i].load_state_dict(state_dict=state_dict[2 + 2 * i])
         self.memory = RecurrentReplayBuffer(self.args)
 
     def eval(self):

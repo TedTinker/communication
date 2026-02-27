@@ -549,12 +549,12 @@ def plot_by_attribute(ax, start_aligned_data, stop_aligned_data, fraction_of_sta
         
     
 # Iterate over components, reducer_types, etc.
-these_epochs = [i for i in range(0, 60001, 2500)]
+these_epochs = [i for i in range(0, 120001, 10000)]
 
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 for plot_dict in plot_dicts:
     for component in [
-        'b', 
+        'command_voice_zq', 
         ]:
         get_all_data(
             plot_dict = plot_dict, 
