@@ -117,6 +117,10 @@ class Agent:
         self.total_steps = 0
         self.total_episodes = 0
         self.total_epochs = 0
+        
+        self.steps = 0
+        self.episodes = 0
+        self.epochs = 0
 
         # Reward inflation config
         self.reward_inflation = 0
@@ -326,9 +330,6 @@ class Agent:
         """
         Initialize simulation arenas and counters.
         """
-        self.steps = 0
-        self.episodes = 0
-        self.epochs = 0
 
         self.arena_1 = Arena(GUI=GUI, args=self.args)
         self.arena_2 = Arena(GUI=False, args=self.args)
@@ -1232,10 +1233,14 @@ class Agent:
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
             Q_target_next = Q_target_next[:,1:]
-            if self.args.alpha == None:      alpha = self.alpha 
-            else:                            alpha = self.args.alpha
-            if self.args.alpha_text == None: alpha_text = self.alpha_text 
-            else:                            alpha_text = self.args.alpha_text
+            if self.args.alpha == None:      
+                alpha = self.alpha 
+            else:                            
+                alpha = self.args.alpha
+            if self.args.alpha_text == None: 
+                alpha_text = self.alpha_text 
+            else:                            
+                alpha_text = self.args.alpha_text
             Q_targets = reward + (self.args.GAMMA * (1 - done) * (Q_target_next - (alpha * log_pis_next) - (alpha_text * log_pis_next_text)))
         
         critic_losses = []
@@ -1458,7 +1463,7 @@ class Agent:
             self.plot_dict = None
             self.memory = None
 
-            save_path = f'{folder}/agents/agent_{str(self.agent_num).zfill(4)}.pkl.gz'
+            save_path = f'{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz'
             with gzip.open(save_path, 'wb') as f:
                 pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
 

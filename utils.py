@@ -379,9 +379,6 @@ if __name__ == '__main__':
 
 
 
-#%%
-
-
 
 #%%
 
@@ -444,9 +441,11 @@ def get_training_combos(pattern_lookup):
 # === Set 1: 4 tasks, 4 colors, 3 shapes (48 goals total, 16 in training) ===
 # 16 for training, 32 for testing
 training_combos_1 = [
-    # SILENCE (all color/shape combos allowed)
-    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0), (0, 1, 1), (0, 1, 2),
-    (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 3, 0), (0, 3, 1), (0, 3, 2),
+    # SILENCE 
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), 
+    (0, 1, 0), (0, 1, 1), (0, 1, 2),
+    (0, 2, 0), (0, 2, 1), (0, 2, 2), 
+    (0, 3, 0), (0, 3, 1), (0, 3, 2),
     # Sparse task combos
     (1, 2, 0), (1, 3, 0), (1, 0, 1), (1, 1, 2),
     (4, 0, 0), (4, 1, 1), (4, 3, 1), (4, 2, 2),
@@ -459,14 +458,16 @@ testing_combos_1 = [combo for combo in all_combos if combo not in training_combo
 # 25 for training, 50 for testing
 training_combos_2 = [
     # SILENCE
-    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3),
-    (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3),
-    (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3),
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), 
+    (0, 1, 0), (0, 1, 1), (0, 1, 2), 
+    (0, 2, 0), (0, 2, 1), (0, 2, 2), 
+    (0, 3, 0), (0, 3, 1), (0, 3, 2), 
+    (0, 4, 0), (0, 4, 1), (0, 4, 2), 
     # Sparse task combos
     (1, 3, 0), (1, 0, 1), (1, 4, 1), (1, 0, 2), (1, 1, 2),
     (2, 0, 0), (2, 4, 0), (2, 1, 1), (2, 1, 2), (2, 2, 2),
     (4, 0, 0), (4, 1, 0), (4, 1, 1), (4, 2, 1), (4, 3, 2),
-    (5, 1, 0), (5, 2, 0), (5, 2, 1), (5, 3, 1), (5, 3, 2), (5, 4, 2),
+    (5, 2, 0), (5, 2, 1), (5, 3, 1), (5, 3, 2), (5, 4, 2),
     (6, 2, 0), (6, 3, 1), (6, 4, 1), (6, 0, 2), (6, 4, 2)
 ]
 testing_combos_2 = [combo for combo in all_combos if combo not in training_combos_2]
@@ -474,6 +475,88 @@ testing_combos_2 = [combo for combo in all_combos if combo not in training_combo
 # === Set 3: 6 tasks, 6 colors, 5 shapes (180 goals total, 60 in training) ===
 training_combos_3 = get_training_combos(pattern_lookup_3)
 testing_combos_3 = [combo for combo in all_combos if combo not in training_combos_3]
+
+
+
+# === Set 4: only watch, for testing baseline model ===
+training_combos_4 = [
+    # SILENCE
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 0, 4),
+    (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 1, 4),
+    (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 2, 4), 
+    (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 3, 4), 
+    (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), (0, 4, 4), 
+    (0, 5, 0), (0, 5, 1), (0, 5, 2), (0, 5, 3), (0, 5, 4), 
+    # Sparse task combos
+    (1, 0, 0), (1, 1, 0), (1, 1, 1), (1, 2, 1), (1, 2, 2), (1, 3, 2), (1, 3, 3), (1, 4, 3), (1, 4, 4), (1, 5, 4),
+]
+testing_combos_4 = [combo for combo in all_combos if combo not in training_combos_4]
+
+# === Set 5: only be near, for testing baseline model ===
+training_combos_5 = [
+    # SILENCE
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 0, 4),
+    (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 1, 4),
+    (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 2, 4), 
+    (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 3, 4), 
+    (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), (0, 4, 4), 
+    (0, 5, 0), (0, 5, 1), (0, 5, 2), (0, 5, 3), (0, 5, 4), 
+    # Sparse task combos
+    (2, 0, 0), (2, 1, 0), (2, 1, 1), (2, 2, 1), (2, 2, 2), (2, 3, 2), (2, 3, 3), (2, 4, 3), (2, 4, 4), (2, 5, 4),
+]
+testing_combos_5 = [combo for combo in all_combos if combo not in training_combos_5]
+
+
+
+# === Set 6: only watch or be near, for testing baseline model ===
+training_combos_6 = [
+    # SILENCE
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 0, 4),
+    (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 1, 4),
+    (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 2, 4), 
+    (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 3, 4), 
+    (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), (0, 4, 4), 
+    (0, 5, 0), (0, 5, 1), (0, 5, 2), (0, 5, 3), (0, 5, 4), 
+    # Sparse task combos
+    (1, 0, 0), (1, 1, 0), (1, 1, 1), (1, 2, 1), (1, 2, 2), (1, 3, 2), (1, 3, 3), (1, 4, 3), (1, 4, 4), (1, 5, 4),
+    (2, 2, 0), (2, 3, 0), (2, 3, 1), (2, 4, 1), (2, 4, 2), (2, 5, 2), (2, 5, 3), (2, 5, 3), (2, 5, 4), (2, 0, 4),
+]
+testing_combos_6 = [combo for combo in all_combos if combo not in training_combos_6]
+
+
+
+# === Set 5: only push_forward, for testing baseline model ===
+training_combos_7 = [
+    # SILENCE
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 0, 4),
+    (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 1, 4),
+    (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 2, 4), 
+    (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 3, 4), 
+    (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), (0, 4, 4), 
+    (0, 5, 0), (0, 5, 1), (0, 5, 2), (0, 5, 3), (0, 5, 4), 
+    # Sparse task combos
+    (4, 0, 0), (4, 1, 0), (4, 1, 1), (4, 2, 1), (4, 2, 2), (4, 3, 2), (4, 3, 3), (4, 4, 3), (4, 4, 4), (4, 5, 4),
+]
+testing_combos_7 = [combo for combo in all_combos if combo not in training_combos_7]
+
+
+
+# === Set 8: only watch or be near or push forward, for testing baseline model ===
+training_combos_8 = [
+    # SILENCE
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 0, 4),
+    (0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 1, 4),
+    (0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 2, 4), 
+    (0, 3, 0), (0, 3, 1), (0, 3, 2), (0, 3, 3), (0, 3, 4), 
+    (0, 4, 0), (0, 4, 1), (0, 4, 2), (0, 4, 3), (0, 4, 4), 
+    (0, 5, 0), (0, 5, 1), (0, 5, 2), (0, 5, 3), (0, 5, 4), 
+    # Sparse task combos
+    (1, 0, 0), (1, 1, 0), (1, 1, 1), (1, 2, 1), (1, 2, 2), (1, 3, 2), (1, 3, 3), (1, 4, 3), (1, 4, 4), (1, 5, 4),
+    (2, 2, 0), (2, 3, 0), (2, 3, 1), (2, 4, 1), (2, 4, 2), (2, 5, 2), (2, 5, 3), (2, 5, 3), (2, 5, 4), (2, 0, 4),
+    (4, 4, 0), (4, 5, 0), (4, 5, 1), (4, 0, 1), (4, 0, 2), (4, 1, 2), (4, 1, 3), (4, 2, 3), (4, 2, 4), (4, 3, 4),
+]
+testing_combos_8 = [combo for combo in all_combos if combo not in training_combos_8]
+
 
 
 # Exceptions dictionary
@@ -619,12 +702,18 @@ if __name__ == '__main__':
         plt.show()
         plt.close()
     
-    #plot_combined_training_grid(training_combos_1, title='Training Set 1 – All Tasks')
-    #plot_combined_training_grid(training_combos_2, title='Training Set 2 – All Tasks')
+    #plot_combined_training_grid(training_combos_1, title='Training Set 1 – 4 tasks', exception_num = 0)
+    #plot_combined_training_grid(training_combos_2, title='Training Set 2 – 5 tasks', exception_num = 0)
+    #plot_combined_training_grid(training_combos_3, title='Training Set 3 – All Tasks', exception_num = 0)
+    #plot_combined_training_grid(training_combos_4, title='Training Set 4 – Only watch', exception_num = 0)
+    #plot_combined_training_grid(training_combos_5, title='Training Set 5 – Only watch', exception_num = 0)
+    plot_combined_training_grid(training_combos_6, title='Training Set 6 – Only watch and be near', exception_num = 0)
+    plot_combined_training_grid(training_combos_7, title='Training Set 7 – Only push forward', exception_num = 0)
+    plot_combined_training_grid(training_combos_8, title='Training Set 8 – Watch, Be Near, Push Forward', exception_num = 0)
+
     
-    for key in exceptions_dict.keys():
-        #if key % 2 != 0:
-            plot_combined_training_grid(training_combos_3, title=f'Training Set 3 - All Tasks - Exceptions {key}', exception_num = key)
+    #for key in exceptions_dict.keys():
+    #    lot_combined_training_grid(training_combos_3, title=f'Training Set 3 - All Tasks - Exceptions {key}', exception_num = key)
             
         
         
@@ -649,7 +738,11 @@ def valid_color_shape(task_num, other_shape_colors, allowed_colors, allowed_shap
         training_combos_1 if test_train_num == 1 else
         training_combos_2 if test_train_num == 2 else
         training_combos_3 if test_train_num == 3 else
-        training_combos_4
+        training_combos_4 if test_train_num == 4 else 
+        training_combos_5 if test_train_num == 5 else
+        training_combos_6 if test_train_num == 6 else
+        training_combos_7 if test_train_num == 7 else
+        training_combos_8
     )
     testing_combos = [combo for combo in all_combos if combo not in training_combos]
 
@@ -934,7 +1027,7 @@ parser.add_argument('--exceptions',                     type=literal,       defa
 
     # Model architecture
 parser.add_argument('--lstm',                           type=literal,       default = False,
-                    help='Should we use the LSTM model, instead of the PVRNN-style model?')   
+                    help='Should we use the baseline model, instead of the PVRNN-style model?')   
 parser.add_argument('--hidden_size',                    type=int,           default = 64,
                     help='Parameters in hidden layers.')   
 parser.add_argument('--pvrnn_mtrnn_size',               type=int,           default = 256,

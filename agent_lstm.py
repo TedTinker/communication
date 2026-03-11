@@ -116,6 +116,10 @@ class Agent:
         self.total_steps = 0
         self.total_episodes = 0
         self.total_epochs = 0
+        
+        self.steps = 0
+        self.episodes = 0
+        self.epochs = 0
 
         # Reward inflation config
         self.reward_inflation = 0
@@ -282,9 +286,6 @@ class Agent:
         """
         Initialize simulation arenas and counters.
         """
-        self.steps = 0
-        self.episodes = 0
-        self.epochs = 0
 
         self.arena_1 = Arena(GUI=GUI, args=self.args)
         self.arena_2 = Arena(GUI=False, args=self.args)
@@ -511,8 +512,8 @@ class Agent:
         
         # Return all outputs
         return (
-            action_1, values_1, (actor_h_1[0].squeeze(1), actor_h_1[1].squeeze(1)), [(c[0].squeeze(1), c[1].squeeze(1)) for c in critic_h_1],
-            action_2, values_2, (actor_h_2[0].squeeze(1), actor_h_2[1].squeeze(1)), [(c[0].squeeze(1), c[1].squeeze(1)) for c in critic_h_2],
+            action_1, values_1, actor_h_1, critic_h_1,
+            action_2, values_2, actor_h_2, critic_h_2,
             reward, done, win, to_push_1, to_push_2
         )
             
@@ -532,8 +533,8 @@ class Agent:
                 torch.zeros((1, 1, self.args.wheels_joints_shape)),
                 torch.zeros((1, 1, self.args.max_voice_len, self.args.voice_shape))
             )
-            actor_h = (torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)),) * 2
-            critic_h = [(torch.zeros((1, 1, self.args.pvrnn_mtrnn_size)),) * 2] * len(self.critics)
+            actor_h = torch.zeros((1, 1, self.args.pvrnn_mtrnn_size))
+            critic_h = [torch.zeros((1, 1, self.args.pvrnn_mtrnn_size))] * len(self.critics)
             return to_push_list, prev_action, actor_h, critic_h
 
         return done, complete_reward, steps, start_agent(), start_agent(agent_1=False)
@@ -887,35 +888,40 @@ class Agent:
         non_last_obs = Obs(vision[:,:-1], touch[:,:-1], prop[:,:-1], command_voice[:,:-1], feedback_voice[:,:-1])
         actions = Action(wheels_joints, voice_out)
         non_last_action = Action(wheels_joints[:,:-1], voice_out[:,:-1])
+        non_blank_action = Action(wheels_joints[:,1:], voice_out[:,1:])
 
-        starting_hidden_state = (torch.zeros(1, episodes, self.args.pvrnn_mtrnn_size), torch.zeros(1, episodes, self.args.pvrnn_mtrnn_size))
+        starting_hidden_state = torch.zeros(1, episodes, self.args.pvrnn_mtrnn_size).detach()
         
 
                 
         # Train critics
         with torch.no_grad():
             new_action, log_pis_next, log_pis_next_text, _ = \
-                self.actor(obs, actions, starting_hidden_state, parenting)
-            Q_target_nexts = []
-            for i in range(self.args.critics):
-                Q_target_next, _ = self.critic_targets[i](obs, new_action, starting_hidden_state)
-                Q_target_nexts.append(Q_target_next)                
+                self.actor(obs, actions, starting_hidden_state.detach(), parenting)
             log_pis_next = log_pis_next[:,1:]
             log_pis_next_text = log_pis_next_text[:,1:]
+            Q_target_nexts = []
+            for i in range(self.args.critics):
+                Q_target_next, _ = self.critic_targets[i](obs, new_action, starting_hidden_state.detach())
+                Q_target_nexts.append(Q_target_next)                
                         
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
             Q_target_next = Q_target_next[:,1:]
-            if self.args.alpha == None:      alpha = self.alpha 
-            else:                            alpha = self.args.alpha
-            if self.args.alpha_text == None: alpha_text = self.alpha_text 
-            else:                            alpha_text = self.args.alpha_text
+            if self.args.alpha == None:      
+                alpha = self.alpha 
+            else:                            
+                alpha = self.args.alpha
+            if self.args.alpha_text == None: 
+                alpha_text = self.alpha_text 
+            else:                            
+                alpha_text = self.args.alpha_text
             Q_targets = reward + (self.args.GAMMA * (1 - done) * (Q_target_next - (alpha * log_pis_next) - (alpha_text * log_pis_next_text)))
         
         critic_losses = []
         Qs = []
         for i in range(self.args.critics):
-            Q, _ = self.critics[i](non_last_obs, non_last_action, starting_hidden_state)
+            Q, _ = self.critics[i](non_last_obs, non_blank_action, starting_hidden_state.detach())
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
             critic_losses.append(critic_loss)
             Qs.append(Q[0,0].item())
@@ -939,7 +945,7 @@ class Agent:
                 alpha_text = self.alpha_text 
             else:                            
                 alpha_text = self.args.alpha_text
-            new_action, log_pis, log_pis_text, _ = self.actor(non_last_obs, non_last_action, starting_hidden_state, parenting)
+            new_action, log_pis, log_pis_text, _ = self.actor(non_last_obs, non_last_action, starting_hidden_state.detach(), parenting)
             
             loc = torch.zeros(self.args.wheels_joints_shape, dtype=torch.float64).to(self.args.device).float()
             n = self.args.wheels_joints_shape
@@ -950,7 +956,7 @@ class Agent:
                 
             Qs = []
             for i in range(self.args.critics):
-                Q, _ = self.critics[i](non_last_obs, new_action, starting_hidden_state)
+                Q, _ = self.critics[i](non_last_obs, new_action, starting_hidden_state.detach())
                 Qs.append(Q)
             Qs_stacked = torch.stack(Qs, dim=0)
             Q, _ = torch.min(Qs_stacked, dim=0)
@@ -972,7 +978,7 @@ class Agent:
             
         # Train alpha values.
         if self.args.alpha == None:
-            _, log_pis, _, _ = self.actor(non_last_obs, non_last_action, starting_hidden_state, parenting)
+            _, log_pis, _, _ = self.actor(non_last_obs, non_last_action, starting_hidden_state.detach(), parenting)
             alpha_loss = -(self.log_alpha.to(self.args.device) * (log_pis + self.target_entropy))*mask
             alpha_loss = alpha_loss.mean() / mask.mean()
             self.alpha_opt.zero_grad()
@@ -984,7 +990,7 @@ class Agent:
             alpha_loss = None
             
         if self.args.alpha_text == None:
-            _, _, log_pis_text, _ = self.actor(non_last_obs, non_last_action, starting_hidden_state, parenting)
+            _, _, log_pis_text, _ = self.actor(non_last_obs, non_last_action, starting_hidden_state.detach(), parenting)
             alpha_text_loss = -(self.log_alpha_text.to(self.args.device) * (log_pis_text + self.target_entropy_text))*mask
             alpha_text_loss = alpha_text_loss.mean() / mask.mean()
             self.alpha_text_opt.zero_grad()
@@ -1087,7 +1093,7 @@ class Agent:
             self.plot_dict = None
             self.memory = None
 
-            save_path = f'{folder}/agents/agent_{str(self.agent_num).zfill(4)}.pkl.gz'
+            save_path = f'{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz'
             with gzip.open(save_path, 'wb') as f:
                 pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
 

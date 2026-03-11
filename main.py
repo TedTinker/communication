@@ -1,6 +1,7 @@
 #%%
 
 import os
+import gzip
 import pickle
 import torch
 import random
@@ -10,6 +11,13 @@ from time import sleep
 from math import floor
 
 from utils import args, folder, duration, estimate_total_duration, print
+from utils import (
+    folder, wheels_joints_to_string, cpu_memory_usage, duration, print_duration,
+    wait_for_button_press, task_map, color_map, shape_map, task_name_list, print,
+    To_Push, empty_goal, rolling_average, Obs, Action, get_goal_from_one_hots,
+    Goal, adjust_action, testing_combos_1, testing_combos_2, testing_combos_3, exceptions_dict
+)
+from buffer import RecurrentReplayBuffer
 from agent import Agent
 from agent_lstm import Agent as Agent_lstm
 
@@ -37,9 +45,73 @@ def train(q, i):
     print(f'\nagent {i}: cpu {cpu_id}\n')
 
     if args.load_agents:
-        with open(folder + '/agents/agent_' + str(i).zfill(3) + '.pickle', 'rb') as handle:
+        print("LOADING", i)
+        with gzip.open(folder + '/agents/agent_' + str(i).zfill(4) + '.pkl.gz', 'rb') as handle:
             agent = pickle.load(handle)
         agent.args = args
+        agent.memory = RecurrentReplayBuffer(agent.args)
+        agent.plot_dict = {
+            'args': agent.args,
+            'arg_title': agent.args.arg_title,
+            'arg_name': agent.args.arg_name,
+            'all_processor_names': agent.all_processor_names,
+            'testing_combos': (
+                testing_combos_1 if agent.args.test_train_num == 1
+                else testing_combos_2 if agent.args.test_train_num == 2
+                else testing_combos_3
+            ),
+
+            'division_epochs': [],
+            'steps': [],
+            'behavior': {},
+            'composition_data': {},
+
+            'accuracy_loss': [],
+            'complexity_loss': [],
+            'vision_loss': [],
+            'touch_loss': [],
+            'prop_loss': [],
+            'command_voice_loss': [],
+            'feedback_voice_loss': [],
+
+            'actor_loss': [],
+            'critics_loss': [[] for _ in range(agent.args.critics)],
+
+            'alpha_loss': [],
+            'alpha_text_loss': [],
+
+            'reward': [],
+            'gen_reward': [],
+            'q': [],
+            'extrinsic': [],
+
+            'intrinsic_curiosity': [],
+            'intrinsic_entropy': [],
+
+            'vision_prediction_error_curiosity': [],
+            'touch_prediction_error_curiosity': [],
+            'prop_prediction_error_curiosity': [],
+            'command_voice_prediction_error_curiosity': [],
+            'feedback_voice_prediction_error_curiosity': [],
+            'prediction_error_curiosity': [],
+
+            'vision_hidden_state_curiosity': [],
+            'touch_hidden_state_curiosity': [],
+            'prop_hidden_state_curiosity': [],
+            'command_voice_hidden_state_curiosity': [],
+            'feedback_voice_hidden_state_curiosity': [],
+            'hidden_state_curiosity': [],
+
+            'wins_all': [],
+            'gen_wins_all': []
+        }
+
+        # Add keys per task
+        for t in task_map.values():
+            agent.plot_dict[f'wins_{t.name}'] = []
+            agent.plot_dict[f'gen_wins_{t.name}'] = []
+
+        agent.plot_dict['wins_exception'] = []
         agent.start_physics()
     else:
         if args.lstm:

@@ -21,9 +21,9 @@ from agent import Agent
 set_goal = None
 
 # Change these to the agent you would like to test
-hyper_parameters = 'e_q2_lstm'
+hyper_parameters = 'e_q2_lstm_watch_be_near_push_forward'
 agent_num = '0001'
-epochs = '070000'
+epochs = '060000'
 saved_file = 'saved_deigo'
 
 print('\n\nLoading default agent...', end = ' ')
@@ -150,7 +150,7 @@ agent.processors = {
         agent.args,
         agent.arena_1,
         agent.arena_2,
-        tasks_and_weights = [(3, 1)],     
+        tasks_and_weights = [(2, 1)],     
         objects = 2,
         colors = [0, 1, 2, 3, 4, 5],
         shapes = [0, 1, 2, 3, 4],

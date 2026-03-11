@@ -27,9 +27,9 @@ class Actor(nn.Module):
         self.wheels_joints_in = Wheels_Joints_IN(self.args)
 
         self.lin = nn.Sequential(
-            nn.Linear(self.args.pvrnn_mtrnn_size, args.hidden_size),
+            nn.Linear(self.args.pvrnn_mtrnn_size, self.args.hidden_size),
             nn.PReLU(),
-            nn.Linear(args.hidden_size, args.hidden_size),
+            nn.Linear(self.args.hidden_size, self.args.hidden_size),
             nn.PReLU()
         )
 

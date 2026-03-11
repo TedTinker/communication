@@ -31,21 +31,28 @@ class Actor(nn.Module):
         self.voice_in = Voice_IN(self.args)
         self.wheels_joints_in = Wheels_Joints_IN(self.args)
         
-        self.lstm = nn.LSTM(
-            input_size = self.args.vision_state_size + 
+        self.mtrnn = MTRNN(
+            self.args.vision_state_size + 
                         self.args.touch_state_size +
                         self.args.prop_state_size + 
                         self.args.voice_state_size * 3 + 
                         self.args.wheels_joints_encode_size,
             hidden_size = self.args.pvrnn_mtrnn_size,
-            num_layers = 1,
-            batch_first = True)
+            time_constant = 1,
+            args = self.args)
+        
+        self.lin = nn.Sequential(
+            nn.Linear(self.args.pvrnn_mtrnn_size, self.args.hidden_size),
+            nn.PReLU(),
+            nn.Linear(self.args.hidden_size, self.args.hidden_size),
+            nn.PReLU()
+        )
 
         self.voice_out = Voice_OUT(actor=True, args=self.args)
 
-        self.mu = nn.Linear(self.args.pvrnn_mtrnn_size, self.args.wheels_joints_shape)
+        self.mu = nn.Linear(self.args.hidden_size, self.args.wheels_joints_shape)
         self.std = nn.Sequential(
-            nn.Linear(self.args.pvrnn_mtrnn_size, self.args.wheels_joints_shape),
+            nn.Linear(self.args.hidden_size, self.args.wheels_joints_shape),
             nn.Softplus()
         )
 
@@ -71,20 +78,13 @@ class Actor(nn.Module):
         batch_size = obs_and_prev_action_encoded.size(0)
 
         if hidden_state is None:
-            h0 = torch.zeros(1, batch_size, self.args.pvrnn_mtrnn_size, device=self.args.device)
-            c0 = torch.zeros(1, batch_size, self.args.pvrnn_mtrnn_size, device=self.args.device)
-        else:
-            # hidden_state expected shape: (batch, hidden_size)
-            h0 = hidden_state[0]
-            c0 = hidden_state[1]
-            if h0.dim() == 2:
-                h0 = h0.unsqueeze(0)  # (1, batch, hidden)
-            if c0.dim() == 2:
-                c0 = c0.unsqueeze(0)  # (1, batch, hidden)
-
-        h, (hn, cn) = self.lstm(obs_and_prev_action_encoded, (h0, c0))
+            hidden_state = torch.zeros(batch_size, 1, self.args.pvrnn_mtrnn_size)
+            
+        new_hidden_state = self.mtrnn(obs_and_prev_action_encoded, hidden_state)
         
-        mu, std = var(h, self.mu, self.std, self.args)
+        x = self.lin(new_hidden_state)
+        
+        mu, std = var(x, self.mu, self.std, self.args)
         sampled = sample(mu, std, self.args.device)
         if self.args.half:
             sampled = sampled.half()
@@ -94,7 +94,7 @@ class Actor(nn.Module):
         log_prob = log_prob.mean(-1).unsqueeze(-1)
 
         encoded_wheels_joints = self.wheels_joints_in(wheels_joints)
-        concatenated = torch.cat([h, encoded_wheels_joints], dim=-1)
+        concatenated = torch.cat([new_hidden_state, encoded_wheels_joints], dim=-1)
         voice_out, voice_log_prob = self.voice_out(concatenated)
 
         if parenting:
@@ -104,7 +104,7 @@ class Actor(nn.Module):
                 voice_out = voice_out.half()
                 voice_log_prob = voice_log_prob.half()
                 
-        return Action(wheels_joints, voice_out), log_prob, voice_log_prob, (hn, cn)
+        return Action(wheels_joints, voice_out), log_prob, voice_log_prob, new_hidden_state
     
     
     
@@ -131,9 +131,7 @@ if __name__ == '__main__':
         wheels_joints = torch.zeros((episodes, steps, args.wheels_joints_shape)), 
         voice_out = torch.zeros((episodes, steps, args.max_voice_len, args.voice_shape)))
     
-    example_hidden_state = (
-        torch.zeros((1, episodes, args.pvrnn_mtrnn_size), device=args.device),
-        torch.zeros((1, episodes, args.pvrnn_mtrnn_size), device=args.device),)
+    example_hidden_state = torch.zeros((1, episodes, args.pvrnn_mtrnn_size), device=args.device)
     
     actor(example_obs, example_prev_action, example_hidden_state)
         
@@ -159,18 +157,20 @@ class Critic(nn.Module):
         self.voice_in = Voice_IN(self.args)
         self.wheels_joints_in = Wheels_Joints_IN(self.args)
         
-        self.lstm = nn.LSTM(
-            input_size = self.args.vision_state_size + 
+        self.mtrnn = MTRNN(
+            self.args.vision_state_size + 
                         self.args.touch_state_size +
                         self.args.prop_state_size + 
                         self.args.voice_state_size * 3 + 
                         self.args.wheels_joints_encode_size,
             hidden_size = self.args.pvrnn_mtrnn_size,
-            num_layers = 1,
-            batch_first = True)
+            time_constant = 1,
+            args = self.args)
 
         self.value = nn.Sequential(
             nn.Linear(self.args.pvrnn_mtrnn_size, self.args.hidden_size),
+            nn.PReLU(),
+            nn.Linear(self.args.hidden_size, self.args.hidden_size),
             nn.PReLU(),
             nn.Linear(self.args.hidden_size, 1)
         )
@@ -196,21 +196,12 @@ class Critic(nn.Module):
             self.voice_in(action.voice_out)], dim = -1)
         
         if hidden_state is None:
-            h0 = torch.zeros(1, batch_size, self.args.pvrnn_mtrnn_size, device=self.args.device)
-            c0 = torch.zeros(1, batch_size, self.args.pvrnn_mtrnn_size, device=self.args.device)
-        else:
-            # hidden_state expected shape: (batch, hidden_size)
-            h0 = hidden_state[0]
-            c0 = hidden_state[1]
-            if h0.dim() == 2:
-                h0 = h0.unsqueeze(0)  # (1, batch, hidden)
-            if c0.dim() == 2:
-                c0 = c0.unsqueeze(0)  # (1, batch, hidden)
+            hidden_state = torch.zeros(batch_size, 1, self.args.pvrnn_mtrnn_size)
 
-        h, (hn, cn) = self.lstm(obs_and_prev_action_encoded, (h0, c0))
-        value = self.value(h)
+        new_hidden_state = self.mtrnn(obs_and_prev_action_encoded, hidden_state)
+        value = self.value(new_hidden_state)
 
-        return value, (hn, cn)
+        return value, new_hidden_state
 
 
 
@@ -239,9 +230,7 @@ if __name__ == "__main__":
         wheels_joints = torch.zeros((episodes, steps, args.wheels_joints_shape)), 
         voice_out = torch.zeros((episodes, steps, args.max_voice_len, args.voice_shape)))
     
-    example_hidden_state = (
-        torch.zeros((1, episodes, args.pvrnn_mtrnn_size), device=args.device),
-        torch.zeros((1, episodes, args.pvrnn_mtrnn_size), device=args.device),)
+    example_hidden_state = torch.zeros((1, episodes, args.pvrnn_mtrnn_size), device=args.device)
     
     critic(example_obs, example_action, example_hidden_state)
 

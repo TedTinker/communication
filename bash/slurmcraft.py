@@ -156,7 +156,7 @@ add_this('t1',   {
     'yellow' : False,
     'cone' : False,
     'hourglass' : False,
-    'test_train_num' : 2
+    'test_train_num' : 1
 }) 
 
 add_this('t2',   { 
@@ -166,7 +166,49 @@ add_this('t2',   {
     'yellow' : False,
     'cone' : False,
     'hourglass' : False,
-    'test_train_num' : 1
+    'test_train_num' : 2
+})
+
+add_this('only_watch',   { 
+    'be_near' : False,
+    'touch_top' : False,
+    'push_forward' : False,
+    'push_left' : False,
+    'push_right' : False,
+    'test_train_num' : 4
+})
+
+add_this('only_be_near',   { 
+    'watch' : False,
+    'touch_top' : False,
+    'push_forward' : False,
+    'push_left' : False,
+    'push_right' : False,
+    'test_train_num' : 5
+})
+
+add_this('watch_and_be_near',   { 
+    'touch_top' : False,
+    'push_forward' : False,
+    'push_left' : False,
+    'push_right' : False,
+    'test_train_num' : 6
+})
+
+add_this('only_push_forward',   { 
+    'watch' : False,
+    'be_near' : False,
+    'touch_top' : False,
+    'push_left' : False,
+    'push_right' : False,
+    'test_train_num' : 7
+})
+
+add_this('watch_be_near_push_forward',   { 
+    'touch_top' : False,
+    'push_left' : False,
+    'push_right' : False,
+    'test_train_num' : 8
 })
 
 add_this('long', {

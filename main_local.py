@@ -18,7 +18,7 @@ def run():
     """
     This is helpful for testing new arguments.
     """
-    agent = Agent_lstm(
+    agent = Agent(
         args=args,
         i=1,
         GUI=True)
