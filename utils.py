@@ -1548,12 +1548,12 @@ def opposite_relative_to(this, min, max):
 
 
     
-def calculate_dkl(mu_1, std_1, mu_2, std_2):
+def calculate_dkl(p_mu, p_std, q_mu, q_std):
     """Calculate Kullback-Leibler divergence between two Gaussians."""
-    std_1 = std_1 ** 2
-    std_2 = std_2 ** 2
-    term_1 = (mu_2 - mu_1) ** 2 / std_2
-    term_2 = std_1 / std_2
+    p_std = p_std ** 2
+    q_std = q_std ** 2
+    term_1 = (q_mu - p_mu) ** 2 / q_std
+    term_2 = p_std / q_std
     term_3 = torch.log(term_2)
     out = 0.5 * (term_1 + term_2 - term_3 - 1)
     out = torch.nan_to_num(out)
