@@ -8,7 +8,6 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
-import torchgan.layers as gg
 
 from utils import print
 from utils_submodule import model_start, model_end, init_weights, pad_zeros, var, sample

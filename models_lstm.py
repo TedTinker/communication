@@ -28,8 +28,10 @@ class Actor(nn.Module):
         self.vision_in = Vision_IN(self.args)
         self.touch_in = Touch_IN(self.args)
         self.prop_in = Prop_IN(self.args)
-        self.voice_in = Voice_IN(self.args)
+        self.command_voice_in = Voice_IN(self.args)
+        self.feedback_voice_in = Voice_IN(self.args)
         self.wheels_joints_in = Wheels_Joints_IN(self.args)
+        self.prev_voice_in = Voice_IN(self.args)
         
         self.mtrnn = MTRNN(
             self.args.vision_state_size + 
@@ -70,10 +72,10 @@ class Actor(nn.Module):
             self.vision_in(obs.vision), 
             self.touch_in(obs.touch), 
             self.prop_in(obs.prop),
-            self.voice_in(obs.command_voice),
-            self.voice_in(obs.feedback_voice),
+            self.command_voice_in(obs.command_voice),
+            self.feedback_voice_in(obs.feedback_voice),
             self.wheels_joints_in(prev_action.wheels_joints),
-            self.voice_in(prev_action.voice_out)], dim = -1)
+            self.prev_voice_in(prev_action.voice_out)], dim = -1)
                 
         batch_size = obs_and_prev_action_encoded.size(0)
 
@@ -154,8 +156,10 @@ class Critic(nn.Module):
         self.vision_in = Vision_IN(self.args)
         self.touch_in = Touch_IN(self.args)
         self.prop_in = Prop_IN(self.args)
-        self.voice_in = Voice_IN(self.args)
+        self.command_voice_in = Voice_IN(self.args)
+        self.feedback_voice_in = Voice_IN(self.args)
         self.wheels_joints_in = Wheels_Joints_IN(self.args)
+        self.prev_voice_in = Voice_IN(self.args)
         
         self.mtrnn = MTRNN(
             self.args.vision_state_size + 
@@ -190,10 +194,10 @@ class Critic(nn.Module):
             self.vision_in(obs.vision), 
             self.touch_in(obs.touch), 
             self.prop_in(obs.prop),
-            self.voice_in(obs.command_voice),
-            self.voice_in(obs.feedback_voice),
+            self.command_voice_in(obs.command_voice),
+            self.feedback_voice_in(obs.feedback_voice),
             self.wheels_joints_in(action.wheels_joints),
-            self.voice_in(action.voice_out)], dim = -1)
+            self.prev_voice_in(action.voice_out)], dim = -1)
         
         if hidden_state is None:
             hidden_state = torch.zeros(batch_size, 1, self.args.pvrnn_mtrnn_size)

@@ -55,10 +55,45 @@ class ZP_ZQ(nn.Module):
         
         zq_mu, zq_std = var(zq_inputs, self.zq_mu, self.zq_std, self.args)
         zq = sample(zq_mu, zq_std, self.args.device)
-        
         dkl = calculate_dkl(zp_mu, zp_std, zq_mu, zq_std)
         
+        if self.args.use_means:
+            zq = zq_mu
+        
         return Inner_States(zp, zq, dkl)
+
+
+# This model is for ignoring complexity in the constant command_voice.
+class Fake_ZP_ZQ(nn.Module):
+    
+    def __init__(self, zp_in_features, zq_in_features, out_features, args):
+        super(Fake_ZP_ZQ, self).__init__()
+        '''
+        A module for computing prior (zp) and posterior (zq) latent states.
+        '''
+        self.args = args
+        
+        self.zq = nn.Sequential(
+            nn.Linear(in_features = zq_in_features, out_features = zq_in_features),
+            nn.PReLU(),
+            nn.Linear(in_features = zq_in_features, out_features = out_features),
+            nn.Tanh())
+        
+        self.apply(init_weights)
+        self.to(self.args.device)
+        if self.args.half:
+            self = self.half()
+    
+    def forward(self, zp_inputs, zq_inputs):
+        '''
+        Forward pass for both prior and posterior latent state estimation.
+        '''
+        if self.args.half:
+            zq_inputs = zq_inputs.to(dtype = torch.float16)
+        
+        zq_mu = self.zq(zq_inputs)
+                
+        return Inner_States(zq_mu, zq_mu, zq_mu)
 
 
 class PVRNN_LAYER(nn.Module):
@@ -85,10 +120,16 @@ class PVRNN_LAYER(nn.Module):
             zq_in_features = self.args.h_w_action_size + self.args.prop_encode_size,
             out_features = self.args.prop_state_size, args = self.args)
         
-        self.command_voice_z = ZP_ZQ(
-            zp_in_features = self.args.h_w_action_size,
-            zq_in_features = self.args.h_w_action_size + self.args.voice_encode_size,
-            out_features = self.args.voice_state_size, args = self.args)
+        if self.args.pb_vector:
+            self.command_voice_z = Fake_ZP_ZQ(
+                zp_in_features = None,
+                zq_in_features = self.args.voice_encode_size,
+                out_features = self.args.command_pb_size, args = self.args) # Command voice ignores hidden state and action.
+        else:
+            self.command_voice_z = ZP_ZQ(
+                zp_in_features = self.args.h_w_action_size,
+                zq_in_features = self.args.h_w_action_size + self.args.voice_encode_size,
+                out_features = self.args.voice_state_size, args = self.args)
         
         self.feedback_voice_z = ZP_ZQ(
             zp_in_features = self.args.h_w_action_size,
@@ -97,7 +138,7 @@ class PVRNN_LAYER(nn.Module):
         
         self.mtrnn = MTRNN(
             input_size = self.args.vision_state_size + self.args.touch_state_size +
-                         self.args.prop_state_size + self.args.voice_state_size * 2,
+                         self.args.prop_state_size + (self.args.voice_state_size + self.args.command_pb_size if self.args.pb_vector else self.args.voice_state_size * 2),
             hidden_size = self.args.pvrnn_mtrnn_size,
             time_constant = time_scale,
             args = self.args)
@@ -114,7 +155,8 @@ class PVRNN_LAYER(nn.Module):
         '''
         def reshape_and_to_dtype(x, episodes, steps, dtype = None):
             x = x.reshape(episodes * steps, x.shape[2])
-            if dtype: x = x.to(dtype = dtype)
+            if dtype: 
+                x = x.to(dtype = dtype)
             return x
         
         def process_z_func(zp_in, zq_in, func, episodes, steps, dtype = None):
@@ -130,16 +172,19 @@ class PVRNN_LAYER(nn.Module):
         zq_inputs = [
             torch.cat([zp_inputs, input_], dim = -1)
             for input_ in [obs.vision, obs.touch, obs.prop, obs.command_voice, obs.feedback_voice]
-        ]
-        
+        ]        
         episodes, steps = episodes_steps(zp_inputs)
         dtype = torch.float16 if self.args.half else None
         
-        vision_is         = process_z_func(zp_inputs, zq_inputs[0], self.vision_z,         episodes, steps, dtype)
-        touch_is          = process_z_func(zp_inputs, zq_inputs[1], self.touch_z,          episodes, steps, dtype)
-        prop_is           = process_z_func(zp_inputs, zq_inputs[2], self.prop_z,           episodes, steps, dtype)
-        command_voice_is  = process_z_func(zp_inputs, zq_inputs[3], self.command_voice_z,  episodes, steps, dtype)
-        feedback_voice_is = process_z_func(zp_inputs, zq_inputs[4], self.feedback_voice_z, episodes, steps, dtype)
+        vision_is         = process_z_func(zp_inputs, zq_inputs[0],         self.vision_z,         episodes, steps, dtype)
+        touch_is          = process_z_func(zp_inputs, zq_inputs[1],         self.touch_z,          episodes, steps, dtype)
+        prop_is           = process_z_func(zp_inputs, zq_inputs[2],         self.prop_z,           episodes, steps, dtype)
+        if self.args.pb_vector:
+            command_voice_input = reshape_and_to_dtype(obs.command_voice, episodes, steps, dtype)
+            command_voice_is  = self.command_voice_z(zp_inputs = None, zq_inputs = command_voice_input) # Ignore hidden state and action.
+        else:
+            command_voice_is = process_z_func(zp_inputs, zq_inputs[3],      self.command_voice_z, episodes, steps, dtype)
+        feedback_voice_is = process_z_func(zp_inputs, zq_inputs[4],         self.feedback_voice_z, episodes, steps, dtype)
         
         mtrnn_inputs_p = torch.cat([vision_is.zp, touch_is.zp, prop_is.zp, command_voice_is.zp, feedback_voice_is.zp], dim = -1)
         mtrnn_inputs_q = torch.cat([vision_is.zq, touch_is.zq, prop_is.zq, command_voice_is.zq, feedback_voice_is.zq], dim = -1)
@@ -200,7 +245,12 @@ class PVRNN(nn.Module):
         self.vision_in = Vision_IN(self.args)
         self.touch_in = Touch_IN(self.args)
         self.prop_in = Prop_IN(self.args)
-        self.voice_in = Voice_IN(self.args)
+        if self.args.pb_vector:
+            self.feedback_voice_in = Voice_IN(self.args)
+            self.command_voice_in = Voice_IN(self.args)
+            self.action_voice_in = Voice_IN(self.args)
+        else:
+            self.voice_in = Voice_IN(self.args)
         self.wheels_joints_in = Wheels_Joints_IN(self.args)
 
         self.pvrnn_layer = PVRNN_LAYER(args = self.args, time_scale = 1)
@@ -218,13 +268,16 @@ class PVRNN(nn.Module):
         '''
         Encode observations into latent/embedded form.
         '''
-        encoded_command, a, b = self.voice_in(obs.command_voice, return_a_b = True)
+        if self.args.pb_vector:
+            encoded_command, a, b = self.command_voice_in(obs.command_voice, return_a_b = True)
+        else:
+            encoded_command, a, b = self.voice_in(obs.command_voice, return_a_b = True)
         return(Obs(
             self.vision_in(obs.vision),
             self.touch_in(obs.touch),
             self.prop_in(obs.prop),
             encoded_command,
-            self.voice_in(obs.feedback_voice)),
+            self.feedback_voice_in(obs.feedback_voice) if self.args.pb_vector else self.voice_in(obs.feedback_voice)),
             a, b, encoded_command)
     
     
@@ -234,7 +287,7 @@ class PVRNN(nn.Module):
         '''
         return Action(
             self.wheels_joints_in(action.wheels_joints),
-            self.voice_in(action.voice_out)
+            self.action_voice_in(action.voice_out) if self.args.pb_vector else self.voice_in(action.voice_out)
         )
     
     

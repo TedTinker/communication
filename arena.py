@@ -18,7 +18,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pybullet as p
 from skimage.transform import resize
-import pkg_resources
 
 # Local modules
 from utils import (
@@ -968,7 +967,10 @@ class Arena:
             shadow=0,
             physicsClientId=self.physicsClient
         )
-        return rgba
+        if not isinstance(rgba, np.ndarray):
+            rgba = np.array(rgba).reshape(32, 32, 4)
+        rgb = rgba[:, :, :-1] / 255
+        return rgb
 
     def photo_from_above(self):
         """
@@ -1000,7 +1002,7 @@ class Arena:
             nearVal=near,
             farVal=25
         )
-        _, _, rgba, depth, _ = p.getCameraImage(
+        _, _, rgba, _, _ = p.getCameraImage(
             width=256,
             height=256,
             projectionMatrix=proj_matrix,
@@ -1008,7 +1010,10 @@ class Arena:
             shadow=0,
             physicsClientId=self.physicsClient
         )
-        return rgba
+        if not isinstance(rgba, np.ndarray):
+            rgba = np.array(rgba).reshape(256, 256, 4)
+        rgb = rgba[:, :, :-1] / 255
+        return rgb
 
     def photo_for_agent(self):
         """

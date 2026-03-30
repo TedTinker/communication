@@ -176,10 +176,6 @@ if __name__ == '__main__':
     for key, value in shape_map.items():
         print(f'\t{key} :\t{value}')
 
-        
-        
-        
-#%%
 
 
         
@@ -442,14 +438,13 @@ def get_training_combos(pattern_lookup):
 # 16 for training, 32 for testing
 training_combos_1 = [
     # SILENCE 
-    (0, 0, 0), (0, 0, 1), (0, 0, 2), 
-    (0, 1, 0), (0, 1, 1), (0, 1, 2),
-    (0, 2, 0), (0, 2, 1), (0, 2, 2), 
-    (0, 3, 0), (0, 3, 1), (0, 3, 2),
+    (0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 1, 0), 
+    (0, 1, 1), (0, 1, 2), (0, 2, 0), (0, 2, 1), 
+    (0, 2, 2), (0, 3, 0), (0, 3, 1), (0, 3, 2), 
     # Sparse task combos
     (1, 2, 0), (1, 3, 0), (1, 0, 1), (1, 1, 2),
-    (4, 0, 0), (4, 1, 1), (4, 3, 1), (4, 2, 2),
-    (5, 1, 0), (5, 2, 1), (5, 0, 2), (5, 3, 2),
+    (4, 0, 0), (4, 1, 1), (4, 3, 1), (4, 2, 2), 
+    (5, 1, 0), (5, 2, 1), (5, 0, 2), (5, 3, 2), 
     (6, 1, 0), (6, 2, 0), (6, 3, 1), (6, 0, 2)
 ]
 testing_combos_1 = [combo for combo in all_combos if combo not in training_combos_1]
@@ -568,34 +563,6 @@ exceptions_dict = {
     1 : (
         [(1, 4, 0), (2, 1, 1)],     # Swap Watch Magenta Pillar with Be Near Green Pole
         [(2, 1, 1), (1, 4, 0)]),
-
-    3 : (
-        [(1, 5, 1), (2, 2, 2)],     # Swap Watch Yellow Pole with Be Near Blue Dumbbell
-        [(2, 2, 2), (1, 5, 1)]),
-
-    5 : (
-        [(1, 4, 0), (2, 1, 1), (1, 3, 4), (2, 2, 2)],     # Both of Those
-        [(2, 1, 1), (1, 4, 0), (2, 2, 2), (1, 3, 4)]),
-
-    7 : (
-        [(3, 1, 1), (4, 3, 2)],     # Swap Touch the Top Green Pole with Push Forawrd Cyan Dumbbell
-        [(4, 3, 2), (3, 1, 1)]),
-
-    9 : (
-        [(1, 4, 0), (2, 1, 1), (3, 5, 4), (4, 3, 2)],       # Swap Watch Magenta Pillar with Be Near Green Pole
-        [(2, 1, 1), (1, 4, 0), (4, 3, 2), (3, 5, 4)]),      # Swap Touch the Top Green Pole with Push Forawrd Cyan Dumbbell
-
-    11 : (
-        [(1, 4, 0), (4, 3, 2)],     # Swap Watch Magenta Pillar with Push Forward Cyan Dumbbell
-        [(4, 3, 2), (1, 4, 0)]),    
-
-    13 : (
-        [(3, 1, 1), (2, 2, 2)],     # Swap Be Near Blue Dumbbell with Touch the Top Green Pole
-        [(2, 2, 2), (3, 1, 1)]),    
-
-    15 : (
-        [(1, 4, 0), (4, 5, 4), (3, 1, 1), (2, 2, 2)],     # Both of Those
-        [(4, 5, 4), (1, 4, 0), (2, 2, 2), (3, 1, 1)]),
 }
 
 
@@ -702,14 +669,14 @@ if __name__ == '__main__':
         plt.show()
         plt.close()
     
-    #plot_combined_training_grid(training_combos_1, title='Training Set 1 – 4 tasks', exception_num = 0)
-    #plot_combined_training_grid(training_combos_2, title='Training Set 2 – 5 tasks', exception_num = 0)
-    #plot_combined_training_grid(training_combos_3, title='Training Set 3 – All Tasks', exception_num = 0)
+    plot_combined_training_grid(training_combos_1, title='Training Set 1 – 4 tasks', exception_num = 0)
+    plot_combined_training_grid(training_combos_2, title='Training Set 2 – 5 tasks', exception_num = 0)
+    plot_combined_training_grid(training_combos_3, title='Training Set 3 – All Tasks', exception_num = 0)
     #plot_combined_training_grid(training_combos_4, title='Training Set 4 – Only watch', exception_num = 0)
     #plot_combined_training_grid(training_combos_5, title='Training Set 5 – Only watch', exception_num = 0)
-    plot_combined_training_grid(training_combos_6, title='Training Set 6 – Only watch and be near', exception_num = 0)
-    plot_combined_training_grid(training_combos_7, title='Training Set 7 – Only push forward', exception_num = 0)
-    plot_combined_training_grid(training_combos_8, title='Training Set 8 – Watch, Be Near, Push Forward', exception_num = 0)
+    #plot_combined_training_grid(training_combos_6, title='Training Set 6 – Only watch and be near', exception_num = 0)
+    #plot_combined_training_grid(training_combos_7, title='Training Set 7 – Only push forward', exception_num = 0)
+    #plot_combined_training_grid(training_combos_8, title='Training Set 8 – Watch, Be Near, Push Forward', exception_num = 0)
 
     
     #for key in exceptions_dict.keys():
@@ -847,7 +814,7 @@ parser.add_argument('--agents',                         type=int,           defa
                     help='How many agents are trained in this job?')
 parser.add_argument('--previous_agents',                type=int,           default = 0,
                     help='How many agents with this argument-set are trained in previous jobs?')
-parser.add_argument('--init_seed',                      type=float,         default = 777,
+parser.add_argument('--init_seed',                      type=float,         default = 777,    # Not provided to the public.
                     help='Random seed.')
 parser.add_argument('--comp',                           type=str,           default = 'deigo',
                     help='Cluster name (deigo or saion).')
@@ -1119,7 +1086,7 @@ parser.add_argument('--dkl_max',                        type=float,         defa
     # Vision
 parser.add_argument('--vision_scaler',                  type=float,         default = 5, 
                     help='How much to consider vision prediction in accuracy compared to voice and touch.')   
-parser.add_argument('--beta_vision',                    type=float,         default = .03,
+parser.add_argument('--beta_vision',                    type=float,         default = .03, #.3,
                     help='Relative importance of complexity for vision.')
 parser.add_argument('--prediction_error_eta_vision',    type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for vision.')    
@@ -1131,7 +1098,7 @@ parser.add_argument('--hidden_state_eta_vision',        type=float,         defa
     # Touch
 parser.add_argument('--touch_scaler',                   type=float,         default = .3, 
                     help='How much to consider touch prediction in accuracy compared to vision and voice.')   
-parser.add_argument('--beta_touch',                     type=float,         default = .3,
+parser.add_argument('--beta_touch',                     type=float,         default = .1, #.1,
                     help='Relative importance of complexity for touch.')     
 parser.add_argument('--prediction_error_eta_touch',     type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for touch.')   
@@ -1143,7 +1110,7 @@ parser.add_argument('--hidden_state_eta_touch',         type=float,         defa
     # Proprioception
 parser.add_argument('--prop_scaler',                    type=float,         default = .01, 
                     help='How much to consider proprioception prediction in accuracy compared to vision and voice.')   
-parser.add_argument('--beta_prop',                      type=float,         default = .3,
+parser.add_argument('--beta_prop',                      type=float,         default = 1, #.3,
                     help='Relative importance of complexity for proprioception.')     
 parser.add_argument('--prediction_error_eta_prop',      type=float,         default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for proprioception.')   
@@ -1153,10 +1120,10 @@ parser.add_argument('--hidden_state_eta_prop',          type=float,         defa
 
 
     # Command Voice
-parser.add_argument('--command_voice_scaler',            type=float,         default = 3,
-                    help='How much to consider command voice prediction in accuracy compared to vision and touch.') 
-parser.add_argument('--beta_command_voice',              type=float,         default = .1,
-                    help='Relative importance of complexity for voice.')
+parser.add_argument('--voice_scaler',                   type=float,         default = 3,
+                    help='How much to consider voice prediction in accuracy compared to vision and touch.') 
+parser.add_argument('--beta_voice',                     type=float,         default = .03,
+                    help='Relative importance of complexity for both voices.')
 parser.add_argument('--prediction_error_eta_command_voice', type=float,      default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')    
 parser.add_argument('--hidden_state_eta_command_voice',  type=float,         default = 0,
@@ -1164,11 +1131,7 @@ parser.add_argument('--hidden_state_eta_command_voice',  type=float,         def
 
 
 
-    # Feedback Voice
-parser.add_argument('--feedback_voice_scaler',            type=float,         default = 3, 
-                    help='How much to consider feedback voice prediction in accuracy compared to vision and touch.')     
-parser.add_argument('--beta_feedback_voice',              type=float,         default = .1,
-                    help='Relative importance of complexity for voice.')
+    # Feedback Voice  
 parser.add_argument('--prediction_error_eta_feedback_voice', type=float,      default = 0,
                     help='Nonnegative value, how much to consider prediction_error curiosity for voice.')     
 parser.add_argument('--hidden_state_eta_feedback_voice',  type=float,         default = 0,
@@ -1201,13 +1164,24 @@ parser.add_argument('--episodes_per_behavior_analysis', type=int,           defa
 parser.add_argument('--agents_per_behavior_analysis',   type=int,           default = 1,
                     help='How many agents to save episodes.')
 
-parser.add_argument('--save_compositions',              type=literal,       default = True,
+parser.add_argument('--save_compositions',              type=literal,       default = False,
                     help='How many agents to save episodes.')
 parser.add_argument('--epochs_per_composition_data',    type=int,           default = 2500,
                     help='How many epochs should pass before saving an episode.')
 parser.add_argument('--agents_per_composition_data',    type=int,           default = 2,
                     help='How many agents to save episodes.')
 
+
+
+    # Currently testing
+parser.add_argument('--use_means',              type=literal,       default = False,
+                    help='True if using zq_mu instead of sample.')
+parser.add_argument('--pb_vector',              type=literal,       default = False,
+                    help='True if separating command-voice.')
+parser.add_argument('--command_pb_size',        type=int,           default = 256,
+                    help='Size of command\'s PB vector.')
+parser.add_argument('--command_voice_lr_scale', type=float,         default = 1,
+                    help='How much slower is the learning rate for the PB vector?')
 
 
 # Make arguments.
@@ -1308,7 +1282,7 @@ for arg_set in [default_args, args]:
         
 # Don't include these parameters in title.
 args_not_in_title = [
-    'arg_title', 'id', 'agents', 'previous_agents', 'init_seed', 'keep_data', 'epochs_per_pred_list', 
+    'arg_title', 'id', 'agents', 'previous_agents', 'keep_data', 'epochs_per_pred_list', 
     'episodes_in_pred_list', 'agents_per_pred_list', 'epochs_per_pos_list', 'episodes_in_pos_list', 'agents_per_pos_list',
     'watch', 'be_near', 'touch_top', 'push_forward', 'push_left', 'push_right',
     'red', 'green', 'blue', 'cyan', 'magenta', 'yellow', 
@@ -1550,12 +1524,12 @@ def opposite_relative_to(this, min, max):
     
 def calculate_dkl(p_mu, p_std, q_mu, q_std):
     """Calculate Kullback-Leibler divergence between two Gaussians.
-    DKL(P||Q) = .5 * ( (q_mu - p_mu)**2 / q_std**2 + p_std**2 / q_std**2 - log(p_std**2 / q_std**2) - 1 )
+    DKL(Q||P) = .5 * ( (p_mu - q_mu)**2 / p_std**2 + q_std**2 / p_std**2 - log(q_std**2 / p_std**2) - 1 )
     """
     p_std = p_std ** 2
     q_std = q_std ** 2
-    term_1 = (q_mu - p_mu) ** 2 / q_std
-    term_2 = p_std / q_std
+    term_1 = (p_mu - q_mu) ** 2 / p_std
+    term_2 = q_std / p_std
     term_3 = torch.log(term_2)
     out = 0.5 * (term_1 + term_2 - term_3 - 1)
     out = torch.nan_to_num(out)

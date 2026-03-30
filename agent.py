@@ -215,11 +215,30 @@ class Agent:
 
         # Forward model
         self.forward = PVRNN(self.args)
-        self.forward_opt = optim.Adam(
-            self.forward.parameters(),
-            lr=self.args.lr,
-            weight_decay=self.args.weight_decay
-        )
+        if self.args.pb_vector:
+            self.forward_opt = optim.Adam(
+                [
+                    {
+                        'params': list(self.forward.pvrnn_layer.command_voice_z.parameters()) +
+                                  list(self.forward.command_voice_in.parameters()),
+                        'lr': self.args.lr * self.args.command_voice_lr_scale
+                    },
+                    {
+                        'params': [
+                            p for name, p in self.forward.named_parameters()
+                            if not name.startswith('pvrnn_layer.command_voice_z')
+                            and not name.startswith('command_voice_in')
+                        ],
+                        'lr': self.args.lr
+                    }
+                ],
+                weight_decay=self.args.weight_decay
+            )
+        else:
+            self.forward_opt = optim.Adam(
+                self.forward.parameters(),
+                lr=self.args.lr,
+                weight_decay=self.args.weight_decay)
 
         # Actor
         self.actor = Actor(self.args)
@@ -261,7 +280,7 @@ class Agent:
         # ----------------------------------------
         # Plotting dictionary
         # ----------------------------------------
-        self.plot_dict = {
+        self.empty_plot_dict = {
             'args': self.args,
             'arg_title': self.args.arg_title,
             'arg_name': self.args.arg_name,
@@ -288,6 +307,7 @@ class Agent:
             'actor_loss': [],
             'critics_loss': [[] for _ in range(self.args.critics)],
 
+            'alpha': [],
             'alpha_loss': [],
             'alpha_text_loss': [],
 
@@ -319,10 +339,12 @@ class Agent:
 
         # Add keys per task
         for t in task_map.values():
-            self.plot_dict[f'wins_{t.name}'] = []
-            self.plot_dict[f'gen_wins_{t.name}'] = []
+            self.empty_plot_dict[f'wins_{t.name}'] = []
+            self.empty_plot_dict[f'gen_wins_{t.name}'] = []
 
-        self.plot_dict['wins_exception'] = []
+        self.empty_plot_dict['wins_exception'] = []
+
+        self.plot_dict = deepcopy(self.empty_plot_dict)
 
 
 
@@ -356,7 +378,8 @@ class Agent:
         if self.args.save_agents:
             if (
                 (self.agent_num <= self.args.agents_per_agent_save and self.epochs % self.args.epochs_per_agent_save == 0) or
-                (self.agent_num <= self.args.agents_per_agent_save and force)
+                (self.agent_num <= self.args.agents_per_agent_save and force) and
+                self.epochs != 0
             ):
                 self.save_agent()
 
@@ -379,8 +402,10 @@ class Agent:
             self.training_episode(sleep_time=sleep_time)
 
             # Early check via GUI ping
-            if self.check_ping():
+            if self.check_save_dict_ping():
                 self.save_dicts()
+            if self.check_save_agent_ping():
+                self.save_agent()
 
             percent_done = str(self.epochs / self.args.epochs)
             if q is not None:
@@ -399,12 +424,23 @@ class Agent:
         
         
 
-    def check_ping(self):
+    def check_save_dict_ping(self):
         """
         Check for an alert file and remove it.
         Used for GUI-based early analysis triggers.
         """
-        file_path = os.path.join(folder, self.agent_name)
+        file_path = os.path.join(folder, f'save_{self.agent_name}_plot_dict')
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+            return True
+        return False
+    
+    def check_save_agent_ping(self):
+        """
+        Check for an alert file and remove it.
+        Used for GUI-based early analysis triggers.
+        """
+        file_path = os.path.join(folder, f'save_{self.agent_name}_agent')
         if os.path.isfile(file_path):
             os.remove(file_path)
             return True
@@ -800,12 +836,13 @@ class Agent:
             parenting = self.processor.parenting
 
             # Initialize episode dictionary
+            # THIS NEEDS TO INCLUDE H AND Z_L
             common_keys = [
                 'obs', 'action', 'dream_obs',
                 'birds_eye', 'reward', 'critic_predictions',
-                'prior_predictions', 'posterior_predictions',
-                'vision_dkl', 'touch_dkl', 'prop_dkl',
-                'command_voice_dkl', 'feedback_voice_dkl'
+                'prior_predictions', 'posterior_predictions', 'hq',
+                'vision_is', 'touch_is', 'prop_is',
+                'command_voice_is', 'feedback_voice_is'
             ]
             episode_dict = {f'{key}_{agent_id}': [] for agent_id in [0, 1] for key in common_keys}
             episode_dict['reward'] = []
@@ -838,7 +875,7 @@ class Agent:
                     obs.feedback_voice = get_goal_from_one_hots(obs.feedback_voice)
 
                 episode_dict[f'obs_{agent_num}'].append(obs)
-                episode_dict[f'birds_eye_{agent_num}'].append(birds_eye[:, :, 0:3])
+                episode_dict[f'birds_eye_{agent_num}'].append(birds_eye)
 
             # Generate model predictions
             def next_prediction(hp, hq, obs, wheels_joints, agent_1=True):
@@ -917,19 +954,20 @@ class Agent:
 
                 episode_dict['reward'].append(str(round(reward, 3)))
 
-                def update_episode_dict(index, prev_action, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is, values, reward):
+                def update_episode_dict(index, prev_action, hq, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is, values, reward):
                     episode_dict[f'action_{index}'].append(prev_action)
-                    episode_dict[f'vision_dkl_{index}'].append(vision_is.dkl.sum().item())
-                    episode_dict[f'touch_dkl_{index}'].append(touch_is.dkl.sum().item())
-                    episode_dict[f'prop_dkl_{index}'].append(prop_is.dkl.sum().item())
-                    episode_dict[f'command_voice_dkl_{index}'].append(command_voice_is.dkl.sum().item())
-                    episode_dict[f'feedback_voice_dkl_{index}'].append(feedback_voice_is.dkl.sum().item())
+                    episode_dict[f'hq_{index}'].append(hq)
+                    episode_dict[f'vision_is_{index}'].append(vision_is)
+                    episode_dict[f'touch_is_{index}'].append(touch_is)
+                    episode_dict[f'prop_is_{index}'].append(prop_is)
+                    episode_dict[f'command_voice_is_{index}'].append(command_voice_is)
+                    episode_dict[f'feedback_voice_is_{index}'].append(feedback_voice_is)
                     episode_dict[f'critic_predictions_{index}'].append(values)
                     episode_dict[f'reward_{index}'].append(str(round(reward, 3)))
 
-                update_episode_dict(1, prev_action_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, values_1, reward)
+                update_episode_dict(1, prev_action_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, values_1, reward)
                 if not parenting:
-                    update_episode_dict(2, prev_action_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, values_2, reward)
+                    update_episode_dict(2, prev_action_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, values_2, reward)
 
                 if done:
                     real_obs_1 = self.get_agent_obs()
@@ -946,7 +984,7 @@ class Agent:
                     
                     
 
-    def get_composition_data(self, sleep_time=None):
+    def get_composition_data(self, episodes_per_goal = 1, sleep_time=None):
         """
         Collect agent interpretations of all possible goals for composition analysis.
         """
@@ -955,103 +993,110 @@ class Agent:
 
         print(f'Agent {self.agent_num} saving composition_data.')
 
-        adjusted_args = deepcopy(self.args)
-        adjusted_args.capacity = len(self.all_processors)
+        with torch.no_grad():
+            adjusted_args = deepcopy(self.args)
+            adjusted_args.capacity = len(self.all_processors) * episodes_per_goal
 
-        # Temporary memory buffer
-        temp_memory = RecurrentReplayBuffer(adjusted_args)
-        processor_lens = []
+            # Temporary memory buffer
+            temp_memory = RecurrentReplayBuffer(adjusted_args)
+            processor_lens = []
 
-        for processor_name in self.all_processor_names:
-            print(processor_name, end=', ')
+            for processor_name in self.all_processor_names:
 
-            self.processor = self.all_processors[processor_name]
-            total_steps = 0
+                self.processor = self.all_processors[processor_name]
+                
+                for i in range(episodes_per_goal):
+                    print(f'{processor_name} {i}')
+                    total_steps = 0
 
-            # Collect transitions for each processor
-            while total_steps < 30:
-                self.processor.begin(test=None)
+                    # Collect transitions for each processor
+                    while total_steps < 30:
+                        self.processor.begin(test=None)
 
-                done, complete_reward, steps, \
-                    (to_push_list_1, prev_action_1, hq_1), \
-                    (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
+                        done, complete_reward, steps, \
+                            (to_push_list_1, prev_action_1, hq_1), \
+                            (to_push_list_2, prev_action_2, hq_2) = self.start_episode()
 
-                for step in range(self.args.max_steps):
-                    if not done:
-                        obs_1 = self.get_agent_obs()
-                        obs_2 = self.get_agent_obs(agent_1=False)
+                        for step in range(self.args.max_steps):
+                            if not done:
+                                obs_1 = self.get_agent_obs()
+                                obs_2 = self.get_agent_obs(agent_1=False)
 
-                    prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, \
-                        prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, \
-                        reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
-                                prev_action_1, hq_1, obs_1,
-                                prev_action_2, hq_2, obs_2,
-                                sleep_time=sleep_time
-                            )
+                            prev_action_1, values_1, hp_1, hq_1, vision_is_1, touch_is_1, prop_is_1, command_voice_is_1, feedback_voice_is_1, \
+                                prev_action_2, values_2, hp_2, hq_2, vision_is_2, touch_is_2, prop_is_2, command_voice_is_2, feedback_voice_is_2, \
+                                reward, done, win, to_push_1, to_push_2 = self.step_in_episode(
+                                        prev_action_1, hq_1, obs_1,
+                                        prev_action_2, hq_2, obs_2,
+                                        sleep_time=sleep_time
+                                    )
 
-                    to_push_list_1.append(to_push_1)
-                    if done:
-                        break
+                            to_push_list_1.append(to_push_1)
+                            if done:
+                                break
 
-                self.processor.done()
-                processor_lens.append(step)
+                        self.processor.done()
+                        processor_lens.append(step)
 
-                # Push transitions (truncate at 30 steps)
-                for to_push in to_push_list_1:
-                    to_push.done = False
-                    total_steps += 1
-                    if total_steps >= 30:
-                        to_push.done = True
-                        to_push.push(temp_memory)
-                        break
-                    to_push.push(temp_memory)
+                        # Push transitions (truncate at 30 steps)
+                        for to_push in to_push_list_1:
+                            to_push.done = False
+                            total_steps += 1
+                            if total_steps >= 30:
+                                to_push.done = True
+                                to_push.push(temp_memory)
+                                break
+                            to_push.push(temp_memory)
 
-        # Retrieve processed batch
-        batch = self.get_batch(temp_memory, len(self.all_processors), random_sample=False)
-        vision, touch, prop, command_voice, feedback_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
+            # Retrieve processed batch
+            batch = self.get_batch(temp_memory, len(self.all_processors) * episodes_per_goal, random_sample=False)
+            vision, touch, prop, command_voice, feedback_voice, wheels_joints, voice_out, reward, done, mask, all_mask, episodes, steps = batch
 
-        # Forward pass to get priors/posteriors
-        hps, hqs, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is, pred_obs_p, pred_obs_q, labels, a, b, encoded_command = self.forward(
-            torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)),
-            Obs(vision, touch, prop, command_voice, feedback_voice),
-            Action(wheels_joints, voice_out)
-        )
+            # Forward pass to get priors/posteriors
+            hps, hqs, vision_is, touch_is, prop_is, command_voice_is, feedback_voice_is, pred_obs_p, pred_obs_q, labels, a, b, encoded_command = self.forward(
+                torch.zeros((episodes, 1, self.args.pvrnn_mtrnn_size)),
+                Obs(vision, touch, prop, command_voice, feedback_voice),
+                Action(wheels_joints, voice_out)
+            )
 
-        labels = labels.detach().cpu().numpy()
-        all_mask = all_mask.detach().cpu().numpy()
+            labels = labels.detach().cpu().numpy()
+            all_mask = all_mask.detach().cpu().numpy()
 
-        # Posterior z_q values
-        vision_zq = vision_is.zq.detach().cpu().numpy()
-        touch_zq = touch_is.zq.detach().cpu().numpy()
-        prop_zq = prop_is.zq.detach().cpu().numpy()
-        command_voice_zq = command_voice_is.zq.detach().cpu().numpy()
-        feedback_voice_zq = feedback_voice_is.zq.detach().cpu().numpy()
-        hq = hqs.detach().cpu().numpy()
-        a = a.detach().cpu().numpy()
-        b = b.detach().cpu().numpy()
-        encoded_command = encoded_command.detach().cpu().numpy()
-        
-        print("Labels:", labels.shape)
-        print("all_mask:", all_mask.shape)
-        print("hq:", hq.shape)
-        print("a:", labels.shape)
-        print("b:", labels.shape)
-        print("encoded_command:", labels.shape)
+            # Posterior z_q values
+            vision_zq = vision_is.zq.detach().cpu().numpy()
+            touch_zq = touch_is.zq.detach().cpu().numpy()
+            prop_zq = prop_is.zq.detach().cpu().numpy()
+            command_voice_zp = command_voice_is.zp.detach().cpu().numpy()
+            feedback_voice_zp = feedback_voice_is.zp.detach().cpu().numpy()
+            command_voice_zq = command_voice_is.zq.detach().cpu().numpy()
+            feedback_voice_zq = feedback_voice_is.zq.detach().cpu().numpy()
+            hq = hqs.detach().cpu().numpy()
+            a = a.detach().cpu().numpy()
+            b = b.detach().cpu().numpy()
+            encoded_command = encoded_command.detach().cpu().numpy()
+            
+            print("Labels:", labels.shape)
+            print("all_mask:", all_mask.shape)
+            print("hq:", hq.shape)
+            print("a:", labels.shape)
+            print("b:", labels.shape)
+            print("encoded_command:", labels.shape)
 
-        # Save into composition data
-        self.plot_dict['composition_data'][self.epochs] = {
-            'labels': labels,
-            'all_mask': all_mask,
-            'hq': hq,
-            'vision_zq': vision_zq,
-            'touch_zq': touch_zq,
-            'prop_zq': prop_zq,
-            'command_voice_zq': command_voice_zq,
-            'feedback_voice_zq': feedback_voice_zq,
-            'a' : a,
-            'b' : b,
-            'encoded_command' : encoded_command
-        }
+            # Save into composition data
+            self.plot_dict['composition_data'][self.epochs] = {
+                'labels': labels,
+                'all_mask': all_mask,
+                'hq': hq,
+                'vision_zq': vision_zq,
+                'touch_zq': touch_zq,
+                'prop_zq': prop_zq,
+                'command_voice_zp': command_voice_zp,
+                'feedback_voice_zp': feedback_voice_zp,
+                'command_voice_zq': command_voice_zq,
+                'feedback_voice_zq': feedback_voice_zq,
+                'a' : a,
+                'b' : b,
+                'encoded_command' : encoded_command
+            }
         
         
         
@@ -1158,25 +1203,24 @@ class Agent:
             return voice_loss, pred_voice
         
         command_voice_loss, pred_command_voice = compute_individual_voice_loss(
-            command_voice, pred_obs_q.command_voice, self.args.command_voice_scaler)
+            command_voice, pred_obs_q.command_voice, self.args.voice_scaler)
 
         feedback_voice_loss, pred_feedback_voice = compute_individual_voice_loss(
-            feedback_voice, pred_obs_q.feedback_voice, self.args.feedback_voice_scaler)
+            feedback_voice, pred_obs_q.feedback_voice, self.args.voice_scaler)
         
         accuracy = (vision_loss + touch_loss + prop_loss + command_voice_loss + feedback_voice_loss).mean()
         
         vision_complexity = vision_is.dkl.mean(-1).unsqueeze(-1) * all_mask
         touch_complexity = touch_is.dkl.mean(-1).unsqueeze(-1) * all_mask
         prop_complexity = prop_is.dkl.mean(-1).unsqueeze(-1) * all_mask
-        command_voice_complexity = command_voice_is.dkl.mean(-1).unsqueeze(-1) * all_mask
         feedback_voice_complexity = feedback_voice_is.dkl.mean(-1).unsqueeze(-1) * all_mask
+        command_voice_complexity = feedback_voice_complexity.detach() * 0
                 
         complexity = sum([
             self.args.beta_vision * vision_complexity.mean(),
             self.args.beta_touch * touch_complexity.mean(),
             self.args.beta_prop * prop_complexity.mean(),
-            self.args.beta_command_voice * command_voice_complexity.mean(),
-            self.args.beta_feedback_voice * feedback_voice_complexity.mean()])       
+            self.args.beta_voice * feedback_voice_complexity.mean()])       
                                 
         self.forward_opt.zero_grad()
         (accuracy + complexity).backward()
@@ -1187,7 +1231,6 @@ class Agent:
         vision_complexity = vision_complexity[:,1:]
         touch_complexity = touch_complexity[:,1:]
         prop_complexity = prop_complexity[:,1:]
-        command_voice_complexity = command_voice_complexity[:,1:]
         feedback_voice_complexity = feedback_voice_complexity[:,1:]
                                     
                         
@@ -1196,15 +1239,15 @@ class Agent:
         vision_prediction_error_curiosity           = self.args.prediction_error_eta_vision * vision_loss
         touch_prediction_error_curiosity            = self.args.prediction_error_eta_touch * touch_loss
         prop_prediction_error_curiosity             = self.args.prediction_error_eta_prop * prop_loss
-        command_voice_prediction_error_curiosity    = self.args.prediction_error_eta_command_voice * command_voice_loss
         feedback_voice_prediction_error_curiosity   = self.args.prediction_error_eta_feedback_voice * feedback_voice_loss
+        command_voice_prediction_error_curiosity    = feedback_voice_prediction_error_curiosity.detach() * 0
         prediction_error_curiosity                  = vision_prediction_error_curiosity + touch_prediction_error_curiosity + command_voice_prediction_error_curiosity + feedback_voice_prediction_error_curiosity
         
         vision_hidden_state_curiosity               = self.args.hidden_state_eta_vision * torch.clamp(vision_complexity, min = 0, max = self.args.dkl_max)  # Or tanh? sigmoid? Or just clamp?
         touch_hidden_state_curiosity                = self.args.hidden_state_eta_touch * torch.clamp(touch_complexity, min = 0, max = self.args.dkl_max)
         prop_hidden_state_curiosity                 = self.args.hidden_state_eta_prop * torch.clamp(prop_complexity, min = 0, max = self.args.dkl_max)
-        command_voice_hidden_state_curiosity        = self.args.hidden_state_eta_command_voice * torch.clamp(command_voice_complexity, min = 0, max = self.args.dkl_max)
         feedback_voice_hidden_state_curiosity       = self.args.hidden_state_eta_feedback_voice * torch.clamp(feedback_voice_complexity, min = 0, max = self.args.dkl_max) * self.hidden_state_eta_feedback_voice_reduction
+        command_voice_hidden_state_curiosity        = feedback_voice_hidden_state_curiosity.detach() * 0
         hidden_state_curiosity                      = vision_hidden_state_curiosity + touch_hidden_state_curiosity + prop_hidden_state_curiosity + command_voice_hidden_state_curiosity + feedback_voice_hidden_state_curiosity
         
         if self.args.curiosity == "prediction_error":  
@@ -1369,7 +1412,8 @@ class Agent:
             self.plot_dict["prop_loss"].append(prop_loss)
             self.plot_dict["command_voice_loss"].append(command_voice_loss)
             self.plot_dict["feedback_voice_loss"].append(feedback_voice_loss)
-            self.plot_dict["complexity_loss"].append(complexity)                                                                             
+            self.plot_dict["complexity_loss"].append(complexity)  
+            self.plot_dict["alpha"].append(self.alpha.detach())                                                                 
             self.plot_dict["alpha_loss"].append(alpha_loss)
             self.plot_dict["alpha_text_loss"].append(alpha_text_loss)
             self.plot_dict["actor_loss"].append(actor_loss)
@@ -1453,56 +1497,39 @@ class Agent:
         
     
     def save_agent(self):
-        """
-        Save the agent object to a file (excluding plot_dict and memory to reduce size).
-        """
         if not self.args.local:
             self.sizeof_plot_dict()
             plot_dict_backup = self.plot_dict
             memory_backup = self.memory
-            self.plot_dict = None
-            self.memory = None
-
-            save_path = f'{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz'
-            with gzip.open(save_path, 'wb') as f:
+            self.plot_dict = self.empty_plot_dict
+            self.memory = RecurrentReplayBuffer(self.args)
+            save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz"
+            with gzip.open(save_path, "wb") as f:
                 pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
-
             self.plot_dict = plot_dict_backup
             self.memory = memory_backup
-          
+                
     def load_agent(self, load_path):
-        """
-        Load model weights from a saved agent file.
-        """
-        with gzip.open(load_path, 'rb') as f:
+        with gzip.open(load_path, "rb") as f:
             state_dict = torch.load(f)
         self.load_state_dict(state_dict)
                 
     def state_dict(self):
-        """
-        Return state dicts for all learnable components.
-        """
         to_return = [self.forward.state_dict(), self.actor.state_dict()]
         for i in range(self.args.critics):
             to_return.append(self.critics[i].state_dict())
             to_return.append(self.critic_targets[i].state_dict())
-        return to_return
+        return(to_return)
 
     def load_state_dict(self, state_dict):
-        """
-        Load state dicts into forward model, actor, and critics.
-        """
-        self.forward.load_state_dict(state_dict=state_dict[0])
-        self.actor.load_state_dict(state_dict=state_dict[1])
+        self.forward.load_state_dict(state_dict = state_dict[0])
+        self.actor.load_state_dict(state_dict = state_dict[1])
         for i in range(self.args.critics):
-            self.critics[i].load_state_dict(state_dict=state_dict[2 + 2 * i])
-            self.critic_targets[i].load_state_dict(state_dict=state_dict[3 + 2 * i])
+            self.critics[i].load_state_dict(state_dict = state_dict[2+2*i])
+            self.critic_targets[i].load_state_dict(state_dict = state_dict[3+2*i])
         self.memory = RecurrentReplayBuffer(self.args)
 
     def eval(self):
-        """
-        Set all models to evaluation mode.
-        """
         self.forward.eval()
         self.actor.eval()
         for i in range(self.args.critics):
@@ -1510,9 +1537,6 @@ class Agent:
             self.critic_targets[i].eval()
 
     def train(self):
-        """
-        Set all models to training mode.
-        """
         self.forward.train()
         self.actor.train()
         for i in range(self.args.critics):

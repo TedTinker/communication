@@ -16,6 +16,7 @@ import torch.nn.functional as F
 import plotly.graph_objects as go
 from plotly.colors import sample_colorscale
 from collections import defaultdict
+import pickle
 
 from sklearn.preprocessing import StandardScaler
 from scipy.spatial import procrustes
@@ -96,8 +97,8 @@ GOAL_HIGHLIGHTS = [
     ('BE NEAR', 'GREEN', 'POLE'),
 ]
 
-skip_these_labels = [(1, 4, 0), (2, 1, 1)] +  testing_combos_3
-dont_plot_these_labels = testing_combos_3
+skip_these_labels = [] # [(1, 4, 0), (2, 1, 1)] +  testing_combos_3
+#dont_plot_these_labels = testing_combos_3
 
 
 
@@ -110,7 +111,7 @@ color_size = 120
 shape_size = .4
 fontsize = 10
 
-max_agent_num = 99
+max_agent_num = 0
 
     
     
@@ -156,7 +157,7 @@ meta_data_dict = {}
 
 def get_all_data(plot_dict, component):
     args = plot_dict['args']
-    print(f'Getting {args.arg_name}'s {component} data...')
+    print(f'Getting {args.arg_name}\'s {component} data...')
     
     # Iterate over agents.
     print('HOW MUCH DATA:', len(plot_dict['composition_data']))
@@ -198,7 +199,7 @@ meta_reducer_dict = {}
 
 def make_all_reducers(plot_dict, component, these_epochs):
     args = plot_dict['args']
-    print(f'Making {args.arg_name}'s {component} reducers...')
+    print(f'Making {args.arg_name}\'s {component} reducers...')
     
     # Iterate over agents.
     for agent_num, values_for_composition in enumerate(plot_dict['composition_data']):
@@ -235,7 +236,7 @@ def make_reducer(data_dict):
     # Iterate over three combinations of goal-parts.
     for classes in [('task', 'color'), ('task', 'shape'), ('color', 'shape')]:
 
-        seed = 2222
+        seed = 1111
         set_seed(seed)
         scaler = StandardScaler()
         labels = data_dict['labels']        # shape [N,3]
@@ -303,7 +304,7 @@ meta_aligned_data_dict = {}
 # For all analysed epochs, find compositionality of all data combinations.
 def make_all_aligned_data(plot_dict, component):
     args = plot_dict['args']
-    print(f'Aligning {args.arg_name}'s {component} data...')
+    print(f'Aligning {args.arg_name}\'s {component} data...')
     
     # Iterate over agents.
     for agent_num, values_for_composition in enumerate(plot_dict['composition_data']):
@@ -354,7 +355,7 @@ def align_data(reduced_data_dict_1, reduced_data_dict_2):
 # Make frames between two recorded epochs, to make a smooth video.
 def smooth_plots(plot_dict, component, anchor_epochs, smooth_frames):
     args = plot_dict['args']
-    print(f'Plotting {args.arg_name}'s {component} data...')
+    print(f'Plotting {args.arg_name}\'s {component} data...')
     
     for agent_num, values_for_composition in enumerate(plot_dict['composition_data']):
         if(values_for_composition == {} or agent_num > max_agent_num):
@@ -388,30 +389,123 @@ def smooth_plots(plot_dict, component, anchor_epochs, smooth_frames):
     
 
 # Plot the components of all pairs of tasks/colors/shapes, with legend.
+def plot_marginal(ax, start_aligned_data, stop_aligned_data, fraction_of_start, average_over):
+    """
+    Like plot_all_attributes but collapses one attribute by averaging coordinates.
+    average_over: 'task', 'color', or 'shape'
+    """
+    print(f'\t\t\t\tMarginal plot averaging over {average_over}...')
+
+    classes_key = ('task', 'shape')
+    f0 = fraction_of_start
+    f1 = 1.0 - f0
+
+    if stop_aligned_data is None:
+        stop_aligned_data = start_aligned_data
+
+    coords = f0 * start_aligned_data[classes_key] + f1 * stop_aligned_data[classes_key]
+
+    tasks  = start_aligned_data['tasks']
+    colors = start_aligned_data['colors']
+    shapes = start_aligned_data['shapes']
+
+    # Build groups keyed by the two attributes we're NOT averaging over.
+    grouped = defaultdict(list)
+    for t, c, s, (x, y) in zip(tasks, colors, shapes, coords):
+        #if (t, c, s) in dont_plot_these_labels:
+        #    continue
+        if average_over == 'task':
+            key = (c, s)
+        elif average_over == 'color':
+            key = (t, s)
+        else:  # average_over == 'shape'
+            key = (t, c)
+        grouped[key].append((x, y, t, c, s))
+
+    xs_for_min_max, ys_for_min_max = [], []
+    for key, pts in grouped.items():
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        x, y = sum(xs)/len(xs), sum(ys)/len(ys)
+        xs_for_min_max.append(x); ys_for_min_max.append(y)
+
+        # Decode names from the first point (all share the non-averaged attributes).
+        t, c, s = pts[0][2], pts[0][3], pts[0][4]
+        task_name  = task_map[t].name
+        color_name = color_map[c].name
+        shape_name = shape_map[s].name
+
+        # Draw shape icon — omit if averaging over shape.
+        if average_over != 'shape':
+            icon_color = color_name if average_over != 'color' else 'BLACK'
+            colored_marker = shape_mapping_colored_marker[shape_name][icon_color]
+            imagebox = OffsetImage(colored_marker, zoom=shape_size)
+            ab = AnnotationBbox(imagebox, (x, y), frameon=False, alpha=0.4, zorder=1)
+            ax.add_artist(ab)
+
+        # Draw task letter — omit if averaging over task.
+        if average_over != 'task':
+            letter = task_mapping_letter[task_name]
+            text_color_val = color_mapping_color[color_name] if average_over != 'color' else '#000000'
+            ax.scatter(x, y,
+                       color=text_color_val,
+                       marker=f'${letter}$',
+                       alpha=1.0,
+                       s=letter_w_size if letter == 'W' else letter_size,
+                       edgecolor='none',
+                       zorder=2)
+
+    if xs_for_min_max and ys_for_min_max:
+        min_x, max_x = min(xs_for_min_max), max(xs_for_min_max)
+        min_y, max_y = min(ys_for_min_max), max(ys_for_min_max)
+        pad = 0.10
+        xr, yr = (max_x - min_x), (max_y - min_y)
+        ax.set_xlim([min_x - xr*pad, max_x + xr*pad])
+        ax.set_ylim([min_y - yr*pad, max_y + yr*pad])
+
+    title_map = {
+        'task':  'Color × Shape (averaged over task)',
+        'color': 'Task × Shape (averaged over color)',
+        'shape': 'Task × Color (averaged over shape)',
+    }
+    ax.set_title(title_map[average_over])
+    ax.set_xlabel('Component 1')
+    ax.set_ylabel('Component 2')
+    ax.set_xticks([]); ax.set_yticks([])
+    ax.set_xticklabels([]); ax.set_yticklabels([])
+    ax.grid(False)
+    
+    
+    
 def plot_one(start_aligned_data, stop_aligned_data, fraction_of_start,
              component, data_epochs, smooth_frame, agent_num, anchor_epochs, arg_name):
+
+    # --- Original: all attributes ---
     print(f'\t\t\tPlot {data_epochs}.{smooth_frame} of component {component} for agent {agent_num} (ALL ATTRIBUTES)...')
-
-    fig, ax = plt.subplots(
-        1, 1,
-        figsize=(7, 6),
-        dpi=dpi,
-        constrained_layout=True
-    )
-
+    fig, ax = plt.subplots(1, 1, figsize=(7, 6), dpi=dpi, constrained_layout=True)
     plt.suptitle(
         f'Compositionality with {arg_name}\n'
         f'Agent {agent_num} • epoch {data_epochs} • frame {smooth_frame} • {component}',
-        fontsize=14
-    )
-
+        fontsize=14)
     plot_all_attributes(ax, start_aligned_data, stop_aligned_data, fraction_of_start)
-
     outdir = f'thesis_pics/composition/{arg_name}/agent_{agent_num}/{component}_all'
     os.makedirs(outdir, exist_ok=True)
-    plt.savefig(f'{outdir}/data_{str(data_epochs).zfill(6)}.{str(smooth_frame).zfill(3)}.png',
-                bbox_inches='tight')
+    plt.savefig(f'{outdir}/data_{str(data_epochs).zfill(6)}.{str(smooth_frame).zfill(3)}.png', bbox_inches='tight')
     plt.close()
+
+    # --- Marginal plots ---
+    for average_over in ['task', 'color', 'shape']:
+        print(f'\t\t\tPlot {data_epochs}.{smooth_frame} • averaging over {average_over}...')
+        fig, ax = plt.subplots(1, 1, figsize=(7, 6), dpi=dpi, constrained_layout=True)
+        plt.suptitle(
+            f'Compositionality with {arg_name}\n'
+            f'Agent {agent_num} • epoch {data_epochs} • frame {smooth_frame} • {component}',
+            fontsize=14)
+        plot_marginal(ax, start_aligned_data, stop_aligned_data, fraction_of_start, average_over=average_over)
+        outdir = f'thesis_pics/composition/{arg_name}/agent_{agent_num}/{component}_avg_{average_over}'
+        os.makedirs(outdir, exist_ok=True)
+        plt.savefig(f'{outdir}/data_{str(data_epochs).zfill(6)}.{str(smooth_frame).zfill(3)}.png', bbox_inches='tight')
+        plt.close()
         
         
         
@@ -443,8 +537,8 @@ def plot_all_attributes(ax, start_aligned_data, stop_aligned_data, fraction_of_s
     from collections import defaultdict
     grouped = defaultdict(list)
     for t, c, s, (x, y) in zip(tasks, colors, shapes, coords):
-        if (t, c, s) in dont_plot_these_labels:
-            continue
+        #if (t, c, s) in dont_plot_these_labels:
+        #    continue
         grouped[(t, c, s)].append((x, y))
 
     xs_for_min_max, ys_for_min_max = [], []
@@ -514,8 +608,9 @@ plot_dicts, min_max_dict, complete_order = load_dicts(args)
 
 for plot_dict in plot_dicts:
     for component in [
-        'hq', 
+        'hq', 'vision_zq', 'encoded_command'
         ]:
+        print(f"\n\nHERE! {plot_dict.keys()} \n\n{plot_dict['composition_data'][0].keys()}\n\n")
         get_all_data(
             plot_dict = plot_dict, 
             component = component)
@@ -533,6 +628,7 @@ for plot_dict in plot_dicts:
             plot_dict = plot_dict, 
             component = component, 
             anchor_epochs = these_epochs[-1], 
-            smooth_frames = 3)
+            smooth_frames = 1)
+        
 print(f'\nDuration: {duration()}. Done!')
 # %%

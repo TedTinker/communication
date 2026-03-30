@@ -21,16 +21,16 @@ from agent import Agent
 set_goal = None
 
 # Change these to the agent you would like to test
-hyper_parameters = 'e_q2_lstm_watch_be_near_push_forward'
+hyper_parameters = 'ef_keys_q1_7'
 agent_num = '0001'
-epochs = '060000'
+epochs = '030000'
 saved_file = 'saved_deigo'
 
 print('\n\nLoading default agent...', end = ' ')
 
 load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pkl.gz'
-with gzip.open(load_path, 'rb') as f:
-    agent = pickle.load(f)
+with gzip.open(load_path, "rb") as f:
+    agent = pickle.load(f) 
 
 agent.start_physics(GUI = True)
 
@@ -46,19 +46,23 @@ print('Ready to go!')
 #  SWAP AGENT + PROPAGATE ARGS
 # -------------------------------
 
-"""hyper_parameters = 'e_q2'
+hyper_parameters = 'efq_keys_2'
 agent_num = '0001'
-epochs = '010000'
+epochs = '060000'
 saved_file = 'saved_deigo'
 
 def change_agent(hyper_parameters, agent_num, epochs, saved_file = 'saved_deigo'):
     print('\n\nLoading new agent...', end = ' ')
     load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pkl.gz'
-    with gzip.open(load_path, 'rb') as f:
-        new_agent = pickle.load(f)
 
-    agent.load_state_dict(new_agent.state_dict())
-    change_args(new_agent)
+    load_path = f'{saved_file}/{hyper_parameters}/agents/args.pickle'
+    with open(load_path, 'rb') as f:
+        new_args = pickle.load(f)
+        
+    load_path = f'{saved_file}/{hyper_parameters}/agents/agent_{agent_num}_epoch_{epochs}.pkl.gz'
+    with gzip.open(load_path, 'rb') as f:
+        state_dict = pickle.load(f)()
+    change_args(new_args)
 
     global episodes, wins
     episodes = 0
@@ -67,28 +71,17 @@ def change_agent(hyper_parameters, agent_num, epochs, saved_file = 'saved_deigo'
 
 
 # Some arguments are only relevant in the arena or processor
-def change_args(new_agent):
-    args = new_agent.args
-    agent.args = args
+def change_args(new_args):
+    agent.args = new_args
 
-    agent.arena_1.args = args
+    agent.arena_1.args = new_args
     agent.arena_1.change_physicsClient()
 
-    agent.arena_2.args = args
+    agent.arena_2.args = new_args
     agent.arena_2.change_physicsClient()
 
-    for processor in new_agent.processors.values():
-        processor.args = args
-        processor.arena_1.args = args
-        processor.arena_2.args = args
 
-    for processor in new_agent.all_processors.values():
-        processor.args = args
-        processor.arena_1.args = args
-        processor.arena_2.args = args
-
-
-change_agent(hyper_parameters, agent_num, epochs)"""
+change_agent(hyper_parameters, agent_num, epochs)
 
 
 
@@ -97,7 +90,7 @@ change_agent(hyper_parameters, agent_num, epochs)"""
 #  DEFINE SPECIFIC GOAL
 # -------------------------------
 
-"""set_goal = make_objects_and_task(
+set_goal = make_objects_and_task(
     num_objects = agent.processors['all'].objects,
     allowed_tasks_and_weights = agent.processors['all'].tasks_and_weights,
     allowed_colors = agent.processors['all'].colors,
@@ -112,7 +105,7 @@ print(set_goal[0].name)
 print(set_goal[1][0][0].name)
 print(set_goal[1][0][1].name)
 print(set_goal[1][1][0].name)
-print(set_goal[1][1][1].name)"""
+print(set_goal[1][1][1].name)
 
 
 
@@ -150,7 +143,7 @@ agent.processors = {
         agent.args,
         agent.arena_1,
         agent.arena_2,
-        tasks_and_weights = [(2, 1)],     
+        tasks_and_weights = [(1, 1)],     
         objects = 2,
         colors = [0, 1, 2, 3, 4, 5],
         shapes = [0, 1, 2, 3, 4],
@@ -163,15 +156,15 @@ agent.processor_name = 0
 episodes += 1
 
 win = agent.save_episodes(
-    test = True,                    # Use training or test objects?
+    test = False,                    # Use training or test objects?
     verbose = False,                # Print extra info?
     display = False,                # Full plotting of model internals
-    video_display = False,           # Plot observation video
+    video_display = True,           # Plot observation video
     sleep_time = 0.25,              # Delay per step
     waiting = False,                # Wait for user input per step?
     user_action = False,            # Manual control?
     dreaming = False,               # Run hallucinated?
-    set_positions = ([0, 5], [0, -5]),  # Object positions
+    set_positions = None, #([0, 5], [0, -5]),  # Object positions
     set_goal = set_goal             # Specific goal
 )
 

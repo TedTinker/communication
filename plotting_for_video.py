@@ -60,10 +60,22 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
     predicted_feedback_shape = posterior_feedback_voice.shape.name
 
     # --- DKL Curiosity values ---
-    visual_curiosity = [0] + [c * args.hidden_state_eta_vision for c in episode_dict[f'vision_dkl_{agent_num}'][:step]]
-    touch_curiosity = [0] + [c * args.hidden_state_eta_touch for c in episode_dict[f'touch_dkl_{agent_num}'][:step]]
-    prop_curiosity = [0] + [c * args.hidden_state_eta_prop for c in episode_dict[f'prop_dkl_{agent_num}'][:step]]
-    feedback_voice_curiosity = [0] + [c * args.hidden_state_eta_feedback_voice for c in episode_dict[f'feedback_voice_dkl_{agent_num}'][:step]]
+    #visual_curiosity = [0] + [c * args.hidden_state_eta_vision for c in episode_dict[f'vision_is_{agent_num}'.dkl.sum().item()][:step]]
+    #touch_curiosity = [0] + [c * args.hidden_state_eta_touch for c in episode_dict[f'touch_is_{agent_num}'.dkl.sum().item()][:step]]
+    #prop_curiosity = [0] + [c * args.hidden_state_eta_prop for c in episode_dict[f'prop_is_{agent_num}'.dkl.sum().item()][:step]]
+    #feedback_voice_curiosity = [0] + [c * args.hidden_state_eta_feedback_voice for c in episode_dict[f'feedback_voice_is_{agent_num}'.dkl.sum().item()][:step]]
+    
+    # --- Latent values ---
+    latent_state_num = 3
+    voice_posterior = []
+    hq = []
+    for i in range(latent_state_num):
+        voice_posterior += [[0] + [c.zp[0,i].item() for c in episode_dict[f'command_voice_is_{agent_num}'][:step]]]
+        hq += [[0] + [hq[0,i].item() for hq in episode_dict[f'hq_{agent_num}'][:step]]]
+    all_values = [v for sublist in voice_posterior for v in sublist] + \
+                [v for sublist in hq for v in sublist]
+    min_val = min(all_values)
+    max_val = max(all_values)
 
     # --- Figure setup ---
     dpi = 100
@@ -120,18 +132,20 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
                   ha='left', va='center', fontsize=fontsize)
             
     # --- Curiosity Plots ---
-    all_curiosities = visual_curiosity + touch_curiosity + prop_curiosity + feedback_voice_curiosity
-    if not all_curiosities:
-        all_curiosities = [0]
-    min_curi = min(all_curiosities) * 0.9
-    max_curi = max(all_curiosities) * 1.1
+    #all_curiosities = visual_curiosity + touch_curiosity + prop_curiosity + feedback_voice_curiosity
+    #if not all_curiosities:
+    #    all_curiosities = [0]
+    #min_curi = min(all_curiosities) * 0.9
+    #max_curi = max(all_curiosities) * 1.1
 
     plot_height = 0.07
     base_bottom = -0.30
-    curiosity_titles = ['Vision Curiosity', 'Touch Curiosity', 'Proprioception Curiosity', 'Feedback Voice Curiosity']
-    curiosity_data = [visual_curiosity, touch_curiosity, prop_curiosity, feedback_voice_curiosity]
+    #curiosity_titles = ['Vision Curiosity', 'Touch Curiosity', 'Proprioception Curiosity', 'Feedback Voice Curiosity']
+    #curiosity_data = [visual_curiosity, touch_curiosity, prop_curiosity, feedback_voice_curiosity]
+    latent_titles = ['voice_posterior', 'hq']
+    latent_data = [voice_posterior, hq]
 
-    for idx, (title, data) in enumerate(zip(curiosity_titles, curiosity_data)):
+    """for idx, (title, data) in enumerate(zip(curiosity_titles, curiosity_data)):
         bottom_pos = base_bottom - idx * (plot_height + 0.03)
         ax = fig.add_axes([0.1, bottom_pos, 0.8, plot_height])
         if len(data) > 1:
@@ -139,6 +153,25 @@ def plot_video_step(step, episode_dict, agent_1=True, last_step=False, saving=Tr
         elif len(data) == 1:
             ax.plot([0], data, marker='o', markersize=6, color='black')
         ax.set_xlim([0, step])
+        ax.set_yticks([])
+        ax.set_xticks([])
+        ax.set_title(title, fontsize=10)
+        ax.patch.set_alpha(0)
+        for spine in ax.spines.values():
+            spine.set_edgecolor('gray')
+            spine.set_linewidth(1)"""
+            
+    for idx, (title, data) in enumerate(zip(latent_titles, latent_data)):
+        bottom_pos = base_bottom - idx * (plot_height + 0.03)
+        ax = fig.add_axes([0.1, bottom_pos, 0.8, plot_height])
+        if len(data) > 1:
+            for i in range(latent_state_num):
+                ax.plot(data[i], linewidth=2)
+        elif len(data) == 1:
+            for i in range(latent_state_num):
+                ax.plot([0], data, marker='o', markersize=6, color='black')
+        ax.set_xlim([0, step])
+        ax.set_ylim([min_val, max_val])
         ax.set_yticks([])
         ax.set_xticks([])
         ax.set_title(title, fontsize=10)

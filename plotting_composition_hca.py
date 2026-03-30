@@ -116,13 +116,13 @@ shape_mapping_marker = {
     'HOURGLASS':        mpimg.imread('pybullet_data/shapes/hourglass.png')}   
 
 dpi = 400  
-letter_size = 120
-letter_w_size = 200
-shape_size = .6
+letter_size = 550
+letter_w_size = 600
+shape_size = 1.2
 test_size = 120
 color_size = 120
-shape_size = .4
-fontsize = 10
+fontsize = 20
+step_y_scaler = 0.2
 
 max_agent_num = 1
 
@@ -367,7 +367,7 @@ def plot(component, data_epochs, agent_num, arg_name, K, max_labels_per_cluster=
 
     fig, axes = plt.subplots(
         1, 2,
-        figsize=(16, 8),
+        figsize=(16, 16),
         dpi=dpi,
         constrained_layout=True,
         gridspec_kw={'width_ratios': [4, 1]}
@@ -448,7 +448,7 @@ def plot(component, data_epochs, agent_num, arg_name, K, max_labels_per_cluster=
 
     y_min, y_max = ax_tree.get_ylim()
     base_y = -0.06 * y_max
-    step_y = -0.04 * y_max  # vertical spacing
+    step_y = -step_y_scaler * y_max  # vertical spacing
 
     max_cluster_size_seen = 0
 
@@ -639,12 +639,16 @@ def plot(component, data_epochs, agent_num, arg_name, K, max_labels_per_cluster=
         
     
 # Iterate over components, etc.
-these_epochs = [i for i in range(0, 120001, 10000)]
-K = 50
+these_epochs = [i for i in range(0, 60001, 10000)]
+K = 15
 plot_dicts, min_max_dict, complete_order = load_dicts(args)
 
-component = 'command_voice_zq'
-label_averaging_tuple = ('task', 'color', 'shape')
+component = 'hq'
+label_averaging_tuple = (
+    'task',
+    'color',
+    'shape',
+    )
 for plot_dict in plot_dicts:
 
     get_all_data(

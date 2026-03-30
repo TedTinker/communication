@@ -1083,64 +1083,44 @@ class Agent:
         
     
     def save_agent(self):
-        """
-        Save the agent object to a file (excluding plot_dict and memory to reduce size).
-        """
         if not self.args.local:
             self.sizeof_plot_dict()
             plot_dict_backup = self.plot_dict
             memory_backup = self.memory
-            self.plot_dict = None
-            self.memory = None
-
-            save_path = f'{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz'
-            with gzip.open(save_path, 'wb') as f:
+            self.plot_dict = self.empty_plot_dict
+            self.memory = RecurrentReplayBuffer(self.args)
+            save_path = f"{folder}/agents/agent_{str(self.agent_num).zfill(4)}_epoch_{str(self.epochs).zfill(6)}.pkl.gz"
+            with gzip.open(save_path, "wb") as f:
                 pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
-
             self.plot_dict = plot_dict_backup
             self.memory = memory_backup
-          
+                
     def load_agent(self, load_path):
-        """
-        Load model weights from a saved agent file.
-        """
-        with gzip.open(load_path, 'rb') as f:
+        with gzip.open(load_path, "rb") as f:
             state_dict = torch.load(f)
         self.load_state_dict(state_dict)
                 
     def state_dict(self):
-        """
-        Return state dicts for all learnable components.
-        """
         to_return = [self.actor.state_dict()]
         for i in range(self.args.critics):
             to_return.append(self.critics[i].state_dict())
             to_return.append(self.critic_targets[i].state_dict())
-        return to_return
+        return(to_return)
 
     def load_state_dict(self, state_dict):
-        """
-        Load state dicts into actor and critics.
-        """
-        self.actor.load_state_dict(state_dict=state_dict[0])
+        self.actor.load_state_dict(state_dict = state_dict[0])
         for i in range(self.args.critics):
-            self.critics[i].load_state_dict(state_dict=state_dict[1 + 2 * i])
-            self.critic_targets[i].load_state_dict(state_dict=state_dict[2 + 2 * i])
+            self.critics[i].load_state_dict(state_dict = state_dict[1+2*i])
+            self.critic_targets[i].load_state_dict(state_dict = state_dict[2+2*i])
         self.memory = RecurrentReplayBuffer(self.args)
 
     def eval(self):
-        """
-        Set all models to evaluation mode.
-        """
         self.actor.eval()
         for i in range(self.args.critics):
             self.critics[i].eval()
             self.critic_targets[i].eval()
 
     def train(self):
-        """
-        Set all models to training mode.
-        """
         self.actor.train()
         for i in range(self.args.critics):
             self.critics[i].train()

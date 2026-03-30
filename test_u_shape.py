@@ -30,7 +30,8 @@ from utils import load_dicts, rolling_average
 rolling_window = 10000
 
 # Assuming the arguments contains two arg_names: one for exceptions, one for pseudo-exceptions, in that order.
-plot_dicts, min_max_dict, complete_order = load_dicts({'titles' : ['ef_q4t_1_old', 'ef_q4t_2_old']})
+plot_dicts, min_max_dict, complete_order = load_dicts({'titles' : ['ef_keys_exceptions_q1_10', 'ef_keys_pseudoexceptions_q2_1']})
+# 11, 13, 15, 17, 19
 
 print('Getting results with exceptions...')
 exceptions_dict = plot_dicts[0]
@@ -44,10 +45,6 @@ pseudo_exceptions = [rolling_average(wins, window_size=rolling_window) for wins 
 print('\nGot results!')
 
 # So, we have two lists. Both lists have a list for each agent, showing rolling-average win-rates with exceptions.
-
-
-
-print('\nGot results!')
 
 #%%
 
